@@ -139,7 +139,7 @@
 
 <h1>FAQ</h1>
 
-<h3>Got questions? Check out the <a href="https://metrolist.cc/#faq">FAQ page</a> for answers to the most common ones.</h3>
+<h3>Got questions? Check out the <a href="https://sachitmusic.cc/#faq">FAQ page</a> for answers to the most common ones.</h3>
 
 </div>
 
