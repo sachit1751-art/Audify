@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.metrolist.innertube"
+    namespace = "com.sachit.innertube"
     compileSdk = 37
 
     defaultConfig {

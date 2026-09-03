@@ -2,16 +2,16 @@
 
 This is a hotfix release to fix borked lyrics and media controller. We apologize for the inconvenience.  
 
-~ MetrolistGroup
+~ sachit1751-art
 
 ---v13.6.2
-# THE FUTURE OF METROLIST
-Metrolist KMP is almost ready. We are ironing out the remaining bugs and preparing for release, but it is still at least a couple of weeks away.
+# THE FUTURE OF SACHIT MUSIC
+Sachit Music KMP is almost ready. We are ironing out the remaining bugs and preparing for release, but it is still at least a couple of weeks away.
 
 # Major changes
 - Fixed playback issues caused by changes that also broke official apps (@nyxiereal)
 - Fixed playlist sync duplication and out-of-memory crashes (@kairosci)
-- Improved automatic player configuration updates for future YouTube changes (@mostafaalagamy @nyxiereal)
+- Improved automatic player configuration updates for future YouTube changes (@sachit1751-art @nyxiereal)
 
 ## Notable new features
 - Added handling for KMP updates and migrations (@nyxiereal)
@@ -29,40 +29,40 @@ Metrolist KMP is almost ready. We are ironing out the remaining bugs and prepari
 - Updated dependencies (@nyxiereal)
 
 ## New Contributors
-* @SimoneFelici made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/4102
-* @arpitagarwal1301 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/4178
+* @SimoneFelici made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/4102
+* @arpitagarwal1301 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/4178
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.6.1...v13.6.2
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.6.1...v13.6.2
 
 ---v13.6.1
-# THE FUTURE OF METROLIST
-The new Kotlin Multiplatform version of Metrolist is now in a good state, and we are aiming to release it within the next month. Until then, the current app will remain in maintenance mode and receive bug fixes and minor improvements.
+# THE FUTURE OF SACHIT MUSIC
+The new Kotlin Multiplatform version of Sachit Music is now in a good state, and we are aiming to release it within the next month. Until then, the current app will remain in maintenance mode and receive bug fixes and minor improvements.
 
 # Major changes
-- Improved playback reliability and recovery from YouTube player failures (@alltechdev @JASK625 @kairosci @mostafaalagamy @nyxiereal)
-- Fixed black screens, startup crashes, and playback freezes (@kairosci @mostafaalagamy @nyxiereal)
+- Improved playback reliability and recovery from YouTube player failures (@alltechdev @JASK625 @kairosci @sachit1751-art @nyxiereal)
+- Fixed black screens, startup crashes, and playback freezes (@kairosci @sachit1751-art @nyxiereal)
 - Improved Listen Together synchronization (@nyxiereal)
 
 ## Notable new features
-- Added refreshed branding and an optional dynamic app icon (@mostafaalagamy)
+- Added refreshed branding and an optional dynamic app icon (@sachit1751-art)
 - Added predictive back support and improved landscape scaling (@HansHolz09 @kairosci)
 
 ## Other improvements
-- Fixed login, logout, and backup restoration issues (@mostafaalagamy @kairosci @nyxiereal)
-- Fixed incorrect artist names, song durations, podcast metadata, and missing artwork (@alltechdev @kairosci @mostafaalagamy @nyxiereal)
+- Fixed login, logout, and backup restoration issues (@sachit1751-art @kairosci @nyxiereal)
+- Fixed incorrect artist names, song durations, podcast metadata, and missing artwork (@alltechdev @kairosci @sachit1751-art @nyxiereal)
 - Fixed Android Auto freezes and playback delays (@kairosci)
-- Fixed foreground service ANRs and multiple other crashes (@kairosci @mostafaalagamy)
-- Fixed sleep timer crashes and restored saved defaults (@johannesbrauer @mostafaalagamy)
-- Improved library sync performance and YouTube player compatibility (@mostafaalagamy @nyxiereal)
+- Fixed foreground service ANRs and multiple other crashes (@kairosci @sachit1751-art)
+- Fixed sleep timer crashes and restored saved defaults (@johannesbrauer @sachit1751-art)
+- Improved library sync performance and YouTube player compatibility (@sachit1751-art @nyxiereal)
 
 ## New Contributors
-* @HansHolz09 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3837
+* @HansHolz09 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3837
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.6.0...v13.6.1
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.6.0...v13.6.1
 
 ---v13.5.0
 # MAINTENANCE MODE
-Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
+Sachit Music is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
 
 # Major changes
 - Rewrote the Discord RPC integration again (@adrielGGmotion @nyxiereal)
@@ -84,12 +84,12 @@ Metrolist is currently in maintenance mode. This means we will only be fixing bu
 - Fixed history sync not working (@kairosci)
 
 ## New Contributors
-- @DanielSchmerber made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3777
-- @Arjuanto made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3780
+- @DanielSchmerber made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3777
+- @Arjuanto made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3780
 
 ---v13.4.3
 # MAINTENANCE MODE
-Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
+Sachit Music is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
 
 # Major changes
 - Rewrote the Discord RPC integration (@adrielGGmotion)
@@ -111,11 +111,11 @@ Metrolist is currently in maintenance mode. This means we will only be fixing bu
 - Multiple smaller improvements by @kairosci <3
 
 ## New Contributors
-- @Jeff0945 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3358
+- @Jeff0945 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3358
 
 ---v13.4.2
 # MAINTENANCE MODE
-Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
+Sachit Music is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
 
 # Major changes
 - Fixed random crashes and some memory leaks (@nyxiereal)
@@ -137,17 +137,17 @@ Metrolist is currently in maintenance mode. This means we will only be fixing bu
 - Improved the Android Auto icon (@ThatOneCalculator)
 
 ## New Contributors
-- @ndellagrotte made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3487
-- @cmeka made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3534
-- @punkscience made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3517
+- @ndellagrotte made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3487
+- @cmeka made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3534
+- @punkscience made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3517
 
 ---v13.4.1
 # MAINTENANCE MODE
-Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
+Sachit Music is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
 
 # Major changes
 - Fixed cached songs showing up in the downloads playlist (@nyxiereal)
-- Fixed multiple playback issues and prepared for YouTube's player changes (@mostafaalagamy @nyxiereal)
+- Fixed multiple playback issues and prepared for YouTube's player changes (@sachit1751-art @nyxiereal)
 
 ## Notable new features
 - Added the ability to paste URLs to the search to play them directly (@nyxiereal)
@@ -173,21 +173,21 @@ Metrolist is currently in maintenance mode. This means we will only be fixing bu
 - Fixed pause music on task clear not working (@nyxiereal)
 
 ## New Contributors
-* @ibratabian17 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3474
-* @sasha-melech made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3301
-* @FireLion137 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3500
-* @binimum made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3493
-* @stopper2408 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3506
-* @SunjeetKajla made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3505
+* @ibratabian17 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3474
+* @sasha-melech made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3301
+* @FireLion137 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3500
+* @binimum made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3493
+* @stopper2408 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3506
+* @SunjeetKajla made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3505
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.4.0...v13.4.1
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.4.0...v13.4.1
 ---v13.4.0
 # MAINTENANCE MODE
-Metrolist is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
+Sachit Music is currently in maintenance mode. This means we will only be fixing bugs and making minor improvements. Please do not submit PRs for new features or major changes, as they will not be accepted.
 
 No, this is not an April Fools joke, even though this update is being released on April 1st.
 
-We are working on something big for the future of Metrolist - this is not the end of the project.
+We are working on something big for the future of Sachit Music - this is not the end of the project.
 
 # Major changes
 - Multiple playback fixes and reliability improvements (@alltechdev)
@@ -214,8 +214,8 @@ We are working on something big for the future of Metrolist - this is not the en
 - Fixed ghost adds on playlists (@johannesbrauer)
 - Improved search focus and navigation behavior (@saivijaychandan)
 - Added album navigation on song title click regardless of play source (@gergesh)
-- Prevented UI state reset when switching apps (@mostafaalagamy)
-- Restored the Daily Discover title in the Home screen (@mostafaalagamy)
+- Prevented UI state reset when switching apps (@sachit1751-art)
+- Restored the Daily Discover title in the Home screen (@sachit1751-art)
 - Fixed listen together audio choppiness (@nyxiereal)
 - Redesigned romanization and account settings (@omardotdev)
 - Improved the design of the sleep timer dialog (@johannesbrauer)
@@ -223,19 +223,19 @@ We are working on something big for the future of Metrolist - this is not the en
 - Fixed links in the README (@Lolen10 @nyxiereal)
 
 ## New Contributors
-* @AntonioDionisio05 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3255
-* @David-2765 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3271
-* @luigiwwmf made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3293
-* @gergesh made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3300
-* @Lolen10 made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3328
+* @AntonioDionisio05 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3255
+* @David-2765 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3271
+* @luigiwwmf made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3293
+* @gergesh made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3300
+* @Lolen10 made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3328
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.3.0...v13.3.1
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.3.0...v13.3.1
 ---v13.3.0
 # Major changes
 - Implemented song upload and delete functionality (@alltechdev)
-- Multiple playback fixes and reliability improvements (@alltechdev, @mostafaalagamy)
+- Multiple playback fixes and reliability improvements (@alltechdev, @sachit1751-art)
 - Fixed proguard rules causing issues with Reproducible Builds (@nyxiereal)
-- Fixed proguard rules removing Listen Together protobuf classes (@mostafaalagamy)
+- Fixed proguard rules removing Listen Together protobuf classes (@sachit1751-art)
 - Added a playlist export option to the playlist context menu (@nyxiereal)
 
 ## Notable new features
@@ -257,9 +257,9 @@ We are working on something big for the future of Metrolist - this is not the en
 - Updated dependencies (@nyxiereal)
 
 ## New Contributors
-* @isotjs made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/3090
+* @isotjs made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/3090
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.1...v13.3.0
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.2.1...v13.3.0
 ---v13.2.1
 >[!WARNING]
 >Listen Together doesn't work in v13.2.1! Use v13.2.0 if you need it.
@@ -269,18 +269,18 @@ We are working on something big for the future of Metrolist - this is not the en
 - Fix navigate local playlists pinned in speed dial
 - Removed "cache songs only after playback has started" option
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.2.0...v13.2.1
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.2.0...v13.2.1
 ---v13.2.0
 # Major changes
 - Fixed playback breaking due to YouTube's February 2026 n-transform changes (@alltechdev)
-- Added full podcast library support (@mostafaalagamy & @alltechdev)
+- Added full podcast library support (@sachit1751-art & @alltechdev)
 - Redesigned loading, Changelog, and About screens (@adrielGGmotion)
-- Improved app startup time via parallelized home screen loading (@mostafaalagamy)
+- Improved app startup time via parallelized home screen loading (@sachit1751-art)
 
 ## Notable new features
 - Added an option to cache songs only after playback has started (@kairosci)
-- Added a music recognizer home screen widget (@mostafaalagamy)
-- Rewrote music recognizer in pure Kotlin, removing NDK dependency and reducing APK size (@mostafaalagamy)
+- Added a music recognizer home screen widget (@sachit1751-art)
+- Rewrote music recognizer in pure Kotlin, removing NDK dependency and reducing APK size (@sachit1751-art)
 - Overhauled lyrics: added LyricsPlus provider, AI lyric fixes, untranslation support, and provider priority settings (@nyxiereal)
 - Changed listen together to use protobuf, lowering latency and improving reliability (@nyxiereal)
 - Added auto-approve setting for listen together song requests (@nyxiereal)
@@ -291,11 +291,11 @@ We are working on something big for the future of Metrolist - this is not the en
 - Fixed backup restore causing playback errors due to stale auth credentials (@alltechdev)
 - The CSV import dialog is now scrollable (@kairosci)
 - Fixed Android 15 foreground service crashes (@kairosci)
-- Fixed a crash on the About screen on some devices (@mostafaalagamy)
-- Fixed home screen playlist navigation routing to wrong screen (@mostafaalagamy)
-- Fixed crash when creating local playlists (@mostafaalagamy)
+- Fixed a crash on the About screen on some devices (@sachit1751-art)
+- Fixed home screen playlist navigation routing to wrong screen (@sachit1751-art)
+- Fixed crash when creating local playlists (@sachit1751-art)
 
 ## New Contributors
-* @johannesbrauer made their first contribution in https://github.com/MetrolistGroup/Metrolist/pull/2991
+* @johannesbrauer made their first contribution in https://github.com/sachit1751-art/Sachit Music/pull/2991
 
-**Full Changelog**: https://github.com/MetrolistGroup/Metrolist/compare/v13.1.1...v13.2.0
+**Full Changelog**: https://github.com/sachit1751-art/Sachit Music/compare/v13.1.1...v13.2.0

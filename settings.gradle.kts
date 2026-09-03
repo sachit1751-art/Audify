@@ -21,9 +21,9 @@ dependencyResolutionManagement {
             }
             filter {
                 if (useMavenLocalInnerTubeX) {
-                    includeModule("com.github.MetrolistGroup", "innertubex")
-                    includeModule("com.github.MetrolistGroup", "innertubex-android")
-                    includeModule("com.github.MetrolistGroup", "innertubex-desktop")
+                    includeModule("com.github.sachit1751-art", "innertubex")
+                    includeModule("com.github.sachit1751-art", "innertubex-android")
+                    includeModule("com.github.sachit1751-art", "innertubex-desktop")
                 } else {
                     includeGroup("com.github.MetrolistGroup.innertubex")
                 }
@@ -37,6 +37,6 @@ dependencyResolutionManagement {
 }
 
 // F-Droid doesn't support foojay-resolver plugin
-rootProject.name = "Metrolist"
+rootProject.name = "SachitMusic"
 include(":app")
 include(":innertube")

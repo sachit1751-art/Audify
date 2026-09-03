@@ -1,12 +1,12 @@
-# Working with Metrolist as an AI agent
+# Working with Sachit Music as an AI agent
 
-Metrolist is a 3rd party YouTube Music client written in Kotlin. It follows material 3 design guidelines closely.
+Sachit Music is a 3rd party YouTube Music client written in Kotlin. It follows material 3 design guidelines closely.
 
 ## Rules for working on the project
 
 1. Always pull the latest changes from `main` before starting your work to minimize merge conflicts.
 2. Commit names should be clear and follow the format: `type(scope): short description`. For example: `feat(ui): add dark mode support`. Including the scope is optional.
-3. All string edits should be made to the `Metrolist/app/src/main/res/values/metrolist_strings.xml` file, NOT `Metrolist/app/src/main/res/values/strings.xml`. Do not touch other `strings.xml` or `metrolist_strings.xml` files in the project. ONLY edit the default (English) `metrolist_strings.xml` file, DO NOT EDIT OTHER LANGUAGES.
+3. All string edits should be made to the `Sachit Music/app/src/main/res/values/sachit_strings.xml` file, NOT `Sachit Music/app/src/main/res/values/strings.xml`. Do not touch other `strings.xml` or `sachit_strings.xml` files in the project. ONLY edit the default (English) `sachit_strings.xml` file, DO NOT EDIT OTHER LANGUAGES.
 4. You are to follow best practices for Kotlin and Android development.
 5. DO NOT EDIT THE APP'S DATABASE SCHEMA.
 
