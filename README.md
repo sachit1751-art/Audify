@@ -170,8 +170,8 @@
       <td align="center"><a href="https://github.com/DD3Boh">Davide Garberi</a> · <a href="https://github.com/mikooomich">Michael Zh</a></td>
     </tr>
     <tr>
-      <td align="center"><strong>Metrolist</strong></td>
-      <td align="center"><a href="https://github.com/MetrolistGroup">Metrolist Group</a></td>
+      <td align="center"><strong>Sachit Music</strong></td>
+      <td align="center"><a href="https://github.com/sachit1751-art">Sachit</a></td>
     </tr>
   </tbody>
 </table>

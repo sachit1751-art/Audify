@@ -13,7 +13,7 @@ This file outlines the process of setting up a local dev environment for Sachit 
 This has been tested on Linux, but should work on other platforms with some adjustments.
 
 ```bash
-git clone https://github.com/sachit1751-art/Sachit Music
+git clone https://github.com/sachit1751-art/Sachit-Music
 cd Sachit Music
 git submodule update --init --recursive
 cd app
