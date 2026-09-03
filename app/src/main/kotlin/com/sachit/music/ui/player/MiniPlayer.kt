@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -315,7 +316,10 @@ private fun NewMiniPlayer(
     var peekVisible by remember { mutableStateOf(false) }
     var peekItems by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) } // title to media index
     var lastPeekSongId by remember { mutableStateOf<String?>(null) }
-    var peekHeightPx by remember { mutableIntStateOf(0) }
+    // Seed with an estimate so the card is positioned above the pill on its first frame;
+    // onSizeChanged corrects it as soon as the real height is measured.
+    val peekDensity = LocalDensity.current
+    var peekHeightPx by remember { mutableIntStateOf(with(peekDensity) { 116.dp.roundToPx() }) }
 
     LaunchedEffect(mediaMetadata?.id) {
         if (!showUpNextPeek) {
@@ -358,11 +362,11 @@ private fun NewMiniPlayer(
                 .height(MiniPlayerHeight)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
                 .padding(horizontal = 12.dp)
-                .let { baseModifier ->
-                    if (swipeThumbnail) {
+                .let { baseModifier ->                    if (swipeThumbnail) {
                         baseModifier.pointerInput(Unit) {
                             detectHorizontalDragGestures(
                                 onDragStart = {
+                                    peekVisible = false
                                     dragStartTime = System.currentTimeMillis()
                                     totalDragDistance = 0f
                                 },
@@ -410,9 +414,7 @@ private fun NewMiniPlayer(
                                             playerConnection.player.seekToNext()
                                         }
                                     }
-                                    coroutineScope.launch {
-                                        offsetXAnimatable.animateTo(0f, animationSpec)
-                                    }
+                                    coroutineScope.launch { offsetXAnimatable.animateTo(0f, animationSpec) }
                                 },
                             )
                         }
@@ -561,9 +563,10 @@ private fun NewMiniPlayer(
                 if (forceLightColors) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
 
             Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier =
                     Modifier
+                        .widthIn(max = 280.dp)
                         .onSizeChanged { peekHeightPx = it.height }
                         .offset { IntOffset(0, -(MiniPlayerHeight.roundToPx() + 8.dp.roundToPx() + peekHeightPx)) }
                         .clip(RoundedCornerShape(16.dp))
@@ -602,7 +605,7 @@ private fun NewMiniPlayer(
                                         playerConnection.player.seekTo(index, C.TIME_UNSET)
                                     }
                                 }
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                                .padding(horizontal = 4.dp, vertical = 3.dp),
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.play),
