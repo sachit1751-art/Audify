@@ -162,10 +162,12 @@ import com.sachit.music.ui.menu.YouTubePlaylistMenu
 import com.sachit.music.ui.menu.YouTubeSongMenu
 import com.sachit.music.ui.utils.SnapLayoutInfoProvider
 import com.sachit.music.ui.utils.resize
+import com.sachit.music.utils.ArtistNameAliases
+import com.sachit.music.utils.artworkDecodeCapPx
 import com.sachit.music.utils.joinByBullet
 import com.sachit.music.utils.joinToArtistString
-import com.sachit.music.utils.ArtistNameAliases
 import com.sachit.music.utils.makeTimeString
+import com.sachit.music.utils.memoryClassMb
 import com.sachit.music.utils.rememberEnumPreference
 import com.sachit.music.utils.rememberPreference
 import com.sachit.music.viewmodels.CommunityPlaylistItem
@@ -547,11 +549,15 @@ fun DailyDiscoverCard(
         shape = RoundedCornerShape(28.dp),
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            // Decode the card artwork at a size matched to the display density so
+            // low-end devices don't fetch and decode 1080px for a ~320dp card.
+            val artworkCap =
+                artworkDecodeCapPx(LocalDensity.current.density, memoryClassMb(LocalContext.current))
             AsyncImage(
                 model =
                     ImageRequest
                         .Builder(LocalContext.current)
-                        .data(dailyDiscover.recommendation.thumbnail?.resize(1080, 1080))
+                        .data(dailyDiscover.recommendation.thumbnail?.resize(artworkCap, artworkCap))
                         .crossfade(true)
                         .build(),
                 contentDescription = null,

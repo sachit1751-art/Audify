@@ -37,6 +37,9 @@ import com.sachit.music.utils.CrashHandler
 import com.sachit.music.utils.ArtistNameAliases
 import com.sachit.music.utils.InnerTubeXPlayer
 import com.sachit.music.utils.dataStore
+import com.sachit.music.utils.lowEndMemoryCacheFraction
+import com.sachit.music.utils.lowEndUseCrossfade
+import com.sachit.music.utils.memoryClassMb
 import com.sachit.music.utils.safeDataStoreEdit
 import com.sachit.music.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
@@ -300,16 +303,19 @@ class App :
         val cacheSize = cachedCoilCacheSize ?: runBlocking {
             dataStore.data.map { it[MaxImageCacheSizeKey] ?: 512 }.first()
         }
+        // Low-RAM devices get a smaller image cache and no crossfade: less
+        // heap pressure and less per-image compositing during scrolling.
+        val memoryClassMb = memoryClassMb(this)
         return ImageLoader
             .Builder(this)
             .apply {
-                crossfade(true)
+                crossfade(lowEndUseCrossfade(memoryClassMb))
                 allowHardware(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
                 // Memory cache for fast image loading (prevents network requests on recomposition)
                 memoryCache {
                     MemoryCache
                         .Builder()
-                        .maxSizePercent(context, 0.15)
+                        .maxSizePercent(context, lowEndMemoryCacheFraction(memoryClassMb))
                         .build()
                 }
                 if (cacheSize == 0) {

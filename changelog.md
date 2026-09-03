@@ -1,3 +1,19 @@
+---Unreleased
+
+# Rebrand & new features
+- Rebranded the app to **Sachit** with a new launcher icon: a bold rounded "S" on an off-white parchment background (adaptive, monochrome, and store icon)
+
+## Notable new features
+- Added single-tap play/pause on the player artwork
+- Added configurable artwork corner radius (None / Subtle / Rounded)
+- Added a time-aware greeting header on the home screen with your account name
+- Added an "Up Next" peek above the mini-player showing the next three tracks, tap to jump
+- Added haptic feedback when double-tapping the artwork to seek
+
+## Performance (low-end devices)
+- Low-RAM devices now get a smaller image memory cache and no image crossfades
+- The Daily Discover card artwork is decoded at a density-matched size instead of a fixed 1080px
+
 ---v13.6.3
 
 This is a hotfix release to fix borked lyrics and media controller. We apologize for the inconvenience.  
