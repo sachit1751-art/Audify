@@ -37,6 +37,7 @@ import androidx.navigation.NavController
 import com.sachit.music.BuildConfig
 import com.sachit.music.LocalPlayerAwareWindowInsets
 import com.sachit.music.R
+import com.sachit.music.constants.ArtworkTapToPlayPauseKey
 import com.sachit.music.constants.AudioNormalizationKey
 import com.sachit.music.constants.AudioOffload
 import com.sachit.music.constants.AudioTrackPlaybackParamsKey
@@ -157,6 +158,11 @@ fun PlayerSettings(
     val (seekExtraSeconds, onSeekExtraSeconds) = rememberPreference(
         SeekExtraSeconds,
         defaultValue = false
+    )
+
+    val (artworkTapToPlayPause, onArtworkTapToPlayPauseChange) = rememberPreference(
+        ArtworkTapToPlayPauseKey,
+        defaultValue = true
     )
 
     val (autoLoadMore, onAutoLoadMoreChange) = rememberPreference(
@@ -566,6 +572,27 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onSeekExtraSeconds(!seekExtraSeconds) }
+                ))
+                add(Material3SettingsItem(
+                    icon = painterResource(R.drawable.play),
+                    title = { Text(stringResource(R.string.artwork_tap_to_play_pause)) },
+                    description = { Text(stringResource(R.string.artwork_tap_to_play_pause_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = artworkTapToPlayPause,
+                            onCheckedChange = onArtworkTapToPlayPauseChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (artworkTapToPlayPause) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onArtworkTapToPlayPauseChange(!artworkTapToPlayPause) }
                 ))
             }
         )

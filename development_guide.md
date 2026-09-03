@@ -1,6 +1,6 @@
-# Sachit Music Dev Guide
+# Sachit Dev Guide
 
-This file outlines the process of setting up a local dev environment for Sachit Music.
+This file outlines the process of setting up a local dev environment for Sachit.
 
 ## Prerequisites
 

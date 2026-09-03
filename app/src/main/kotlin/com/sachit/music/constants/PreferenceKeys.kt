@@ -61,6 +61,16 @@ val UseNewMiniPlayerDesignKey = booleanPreferencesKey("useNewMiniPlayerDesign")
 val HidePlayerThumbnailKey = booleanPreferencesKey("hidePlayerThumbnail")
 val CropAlbumArtKey = booleanPreferencesKey("cropAlbumArt")
 val SeekExtraSeconds = booleanPreferencesKey("seekExtraSeconds")
+val ArtworkTapToPlayPauseKey = booleanPreferencesKey("artworkTapToPlayPause")
+val ShowUpNextPeekKey = booleanPreferencesKey("showUpNextPeek")
+val PlayerArtworkCornerRadiusKey = stringPreferencesKey("playerArtworkCornerRadius")
+
+enum class PlayerArtworkCornerRadius {
+    NONE,
+    SUBTLE,
+    ROUNDED,
+}
+
 val PauseOnMute = booleanPreferencesKey("pauseOnMute")
 val ResumeOnBluetoothConnectKey = booleanPreferencesKey("resumeOnBluetoothConnect")
 val KeepScreenOn = booleanPreferencesKey("keepScreenOn")

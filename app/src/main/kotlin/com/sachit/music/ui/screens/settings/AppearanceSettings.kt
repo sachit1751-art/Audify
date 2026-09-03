@@ -79,11 +79,14 @@ import com.sachit.music.constants.LyricsTextPositionKey
 import com.sachit.music.constants.LyricsTextSizeKey
 import com.sachit.music.constants.MiniPlayerBackgroundStyle
 import com.sachit.music.constants.MiniPlayerBackgroundStyleKey
+import com.sachit.music.constants.PlayerArtworkCornerRadius
+import com.sachit.music.constants.PlayerArtworkCornerRadiusKey
 import com.sachit.music.constants.PlayerBackgroundStyle
 import com.sachit.music.constants.PlayerBackgroundStyleKey
 import com.sachit.music.constants.PlayerButtonsStyle
 import com.sachit.music.constants.PlayerButtonsStyleKey
 import com.sachit.music.constants.PureBlackMiniPlayerKey
+import com.sachit.music.constants.ShowUpNextPeekKey
 import com.sachit.music.constants.RespectAgentPositioningKey
 import com.sachit.music.constants.SelectedThemeColorKey
 import com.sachit.music.constants.ShowCachedPlaylistKey
@@ -181,6 +184,10 @@ fun AppearanceSettings(
             UseNewMiniPlayerDesignKey,
             defaultValue = true,
         )
+    val (showUpNextPeek, onShowUpNextPeekChange) = rememberPreference(
+        ShowUpNextPeekKey,
+        defaultValue = true,
+    )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) =
         rememberPreference(
             HidePlayerThumbnailKey,
@@ -195,6 +202,11 @@ fun AppearanceSettings(
         rememberEnumPreference(
             PlayerBackgroundStyleKey,
             defaultValue = PlayerBackgroundStyle.DEFAULT,
+        )
+    val (artworkCornerRadius, onArtworkCornerRadiusChange) =
+        rememberEnumPreference(
+            PlayerArtworkCornerRadiusKey,
+            defaultValue = PlayerArtworkCornerRadius.SUBTLE,
         )
 
     val (defaultOpenTab, onDefaultOpenTabChange) =
@@ -335,6 +347,10 @@ fun AppearanceSettings(
     }
 
     var showPlayerBackgroundDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    var showArtworkCornerRadiusDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -572,6 +588,26 @@ fun AppearanceSettings(
                     MiniPlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
                     MiniPlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
                     MiniPlayerBackgroundStyle.PURE_BLACK -> stringResource(R.string.pure_black)
+                }
+            },
+        )
+    }
+
+    if (showArtworkCornerRadiusDialog) {
+        EnumDialog(
+            onDismiss = { showArtworkCornerRadiusDialog = false },
+            onSelect = {
+                onArtworkCornerRadiusChange(it)
+                showArtworkCornerRadiusDialog = false
+            },
+            title = stringResource(R.string.player_artwork_corner_radius),
+            current = artworkCornerRadius,
+            values = PlayerArtworkCornerRadius.values().toList(),
+            valueText = {
+                when (it) {
+                    PlayerArtworkCornerRadius.NONE -> stringResource(R.string.artwork_corner_radius_none)
+                    PlayerArtworkCornerRadius.SUBTLE -> stringResource(R.string.artwork_corner_radius_subtle)
+                    PlayerArtworkCornerRadius.ROUNDED -> stringResource(R.string.artwork_corner_radius_rounded)
                 }
             },
         )
@@ -1089,6 +1125,30 @@ fun AppearanceSettings(
                             onClick = { if (useNewMiniPlayerDesign) showMiniPlayerBackgroundDialog = true },
                         ),
                     )
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.skip_next),
+                            title = { Text(stringResource(R.string.up_next_peek)) },
+                            description = { Text(stringResource(R.string.up_next_peek_desc)) },
+                            trailingContent = {
+                                Switch(
+                                    checked = showUpNextPeek,
+                                    onCheckedChange = onShowUpNextPeekChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter =
+                                                painterResource(
+                                                    id = if (showUpNextPeek) R.drawable.check else R.drawable.close,
+                                                ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                                        )
+                                    },
+                                )
+                            },
+                            onClick = { onShowUpNextPeekChange(!showUpNextPeek) },
+                        ),
+                    )
                 },
         )
 
@@ -1178,6 +1238,20 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onCropAlbumArtChange(!cropAlbumArt) },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.album),
+                        title = { Text(stringResource(R.string.player_artwork_corner_radius)) },
+                        description = {
+                            Text(
+                                when (artworkCornerRadius) {
+                                    PlayerArtworkCornerRadius.NONE -> stringResource(R.string.artwork_corner_radius_none)
+                                    PlayerArtworkCornerRadius.SUBTLE -> stringResource(R.string.artwork_corner_radius_subtle)
+                                    PlayerArtworkCornerRadius.ROUNDED -> stringResource(R.string.artwork_corner_radius_rounded)
+                                },
+                            )
+                        },
+                        onClick = { showArtworkCornerRadiusDialog = true },
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.palette),

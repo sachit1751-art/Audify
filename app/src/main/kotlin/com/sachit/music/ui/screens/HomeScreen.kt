@@ -85,7 +85,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -643,6 +645,47 @@ fun DailyDiscoverCard(
     }
 }
 
+/**
+ * Time-aware greeting header shown at the top of the home screen.
+ * Appends the signed-in account name when available.
+ */
+@Composable
+private fun GreetingHeader(
+    accountName: String?,
+    modifier: Modifier = Modifier,
+) {
+    val hour = remember { java.time.LocalTime.now().hour }
+    val greetingRes =
+        when (hour) {
+            in 5..11 -> R.string.greeting_morning
+            in 12..16 -> R.string.greeting_afternoon
+            else -> R.string.greeting_evening
+        }
+    val greetingNameRes =
+        when (hour) {
+            in 5..11 -> R.string.greeting_morning_name
+            in 12..16 -> R.string.greeting_afternoon_name
+            else -> R.string.greeting_evening_name
+        }
+
+    Text(
+        text =
+            if (accountName.isNullOrBlank()) {
+                stringResource(greetingRes)
+            } else {
+                stringResource(greetingNameRes, accountName)
+            },
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HomeScreen(
@@ -1190,6 +1233,14 @@ fun HomeScreen(
                 state = lazylistState,
                 contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
             ) {
+                if (selectedChip == null) {
+                    item(key = "greeting_header") {
+                        GreetingHeader(
+                            accountName = if (isLoggedIn) accountName else null,
+                        )
+                    }
+                }
+
                 item {
                     ChipsRow(
                         chips = homePage?.chips?.map { it to it.title } ?: emptyList(),

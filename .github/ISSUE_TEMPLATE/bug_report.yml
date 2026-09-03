@@ -121,9 +121,9 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: Sachit Music version
+      label: Sachit version
       description: |
-        You can find your Sachit Music version in **Settings**.
+        You can find your Sachit version in **Settings**.
       placeholder: |
         Example: "13.1.1"
     validations:

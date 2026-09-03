@@ -53,9 +53,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -74,14 +76,18 @@ import coil3.request.ImageRequest
 import com.sachit.music.LocalListenTogetherManager
 import com.sachit.music.LocalPlayerConnection
 import com.sachit.music.R
+import com.sachit.music.constants.ArtworkTapToPlayPauseKey
 import com.sachit.music.constants.CropAlbumArtKey
 import com.sachit.music.constants.HidePlayerThumbnailKey
+import com.sachit.music.constants.PlayerArtworkCornerRadius
+import com.sachit.music.constants.PlayerArtworkCornerRadiusKey
 import com.sachit.music.constants.PlayerBackgroundStyle
 import com.sachit.music.constants.PlayerBackgroundStyleKey
 import com.sachit.music.constants.PlayerHorizontalPadding
 import com.sachit.music.constants.SeekExtraSeconds
 import com.sachit.music.constants.SwipeThumbnailKey
 import com.sachit.music.constants.ThumbnailCornerRadius
+import com.sachit.music.extensions.togglePlayPause
 import com.sachit.music.listentogether.RoomRole
 import com.sachit.music.ui.component.CastButton
 import com.sachit.music.utils.rememberEnumPreference
@@ -221,11 +227,24 @@ fun Thumbnail(
     val swipeThumbnail = swipeThumbnailPref && !isListenTogetherGuest
     val hidePlayerThumbnail by rememberPreference(HidePlayerThumbnailKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val artworkTapToPlayPause by rememberPreference(ArtworkTapToPlayPauseKey, true)
+    val artworkCornerRadius by rememberEnumPreference(
+        key = PlayerArtworkCornerRadiusKey,
+        defaultValue = PlayerArtworkCornerRadius.SUBTLE
+    )
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT
     )
-    
+
+    // Corner radius applied to the artwork; SUBTLE matches the original look
+    val artworkCornerRadiusDp =
+        when (artworkCornerRadius) {
+            PlayerArtworkCornerRadius.NONE -> 0.dp
+            PlayerArtworkCornerRadius.SUBTLE -> ThumbnailCornerRadius
+            PlayerArtworkCornerRadius.ROUNDED -> 14.dp
+        }
+
     // Pre-calculate text color based on background style
     val textBackgroundColor = getTextColor(playerBackground)
     
@@ -353,11 +372,12 @@ fun Thumbnail(
                     }
                 ) {
                     // Calculate dimensions once per size change, considering landscape mode
-                    val dimensions = remember(maxWidth, maxHeight, isLandscape) {
+                    val dimensions = remember(maxWidth, maxHeight, isLandscape, artworkCornerRadiusDp) {
                         calculateThumbnailDimensions(
                             containerWidth = maxWidth,
                             containerHeight = maxHeight,
-                            isLandscape = isLandscape
+                            isLandscape = isLandscape,
+                            cornerRadius = artworkCornerRadiusDp
                         )
                     }
 
@@ -403,6 +423,7 @@ fun Thumbnail(
                                 context = context,
                                 isLandscape = isLandscape,
                                 isListenTogetherGuest = isListenTogetherGuest,
+                                artworkTapToPlayPause = artworkTapToPlayPause,
                                 currentMediaId = mediaMetadata?.id,
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl
                             )
@@ -500,6 +521,7 @@ private fun ThumbnailItem(
     context: android.content.Context,
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    artworkTapToPlayPause: Boolean = true,
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
     modifier: Modifier = Modifier,
@@ -507,6 +529,7 @@ private fun ThumbnailItem(
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
+    val haptic = LocalHapticFeedback.current
 
     Box(
         modifier = modifier
@@ -545,12 +568,23 @@ private fun ThumbnailItem(
                         val isLeftSide = (layoutDirection == LayoutDirection.Ltr && offset.x < size.width / 2) ||
                                 (layoutDirection == LayoutDirection.Rtl && offset.x > size.width / 2)
 
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         if (isLeftSide) {
                             playerConnection.player.seekTo((currentPosition - skipAmount).coerceAtLeast(0))
                             onSeek(context.getString(R.string.seek_backward_dynamic, skipAmount / 1000), true)
                         } else {
                             playerConnection.player.seekTo((currentPosition + skipAmount).coerceAtMost(duration))
                             onSeek(context.getString(R.string.seek_forward_dynamic, skipAmount / 1000), true)
+                        }
+                    },
+                    onTap = {
+                        if (artworkTapToPlayPause && !isListenTogetherGuest) {
+                            if (playerConnection.playbackState.value == Player.STATE_ENDED) {
+                                playerConnection.player.seekTo(0, 0)
+                                playerConnection.player.playWhenReady = true
+                            } else {
+                                playerConnection.player.togglePlayPause()
+                            }
                         }
                     }
                 )

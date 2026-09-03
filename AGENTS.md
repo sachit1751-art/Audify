@@ -1,12 +1,12 @@
-# Working with Sachit Music as an AI agent
+# Working with Sachit as an AI agent
 
-Sachit Music is a 3rd party YouTube Music client written in Kotlin. It follows material 3 design guidelines closely.
+Sachit is a 3rd party YouTube Music client written in Kotlin. It follows material 3 design guidelines closely.
 
 ## Rules for working on the project
 
 1. Always pull the latest changes from `main` before starting your work to minimize merge conflicts.
 2. Commit names should be clear and follow the format: `type(scope): short description`. For example: `feat(ui): add dark mode support`. Including the scope is optional.
-3. All string edits should be made to the `Sachit Music/app/src/main/res/values/sachit_strings.xml` file, NOT `Sachit Music/app/src/main/res/values/strings.xml`. Do not touch other `strings.xml` or `sachit_strings.xml` files in the project. ONLY edit the default (English) `sachit_strings.xml` file, DO NOT EDIT OTHER LANGUAGES.
+3. All string edits should be made to the `app/src/main/res/values/sachit_strings.xml` file, NOT `app/src/main/res/values/strings.xml`. Do not touch other `strings.xml` or `sachit_strings.xml` files in the project. ONLY edit the default (English) `sachit_strings.xml` file, DO NOT EDIT OTHER LANGUAGES.
 4. You are to follow best practices for Kotlin and Android development.
 5. DO NOT EDIT THE APP'S DATABASE SCHEMA.
 
@@ -32,4 +32,4 @@ Sachit Music is a 3rd party YouTube Music client written in Kotlin. It follows m
 ```
 
 2. If the build is not successful, review the error messages, fix the issues in your code, and try building again.
-3. Once the build is successful, you can test your changes on an emulator or a physical device. Install the generated APK located at `app/build/outputs/apk/universalFoss/debug/app-universal-foss-debug.apk` and ask a human for help testing the specific features you worked on.
+3. Once the build is successful, you can test your changes on an emulator or a physical device. Install the generated APK located at `app/build/outputs/apk/foss/debug/app-foss-debug.apk` and ask a human for help testing the specific features you worked on.

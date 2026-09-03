@@ -15,6 +15,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -53,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -81,6 +85,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import coil3.compose.AsyncImage
 import com.sachit.music.LocalDatabase
@@ -105,6 +110,7 @@ import com.sachit.music.ui.utils.resize
 import com.sachit.music.utils.joinToArtistString
 import com.sachit.music.utils.rememberEnumPreference
 import com.sachit.music.utils.rememberPreference
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
@@ -112,6 +118,7 @@ import com.sachit.music.ui.component.Icon as MIcon
 import androidx.compose.ui.draw.blur
 import com.sachit.music.constants.MiniPlayerBackgroundStyle
 import com.sachit.music.constants.MiniPlayerBackgroundStyleKey
+import com.sachit.music.constants.ShowUpNextPeekKey
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
@@ -303,6 +310,47 @@ private fun NewMiniPlayer(
     val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
     val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
 
+    // Up Next peek state - shows the upcoming tracks briefly above the mini player
+    val showUpNextPeek by rememberPreference(ShowUpNextPeekKey, true)
+    var peekVisible by remember { mutableStateOf(false) }
+    var peekItems by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) } // title to media index
+    var lastPeekSongId by remember { mutableStateOf<String?>(null) }
+    var peekHeightPx by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(mediaMetadata?.id) {
+        if (!showUpNextPeek) {
+            peekVisible = false
+            return@LaunchedEffect
+        }
+        val upcoming =
+            runCatching {
+                val items = mutableListOf<Pair<String, Int>>()
+                val timeline = playerConnection.player.currentTimeline
+                var idx = playerConnection.player.currentMediaItemIndex
+                repeat(3) {
+                    idx =
+                        timeline.getNextWindowIndex(
+                            idx,
+                            Player.REPEAT_MODE_OFF,
+                            playerConnection.player.shuffleModeEnabled,
+                        )
+                    if (idx == C.INDEX_UNSET) return@repeat
+                    val title =
+                        playerConnection.player.getMediaItemAt(idx).mediaMetadata.title?.toString()
+                            ?: return@repeat
+                    items.add(title to idx)
+                }
+                items
+            }.getOrDefault(emptyList())
+        if (upcoming.isNotEmpty() && mediaMetadata?.id != lastPeekSongId) {
+            lastPeekSongId = mediaMetadata?.id
+            peekItems = upcoming
+            peekVisible = true
+            delay(5000)
+            peekVisible = false
+        }
+    }
+
     Box(
         modifier =
             modifier
@@ -374,6 +422,10 @@ private fun NewMiniPlayer(
                 },
     ) {
         val interactionSource = remember { MutableInteractionSource() }
+        val handlePillClick = {
+            peekVisible = false
+            onClick()
+        }
         Box(
             modifier =
                 Modifier
@@ -386,7 +438,7 @@ private fun NewMiniPlayer(
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,
-                        onClick = onClick
+                        onClick = handlePillClick
                     ),
         ) {
             when (miniPlayerBackground) {
@@ -486,6 +538,88 @@ private fun NewMiniPlayer(
                     outlineColor = outlineColor,
                     onSurfaceColor = onSurfaceColor,
                 )
+                }
+            }
+        }
+
+        // Up Next peek - slides in above the mini player pill, shows up to 3 upcoming tracks
+        AnimatedVisibility(
+            visible = peekVisible && showUpNextPeek,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            val peekContainerColor =
+                if (forceLightColors) {
+                    Color(0xE61C1C1C)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                }
+            val peekContentColor =
+                if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
+            val peekSubtitleColor =
+                if (forceLightColors) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier =
+                    Modifier
+                        .onSizeChanged { peekHeightPx = it.height }
+                        .offset { IntOffset(0, -(MiniPlayerHeight.roundToPx() + 8.dp.roundToPx() + peekHeightPx)) }
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(peekContainerColor)
+                        .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.skip_next),
+                        contentDescription = null,
+                        tint = primaryColor,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.up_next),
+                        color = peekSubtitleColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                    )
+                }
+
+                peekItems.take(3).forEach { (title, index) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (!isListenTogetherGuest) {
+                                        playerConnection.player.seekTo(index, C.TIME_UNSET)
+                                    }
+                                }
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.play),
+                            contentDescription = null,
+                            tint = peekContentColor.copy(alpha = 0.6f),
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = title,
+                            color = peekContentColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         }
