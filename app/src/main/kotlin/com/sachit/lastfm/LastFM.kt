@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.lastfm
 
 import com.sachit.lastfm.models.Authentication
@@ -50,7 +51,7 @@ object LastFM {
         format: String = "json"
     ) {
         contentType(ContentType.Application.FormUrlEncoded)
-        userAgent("Sachit Music (https://github.com/sachit1751-art/Sachit Music)")
+        userAgent("SachitMusic (https://github.com/sachit1751-art/SachitMusic)")
         val paramsForSig = mutableMapOf(
             "method" to method,
             "api_key" to apiKey

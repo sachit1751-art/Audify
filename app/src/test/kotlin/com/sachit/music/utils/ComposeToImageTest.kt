@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.music.utils
 
 import android.content.Context
@@ -65,6 +66,6 @@ class ComposeToImageTest {
             theme: Theme?,
         ): Drawable = BitmapDrawable(this, Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888))
 
-        override fun getString(id: Int): String = "Sachit Music"
+        override fun getString(id: Int): String = "SachitMusic"
     }
 }

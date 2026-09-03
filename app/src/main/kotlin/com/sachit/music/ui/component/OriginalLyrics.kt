@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.component
 
 import android.annotation.SuppressLint
@@ -488,7 +489,7 @@ fun OriginalLyrics(
 
     val lazyListState = rememberLazyListState()
 
-    // Professional animation states for smooth Sachit Music-style transitions
+    // Professional animation states for smooth SachitMusic-style transitions
     var isAnimating by remember { mutableStateOf(false) }
     var isAutoScrollEnabled by rememberSaveable { mutableStateOf(true) }
 
@@ -2205,7 +2206,7 @@ fun OriginalLyrics(
     }
 }
 
-// Professional page animation constants inspired by Sachit Music design - slower for smoothness
+// Professional page animation constants inspired by SachitMusic design - slower for smoothness
 private const val SACHIT_MUSIC_AUTO_SCROLL_DURATION = 1500L // Much slower auto-scroll for smooth transitions
 private const val SACHIT_MUSIC_INITIAL_SCROLL_DURATION = 1000L // Slower initial positioning
 private const val SACHIT_MUSIC_SEEK_DURATION = 800L // Slower user interaction

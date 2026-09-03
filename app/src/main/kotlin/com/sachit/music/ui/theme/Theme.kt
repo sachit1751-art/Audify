@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.theme
 
 import android.graphics.Bitmap
@@ -28,7 +29,7 @@ import com.materialkolor.score.Score
 val DefaultThemeColor = Color(0xFFED5564)
 
 @Composable
-fun Sachit MusicTheme(
+fun SachitMusicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,

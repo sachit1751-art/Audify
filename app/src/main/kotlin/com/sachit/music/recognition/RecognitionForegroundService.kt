@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.music.recognition
 
 import android.app.NotificationChannel
@@ -255,7 +256,7 @@ class RecognitionForegroundService : Service() {
             isTerminal = true,
             contentIntent = pendingIntent,
             actionIntent = pendingIntent,
-            actionTitle = getString(R.string.listen_on_sachit-music),
+            actionTitle = getString(R.string.listen_on_sachit_music),
         )
 
         serviceScope.launch {
@@ -271,7 +272,7 @@ class RecognitionForegroundService : Service() {
                     contentIntent = pendingIntent,
                     largeIcon = coverBitmap,
                     actionIntent = pendingIntent,
-                    actionTitle = getString(R.string.listen_on_sachit-music),
+                    actionTitle = getString(R.string.listen_on_sachit_music),
                 )
             }
             finishWithPersistentResult()

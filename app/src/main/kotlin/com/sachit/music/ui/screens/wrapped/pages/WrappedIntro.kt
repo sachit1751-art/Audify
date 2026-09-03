@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.wrapped.pages
 
 import androidx.compose.animation.AnimatedVisibility
@@ -142,7 +143,7 @@ fun WrappedIntro(onNext: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Sachit Music Title with Layered Effect
+            // SachitMusic Title with Layered Effect
             AnimatedVisibility(
                 visible = visible,
                 enter = fadeIn(animationSpec = tween(FADE_IN_DURATION, delayMillis = TITLE_DELAY)) + slideInVertically(animationSpec = tween(SLIDE_IN_DURATION, delayMillis = TITLE_DELAY))

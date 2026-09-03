@@ -1,10 +1,11 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
 @file:Suppress("DEPRECATION")
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.playback
 
 import android.app.ForegroundServiceStartNotAllowedException
@@ -214,7 +215,7 @@ import com.sachit.music.utils.InnerTubeXPlayer
 import com.sachit.music.utils.dataStore
 import com.sachit.music.utils.get
 import com.sachit.music.utils.reportException
-import com.sachit.music.widget.Sachit MusicWidgetManager
+import com.sachit.music.widget.SachitMusicWidgetManager
 import com.sachit.music.widget.MusicWidgetReceiver
 import com.sachit.music.widget.PlaylistWidgetReceiver
 import com.sachit.music.ui.utils.resize
@@ -287,7 +288,7 @@ class MusicService :
     lateinit var eqProfileRepository: EQProfileRepository
 
     @Inject
-    lateinit var widgetManager: Sachit MusicWidgetManager
+    lateinit var widgetManager: SachitMusicWidgetManager
 
     @Inject
     lateinit var listenTogetherManager: com.sachit.music.listentogether.ListenTogetherManager

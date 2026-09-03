@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens
 
 import android.content.Intent
@@ -43,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.sachit.music.R
-import com.sachit.music.ui.theme.Sachit MusicTheme
+import com.sachit.music.ui.theme.SachitMusicTheme
 import com.sachit.music.utils.CrashHandler
 import java.io.File
 import java.text.SimpleDateFormat
@@ -60,7 +61,7 @@ class CrashActivity : ComponentActivity() {
         
         setContent {
             val darkTheme = isSystemInDarkTheme()
-            Sachit MusicTheme(darkTheme = darkTheme) {
+            SachitMusicTheme(darkTheme = darkTheme) {
                 CrashScreen(
                     crashLog = crashLog,
                     onClose = { finishAffinity() },

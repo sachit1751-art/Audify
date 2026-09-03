@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.settings
 
 import androidx.compose.foundation.Image
@@ -119,8 +120,8 @@ private val collaborators = listOf(
 private val communityLinks = listOf(
     CommunityLink(R.string.credits_discord, R.drawable.discord, "https://discord.com/invite/zrdbeRG2Mt"),
     CommunityLink(R.string.credits_telegram, R.drawable.telegram, "https://t.me/sachit-musicapp"),
-    CommunityLink(R.string.credits_view_repo, R.drawable.github, "https://github.com/sachit1751-art/Sachit Music"),
-    CommunityLink(R.string.credits_license_name, R.drawable.info, "https://github.com/sachit1751-art/Sachit Music/blob/main/LICENSE")
+    CommunityLink(R.string.credits_view_repo, R.drawable.github, "https://github.com/sachit1751-art/Sachit-Music"),
+    CommunityLink(R.string.credits_license_name, R.drawable.info, "https://github.com/sachit1751-art/Sachit-Music/blob/main/LICENSE")
 )
 
 private fun handleEasterEggClick(
@@ -254,7 +255,7 @@ fun AboutScreen(
             ) {
                 Image(
                     painter = painterResource(R.drawable.small_icon),
-                    contentDescription = stringResource(R.string.sachit-music),
+                    contentDescription = stringResource(R.string.sachit_music),
                     colorFilter = ColorFilter.tint(
                         color = MaterialTheme.colorScheme.primary,
                         blendMode = BlendMode.SrcIn,
@@ -265,12 +266,12 @@ fun AboutScreen(
                 Spacer(Modifier.width(20.dp))
         
                 Column {
-                    val sachit-musicName = stringResource(R.string.sachit-music)
+                    val appName = stringResource(R.string.sachit_music)
                         .lowercase(Locale.getDefault())
                         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
 
                     Text(
-                        text = sachit-musicName,
+                        text = appName,
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,

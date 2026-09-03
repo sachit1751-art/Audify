@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.settings
 
 import android.content.res.Configuration
@@ -79,7 +80,7 @@ import com.sachit.music.constants.PureBlackKey
 import com.sachit.music.constants.PureBlackMiniPlayerKey
 import com.sachit.music.constants.SelectedThemeColorKey
 import com.sachit.music.ui.theme.DefaultThemeColor
-import com.sachit.music.ui.theme.Sachit MusicTheme
+import com.sachit.music.ui.theme.SachitMusicTheme
 import com.sachit.music.utils.rememberEnumPreference
 import com.sachit.music.utils.rememberPreference
 
@@ -674,7 +675,7 @@ fun ThemeMockup(
         DarkMode.OFF -> false
     }
 
-    Sachit MusicTheme(
+    SachitMusicTheme(
         darkTheme = useDark,
         pureBlack = pureBlack,
         themeColor = themeColor
@@ -782,7 +783,7 @@ fun ThemeMockupPortrait(
         DarkMode.OFF -> false
     }
 
-    Sachit MusicTheme(
+    SachitMusicTheme(
         darkTheme = useDark,
         pureBlack = pureBlack,
         themeColor = themeColor

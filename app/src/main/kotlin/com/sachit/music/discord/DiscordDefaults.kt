@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.music.discord
 
 object DiscordDefaults {
@@ -6,8 +7,8 @@ object DiscordDefaults {
     const val BUTTON1_LABEL = "Listen on YouTube Music"
     const val BUTTON1_URL_TEMPLATE = "https://music.youtube.com/watch?v={song.id}"
 
-    const val BUTTON2_LABEL = "Visit Sachit Music"
-    const val BUTTON2_URL = "https://github.com/sachit1751-art/Sachit Music"
+    const val BUTTON2_LABEL = "Visit SachitMusic"
+    const val BUTTON2_URL = "https://github.com/sachit1751-art/SachitMusic"
 
     const val STATE_TEMPLATE = "{artist.name}"
     const val DETAILS_TEMPLATE = "{song.name}"

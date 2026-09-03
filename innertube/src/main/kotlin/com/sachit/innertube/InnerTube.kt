@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.innertube
 
 import com.sachit.innertube.models.MediaInfo
@@ -37,7 +38,7 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
- * Compatibility facade that keeps Sachit Music's parsed response models while InnerTubeX owns
+ * Compatibility facade that keeps SachitMusic's parsed response models while InnerTubeX owns
  * YouTube request construction, session handling, retries, and authenticated mutations.
  */
 class InnerTube {

@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.utils
 
 import com.sachit.music.BuildConfig
@@ -39,9 +40,9 @@ object Updater {
     private var cachedAllReleases: List<ReleaseInfo> = emptyList()
     
     private const val CHECK_INTERVAL_MILLIS = 2 * 60 * 60 * 1000L // 2 hours
-    private const val GITHUB_API_BASE = "https://api.github.com/repos/sachit1751-art/Sachit Music"
-    private const val KMP_RELEASES_URL = "https://api.github.com/repos/sachit1751-art/Sachit Music-KMP/releases?per_page=30"
-    const val KMP_APK_NAME = "Sachit Music.apk"
+    private const val GITHUB_API_BASE = "https://api.github.com/repos/sachit1751-art/SachitMusic"
+    private const val KMP_RELEASES_URL = "https://api.github.com/repos/sachit1751-art/SachitMusic-KMP/releases?per_page=30"
+    const val KMP_APK_NAME = "SachitMusic.apk"
 
     /**
      * Compares two version strings.
@@ -98,8 +99,8 @@ object Updater {
             
             // Parse architecture and variant from filename
             val (arch, variant) = when {
-                name == "Sachit Music.apk" -> "universal" to "foss"
-                name == "Sachit Music-with-Google-Cast.apk" -> "universal" to "gms"
+                name == "SachitMusic.apk" -> "universal" to "foss"
+                name == "SachitMusic-with-Google-Cast.apk" -> "universal" to "gms"
                 name.startsWith("app-") && name.endsWith("-release.apk") -> {
                     val arch = name.removePrefix("app-").removeSuffix("-release.apk")
                     arch to "foss"

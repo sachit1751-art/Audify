@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music
 
 import android.Manifest
@@ -194,7 +195,7 @@ import com.sachit.music.ui.screens.settings.DarkMode
 import com.sachit.music.ui.screens.settings.NavigationTab
 import com.sachit.music.ui.theme.ColorSaver
 import com.sachit.music.ui.theme.DefaultThemeColor
-import com.sachit.music.ui.theme.Sachit MusicTheme
+import com.sachit.music.ui.theme.SachitMusicTheme
 import com.sachit.music.ui.theme.extractThemeColor
 import com.sachit.music.ui.utils.appBarScrollBehavior
 import com.sachit.music.ui.utils.resetHeightOffset
@@ -462,7 +463,7 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            Sachit MusicApp(
+            SachitMusicApp(
                 latestVersionName = latestVersionName,
                 onLatestVersionNameChange = { latestVersionName = it },
                 playerConnection = playerConnectionSnapshot,
@@ -476,7 +477,7 @@ class MainActivity : FragmentActivity() {
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    private fun Sachit MusicApp(
+    private fun SachitMusicApp(
         latestVersionName: String,
         onLatestVersionNameChange: (String) -> Unit,
         playerConnection: PlayerConnection?,
@@ -654,7 +655,7 @@ class MainActivity : FragmentActivity() {
                 }
         }
 
-        Sachit MusicTheme(
+        SachitMusicTheme(
             darkTheme = useDarkTheme,
             pureBlack = pureBlack,
             themeColor = themeColor,

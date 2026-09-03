@@ -1,8 +1,9 @@
 /*
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.api
 
 import com.sachit.music.constants.OpenRouterDefaultBaseUrl
@@ -66,8 +67,8 @@ object OpenRouterStreamingService {
                         .apply {
                             if (apiKey.isNotBlank()) addHeader("Authorization", "Bearer ${apiKey.trim()}")
                         }.addHeader("Content-Type", "application/json")
-                        .addHeader("HTTP-Referer", "https://github.com/sachit1751-art/Sachit Music")
-                        .addHeader("X-Title", "Sachit Music")
+                        .addHeader("HTTP-Referer", "https://github.com/sachit1751-art/SachitMusic")
+                        .addHeader("X-Title", "SachitMusic")
                         .post(body.toString().toRequestBody(jsonMediaType))
                         .build()
 

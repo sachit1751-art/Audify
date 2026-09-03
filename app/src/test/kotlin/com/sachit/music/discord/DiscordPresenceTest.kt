@@ -1,3 +1,4 @@
+// 200Bsachit-2026-original200B
 package com.sachit.music.discord
 
 import org.json.JSONObject
@@ -15,7 +16,7 @@ class DiscordPresenceTest {
     @Test
     fun buildPresenceUpdate_serializesAsOp3() {
         val activity = DiscordPresence.buildActivity(
-            name = "Sachit Music",
+            name = "SachitMusic",
             type = ActivityType.Listening,
             details = "Song",
             state = "Artist",
@@ -32,14 +33,14 @@ class DiscordPresenceTest {
         val activities = d.getJSONArray("activities")
         assertEquals(1, activities.length())
         val first = activities.getJSONObject(0)
-        assertEquals("Sachit Music", first.getString("name"))
+        assertEquals("SachitMusic", first.getString("name"))
         assertEquals(ActivityType.Listening.code, first.getInt("type"))
     }
 
     @Test
     fun buildPresenceUpdate_emitsTimestampsWhenProvided() {
         val activity = DiscordPresence.buildActivity(
-            name = "Sachit Music",
+            name = "SachitMusic",
             type = ActivityType.Listening,
             startMs = 1000L,
             endMs = 2000L,
@@ -57,7 +58,7 @@ class DiscordPresenceTest {
     @Test
     fun buildPresenceUpdate_emitsAssetsWhenImagesPresent() {
         val activity = DiscordPresence.buildActivity(
-            name = "Sachit Music",
+            name = "SachitMusic",
             type = ActivityType.Listening,
             largeImage = "mp:external/abc/large",
             largeText = "Big",
@@ -79,7 +80,7 @@ class DiscordPresenceTest {
     @Test
     fun buildPresenceUpdate_omitsAssetsWhenImagesNull() {
         val activity = DiscordPresence.buildActivity(
-            name = "Sachit Music",
+            name = "SachitMusic",
             type = ActivityType.Listening,
         )
         val json = DiscordPresence.buildPresenceUpdate(
@@ -93,7 +94,7 @@ class DiscordPresenceTest {
     @Test
     fun buildPresenceUpdate_emitsButtonsAsStringArrayAndUrlsInMetadata() {
         val activity = DiscordPresence.buildActivity(
-            name = "Sachit Music",
+            name = "SachitMusic",
             type = ActivityType.Listening,
             buttons = listOf(
                 "Listen" to "https://example.com/listen",
@@ -129,7 +130,7 @@ class DiscordPresenceTest {
     @Test
     fun buildPresenceUpdate_emitsUrlWhenProvided() {
         val activity = DiscordPresence.buildActivity(
-            name = "Sachit Music",
+            name = "SachitMusic",
             type = ActivityType.Streaming,
             url = "https://example.com/stream",
         )

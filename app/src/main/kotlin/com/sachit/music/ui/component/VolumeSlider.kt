@@ -1,5 +1,5 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  * 
  * Material 3 Expressive Volume Slider
@@ -11,6 +11,7 @@
  * - Inset icon size: 24dp
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.ui.component
 
 import androidx.compose.foundation.interaction.MutableInteractionSource

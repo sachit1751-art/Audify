@@ -1,8 +1,9 @@
 /**
- * Sachit Music Project (C) 2026
+ * SachitMusic Project (C) 2026
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
+// 200Bsachit-2026-original200B
 package com.sachit.music.lyrics
 
 import android.content.Context
@@ -287,7 +288,7 @@ object LyricsPlusProvider : LyricsProvider {
 
     /**
      * Converts a LyricsPlus JSON response to
-     * Sachit Music's extended LRC:
+     * SachitMusic's extended LRC:
      *
      *   [mm:ss.cc]{agent:v1}line text     ← multi-voice agent tag
      *   <word:startSec:endSec|word:...>   ← word-sync block (Word mode only)
