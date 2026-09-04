@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.lyrics
 
 private val LRC_TIMESTAMP_HINT = Regex("""\[\d{1,2}:\d{2}""")

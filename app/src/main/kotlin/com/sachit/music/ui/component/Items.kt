@@ -5,7 +5,6 @@
  * Optimized for minimal recomposition during navigation
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.component
 
 import android.widget.Toast
@@ -542,16 +541,18 @@ fun SongListItem(
                      )
                  }
              },
-             thumbnailContent = {
-                 ItemThumbnail(
-                     thumbnailUrl =
-                         song.song.thumbnailUrl?.let { thumbnailUrl ->
-                             if (song.isDownloaded) thumbnailUrl else thumbnailUrl.resize(200, 200)
-                         },
-                     albumIndex = albumIndex,
-                     isSelected = isSelected,
-                     isActive = isActive,
-                     isPlaying = isPlaying,
+            thumbnailContent = {
+                ItemThumbnail(
+                    thumbnailUrl = song.song.thumbnailUrl,
+                    // Downloaded songs keep the full-size request so artwork stays available
+                    // offline from Coil's disk cache; streaming rows only need ~200px for a
+                    // 48dp thumbnail, which cuts per-row network bytes roughly 7x while
+                    // scrolling long lists.
+                    thumbnailRequestSize = if (song.isDownloaded) 544 else 200,
+                    albumIndex = albumIndex,
+                    isSelected = isSelected,
+                    isActive = isActive,
+                    isPlaying = isPlaying,
                      shape = RoundedCornerShape(ThumbnailCornerRadius),
                      modifier = Modifier.size(ListThumbnailSize)
                  )
@@ -1476,7 +1477,8 @@ fun ItemThumbnail(
     modifier: Modifier = Modifier,
     albumIndex: Int? = null,
     isSelected: Boolean = false,
-    thumbnailRatio: Float = 1f
+    thumbnailRatio: Float = 1f,
+    thumbnailRequestSize: Int = 544,
 ) {
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     
@@ -1490,7 +1492,7 @@ fun ItemThumbnail(
         if (albumIndex == null) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(thumbnailUrl?.resize(544, 544))
+                    .data(thumbnailUrl?.resize(thumbnailRequestSize, thumbnailRequestSize))
                     .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                     .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
                     .networkCachePolicy(coil3.request.CachePolicy.ENABLED)

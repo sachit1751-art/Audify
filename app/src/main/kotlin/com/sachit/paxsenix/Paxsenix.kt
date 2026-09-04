@@ -1,4 +1,3 @@
-// 200Bsachit-2026-original200B
 package com.sachit.paxsenix
 
 import android.content.Context
@@ -64,7 +63,7 @@ object Paxsenix {
 
                 defaultRequest {
                     url("https://lyrics.paxsenix.org")
-                    header("User-Agent", "SachitMusic/$appVersion")
+                    header("User-Agent", "Audify/$appVersion")
                 }
 
                 expectSuccess = true

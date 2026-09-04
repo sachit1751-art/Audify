@@ -58,7 +58,7 @@ jobs:
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -dname "CN=Sachit PR ${{ github.event.number }},O=Sachit,C=US"
+            -dname "CN=Audify PR ${{ github.event.number }},O=Sachit,C=US"
 
       - name: Save PR debug keystore
         if: steps.pr_keystore.outputs.cache-hit != 'true'
@@ -71,9 +71,9 @@ jobs:
         run: ./gradlew --console=plain assembleGmsDebug --warning-mode summary
         env:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-          SACHIT_MUSIC_APPLICATION_ID: com.sachit.music.pr.p${{ github.event.number }}
-          SACHIT_MUSIC_APP_NAME: Sachit PR ${{ github.event.number }}
-          SACHIT_MUSIC_DEBUG_KEYSTORE_PATH: pr-debug.keystore
+          AUDIFY_MUSIC_APPLICATION_ID: com.sachit.music.pr.p${{ github.event.number }}
+          AUDIFY_MUSIC_APP_NAME: Audify PR ${{ github.event.number }}
+          AUDIFY_MUSIC_DEBUG_KEYSTORE_PATH: pr-debug.keystore
           PULL_REQUEST: "true"
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}

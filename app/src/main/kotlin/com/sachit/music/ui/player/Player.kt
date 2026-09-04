@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.player
 
 import androidx.activity.compose.BackHandler
@@ -149,6 +148,7 @@ import com.sachit.music.constants.PlayerBackgroundStyleKey
 import com.sachit.music.constants.PlayerButtonsStyle
 import com.sachit.music.constants.PlayerButtonsStyleKey
 import com.sachit.music.constants.PlayerHorizontalPadding
+import com.sachit.music.constants.PlayerVisualizerEnabledKey
 import com.sachit.music.constants.QueuePeekHeight
 import com.sachit.music.constants.SleepTimerDefaultKey
 import com.sachit.music.constants.SleepTimerFadeOutKey
@@ -225,6 +225,7 @@ fun BottomSheetPlayer(
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val (hideStatusBarOnFullscreen) = rememberPreference(HideStatusBarOnFullscreenKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
+    val playerVisualizer by rememberPreference(PlayerVisualizerEnabledKey, false)
 
     var showInlineLyrics by rememberSaveable {
         mutableStateOf(false)
@@ -1888,6 +1889,23 @@ fun BottomSheetPlayer(
                                 )
                             }
                         }
+
+                        if (playerVisualizer && !showInlineLyrics) {
+                            PlayerArtworkVisualizerOverlay(
+                                active =
+                                    !isCasting &&
+                                        !isListenTogetherGuest &&
+                                        effectiveIsPlaying,
+                                audioSessionIdProvider = {
+                                    runCatching { playerConnection.player.audioSessionId }
+                                        .getOrDefault(0)
+                                },
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 12.dp),
+                            )
+                        }
                     }
 
                     Column(
@@ -1949,6 +1967,23 @@ fun BottomSheetPlayer(
                                     isListenTogetherGuest = isListenTogetherGuest,
                                 )
                             }
+                        }
+
+                        if (playerVisualizer && !showInlineLyrics) {
+                            PlayerArtworkVisualizerOverlay(
+                                active =
+                                    !isCasting &&
+                                        !isListenTogetherGuest &&
+                                        effectiveIsPlaying,
+                                audioSessionIdProvider = {
+                                    runCatching { playerConnection.player.audioSessionId }
+                                        .getOrDefault(0)
+                                },
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 8.dp),
+                            )
                         }
                     }
 

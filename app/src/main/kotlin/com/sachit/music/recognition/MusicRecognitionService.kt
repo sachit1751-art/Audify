@@ -7,7 +7,6 @@
  * Special thanks to Aleksey Saenko for the music recognition implementation.
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.recognition
 
 import android.Manifest

@@ -8,18 +8,18 @@ if (localPropertiesFile.exists()) {
 }
 
 val baseApplicationId = "com.sachit.music"
-val applicationIdOverride = System.getenv("SACHIT_MUSIC_APPLICATION_ID")?.takeIf { it.isNotBlank() }
-val appNameOverride = System.getenv("SACHIT_MUSIC_APP_NAME")?.takeIf { it.isNotBlank() }
+val applicationIdOverride = System.getenv("AUDIFY_MUSIC_APPLICATION_ID")?.takeIf { it.isNotBlank() }
+val appNameOverride = System.getenv("AUDIFY_MUSIC_APP_NAME")?.takeIf { it.isNotBlank() }
 val buildCommit =
-    System.getenv("SACHIT_MUSIC_BUILD_COMMIT")
+    System.getenv("AUDIFY_MUSIC_BUILD_COMMIT")
         ?.trim()
         ?.takeIf { it.matches(Regex("[0-9a-fA-F]{7,40}")) }
         ?.take(7)
         ?.lowercase()
-val debugKeystorePathOverride = System.getenv("SACHIT_MUSIC_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
-val debugKeystorePassword = System.getenv("SACHIT_MUSIC_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
-val debugKeyAlias = System.getenv("SACHIT_MUSIC_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
-val debugKeyPassword = System.getenv("SACHIT_MUSIC_DEBUG_KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
+val debugKeystorePathOverride = System.getenv("AUDIFY_MUSIC_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+val debugKeystorePassword = System.getenv("AUDIFY_MUSIC_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
+val debugKeyAlias = System.getenv("AUDIFY_MUSIC_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
+val debugKeyPassword = System.getenv("AUDIFY_MUSIC_DEBUG_KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
 val persistentDebugKeystoreFile = file("persistent-debug.keystore")
 val workflowDebugKeystoreFile = debugKeystorePathOverride?.let(::file)
 
@@ -45,7 +45,7 @@ android {
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
-        resValue("string", "app_name", appNameOverride ?: "Sachit")
+        resValue("string", "app_name", appNameOverride ?: "Audify")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -133,7 +133,7 @@ android {
             }
             isDebuggable = true
             if (appNameOverride == null) {
-                resValue("string", "app_name", "Sachit Debug")
+                resValue("string", "app_name", "Audify Debug")
             }
             signingConfig =
                 if (workflowDebugKeystoreFile != null) {

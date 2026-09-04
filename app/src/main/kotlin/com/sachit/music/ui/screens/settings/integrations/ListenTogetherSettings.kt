@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.settings.integrations
 
 import android.widget.Toast
@@ -712,6 +711,13 @@ private fun ServerChooserDialog(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (trimmedCustomUrl.isNotBlank() && !trimmedCustomUrl.startsWith("wss://", ignoreCase = true)) {
+                Text(
+                    text = stringResource(R.string.lt_unencrypted_server_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Button(
                 onClick = { onUseCustom(trimmedCustomUrl) },
                 enabled = trimmedCustomUrl.isNotBlank(),

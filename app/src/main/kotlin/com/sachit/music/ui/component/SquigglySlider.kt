@@ -6,7 +6,6 @@
  * https://github.com/marlboro-advance/mpvEx
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.component
 
 import androidx.compose.animation.core.Animatable

@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.player
 
 import android.content.ClipData
@@ -195,7 +194,7 @@ fun PlaybackError(
             OutlinedButton(
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("SachitMusic Playback Error", errorReport))
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Audify Playback Error", errorReport))
                 },
                 shape = RoundedCornerShape(20.dp),
             ) {
@@ -228,7 +227,7 @@ private fun buildPlaybackErrorReport(
     streamClient: String?,
 ): String =
     buildString {
-        appendLine("SachitMusic Playback Error Report")
+        appendLine("Audify Playback Error Report")
         appendLine("================================")
         appendLine("Time: ${Instant.ofEpochMilli(error.timestampMs)}")
         appendLine("App version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")

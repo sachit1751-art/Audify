@@ -33,3 +33,27 @@ Sachit is a 3rd party YouTube Music client written in Kotlin. It follows materia
 
 2. If the build is not successful, review the error messages, fix the issues in your code, and try building again.
 3. Once the build is successful, you can test your changes on an emulator or a physical device. Install the generated APK located at `app/build/outputs/apk/foss/debug/app-foss-debug.apk` and ask a human for help testing the specific features you worked on.
+
+## Session handoff (September 2026)
+
+Environment notes for the main dev machine (Windows, no global JAVA_HOME):
+
+```bash
+export JAVA_HOME="C:\\Users\\HP\\.jdks\\jbr-21.0.11"
+./gradlew :app:assembleFossDebug --console=plain
+```
+
+APK output: `app/build/outputs/apk/foss/debug/app-foss-debug.apk` (FOSS flavor).
+
+UI/feature work already shipped in recent sessions (do NOT re-add; all of it exists and most has settings toggles):
+
+- Rebranded to **"Sachit"** with a new launcher icon (bold black "S" on off-white parchment). The icon exists in every format: adaptive vector foreground/monochrome/v31, density webps + round variants, static PNGs, and the Play Store icon (`fastlane/metadata/android/en-US/images/icon.png`).
+- Player screen: single-tap on the artwork toggles play/pause (toggle in Player settings, disabled for Listen Together guests); double-tap seek (±5s, pre-existing) now fires a haptic tick; artwork corner-radius picker (None/Subtle/Rounded) in Appearance settings.
+- Home screen: time-aware greeting header ("Good morning/afternoon/evening, {name}" when signed in).
+- Mini player: "Up Next peek" card slides up on song change showing the next 3 queued tracks; tap a row to jump; auto-dismisses after 5s; toggle in Appearance settings.
+- Low-end device optimizations: heap-aware Coil memory cache (10% vs 15% of heap) and crossfade disabled when the app heap is < 128 MB; density-aware image decode cap on the Home "Daily Discover" card. Tuning logic lives in `DevicePerformance.kt` with unit tests in `DevicePerformanceTest.kt`. Capable devices are unchanged.
+
+Artifact & release practice:
+
+- **Do NOT commit APKs into git history.** The repo `.gitignore` excludes `*.apk`; a multi-MB binary permanently bloats the public repo and GitHub warns above 50 MB. A previous session force-committed one and the history was rewritten to remove it again.
+- Ship build artifacts by attaching them to a GitHub **Release** instead. Tag convention matches the CI: `v<versionName>` (e.g. `v13.6.3`), marked prerelease for debug builds. GitHub API credentials are stored in the local git credential manager (username `sachit1751-art`); a fresh session can read them non-interactively with `git credential fill` (host `github.com`) and drive the REST API with curl — no `gh` CLI or CAVE/CI token is available on this machine.

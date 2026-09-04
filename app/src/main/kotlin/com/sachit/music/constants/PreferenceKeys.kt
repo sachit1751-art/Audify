@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.constants
 
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -74,6 +73,7 @@ enum class PlayerArtworkCornerRadius {
 val PauseOnMute = booleanPreferencesKey("pauseOnMute")
 val ResumeOnBluetoothConnectKey = booleanPreferencesKey("resumeOnBluetoothConnect")
 val KeepScreenOn = booleanPreferencesKey("keepScreenOn")
+val PlayerVisualizerEnabledKey = booleanPreferencesKey("playerVisualizerEnabled")
 val AlarmEnabledKey = booleanPreferencesKey("alarmEnabled")
 val AlarmHourKey = intPreferencesKey("alarmHour")
 val AlarmMinuteKey = intPreferencesKey("alarmMinute")

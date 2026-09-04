@@ -1,17 +1,22 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:height="200dp"
     android:width="200dp"
-    android:viewportWidth="35.0"
-    android:viewportHeight="35.0">
+    android:height="200dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- White "S" monogram, same stroke-drawn letter as the launcher icon
+         (monochrome layer), scaled up so it reads clearly as a small icon in
+         notifications, the About screen and share-card watermarks. -->
     <group
-        android:scaleX="0.7"
-        android:scaleY="0.7"
-        android:translateX="5.2"
-        android:translateY="5.3">
+        android:scaleX="1.3"
+        android:scaleY="1.3"
+        android:translateX="-16.2"
+        android:translateY="-16.2">
         <path
             android:fillColor="#00000000"
-            android:pathData="M11.7,17.037L5.907,22.83C5.517,23.22 5.517,23.853 5.907,24.244L11.493,29.83C11.883,30.22 12.517,30.22 12.907,29.83L18.907,23.83C19.095,23.642 19.2,23.388 19.2,23.122V6.004C19.2,5.115 20.274,4.668 20.905,5.295L30.2,14.536"
+            android:pathData="M 74,35 C 74,29 66,25 55,25 C 44,25 36,30 36,39 C 36,47 39,51 39,53 C 42,57 50,60 56,60 C 62,60 65,62 65,68 C 65,74 60,79 53,79 C 44,79 36,73 36,65 C 36,59 33,57 33,53"
             android:strokeColor="#FFFFFFFF"
-            android:strokeWidth="5.0" />
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="18" />
     </group>
 </vector>

@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.utils
 
 import android.content.Context
@@ -51,7 +50,7 @@ class CrashHandler private constructor(
         }.toString()
 
         return buildString {
-            appendLine("SachitMusic Crash Report")
+            appendLine("Audify Crash Report")
             appendLine("=".repeat(50))
             appendLine()
             appendLine("Manufacturer: ${Build.MANUFACTURER}")

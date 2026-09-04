@@ -6,7 +6,6 @@
  * Copyright (C) OuterTune Project - Custom SnapLayoutInfoProvider idea belongs to OuterTune
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.player
 
 import androidx.compose.foundation.ExperimentalFoundationApi

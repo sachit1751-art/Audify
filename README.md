@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/icon.png" alt="Sachit app icon" width="200" />
+<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/icon.png" alt="Audify app icon" width="200" />
 
-# Sachit
+# Audify
 
 ### YouTube Music client for Android
 
@@ -119,7 +119,7 @@
   </tr>
   <tr>
     <td align="center">
-      <a href="https://github.com/sachit1751-art/Sachit-Music/releases/latest/download/Sachit.apk">
+      <a href="https://github.com/sachit1751-art/Sachit-Music/releases/latest/download/Audify.apk">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="60">
       </a>
     </td>
@@ -149,7 +149,7 @@
 
 <h1>Special Thanks</h1>
 
-<h3>Sachit stands on the shoulders of incredible open-source work.</h3>
+<h3>Audify stands on the shoulders of incredible open-source work.</h3>
 
 <h3>Main Inspirations</h3>
 

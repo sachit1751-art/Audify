@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.settings
 
 import androidx.compose.foundation.layout.Column
@@ -59,6 +58,7 @@ import com.sachit.music.constants.LoudnessLevel
 import com.sachit.music.constants.LoudnessLevelKey
 import com.sachit.music.constants.PauseOnMute
 import com.sachit.music.constants.PersistentQueueKey
+import com.sachit.music.constants.PlayerVisualizerEnabledKey
 import com.sachit.music.constants.PersistentShuffleAcrossQueuesKey
 import com.sachit.music.constants.PreventDuplicateTracksInQueueKey
 import com.sachit.music.constants.RememberShuffleAndRepeatKey
@@ -223,6 +223,10 @@ fun PlayerSettings(
     )
     val (keepScreenOn, onKeepScreenOnChange) = rememberPreference(
         KeepScreenOn,
+        defaultValue = false
+    )
+    val (playerVisualizer, onPlayerVisualizerChange) = rememberPreference(
+        PlayerVisualizerEnabledKey,
         defaultValue = false
     )
     val (historyDuration, onHistoryDurationChange) = rememberPreference(
@@ -1113,6 +1117,27 @@ fun PlayerSettings(
                         )
                     },
                     onClick = { onKeepScreenOnChange(!keepScreenOn) }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.graphic_eq),
+                    title = { Text(stringResource(R.string.player_visualizer)) },
+                    description = { Text(stringResource(R.string.player_visualizer_desc)) },
+                    trailingContent = {
+                        Switch(
+                            checked = playerVisualizer,
+                            onCheckedChange = onPlayerVisualizerChange,
+                            thumbContent = {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (playerVisualizer) R.drawable.check else R.drawable.close
+                                    ),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                )
+                            }
+                        )
+                    },
+                    onClick = { onPlayerVisualizerChange(!playerVisualizer) }
                 )
             )
         )

@@ -5,7 +5,6 @@
  * Performance optimized MiniPlayer - prevents unnecessary recomposition
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.player
 
 import android.content.res.Configuration

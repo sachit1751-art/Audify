@@ -1,4 +1,3 @@
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.wrapped.components
 
 import androidx.compose.animation.core.LinearEasing

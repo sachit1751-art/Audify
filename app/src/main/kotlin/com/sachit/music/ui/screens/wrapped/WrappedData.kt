@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.ui.screens.wrapped
 
 data class MessagePair(val range: LongRange, val tease: String, val reveal: String)
@@ -15,7 +14,7 @@ object WrappedRepository {
         MessagePair(0L..999L, "Busy schedule this year?", "**%d minutes** is short, sweet, and to the point."),
         MessagePair(0L..999L, "Silence is golden, they say...", "But you preferred **%d minutes** of noise."),
 
-        MessagePair(1000L..4999L, "It seems like you found SachitMusic recently...", "And you dedicated **%d minutes** to the tunes."),
+        MessagePair(1000L..4999L, "It seems like you found Audify recently...", "And you dedicated **%d minutes** to the tunes."),
         MessagePair(1000L..4999L, "You have a life outside of music.", "**%d minutes** is a healthy balance. We respect that."),
         MessagePair(1000L..4999L, "Not too quiet, not too loud.", "Just the right amount of vibes for **%d minutes**."),
         MessagePair(1000L..4999L, "A casual stop on your journey.", "Thanks for dropping by for **%d minutes**."),

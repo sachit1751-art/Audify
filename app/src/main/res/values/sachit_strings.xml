@@ -362,6 +362,8 @@
     <string name="pause_music_when_media_is_muted">Pause music when media is muted</string>
     <string name="resume_on_bluetooth_connect">Resume on Bluetooth connection</string>
     <string name="keep_screen_on_when_player_is_expanded">Keep screen on when player is expanded</string>
+    <string name="player_visualizer">Player visualizer</string>
+    <string name="player_visualizer_desc">Animated frequency bars over the artwork while music is playing</string>
 
     <string name="crossfade">Crossfade</string>
     <string name="crossfade_desc">Fades out the current song as the next one fades in</string>
@@ -392,8 +394,8 @@
     <string name="update_available_title">Update available</string>
     <string name="update_channel_name">App updates</string>
     <string name="update_channel_desc">Notifications about new app versions</string>
-    <string name="kmp_upgrade_title">Sachit KMP %s is available</string>
-    <string name="kmp_upgrade_warning">Sachit KMP is in early access. Features may be broken, incomplete, or change without notice.</string>
+    <string name="kmp_upgrade_title">Audify KMP %s is available</string>
+    <string name="kmp_upgrade_warning">Audify KMP is in early access. Features may be broken, incomplete, or change without notice.</string>
     <string name="kmp_upgrade_action">Upgrade to KMP</string>
     <string name="kmp_upgrade_later">Not now</string>
 
@@ -426,7 +428,7 @@
     <string name="enable_scrobbling">Enable scrobbling</string>
     <string name="lastfm_now_playing">Send Now Playing status</string>
     <string name="last_fm_send_likes">Sync Loved and Unloved</string>
-    <string name="last_fm_send_likes_description">Love or unlove songs in Last.fm when you like or unlike them in Sachit</string>
+    <string name="last_fm_send_likes_description">Love or unlove songs in Last.fm when you like or unlike them in Audify</string>
     <string name="logging_in">Logging in…</string>
 
     <string name="scrobbling_configuration">Scrobbling configuration</string>
@@ -484,12 +486,12 @@
     <string name="wrapped_intro_title">SACHIT</string>
     <string name="wrapped_intro_subtitle">it\'s time to see what you\'ve been listening to all this year…</string>
     <string name="wrapped_intro_button">let\'s go!</string>
-    <string name="wrapped_logo_content_description">Sachit Logo</string>
+    <string name="wrapped_logo_content_description">Audify Logo</string>
     <string name="wrapped_year">2025</string>
     <string name="wrapped_ready_title">YOUR WRAPPED IS READY!</string>
     <string name="wrapped_ready_subtitle">Time to see what you loved all this year…</string>
     <string name="wrapped_thank_you">Thank you for listening!</string>
-    <string name="wrapped_special_thanks">Special thanks to Sachit for creating Sachit</string>
+    <string name="wrapped_special_thanks">Special thanks to Sachit for creating Audify</string>
     <string name="wrapped_close">Close Wrapped</string>
     <string name="wrapped_playlist_title">Your %s Wrapped</string>
     <string name="wrapped_create_playlist">Create playlist</string>
@@ -557,13 +559,13 @@
     <!-- Widget strings -->
     <string name="album_art">Album art</string>
     <string name="no_song_playing">No song playing</string>
-    <string name="tap_to_open">Tap to open Sachit</string>
+    <string name="tap_to_open">Tap to open Audify</string>
     <string name="previous">Previous</string>
     <string name="play_pause">Play/Pause</string>
     <string name="next">Next</string>
     <string name="like">Like</string>
     <string name="not_playing">No song playing</string>
-    <string name="tap_to_play">Tap to open Sachit</string>
+    <string name="tap_to_play">Tap to open Audify</string>
     <string name="widget_description">Music player widget with playback controls</string>
     <string name="turntable_widget_description">Circular music widget with play and like controls</string>
     <string name="widget_music_player">Music Player</string>
@@ -595,6 +597,7 @@
     <string name="listen_together_server_url">Server URL</string>
     <string name="listen_together_choose_server">Choose server</string>
     <string name="listen_together_custom_server">Custom server</string>
+    <string name="lt_unencrypted_server_warning">This server connection is unencrypted (not wss://). Only use it on networks you trust — others on the network could see your Listen Together activity.</string>
     <string name="listen_together_use_custom_server">Use custom server</string>
     <string name="listen_together_username">Username</string>
     <string name="listen_together_connected">Connected</string>
@@ -725,7 +728,7 @@
     <string name="crash_description">An unexpected error occurred. Please share the crash report to help us fix the issue</string>
     <string name="crash_share_logs">Share logs</string>
     <string name="crash_share_title">Share crash report</string>
-    <string name="crash_report_subject">Sachit crash report</string>
+    <string name="crash_report_subject">Audify crash report</string>
     <string name="crash_close">Close</string>
     <string name="crash_no_log">No crash log available</string>
 
@@ -777,7 +780,7 @@
     <string name="clear_recognition_history_confirm">Are you sure you want to clear all recognition history?</string>
     <string name="delete_from_history">Delete from history</string>
     <string name="re_listen">Re-listen</string>
-    <string name="play_on_app">Play on Sachit</string>
+    <string name="play_on_app">Play on Audify</string>
     <string name="qs_tile_music_recognizer">Recognize music</string>
     <string name="recognition_notification_channel_name">Music recognition</string>
     <string name="recognition_notification_channel_desc">Shows a notification while identifying a song from quick settings</string>
@@ -785,7 +788,7 @@
     <string name="recognition_notification_processing">Identifying…</string>
     <string name="recognition_notification_no_match">No match found</string>
     <string name="recognition_notification_failed">Recognition failed</string>
-    <string name="listen_on_sachit_music">Listen on Sachit</string>
+    <string name="listen_on_sachit_music">Listen on Audify</string>
 
     <!-- CSV Import Strings -->
     <string name="map_csv_columns">Map CSV columns</string>
@@ -801,7 +804,7 @@
     <string name="column_label">Column %d</string>
 
     <string name="discord_connect_description">Sign in with Discord to share what you\'re listening to</string>
-    <string name="discord_information_warning">Sachit uses Discord\'s public OAuth2 and Gateway APIs to share what you\'re listening to. Authorization happens through a local browser session that closes itself after capturing the code — nothing is sent to third-party servers. Your token is stored on this device in encrypted preferences and is never shared. Sachit connects directly to wss://gateway.discord.gg to publish your activity, and only requests the minimum scope required (sdk.social_layer_presence).</string>
+    <string name="discord_information_warning">Audify uses Discord\'s public OAuth2 and Gateway APIs to share what you\'re listening to. Authorization happens through a local browser session that closes itself after capturing the code — nothing is sent to third-party servers. Your token is stored on this device in encrypted preferences and is never shared. Audify connects directly to wss://gateway.discord.gg to publish your activity, and only requests the minimum scope required (sdk.social_layer_presence).</string>
     <string name="discord_status_connected">Connected</string>
     <string name="discord_status_authorizing">Authorizing…</string>
     <string name="discord_status_authorized">Authorized</string>

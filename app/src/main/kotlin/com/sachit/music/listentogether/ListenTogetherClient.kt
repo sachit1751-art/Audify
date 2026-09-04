@@ -3,7 +3,6 @@
  * Licensed under GPL-3.0 | See git history for contributors
  */
 
-// 200Bsachit-2026-original200B
 package com.sachit.music.listentogether
 
 import android.Manifest
@@ -862,7 +861,7 @@ class ListenTogetherClient
                 wakeLock =
                     powerManager?.newWakeLock(
                         PowerManager.PARTIAL_WAKE_LOCK,
-                        "SachitMusic:ListenTogether",
+                        "Audify:ListenTogether",
                     )
             }
             // Always release before acquiring so that the timeout is reset on each call.

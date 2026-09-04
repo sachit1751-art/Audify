@@ -1,4 +1,3 @@
-// 200Bsachit-2026-original200B
 package com.sachit.music.utils
 
 import android.content.ContentValues
@@ -152,7 +151,7 @@ private fun createExportFile(
     filename: String,
 ): File {
     // Create directory if it doesn't exist
-    val exportDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "SachitMusicExports")
+    val exportDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "AudifyExports")
     if (!exportDir.exists()) {
         exportDir.mkdirs()
     }
@@ -201,7 +200,7 @@ fun saveToPublicDocuments(
     context: Context,
     source: File,
     mimeType: String,
-    subdirectory: String = "SachitMusicExports",
+    subdirectory: String = "AudifyExports",
 ): Result<Uri> {
     return try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
