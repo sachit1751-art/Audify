@@ -1,7 +1,3 @@
-<div align="center">
-
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/icon.png" alt="Audify app icon" width="200" />
-
 # Audify
 
 ### YouTube Music client for Android
