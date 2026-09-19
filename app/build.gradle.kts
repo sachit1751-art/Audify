@@ -16,6 +16,25 @@ val buildCommit =
         ?.takeIf { it.matches(Regex("[0-9a-fA-F]{7,40}")) }
         ?.take(7)
         ?.lowercase()
+// Release signing: environment variables first (CI), then local.properties (local
+// builds). When no credentials are configured the release build type stays
+// unsigned so CI can sign as a separate step (ilharp/sign-android-release).
+fun signingProperty(envKey: String, propertyKey: String): String? {
+    return System.getenv(envKey)?.takeIf { it.isNotBlank() }
+        ?: localProperties.getProperty(propertyKey)?.takeIf { it.isNotBlank() }
+}
+val releaseStoreFile =
+    localProperties.getProperty("AUDIFY_RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
+        ?: "keystore/release.keystore"
+val releaseStorePassword =
+    signingProperty("AUDIFY_RELEASE_STORE_PASSWORD", "AUDIFY_RELEASE_STORE_PASSWORD")
+        ?: signingProperty("STORE_PASSWORD", "AUDIFY_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias =
+    signingProperty("AUDIFY_RELEASE_KEY_ALIAS", "AUDIFY_RELEASE_KEY_ALIAS")
+        ?: signingProperty("KEY_ALIAS", "AUDIFY_RELEASE_KEY_ALIAS")
+val releaseKeyPassword =
+    signingProperty("AUDIFY_RELEASE_KEY_PASSWORD", "AUDIFY_RELEASE_KEY_PASSWORD")
+        ?: signingProperty("KEY_PASSWORD", "AUDIFY_RELEASE_KEY_PASSWORD")
 val debugKeystorePathOverride = System.getenv("AUDIFY_MUSIC_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 val debugKeystorePassword = System.getenv("AUDIFY_MUSIC_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
 val debugKeyAlias = System.getenv("AUDIFY_MUSIC_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
@@ -103,10 +122,10 @@ android {
             keyPassword = debugKeyPassword
         }
         create("release") {
-            storeFile = file("keystore/release.keystore")
-            storePassword = System.getenv("STORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+            storeFile = file(releaseStoreFile)
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
         }
         getByName("debug") {
             keyAlias = "androiddebugkey"
@@ -126,6 +145,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Only attach the signing config when credentials are actually
+            // available; otherwise the APK stays unsigned for CI's post-build
+            // signing step and scripts/build-apks.sh refuses to ship it.
+            if (releaseStorePassword != null && releaseKeyPassword != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             if (applicationIdOverride == null) {

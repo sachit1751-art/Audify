@@ -12,6 +12,15 @@
 # Outputs are copied (never moved) into dist/<version>-<shortsha>/ with
 # unambiguous names.
 #
+# Release signing: credentials are read from local.properties
+# (AUDIFY_RELEASE_STORE_PASSWORD / AUDIFY_RELEASE_KEY_ALIAS /
+# AUDIFY_RELEASE_KEY_PASSWORD, written next to the keystore) or from the
+# STORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD environment variables. Without
+# credentials the script aborts before building — an unsigned release APK
+# cannot be installed ("App not installed as package appears to be invalid").
+# Every produced APK is additionally verified with apksigner before it is
+# collected into dist/.
+#
 # With --upload, the built APKs are also attached to a GitHub prerelease
 # tagged v<version>+<shortsha> (created if needed) using the GitHub
 # credentials stored in the local git credential manager — no gh CLI needed.
@@ -102,14 +111,26 @@ fi
 log "Android SDK: ${ANDROID_HOME:-from local.properties}"
 
 # ---------------------------------------------------------------------------
-# 3. Signing: the release signing config reads STORE_PASSWORD / KEY_ALIAS /
-#    KEY_PASSWORD from the environment. Without them Gradle still assembles
-#    release APKs but they will be unsigned (or the task fails, in which case
-#    the failure surfaces below with Gradle's own message).
+# 3. Signing preflight: release builds without credentials would produce
+#    unsigned APKs that Android refuses to install. Abort instead.
 # ---------------------------------------------------------------------------
-if [ -z "${STORE_PASSWORD:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
-  warn "STORE_PASSWORD/KEY_PASSWORD not set -> release APKs will be UNSIGNED."
-  warn "Export them (or run inside a shell that has them) for signed builds."
+lp_val() { sed -n "s/^$1=//p" "$ROOT/local.properties" 2>/dev/null | tr -d '\r' | head -1; }
+RELEASE_STORE_PASSWORD="${AUDIFY_RELEASE_STORE_PASSWORD:-${STORE_PASSWORD:-$(lp_val AUDIFY_RELEASE_STORE_PASSWORD)}}"
+RELEASE_KEY_ALIAS="${AUDIFY_RELEASE_KEY_ALIAS:-${KEY_ALIAS:-$(lp_val AUDIFY_RELEASE_KEY_ALIAS)}}"
+RELEASE_KEY_PASSWORD="${AUDIFY_RELEASE_KEY_PASSWORD:-${KEY_PASSWORD:-$(lp_val AUDIFY_RELEASE_KEY_PASSWORD)}}"
+RELEASE_STORE_FILE="$(lp_val AUDIFY_RELEASE_STORE_FILE)"
+RELEASE_STORE_FILE="${RELEASE_STORE_FILE:-keystore/release.keystore}"
+
+BUILDING_RELEASE=0
+case "$FLAVOR" in
+  all|foss|gms|izzy) BUILDING_RELEASE=1 ;;
+esac
+if [ "$BUILDING_RELEASE" -eq 1 ] && [ "$SKIP_BUILD" -eq 0 ]; then
+  if [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
+    fail "No release signing credentials (set AUDIFY_RELEASE_STORE_PASSWORD/AUDIFY_RELEASE_KEY_PASSWORD in local.properties, or STORE_PASSWORD/KEY_PASSWORD in the environment). Release APKs would be unsigned and uninstallable."
+  fi
+  [ -f "$ROOT/$RELEASE_STORE_FILE" ] || fail "Release keystore not found at $RELEASE_STORE_FILE (see local.properties AUDIFY_RELEASE_STORE_FILE)."
+  log "Release signing: $RELEASE_STORE_FILE (alias ${RELEASE_KEY_ALIAS:-default})"
 fi
 
 # ---------------------------------------------------------------------------
@@ -150,6 +171,22 @@ fi
 # ---------------------------------------------------------------------------
 VERSION=$(grep -E '^\s*versionName = "' app/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
 [ -n "$VERSION" ] || fail "Could not read versionName from app/build.gradle.kts"
+
+# Signature gate: an unsigned or corrupt APK must never reach dist/ or a
+# release page. apksigner runs from the build-tools via its standalone jar,
+# so this works identically on Windows Git Bash and CI.
+SDK_DIR="${ANDROID_HOME:-$(lp_val sdk.dir)}"
+APKSIGNER_JAR="$(ls "$SDK_DIR/build-tools/"*/lib/apksigner.jar 2>/dev/null | sort -V | tail -1)"
+verify_signed() { # verify_signed <apk>
+  if [ -z "$APKSIGNER_JAR" ]; then
+    warn "apksigner.jar not found under $SDK_DIR/build-tools — skipping signature verification of $(basename "$1")."
+    return 0
+  fi
+  if ! "$JAVA_HOME/bin/java" -jar "$APKSIGNER_JAR" verify "$1" >/dev/null 2>&1; then
+    fail "Signature verification FAILED for $(basename "$1") — unsigned or corrupt. Nothing was shipped; fix signing and rebuild."
+  fi
+  log "  ✓ signature OK: $(basename "$1")"
+}
 SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "nogit")
 DIST="$ROOT/dist/${VERSION}-${SHORT_SHA}"
 mkdir -p "$DIST"
@@ -158,6 +195,7 @@ copy_apk() { # copy_apk <glob> <final-name>
   local found=""
   for f in $1; do
     [ -f "$f" ] || continue
+    verify_signed "$f"
     cp -f "$f" "$DIST/$2"
     log "  -> $DIST/$2"
     found=1
@@ -218,7 +256,7 @@ if [ "$DO_UPLOAD" -eq 1 ]; then
   "name": "Audify $TAG",
   "draft": false,
   "prerelease": true,
-  "body": "Local build from commit $SHORT_SHA, produced by scripts/build-apks.sh. Release-flavor APKs may be unsigned; debug builds are debug-signed and install side-by-side with release versions.\\n\\nFiles:\\n$FILE_LIST_JSON"
+  "body": "Local build from commit $SHORT_SHA, produced by scripts/build-apks.sh. Release APKs are signed with the project release keystore; debug builds are debug-signed and install side-by-side with release versions.\\n\\nFiles:\\n$FILE_LIST_JSON"
 }
 EOF
 )
