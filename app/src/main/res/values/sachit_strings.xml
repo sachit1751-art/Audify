@@ -115,6 +115,20 @@
     <string name="follow_theme">Follow theme</string>
     <string name="gradient">Gradient</string>
     <string name="new_player_design">New player design</string>
+    <string name="bitchord_player_style">Apple Music-style player</string>
+    <string name="bitchord_player_style_desc">Bold transport controls, hairline scrubber and artwork mesh backdrop</string>
+    <string name="bitchord_style_hide_volume">Hide volume bar</string>
+
+    <!-- Audio export -->
+    <string name="export_audio">Save as MP4</string>
+    <string name="export_audio_progress">Preparing export… %d%%</string>
+    <string name="export_audio_desc">Write the downloaded song to a standard MP4 audio file you can keep or move to other apps</string>
+    <string name="share_audio_file">Share audio file</string>
+    <string name="share_audio_file_desc">Share the downloaded song as an MP4/WebM file</string>
+    <string name="export_audio_success">Audio file saved</string>
+    <string name="export_audio_failed">Export failed. Try downloading the song again</string>
+    <string name="export_error_unavailable">The audio isn\'t available offline. Connect to the internet and try again</string>
+    <string name="export_error_unknown_format">The audio format of this song isn\'t known. Play it once, then export</string>
     <string name="new_mini_player_design">New mini-player design</string>
     <string name="player_background_blur">Blur</string>
     <string name="player_buttons_style">Player button colors</string>

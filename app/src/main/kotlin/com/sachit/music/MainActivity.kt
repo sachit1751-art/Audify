@@ -172,6 +172,7 @@ import com.sachit.music.extensions.toEnum
 import com.sachit.music.lyrics.LyricsProviderRegistry
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.DownloadUtil
+import com.sachit.music.utils.AudioExporter
 import com.sachit.music.playback.MusicService
 import com.sachit.music.playback.MusicService.MusicBinder
 import com.sachit.music.playback.PlayerConnection
@@ -243,6 +244,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var downloadUtil: DownloadUtil
+
+    @Inject
+    lateinit var audioExporter: AudioExporter
 
     @Inject
     lateinit var syncUtils: SyncUtils
@@ -1014,6 +1018,7 @@ class MainActivity : FragmentActivity() {
                     LocalPlayerConnection provides playerConnection,
                     LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                     LocalDownloadUtil provides downloadUtil,
+                    LocalAudioExporter provides audioExporter,
                     LocalShimmerTheme provides ShimmerTheme,
                     LocalSyncUtils provides syncUtils,
                     LocalListenTogetherManager provides listenTogetherManager,
@@ -1670,6 +1675,7 @@ val LocalNavController = staticCompositionLocalOf<NavController> { error("No Nav
 val LocalPlayerConnection = staticCompositionLocalOf<PlayerConnection?> { error("No PlayerConnection provided") }
 val LocalPlayerAwareWindowInsets = compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }
+val LocalAudioExporter = staticCompositionLocalOf<AudioExporter> { error("No AudioExporter provided") }
 val LocalSyncUtils = staticCompositionLocalOf<SyncUtils> { error("No SyncUtils provided") }
 val LocalListenTogetherManager = staticCompositionLocalOf<com.sachit.music.listentogether.ListenTogetherManager?> { null }
 val LocalChangelogState = staticCompositionLocalOf<MutableState<Boolean>> { error("No LocalChangelogState provided") }

@@ -158,6 +158,7 @@ import com.sachit.music.constants.SliderStyleKey
 import com.sachit.music.constants.SquigglySliderKey
 import com.sachit.music.constants.ThumbnailCornerRadius
 import com.sachit.music.constants.UseNewPlayerDesignKey
+import com.sachit.music.constants.UseBitchordPlayerStyleKey
 import com.sachit.music.db.entities.LyricsEntity
 import com.sachit.music.extensions.metadata
 import com.sachit.music.extensions.togglePlayPause
@@ -222,6 +223,7 @@ fun BottomSheetPlayer(
             UseNewPlayerDesignKey,
             defaultValue = true,
         )
+    val (useBitchordPlayerStyle) = rememberPreference(UseBitchordPlayerStyleKey, false)
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val (hideStatusBarOnFullscreen) = rememberPreference(HideStatusBarOnFullscreenKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
@@ -323,6 +325,7 @@ fun BottomSheetPlayer(
     val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val automix by playerConnection.service.automixItems.collectAsStateWithLifecycle()
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
+    val shuffleEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
     val canSkipPrevious by playerConnection.canSkipPrevious.collectAsStateWithLifecycle()
     val canSkipNext by playerConnection.canSkipNext.collectAsStateWithLifecycle()
     val isMuted by playerConnection.isMuted.collectAsStateWithLifecycle()
@@ -1837,7 +1840,85 @@ fun BottomSheetPlayer(
             }
         }
 
-        when (LocalConfiguration.current.orientation) {
+        when {
+            useBitchordPlayerStyle -> {
+                mediaMetadata?.let { metadata ->
+                    BitchordStylePlayerContent(
+                        mediaMetadata = metadata,
+                        isPlaying = effectiveIsPlaying,
+                        isLoading = playbackState == Player.STATE_BUFFERING,
+                        positionMs = effectivePosition,
+                        durationMs = duration,
+                        sliderPosition = sliderPosition,
+                        onScrub = { sliderPosition = it },
+                        onScrubFinished = {
+                            sliderPosition?.let {
+                                if (isCasting) {
+                                    castHandler?.seekTo(it)
+                                    lastManualSeekTime = System.currentTimeMillis()
+                                } else {
+                                    playerConnection.player.seekTo(it)
+                                }
+                                position = it
+                            }
+                            sliderPosition = null
+                        },
+                        repeatMode = repeatMode,
+                        shuffleEnabled = shuffleEnabled,
+                        onToggleShuffle = {
+                            playerConnection.player.shuffleModeEnabled =
+                                !playerConnection.player.shuffleModeEnabled
+                        },
+                        onToggleRepeat = {
+                            playerConnection.player.toggleRepeatMode()
+                        },
+                        canSkipPrevious = canSkipPrevious,
+                        canSkipNext = canSkipNext,
+                        onPrevious = playerConnection::seekToPrevious,
+                        onNext = playerConnection::seekToNext,
+                        onPlayPause = {
+                            if (isListenTogetherGuest) {
+                                playerConnection.toggleMute()
+                            } else if (isCasting) {
+                                if (castIsPlaying) {
+                                    castHandler?.pause()
+                                } else {
+                                    castHandler?.play()
+                                }
+                            } else if (playbackState == STATE_ENDED) {
+                                playerConnection.player.seekTo(0, 0)
+                                playerConnection.player.playWhenReady = true
+                            } else {
+                                playerConnection.togglePlayPause()
+                            }
+                        },
+                        isListenTogetherGuest = isListenTogetherGuest,
+                        onOpenQueue = { queueSheetState.expandSoft() },
+                        onOpenMenu = {
+                            menuState.show {
+                                PlayerMenu(
+                                    mediaMetadata = metadata,
+                                    playerBottomSheetState = state,
+                                    onShowDetailsDialog = {
+                                        bottomSheetPageState.show {
+                                            ShowMediaInfo(metadata.id)
+                                        }
+                                    },
+                                    onDismiss = menuState::dismiss,
+                                )
+                            }
+                        },
+                        onToggleLyrics = {
+                            showInlineLyrics = !showInlineLyrics
+                        },
+                        showLyrics = showInlineLyrics,
+                        positionProvider = { effectivePosition },
+                        bottomPadding = if (isFullScreen) 0.dp else queueSheetState.collapsedBound,
+                    )
+                }
+            }
+
+            else -> when (LocalConfiguration.current.orientation) {
             Configuration.ORIENTATION_LANDSCAPE -> {
                 // Calculate vertical padding like OuterTune
                 val density = LocalDensity.current
@@ -1993,6 +2074,7 @@ fun BottomSheetPlayer(
 
                     Spacer(Modifier.height(30.dp))
                 }
+            }
             }
         }
 

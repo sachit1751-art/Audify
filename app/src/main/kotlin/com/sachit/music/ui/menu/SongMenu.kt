@@ -66,6 +66,7 @@ import androidx.media3.exoplayer.offline.DownloadService
 import coil3.compose.AsyncImage
 import com.sachit.music.LocalNavController
 import com.sachit.innertube.YouTube
+import com.sachit.music.LocalAudioExporter
 import com.sachit.music.LocalDatabase
 import com.sachit.music.LocalDownloadUtil
 import com.sachit.music.LocalListenTogetherManager
@@ -84,6 +85,8 @@ import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.ExoDownloadService
 import com.sachit.music.playback.queues.YouTubeQueue
+import com.sachit.music.utils.AudioContainer
+import com.sachit.music.utils.AudioExporter
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.ListDialog
 import com.sachit.music.ui.component.LocalBottomSheetPageState
@@ -93,6 +96,8 @@ import com.sachit.music.ui.component.NewAction
 import com.sachit.music.ui.component.NewActionGrid
 import com.sachit.music.ui.component.SongListItem
 import com.sachit.music.ui.component.TextFieldDialog
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.sachit.music.ui.utils.ShowMediaInfo
 import com.sachit.music.viewmodels.CachePlaylistViewModel
 import kotlinx.coroutines.Dispatchers
@@ -101,6 +106,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.io.File
 import java.time.LocalDateTime
 
 @Composable
@@ -129,6 +135,37 @@ fun SongMenu(
     var refetchIconDegree by remember { mutableFloatStateOf(0f) }
 
     val cacheViewModel = hiltViewModel<CachePlaylistViewModel>()
+    val audioExporter = LocalAudioExporter.current
+
+    // Export state for the "Save as MP4" flow: a progress fraction while the
+    // file is being written, or an error message while the user is still
+    // looking at the menu.
+    var exportProgress by remember { mutableStateOf<Float?>(null) }
+    var exportError by remember { mutableStateOf<Int?>(null) }
+    var pendingExportFile by remember { mutableStateOf<File?>(null) }
+
+    val saveExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("audio/mp4"),
+    ) { uri ->
+        val file = pendingExportFile
+        pendingExportFile = null
+        if (uri == null || file == null) return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    file.inputStream().use { it.copyTo(out) }
+                } ?: throw java.io.IOException("Could not open destination")
+            }.onSuccess {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, R.string.export_audio_success, Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, R.string.export_audio_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     val rotationAnimation by animateFloatAsState(
         targetValue = refetchIconDegree,
@@ -897,6 +934,111 @@ fun SongMenu(
                         }
                     },
             )
+        }
+
+        item { Spacer(modifier = Modifier.height(12.dp)) }
+
+        // Export: only meaningful once the audio is actually on the device.
+        // The exported file is a standard MP4 (or WebM) audio file, playable
+        // and editable in any app — unlike the chunked offline cache itself.
+        if (download?.state == Download.STATE_COMPLETED) {
+            item {
+                Material3MenuGroup(
+                    items =
+                        listOf(
+                            Material3MenuItemData(
+                                title = {
+                                    Text(
+                                        text = if (exportProgress == null) {
+                                            stringResource(R.string.export_audio)
+                                        } else {
+                                            stringResource(
+                                                R.string.export_audio_progress,
+                                                (exportProgress!! * 100).toInt(),
+                                            )
+                                        }
+                                    )
+                                },
+                                description = { Text(text = stringResource(R.string.export_audio_desc)) },
+                                icon = {
+                                    if (exportProgress == null) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.download),
+                                            contentDescription = null,
+                                        )
+                                    } else {
+                                        CircularProgressIndicator(
+                                            progress = { exportProgress!! },
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    if (exportProgress != null) return@Material3MenuItemData
+                                    exportError = null
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        val result = audioExporter.exportAudio(
+                                            songId = song.id,
+                                            title = song.song.title,
+                                            artistName = song.orderedArtists.firstOrNull()?.name,
+                                        ) { progress ->
+                                            // Compose snapshot state is thread-safe; write from the IO thread directly.
+                                            exportProgress = progress.fraction
+                                        }
+                                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                            exportProgress = null
+                                            result.onSuccess { file ->
+                                                pendingExportFile = file
+                                                saveExportLauncher.launch(
+                                                    AudioExporter.safeFileName(song.song.title, song.orderedArtists.firstOrNull()?.name) + ".mp4",
+                                                )
+                                            }.onFailure { error ->
+                                                exportError = when (error) {
+                                                    is AudioExporter.ExportError.NotAvailable -> R.string.export_error_unavailable
+                                                    is AudioExporter.ExportError.UnknownFormat -> R.string.export_error_unknown_format
+                                                    else -> R.string.export_audio_failed
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                            ),
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.share_audio_file)) },
+                                description = { Text(text = stringResource(R.string.share_audio_file_desc)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.share),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        val result = audioExporter.exportAudio(
+                                            songId = song.id,
+                                            title = song.song.title,
+                                            artistName = song.orderedArtists.firstOrNull()?.name,
+                                        )
+                                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                            result.onSuccess { file ->
+                                                audioExporter.shareAudio(
+                                                    context,
+                                                    file,
+                                                    AudioExporter.mimeTypeForFile(file),
+                                                )
+                                            }.onFailure {
+                                                Toast.makeText(context, R.string.export_audio_failed, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                    onDismiss()
+                                },
+                            ),
+                        ),
+                )
+            }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
         }
 
         item { Spacer(modifier = Modifier.height(12.dp)) }

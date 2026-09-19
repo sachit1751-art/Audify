@@ -103,6 +103,7 @@ import com.sachit.music.constants.SwipeToRemoveSongKey
 import com.sachit.music.constants.SwipeToSongKey
 import com.sachit.music.constants.UseNewMiniPlayerDesignKey
 import com.sachit.music.constants.UseNewPlayerDesignKey
+import com.sachit.music.constants.UseBitchordPlayerStyleKey
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.EnumDialog
 import com.sachit.music.ui.component.IconButton
@@ -164,6 +165,11 @@ fun AppearanceSettings(
         rememberPreference(
             UseNewPlayerDesignKey,
             defaultValue = true,
+        )
+    val (useBitchordPlayerStyle, onUseBitchordPlayerStyleChange) =
+        rememberPreference(
+            UseBitchordPlayerStyleKey,
+            defaultValue = false,
         )
     val (miniPlayerBackground, onMiniPlayerBackgroundChange) =
         rememberEnumPreference(
@@ -1179,6 +1185,28 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.palette),
+                        title = { Text(stringResource(R.string.bitchord_player_style)) },
+                        description = { Text(stringResource(R.string.bitchord_player_style_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = useBitchordPlayerStyle,
+                                onCheckedChange = onUseBitchordPlayerStyleChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                id = if (useBitchordPlayerStyle) R.drawable.check else R.drawable.close,
+                                            ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        onClick = { onUseBitchordPlayerStyleChange(!useBitchordPlayerStyle) },
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.gradient),
