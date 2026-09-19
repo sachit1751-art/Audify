@@ -17,6 +17,17 @@ if errorlevel 1 (
 
 bash "scripts\build-apks.sh" %*
 
+rem If the build succeeded and --upload wasn't passed, offer to publish the
+rem APKs to a GitHub release right away.
+if errorlevel 1 goto done
+echo %* | findstr /C:"--upload" >nul
+if not errorlevel 1 goto done
+echo.
+set UPLOAD=
+set /p UPLOAD=Upload these APKs to a GitHub release too? [y/N]: 
+if /i "%UPLOAD%"=="y" bash "scripts\build-apks.sh" --upload --flavor foss --with-debug
+
+:done
 echo.
 echo ============================================================
 if errorlevel 1 (
