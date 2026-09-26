@@ -235,7 +235,7 @@ constructor(
             .build()
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Stream returned HTTP ${response.code}")
-            val body = response.body ?: throw IOException("Empty stream body")
+            val body = response.body
             target.outputStream().use { out ->
                 var written = 0L
                 val total = contentLength ?: body.contentLength().takeIf { it > 0 } ?: -1L

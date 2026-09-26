@@ -458,7 +458,7 @@ class BackupRestoreViewModel @Inject constructor(
                 .build()
 
             val response = client.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@runCatching null
+            val responseBody = response.body.string()
 
             // Parse the JSON response
             val json = Json { ignoreUnknownKeys = true }

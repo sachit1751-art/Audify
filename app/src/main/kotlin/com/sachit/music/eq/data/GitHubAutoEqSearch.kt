@@ -175,7 +175,7 @@ class GitHubAutoEqSearch(private val context: Context) {
                     return null
                 }
 
-                val body = response.body?.string() ?: return null
+                val body = response.body.string()
                 treeFile.writeText(body)
                 treeTimestampFile.writeText(System.currentTimeMillis().toString())
                 body
@@ -211,7 +211,7 @@ class GitHubAutoEqSearch(private val context: Context) {
                     return null
                 }
 
-                val body = response.body?.string() ?: return null
+                val body = response.body.string()
                 cacheFile.parentFile?.mkdirs()
                 cacheFile.writeText(body)
                 body
