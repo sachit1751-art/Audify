@@ -31,27 +31,34 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | 010 | One-tap song radio from the player | Feature | S | — | none | proposed |
 | 011 | Quick-settings tiles (shuffle all) | Feature | S | — | Manifest addition | proposed |
 | 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | proposed |
+| 013 | Synced lyric line in the mini player | Feature | M | — | none | proposed |
+| 014 | "Play next" from search results | Feature | S | — | none | proposed |
 
 ## Recommended order
 
 1. **010** (song radio) — smallest, user-visible immediately, zero service surgery.
-2. **011** (tiles) — small, independent, touches only the manifest + MainActivity hook.
-3. **012** (monthly card) — reuses Wrapped data; do after 010/011 to keep diffs isolated.
-4. **009** (smart playlists) — largest surface (DAO + library UI); run last.
+2. **014** (play next from search) — small, mostly a parity check on existing menus.
+3. **011** (tiles) — small, independent, touches only the manifest + MainActivity hook.
+4. **012** (monthly card) — reuses Wrapped data; keeps diffs isolated from 013.
+5. **013** (mini-player lyric line) — the lyrics plumbing needs care; isolated from 012.
+6. **009** (smart playlists) — largest surface (DAO + library UI); run last.
 
-Plans 010/011/012 touch disjoint files and could run in parallel branches; 009 shares the
-library screen with none of them but touches `DatabaseDao.kt`, so keep it sequential.
+Plans 010/011/014 are fully disjoint and could run in parallel branches; 012 and 013 both
+touch the mini player / Home area but not the same files — sequence them. 009 touches
+`DatabaseDao.kt`, so keep it sequential regardless.
 
 ## Considered and rejected for this round
 
 - **Lyrics translation on-tap** — already shipped (`LyricsTranslationHelper` + DeepL in
   `ui/menu/LyricsMenu.kt`).
+- **Volume-normalization settings** — already shipped end to end: `AudioNormalizationKey`,
+  `LoudnessLevelKey` (QUIET/BALANCED/LOUD/AGGRESSIVE) with settings UI in
+  `PlayerSettings.kt` and a per-track info display in `ShowMediaInfo.kt`. Nothing left to plan.
 - **Playlist folders** — needs a DB schema change (AGENTS.md forbids); revisit if the core
   team approves a migration.
 - **Wear OS companion** — high value but a multi-week effort; deserves its own plan round.
-- **Volume-normalization settings surface** — normalization already runs with
-  `loudnessDb`/`perceptualLoudnessDb`; the remaining work is settings UX, parked until a
-  human confirms the target-LUFS choices.
+- **Wear/Android Auto/external-display audits** — Auto is already covered
+  (`MediaLibrarySessionCallback` + settings); nothing actionable without hardware QA.
 
 ## How to update status
 
