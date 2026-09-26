@@ -28,7 +28,7 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | # | Plan | Category | Effort | Depends on | Requires human gate | Status |
 |---|------|----------|--------|------------|---------------------|--------|
 | 009 | Smart auto-playlists (no schema change) | Feature | M | — | none | proposed |
-| 010 | One-tap song radio from the player | Feature | S | — | none | proposed |
+| 010 | One-tap song radio from the player | Feature | S | — | none | done (implemented 2cc93084, 2026-09-26) |
 | 011 | Quick-settings tiles (shuffle all) | Feature | S | — | Manifest addition | proposed |
 | 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | proposed |
 | 013 | Synced lyric line in the mini player | Feature | M | — | none | proposed |
