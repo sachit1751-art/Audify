@@ -168,6 +168,7 @@ import com.sachit.music.constants.UseNewMiniPlayerDesignKey
 import com.sachit.music.constants.VideoThumbnailMigrationDoneKey
 import com.sachit.music.db.MusicDatabase
 import com.sachit.music.db.entities.SearchHistory
+import com.sachit.music.db.entities.Song
 import com.sachit.music.extensions.toEnum
 import com.sachit.music.lyrics.LyricsProviderRegistry
 import com.sachit.music.models.toMediaMetadata
@@ -175,8 +176,11 @@ import com.sachit.music.playback.DownloadUtil
 import com.sachit.music.utils.AudioExporter
 import com.sachit.music.playback.MusicService
 import com.sachit.music.playback.MusicService.MusicBinder
+import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.playback.PlayerConnection
+import com.sachit.music.playback.queues.ListQueue
 import com.sachit.music.playback.queues.YouTubeQueue
+import com.sachit.music.quicksettings.ShuffleAllTileService
 import com.sachit.music.ui.component.AccountSettingsDialog
 import com.sachit.music.ui.component.AppNavigationBar
 import com.sachit.music.ui.component.AppNavigationRail
@@ -256,6 +260,11 @@ class MainActivity : FragmentActivity() {
 
     private lateinit var navController: NavHostController
     private var pendingIntent: Intent? = null
+
+    // Set when the shuffle-all tile fires before the playback service is bound; consumed in
+    // onServiceConnected so a cold-start tap still shuffles once the player is ready.
+    @Volatile
+    private var pendingShuffleAll = false
     private var latestVersionName by mutableStateOf(BuildConfig.BASE_VERSION_NAME)
 
     // Keep PlayerConnection as regular property - NOT mutableStateOf to prevent UI recomposition
@@ -277,6 +286,10 @@ class MainActivity : FragmentActivity() {
                     playerConnection = PlayerConnection(this@MainActivity, service, database, lifecycleScope)
                     playerConnectionSnapshot = playerConnection
                     listenTogetherManager.setPlayerConnection(playerConnection)
+                    if (pendingShuffleAll) {
+                        pendingShuffleAll = false
+                        performShuffleAll(playerConnection!!)
+                    }
                 }
             }
 
@@ -381,6 +394,7 @@ class MainActivity : FragmentActivity() {
         if (::navController.isInitialized) {
             handleWidgetTargetIntent(intent, navController)
             handleDeepLinkIntent(intent, navController)
+            handleShuffleAllIntent(intent)
         } else {
             pendingIntent = intent
         }
@@ -968,11 +982,13 @@ class MainActivity : FragmentActivity() {
                         handleWidgetTargetIntent(pendingIntent!!, navController)
                         handleRecognitionIntent(pendingIntent!!, navController)
                         handleDeepLinkIntent(pendingIntent!!, navController)
+                        handleShuffleAllIntent(pendingIntent!!)
                         pendingIntent = null
                     } else {
                         handleWidgetTargetIntent(intent, navController)
                         handleRecognitionIntent(intent, navController)
                         handleDeepLinkIntent(intent, navController)
+                        handleShuffleAllIntent(intent)
                     }
                 }
 
@@ -982,6 +998,7 @@ class MainActivity : FragmentActivity() {
                             handleWidgetTargetIntent(intent, navController)
                             handleRecognitionIntent(intent, navController)
                             handleDeepLinkIntent(intent, navController)
+                            handleShuffleAllIntent(intent)
                         }
 
                     addOnNewIntentListener(listener)
@@ -1478,6 +1495,42 @@ class MainActivity : FragmentActivity() {
                 }
             }
             }
+        }
+    }
+
+    /**
+     * Handles the ACTION_SHUFFLE_ALL intent sent from the Shuffle All quick-settings tile.
+     * Loads the library songs and starts shuffled playback once the player connection is
+     * available; deferred via [pendingShuffleAll] when the service is still binding (cold start).
+     */
+    private fun handleShuffleAllIntent(intent: Intent) {
+        if (intent.action != ShuffleAllTileService.ACTION_SHUFFLE_ALL) return
+        intent.action = null
+        val connection = playerConnection
+        if (connection == null) {
+            pendingShuffleAll = true
+            return
+        }
+        performShuffleAll(connection)
+    }
+
+    private fun performShuffleAll(connection: PlayerConnection) {
+        lifecycleScope.launch {
+            val songs: List<Song> =
+                runCatching { database.songsByCreateDateAsc(Int.MAX_VALUE, 0) }
+                    .onFailure { Timber.tag("MainActivity").e(it, "Failed to load library for shuffle all") }
+                    .getOrDefault(emptyList())
+            if (songs.isEmpty()) {
+                Toast.makeText(this@MainActivity, R.string.shuffle_all_empty, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            connection.playQueue(
+                ListQueue(
+                    title = getString(R.string.app_name),
+                    items = songs.shuffled().map { it.toMediaItem() },
+                ),
+            )
+            Toast.makeText(this@MainActivity, R.string.shuffle_all_started, Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -796,6 +796,9 @@
     <string name="re_listen">Re-listen</string>
     <string name="play_on_app">Play on Audify</string>
     <string name="qs_tile_music_recognizer">Recognize music</string>
+    <string name="qs_tile_shuffle_all">Shuffle all</string>
+    <string name="shuffle_all_started">Shuffling your library</string>
+    <string name="shuffle_all_empty">No songs in your library yet</string>
     <string name="recognition_notification_channel_name">Music recognition</string>
     <string name="recognition_notification_channel_desc">Shows a notification while identifying a song from quick settings</string>
     <string name="recognition_notification_listening">Listening for music…</string>

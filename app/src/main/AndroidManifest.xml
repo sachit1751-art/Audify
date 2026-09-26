@@ -375,6 +375,18 @@
             </intent-filter>
         </service>
 
+        <!-- Shuffle All Quick Settings Tile -->
+        <service
+            android:name=".quicksettings.ShuffleAllTileService"
+            android:label="@string/qs_tile_shuffle_all"
+            android:icon="@drawable/shuffle"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>
