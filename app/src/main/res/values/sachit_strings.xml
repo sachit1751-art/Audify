@@ -197,6 +197,9 @@
     <string name="playlist_position_end">End of playlist</string>
     <string name="playlist_position_end_desc">Newly added songs appear after existing songs</string>
     <string name="show_wrapped_card">Show Wrapped card</string>
+    <string name="monthly_card_minutes">You listened %1$d minutes this month</string>
+    <string name="monthly_card_top_artist">Top artist: %1$s</string>
+    <string name="monthly_card_dismiss">Dismiss until next month</string>
     <string name="skip_silence_desc">Fast-forward through silent parts of songs</string>
     <string name="skip_silence_instant">Instantly skip silence</string>
     <string name="skip_silence_instant_desc">Jump ahead during silent moments instead of speeding up playback</string>

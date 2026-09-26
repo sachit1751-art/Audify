@@ -51,6 +51,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -747,6 +748,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
     val shouldShowWrappedCard by viewModel.showWrappedCard.collectAsStateWithLifecycle()
+    val monthlyCardState by viewModel.monthlyCardState.collectAsStateWithLifecycle()
     val wrappedState by viewModel.wrappedManager.state.collectAsStateWithLifecycle()
     val isWrappedDataReady = wrappedState.isDataReady
 
@@ -1439,6 +1441,53 @@ fun HomeScreen(
                 }
 
                 if (selectedChip == null) {
+                    item(key = "monthly_card") {
+                        val monthlyStats = monthlyCardState
+                        if (monthlyStats != null && !monthlyStats.isEmpty) {
+                            Card(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                colors =
+                                    CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    ),
+                            ) {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.monthly_card_minutes, monthlyStats.minutes),
+                                            style = MaterialTheme.typography.titleMedium,
+                                        )
+                                        if (monthlyStats.topArtistName != null) {
+                                            Text(
+                                                text = stringResource(R.string.monthly_card_top_artist, monthlyStats.topArtistName),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    TextButton(onClick = { navController.navigate("wrapped") }) {
+                                        Text(stringResource(R.string.open))
+                                    }
+                                    IconButton(onClick = viewModel::dismissMonthlyCard) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.close),
+                                            contentDescription = stringResource(R.string.monthly_card_dismiss),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     item(key = "wrapped_card") {
                         AnimatedVisibility(visible = shouldShowWrappedCard) {
                             Card(

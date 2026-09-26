@@ -31,6 +31,7 @@ import com.sachit.music.constants.HideYoutubeShortsKey
 import com.sachit.music.constants.InnerTubeCookieKey
 import com.sachit.music.constants.QuickPicks
 import com.sachit.music.constants.QuickPicksKey
+import com.sachit.music.constants.MonthlyCardSeenKey
 import com.sachit.music.constants.ShowWrappedCardKey
 import com.sachit.music.constants.WrappedSeenKey
 import com.sachit.music.db.MusicDatabase
@@ -41,6 +42,8 @@ import com.sachit.music.db.entities.SpeedDialItem
 import com.sachit.music.extensions.filterVideoSongs
 import com.sachit.music.extensions.toEnum
 import com.sachit.music.models.SimilarRecommendation
+import com.sachit.music.ui.screens.wrapped.MonthlyStats
+import com.sachit.music.ui.screens.wrapped.MonthlyStatsProvider
 import com.sachit.music.ui.screens.wrapped.WrappedAudioService
 import com.sachit.music.ui.screens.wrapped.WrappedManager
 import com.sachit.music.utils.NetworkConnectivityObserver
@@ -53,6 +56,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -268,6 +272,45 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             context.safeDataStoreEdit {
                 it[WrappedSeenKey] = true
+            }
+        }
+    }
+
+    private fun currentMonthKey(): String =
+        LocalDate.now().let { "%04d-%02d".format(it.year, it.monthValue) }
+
+    /**
+     * Monthly mini-Wrapped card: shown when listening happened this month and the user
+     * has not dismissed the card for this month (yyyy-MM key, so it re-appears next month).
+     */
+    val monthlyCardState: StateFlow<MonthlyStats?> = context.dataStore.data.map { prefs ->
+        prefs[MonthlyCardSeenKey]
+    }.distinctUntilChanged().map { seenMonth ->
+        if (seenMonth == currentMonthKey()) {
+            null // dismissed for this month
+        } else {
+            val (from, to) = MonthlyStatsProvider.monthWindow()
+            withContext(Dispatchers.IO) {
+                val playTime = database.getTotalPlayTimeInRange(from, to).first() ?: 0L
+                if (playTime <= 0L) {
+                    null // nothing played this month — don't render a "0 minutes" card
+                } else {
+                    val topArtist = database.mostPlayedArtists(from, limit = 1, toTimeStamp = to).first().firstOrNull()
+                    val topSong = database.mostPlayedSongsStats(from, limit = 1, toTimeStamp = to).first().firstOrNull()
+                    MonthlyStatsProvider.build(
+                        totalPlayTimeMs = playTime,
+                        topArtistName = topArtist?.title,
+                        topSongTitle = topSong?.title,
+                    )
+                }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    fun dismissMonthlyCard() {
+        viewModelScope.launch(Dispatchers.IO) {
+            context.safeDataStoreEdit {
+                it[MonthlyCardSeenKey] = currentMonthKey()
             }
         }
     }
