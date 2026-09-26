@@ -1147,6 +1147,8 @@ fun BottomSheetPlayer(
 
                     val middleShape = RoundedCornerShape(3.dp)
 
+                    val startingRadioText = stringResource(R.string.starting_radio)
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1197,6 +1199,28 @@ fun BottomSheetPlayer(
                                         modifier = Modifier.size(24.dp),
                                     )
                                 }
+                            }
+                        }
+
+                        if (!isListenTogetherGuest) {
+                            FilledIconButton(
+                                onClick = {
+                                    Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
+                                    playerConnection.startRadioSeamlessly()
+                                },
+                                shape = middleShape,
+                                colors =
+                                    IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = textButtonColor,
+                                        contentColor = iconButtonColor,
+                                    ),
+                                modifier = Modifier.size(42.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.radio),
+                                    contentDescription = stringResource(R.string.start_radio),
+                                    modifier = Modifier.size(24.dp),
+                                )
                             }
                         }
 
@@ -1266,6 +1290,8 @@ fun BottomSheetPlayer(
                         }
                     }
                 } else {
+                    val startingRadioText = stringResource(R.string.starting_radio)
+
                     AnimatedContent(targetState = showInlineLyrics, label = "ShareButton") { showLyrics ->
                         if (showLyrics) {
                             Box(
@@ -1320,6 +1346,32 @@ fun BottomSheetPlayer(
                     }
 
                     Spacer(modifier = Modifier.size(12.dp))
+
+                    if (!isListenTogetherGuest) {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(textButtonColor)
+                                    .clickable {
+                                        Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
+                                        playerConnection.startRadioSeamlessly()
+                                    },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.radio),
+                                contentDescription = stringResource(R.string.start_radio),
+                                tint = iconButtonColor,
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.Center)
+                                        .size(24.dp),
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.size(12.dp))
+                    }
 
                     AnimatedContent(targetState = showInlineLyrics, label = "LikeButton") { showLyrics ->
                         if (showLyrics) {
