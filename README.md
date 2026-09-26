@@ -4,9 +4,9 @@
 
 <br/>
 
-[![Latest release](https://img.shields.io/github/v/release/sachit1751-art/Sachit-Music?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Sachit-Music/releases)
-[![License](https://img.shields.io/github/license/sachit1751-art/Sachit-Music?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Sachit-Music/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/sachit1751-art/Sachit-Music/total?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Sachit-Music/releases)
+[![Latest release](https://img.shields.io/github/v/release/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117&include_prereleases)](https://github.com/sachit1751-art/Audify/releases)
+[![License](https://img.shields.io/github/license/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/sachit1751-art/Audify/total?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases)
 
 <br/>
 
@@ -23,12 +23,12 @@
 
 <h1>Screenshots</h1>
 
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Home screen" width="30%" />
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Artist screen" width="30%" />
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Recognize music screen" width="30%" />
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Listen together screen" width="30%" />
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Player screen" width="30%" />
-<img src="https://github.com/sachit1751-art/Sachit-Music/blob/main/fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Player lyrics screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Home screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Artist screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Recognize music screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Listen together screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Player screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Player lyrics screen" width="30%" />
 
 </div>
 
@@ -115,12 +115,12 @@
   </tr>
   <tr>
     <td align="center">
-      <a href="https://github.com/sachit1751-art/Sachit-Music/releases/latest/download/Audify.apk">
+      <a href="https://github.com/sachit1751-art/Audify/releases/latest">
         <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="60">
       </a>
     </td>
     <td align="center">
-      <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/sachit1751-art/Sachit-Music/">
+      <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/sachit1751-art/Audify/">
         <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Download from Obtainium" height="40">
       </a>
     </td>
