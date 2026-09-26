@@ -120,7 +120,7 @@ log "Android SDK: ${ANDROID_HOME:-from local.properties}"
 # 3. Signing preflight: release builds without credentials would produce
 #    unsigned APKs that Android refuses to install. Abort instead.
 # ---------------------------------------------------------------------------
-lp_val() { sed -n "s/^$1=//p" "$ROOT/local.properties" 2>/dev/null | tr -d '\r' | head -1; }
+lp_val() { sed -n "s/^$1=//p" "$ROOT/local.properties" 2>/dev/null | tr -d '\r' | sed 's/\\:/:/g' | head -1; }
 RELEASE_STORE_PASSWORD="${AUDIFY_RELEASE_STORE_PASSWORD:-${STORE_PASSWORD:-$(lp_val AUDIFY_RELEASE_STORE_PASSWORD)}}"
 RELEASE_KEY_ALIAS="${AUDIFY_RELEASE_KEY_ALIAS:-${KEY_ALIAS:-$(lp_val AUDIFY_RELEASE_KEY_ALIAS)}}"
 RELEASE_KEY_PASSWORD="${AUDIFY_RELEASE_KEY_PASSWORD:-${KEY_PASSWORD:-$(lp_val AUDIFY_RELEASE_KEY_PASSWORD)}}"
@@ -188,7 +188,7 @@ VERSION=$(grep -E '^\s*versionName = "' app/build.gradle.kts | head -1 | sed -E 
 # release page. apksigner runs from the build-tools via its standalone jar,
 # so this works identically on Windows Git Bash and CI.
 SDK_DIR="${ANDROID_HOME:-$(lp_val sdk.dir)}"
-APKSIGNER_JAR="$(ls "$SDK_DIR/build-tools/"*/lib/apksigner.jar 2>/dev/null | sort -V | tail -1)"
+APKSIGNER_JAR="$(ls "$SDK_DIR/build-tools/"*/lib/apksigner.jar 2>/dev/null | sort -V | tail -1 || true)"
 verify_signed() { # verify_signed <apk>
   if [ -z "$APKSIGNER_JAR" ]; then
     warn "apksigner.jar not found under $SDK_DIR/build-tools — skipping signature verification of $(basename "$1")."
