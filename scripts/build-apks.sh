@@ -80,6 +80,12 @@ for jdk_dir in "$HOME"/.jdks/*/; do
   [ -d "$jdk_dir" ] || continue
   CANDIDATE_JDKS+=("${jdk_dir%/}")
 done
+# Gradle auto-provisioned toolchains (~/.gradle/jdks) — where a JDK 21 landed
+# on machines that never installed one manually.
+for jdk_dir in "$HOME"/.gradle/jdks/*/; do
+  [ -d "$jdk_dir" ] || continue
+  CANDIDATE_JDKS+=("${jdk_dir%/}")
+done
 
 JDK_OK=""
 for candidate in "${CANDIDATE_JDKS[@]}"; do
@@ -120,6 +126,12 @@ RELEASE_KEY_ALIAS="${AUDIFY_RELEASE_KEY_ALIAS:-${KEY_ALIAS:-$(lp_val AUDIFY_RELE
 RELEASE_KEY_PASSWORD="${AUDIFY_RELEASE_KEY_PASSWORD:-${KEY_PASSWORD:-$(lp_val AUDIFY_RELEASE_KEY_PASSWORD)}}"
 RELEASE_STORE_FILE="$(lp_val AUDIFY_RELEASE_STORE_FILE)"
 RELEASE_STORE_FILE="${RELEASE_STORE_FILE:-keystore/release.keystore}"
+# Mirror Gradle's project-relative file() resolution: the path is relative to
+# app/, or absolute as-is.
+case "$RELEASE_STORE_FILE" in
+  /*|[A-Za-z]:*) RELEASE_STORE_PATH="$RELEASE_STORE_FILE" ;;
+  *)             RELEASE_STORE_PATH="$ROOT/app/$RELEASE_STORE_FILE" ;;
+esac
 
 BUILDING_RELEASE=0
 case "$FLAVOR" in
@@ -129,7 +141,7 @@ if [ "$BUILDING_RELEASE" -eq 1 ] && [ "$SKIP_BUILD" -eq 0 ]; then
   if [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
     fail "No release signing credentials (set AUDIFY_RELEASE_STORE_PASSWORD/AUDIFY_RELEASE_KEY_PASSWORD in local.properties, or STORE_PASSWORD/KEY_PASSWORD in the environment). Release APKs would be unsigned and uninstallable."
   fi
-  [ -f "$ROOT/$RELEASE_STORE_FILE" ] || fail "Release keystore not found at $RELEASE_STORE_FILE (see local.properties AUDIFY_RELEASE_STORE_FILE)."
+  [ -f "$RELEASE_STORE_PATH" ] || fail "Release keystore not found at $RELEASE_STORE_PATH (see local.properties AUDIFY_RELEASE_STORE_FILE)."
   log "Release signing: $RELEASE_STORE_FILE (alias ${RELEASE_KEY_ALIAS:-default})"
 fi
 
