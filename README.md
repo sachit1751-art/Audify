@@ -33,6 +33,7 @@
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Listen together screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Player screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Player lyrics screen" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_7.png" alt="Smart auto-playlists in the library" width="30%" />
 
 </div>
 
