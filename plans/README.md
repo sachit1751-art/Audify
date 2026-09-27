@@ -32,7 +32,7 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | 011 | Quick-settings tiles (shuffle all) | Feature | S | — | Manifest addition | proposed |
 | 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | proposed |
 | 013 | Synced lyric line in the mini player | Feature | M | — | none | proposed |
-| 014 | "Play next" from search results | Feature | S | — | none | proposed |
+| 014 | "Play next" from search results | Feature | S | — | none | done (parity verified, no-op 2026-09-26: search rows open YouTubeSongMenu/YouTubeAlbumMenu which already ship Play next + Add to queue, guest-gated, behind a visible trailing button) |
 
 ## Recommended order
 
