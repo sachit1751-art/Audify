@@ -54,6 +54,7 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -80,6 +81,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
@@ -95,12 +97,17 @@ import com.sachit.music.R
 import com.sachit.music.constants.CropAlbumArtKey
 import com.sachit.music.constants.DarkModeKey
 import com.sachit.music.constants.MiniPlayerHeight
+import com.sachit.music.constants.MiniPlayerLyricsKey
 import com.sachit.music.constants.PureBlackMiniPlayerKey
 import com.sachit.music.constants.SwipeSensitivityKey
 import com.sachit.music.constants.SwipeThumbnailKey
 import com.sachit.music.constants.ThumbnailCornerRadius
 import com.sachit.music.constants.UseNewMiniPlayerDesignKey
 import com.sachit.music.db.entities.ArtistEntity
+import com.sachit.music.db.entities.LyricsEntity
+import com.sachit.music.lyrics.LyricsEntry
+import com.sachit.music.lyrics.LyricsUtils.findCurrentLineIndex
+import com.sachit.music.lyrics.LyricsUtils.parseLyrics
 import com.sachit.music.listentogether.ListenTogetherManager
 import com.sachit.music.models.MediaMetadata
 import com.sachit.music.playback.CastConnectionHandler
@@ -162,6 +169,7 @@ fun MiniPlayer(
     if (useNewMiniPlayerDesign) {
         NewMiniPlayer(
             progressState = progressState,
+            positionState = positionState,
             modifier = modifier,
             onClick = onClick,
         )
@@ -169,6 +177,7 @@ fun MiniPlayer(
         Box(modifier = modifier.fillMaxWidth()) {
             LegacyMiniPlayer(
                 progressState = progressState,
+                positionState = positionState,
                 modifier = Modifier.align(Alignment.Center),
                 onClick = onClick,
             )
@@ -183,6 +192,7 @@ fun MiniPlayer(
 @Composable
 private fun NewMiniPlayer(
     progressState: ProgressState,
+    positionState: MutableLongState,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
@@ -503,6 +513,7 @@ private fun NewMiniPlayer(
                     mediaMetadata = mediaMetadata,
                     onSurfaceColor = onSurfaceColor,
                     errorColor = errorColor,
+                    positionState = positionState,
                     modifier = Modifier.weight(1f),
                 )
 
@@ -764,6 +775,7 @@ private fun NewMiniPlayerSongInfo(
     mediaMetadata: MediaMetadata?,
     onSurfaceColor: Color,
     errorColor: Color,
+    positionState: MutableLongState,
     modifier: Modifier = Modifier,
 ) {
     val error by LocalPlayerConnection.current?.error?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -799,6 +811,11 @@ private fun NewMiniPlayerSongInfo(
                 }
             }
 
+            MiniPlayerLyricLine(
+                positionState = positionState,
+                color = onSurfaceColor,
+            )
+
             AnimatedVisibility(visible = error != null, enter = fadeIn(), exit = fadeOut()) {
                 Text(
                     text = stringResource(R.string.error_playing),
@@ -819,6 +836,7 @@ private fun NewMiniPlayerSongInfo(
 @Composable
 private fun LegacyMiniPlayer(
     progressState: ProgressState,
+    positionState: MutableLongState,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
@@ -981,6 +999,7 @@ private fun LegacyMiniPlayer(
                     LegacyMiniMediaInfo(
                         mediaMetadata = it,
                         pureBlack = pureBlack,
+                        positionState = positionState,
                         modifier = Modifier.padding(horizontal = 6.dp),
                     )
                 }
@@ -1076,6 +1095,7 @@ private fun LegacyPlayPauseButton(
 private fun LegacyMiniMediaInfo(
     mediaMetadata: MediaMetadata,
     pureBlack: Boolean,
+    positionState: MutableLongState,
     modifier: Modifier = Modifier,
 ) {
     val error by LocalPlayerConnection.current?.error?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -1157,7 +1177,61 @@ private fun LegacyMiniMediaInfo(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+
+            MiniPlayerLyricLine(
+                positionState = positionState,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
+    }
+}
+
+/**
+ * Shows the active synced lyric line under the song title in the mini player.
+ *
+ * Lyrics come from the shared [PlayerConnection.currentLyrics] flow (already cached per song
+ * in the DB) and are parsed once per lyrics value - no network calls and no per-tick parsing.
+ * Only synced lyrics are shown: plain text parses to no timestamped lines and stays hidden.
+ * Position is read from the pre-existing [positionState] snapshot; hidden when disabled.
+ */
+@Composable
+private fun MiniPlayerLyricLine(
+    positionState: MutableLongState,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val showLyrics by rememberPreference(MiniPlayerLyricsKey, defaultValue = true)
+    val lyricsEntity by playerConnection.currentLyrics.collectAsStateWithLifecycle()
+
+    val entries = remember(lyricsEntity) {
+        val lyrics = (lyricsEntity as? LyricsEntity)?.lyrics
+        if (lyrics.isNullOrEmpty() || lyrics == LyricsEntity.LYRICS_NOT_FOUND) {
+            emptyList()
+        } else {
+            parseLyrics(lyrics)
+        }
+    }
+
+    val position by derivedStateOf { positionState.longValue }
+    val activeLine =
+        if (showLyrics && entries.isNotEmpty()) {
+            val index = findCurrentLineIndex(entries, position)
+            entries.getOrNull(index)?.text?.takeIf { it.isNotBlank() }
+        } else {
+            null
+        }
+
+    if (activeLine != null) {
+        Text(
+            text = activeLine,
+            color = color.copy(alpha = 0.7f),
+            fontSize = 11.sp,
+            fontStyle = FontStyle.Italic,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
     }
 }
 

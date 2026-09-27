@@ -101,6 +101,7 @@ import com.sachit.music.constants.SwipeSensitivityKey
 import com.sachit.music.constants.SwipeThumbnailKey
 import com.sachit.music.constants.SwipeToRemoveSongKey
 import com.sachit.music.constants.SwipeToSongKey
+import com.sachit.music.constants.MiniPlayerLyricsKey
 import com.sachit.music.constants.UseNewMiniPlayerDesignKey
 import com.sachit.music.constants.UseNewPlayerDesignKey
 import com.sachit.music.constants.UseBitchordPlayerStyleKey
@@ -191,6 +192,10 @@ fun AppearanceSettings(
         )
     val (showUpNextPeek, onShowUpNextPeekChange) = rememberPreference(
         ShowUpNextPeekKey,
+        defaultValue = true,
+    )
+    val (miniPlayerLyrics, onMiniPlayerLyricsChange) = rememberPreference(
+        MiniPlayerLyricsKey,
         defaultValue = true,
     )
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) =
@@ -1152,6 +1157,30 @@ fun AppearanceSettings(
                                 )
                             },
                             onClick = { onShowUpNextPeekChange(!showUpNextPeek) },
+                        ),
+                    )
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.lyrics),
+                            title = { Text(stringResource(R.string.mini_player_lyrics)) },
+                            description = { Text(stringResource(R.string.mini_player_lyrics_desc)) },
+                            trailingContent = {
+                                Switch(
+                                    checked = miniPlayerLyrics,
+                                    onCheckedChange = onMiniPlayerLyricsChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter =
+                                                painterResource(
+                                                    id = if (miniPlayerLyrics) R.drawable.check else R.drawable.close,
+                                                ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                                        )
+                                    },
+                                )
+                            },
+                            onClick = { onMiniPlayerLyricsChange(!miniPlayerLyrics) },
                         ),
                     )
                 },

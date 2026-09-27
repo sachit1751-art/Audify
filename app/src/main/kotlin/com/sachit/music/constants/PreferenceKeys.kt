@@ -64,6 +64,7 @@ val CropAlbumArtKey = booleanPreferencesKey("cropAlbumArt")
 val SeekExtraSeconds = booleanPreferencesKey("seekExtraSeconds")
 val ArtworkTapToPlayPauseKey = booleanPreferencesKey("artworkTapToPlayPause")
 val ShowUpNextPeekKey = booleanPreferencesKey("showUpNextPeek")
+val MiniPlayerLyricsKey = booleanPreferencesKey("miniPlayerLyrics")
 val PlayerArtworkCornerRadiusKey = stringPreferencesKey("playerArtworkCornerRadius")
 
 enum class PlayerArtworkCornerRadius {

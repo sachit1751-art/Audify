@@ -108,6 +108,10 @@
     <string name="up_next_peek">Up Next peek</string>
     <string name="up_next_peek_desc">Briefly show the next track above the mini-player when the song changes</string>
 
+    <!-- Mini player lyric line -->
+    <string name="mini_player_lyrics">Lyrics in the mini player</string>
+    <string name="mini_player_lyrics_desc">Show the current synced lyric line under the song title</string>
+
     <string name="similar_content">Similar content</string>
 
     <string name="player_background_style">Player background style</string>
