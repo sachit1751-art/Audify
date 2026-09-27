@@ -1,6 +1,10 @@
+<div align="center">
+
+<img src="fastlane/metadata/android/en-US/images/icon.png" alt="Audify icon" width="96" />
+
 # Audify
 
-### YouTube Music client for Android
+### Stream, discover and organize YouTube Music — your way.
 
 <br/>
 
@@ -10,18 +14,18 @@
 
 <br/>
 
-[**Download**](#download) · [**Features**](#features) · [**FAQ**](#faq) · [**Support**](#support)
+[**Download**](#download) · [**Features**](#features) · [**Build from source**](#build-from-source) · [**FAQ**](#faq) · [**Support**](#support)
 
 </div>
 
 > [!WARNING]
-> **Regional Restriction** - If YouTube Music is unavailable in your region, this app will not work without a **VPN or proxy** connecting to a supported region.
+> **Regional restriction** — if YouTube Music is unavailable in your region, the app will not work without a **VPN or proxy** connecting to a supported region.
 
 ---
 
 <div align="center">
 
-<h1>Screenshots</h1>
+## Screenshots
 
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Home screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Artist screen" width="30%" />
@@ -36,77 +40,86 @@
 
 <div align="center">
 
-<h1>Features</h1>
+## Features
+
+</div>
 
 <table>
   <tr>
     <td width="50%" valign="top">
 
-#### Playback
+#### 🎵 Playback
 - Stream any song or video from YouTube Music
 - Background playback
 - Download & cache for offline use
-- Skip silence
-- Sleep timer
+- **One-tap song radio** from the player
+- **Play next / add to queue** straight from search results
+- Skip silence · Sleep timer
 
 </td>
     <td width="50%" valign="top">
 
-#### Audio
-- Audio normalization
+#### 🔊 Audio
+- Audio normalization with loudness presets
 - Tempo & pitch control
-- Equalizer
+- Built-in equalizer
 
 </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
 
-#### Lyrics & Discovery
-- Live synced lyrics
+#### 📝 Lyrics & Discovery
+- Live synced lyrics with word-by-word highlighting
 - AI-powered lyrics translation
+- **Current lyric line in the mini player**
 - Personalized quick picks
-- Search songs, albums, artists, videos, and playlists
+- Search songs, albums, artists, videos and playlists
 
 </td>
     <td width="50%" valign="top">
 
-#### Library & Account
-- Full library management
-- Local playlists
-- Import playlists
-- Reorder songs in playlist or queue
-- YouTube Music account login
-- Sync songs, artists, albums, and playlists
+#### 📚 Library & Account
+- Full library management with local playlists & imports
+- **Smart auto-playlists** — Most played this month · On repeat · Recently added · Never played
+- **Monthly listening card** — minutes, top artist & top song, refreshed every month
+- Reorder songs in playlists and the queue
+- YouTube Music account login & sync
 
 </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
 
-#### Social
-- Listen together with friends in real-time
+#### 👥 Social
+- Listen together with friends in real time
+- Guest-aware playback controls
 
 </td>
     <td width="50%" valign="top">
 
-#### Interface
-- Home screen widget
+#### 🎨 Interface
+- Home screen widget & **shuffle-all quick-settings tile**
 - Light / Dark / Black / Dynamic theme modes
-- Dynamic color + 19 preset color palettes
+- Dynamic color + 19 preset palettes
+- Up Next peek, tap-to-pause artwork, mini-player lyric line
 - Built with Material 3
 
 </td>
   </tr>
 </table>
 
+<div align="center">
+<i>Bold items are recent additions — see the <a href="https://github.com/sachit1751-art/Audify/releases/latest">latest release notes</a> for details.</i>
 </div>
 
 ---
 
 <div align="center">
 
-<h1>Download</h1>
+## Download
+
+### Get the latest release from GitHub, or add the repo to Obtainium for automatic updates.
 
 <table>
   <tr>
@@ -127,77 +140,15 @@
   </tr>
 </table>
 
-</div>
+Every release ships three signed variants — pick the one that matches your device:
 
----
+| Variant | Google Play Services | In-app updater | Best for |
+|---------|:---:|:---:|----------|
+| `Audify-foss` | ✗ | ✓ | Most users, de-Googled devices |
+| `Audify-gms` | ✓ (Cast) | ✓ | Chromecast / Google Cast users |
+| `Audify-izzy` | ✗ | ✗ | IzzyOnDroid repository users |
 
-<div align="center">
-
-<h1>FAQ</h1>
-
-<h3>Got questions? Check out the <a href="https://sachitmusic.cc/#faq">FAQ page</a> for answers to the most common ones.</h3>
-
-</div>
-
----
-
-<div align="center">
-
-<h1>Special Thanks</h1>
-
-<h3>Audify stands on the shoulders of incredible open-source work.</h3>
-
-<h3>Main Inspirations</h3>
-
-<table>
-  <thead>
-    <tr>
-      <th align="center">Project</th>
-      <th align="center">Authors</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><strong>InnerTune</strong></td>
-      <td align="center"><a href="https://github.com/z-huang">Zion Huang</a> · <a href="https://github.com/Malopieds">Malopieds</a></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>OuterTune</strong></td>
-      <td align="center"><a href="https://github.com/DD3Boh">Davide Garberi</a> · <a href="https://github.com/mikooomich">Michael Zh</a></td>
-    </tr>
-    <tr>
-      <td align="center"><strong>Sachit</strong></td>
-      <td align="center"><a href="https://github.com/sachit1751-art">Sachit</a></td>
-    </tr>
-  </tbody>
-</table>
-
-<h3>Libraries & Integrations</h3>
-
-<table>
-  <thead>
-    <tr>
-      <th align="center">Project</th>
-      <th align="center">Contribution</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><a href="https://better-lyrics.boidu.dev"><strong>Better Lyrics</strong></a></td>
-      <td>Time-synced lyrics with word-by-word highlighting & YouTube Music integration</td>
-    </tr>
-    <tr>
-      <td align="center"><a href="https://github.com/aleksey-saenko/MusicRecognizer"><strong>MusicRecognizer</strong></a></td>
-      <td>Music recognition feature & Shazam API integration</td>
-    </tr>
-    <tr>
-      <td align="center"><a href="https://github.com/ZemerTeam/zemer-cipher"><strong>zemer-cipher</strong></a></td>
-      <td>YouTube cipher deobfuscation and PoToken generation</td>
-    </tr>
-  </tbody>
-</table>
-
-<h3>We also thank the entire open-source community! For every library, tool, and API that powers this project.</h3>
+<sub>Tip: with Obtainium, track *releases* (not prereleases) to only receive stable builds.</sub>
 
 </div>
 
@@ -205,17 +156,96 @@
 
 <div align="center">
 
-<h1>Disclaimer</h1>
+## Build from source
+
+</div>
+
+**Prerequisites:** Android Studio (or the Android SDK), JDK 21, Git.
+
+```bash
+git clone https://github.com/sachit1751-art/Audify.git
+cd Audify
+
+# Debug build (fast, debug-signed, installable)
+./gradlew :app:assembleFossDebug
+
+# Release builds of every flavor (requires signing credentials — see below)
+./gradlew :app:assembleFossRelease :app:assembleGmsRelease :app:assembleIzzyRelease
+```
+
+The debug APK lands at `app/build/outputs/apk/foss/debug/app-foss-debug.apk`.
+
+For a fully automated build + signature verification + GitHub upload, use:
+
+```bash
+scripts/build-apks.sh [--with-tests] [--upload]
+```
+
+Release signing credentials are read from `local.properties` (`AUDIFY_RELEASE_STORE_*`); the keystore itself is **not** committed — provide your own and configure the same properties. Unit tests can be run with `./gradlew :app:testFossDebugUnitTest`.
+
+---
+
+<div align="center">
+
+## FAQ
+
+### Got questions? Check out the [FAQ page](https://sachitmusic.cc/#faq) for answers to the most common ones.
+
+</div>
+
+---
+
+<div align="center">
+
+## Support
+
+- 🐛 Found a bug? [Open an issue](https://github.com/sachit1751-art/Audify/issues/new/choose)
+- 💡 Have an idea? Feature suggestions are welcome in [Issues](https://github.com/sachit1751-art/Audify/issues) too
+- ❓ Usage questions — start with the [FAQ](https://sachitmusic.cc/#faq)
+
+If Audify is useful to you, consider giving the repo a ⭐ — it helps others discover it.
+
+</div>
+
+---
+
+<div align="center">
+
+## Acknowledgements
+
+### Audify stands on the shoulders of incredible open-source work.
+
+**Main inspirations**
+
+| Project | Authors |
+|---------|---------|
+| **[InnerTune](https://github.com/z-huang/InnerTune)** | [Zion Huang](https://github.com/z-huang) · [Malopieds](https://github.com/Malopieds) |
+| **[OuterTune](https://github.com/DD3Boh/OuterTune)** | [Davide Garberi](https://github.com/DD3Boh) · [Michael Zh](https://github.com/mikooomich) |
+| **Sachit** | [Sachit](https://github.com/sachit1751-art) |
+
+**Libraries & integrations**
+
+| Project | Contribution |
+|---------|--------------|
+| **[Better Lyrics](https://better-lyrics.boidu.dev)** | Time-synced lyrics with word-by-word highlighting & YouTube Music integration |
+| **[MusicRecognizer](https://github.com/aleksey-saenko/MusicRecognizer)** | Music recognition feature & Shazam API integration |
+| **[zemer-cipher](https://github.com/ZemerTeam/zemer-cipher)** | YouTube cipher deobfuscation and PoToken generation |
+
+Thanks to the entire open-source community — every library, tool and API that powers this project.
+
+</div>
+
+---
+
+<div align="center">
+
+## Disclaimer
 
 This project is **not affiliated with, funded, authorized, endorsed by, or in any way associated** with YouTube, Google LLC, or any of their affiliates and subsidiaries.
 
 All trademarks, service marks, and intellectual property rights referenced in this project belong to their respective owners.
 
-</div>
-
----
-
-<div align="center">
+Audify is licensed under **GPL-3.0** — see [LICENSE](https://github.com/sachit1751-art/Audify/blob/main/LICENSE).
 
 <br/>
 
