@@ -33,8 +33,18 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | done (implemented a01085da, 2026-09-26) |
 | 013 | Synced lyric line in the mini player | Feature | M | — | none | done (implemented fbdfd244, 2026-09-27) |
 | 014 | "Play next" from search results | Feature | S | — | none | done (parity verified, no-op 2026-09-26: search rows open YouTubeSongMenu/YouTubeAlbumMenu which already ship Play next + Add to queue, guest-gated, behind a visible trailing button) |
+| 015 | Monthly & yearly recap (Wrapped with range) | Feature | M | 012 (reuses its window helper) | none | proposed |
+| 016 | Lossless / highest-quality audio option | Feature | M–L | innertubex fork capability | premium account for full verification | proposed |
 
-## Recommended order
+## Recommended order (round 2)
+
+1. **015** (recap) — pure app-layer work over existing DAO windows; 012's
+   `MonthlyStatsProvider.monthWindow` already computes the monthly range.
+2. **016** (lossless) — recon the innertubex fork FIRST (step 1 of the plan); the fork
+   may already surface FLAC/ALAC, which makes this app-only. Honest fallback is a hard
+   requirement either way.
+
+## Recommended order (round 1 — completed)
 
 1. **010** (song radio) — smallest, user-visible immediately, zero service surgery.
 2. **014** (play next from search) — small, mostly a parity check on existing menus.
