@@ -69,6 +69,7 @@ import com.sachit.music.constants.PlaylistSortTypeKey
 import com.sachit.music.constants.ShowCachedPlaylistKey
 import com.sachit.music.constants.ShowDownloadedPlaylistKey
 import com.sachit.music.constants.ShowLikedPlaylistKey
+import com.sachit.music.constants.ShowSmartPlaylistsKey
 import com.sachit.music.constants.ShowTopPlaylistKey
 import com.sachit.music.constants.ShowUploadedPlaylistKey
 import com.sachit.music.constants.YtmSyncKey
@@ -199,6 +200,28 @@ fun LibraryPlaylistsScreen(
     val (showTop) = rememberPreference(ShowTopPlaylistKey, true)
     val (showUploaded) = rememberPreference(ShowUploadedPlaylistKey, true)
     val (showCached) = rememberPreference(ShowCachedPlaylistKey, true)
+    val (showSmart) = rememberPreference(ShowSmartPlaylistsKey, true)
+
+    val smartPlaylists =
+        if (showSmart) {
+            SmartListKind.entries.map { kind ->
+                VisiblePlaylistItem(
+                    key = "smart_${kind.name}",
+                    playlist = Playlist(
+                        playlist = PlaylistEntity(
+                            id = "smart_${kind.name}",
+                            name = stringResource(kind.titleRes),
+                        ),
+                        songCount = 0,
+                        songThumbnails = emptyList(),
+                    ),
+                    autoPlaylist = true,
+                    route = "smart_playlist/${kind.name}",
+                )
+            }
+        } else {
+            emptyList()
+        }
     val showLikedPlaylist = showLiked && matchesNormalizedQuery(normalizedQuery, likedPlaylist.playlist.name)
     val showDownloadedPlaylist =
         showDownloaded && matchesNormalizedQuery(normalizedQuery, downloadPlaylist.playlist.name)
@@ -214,9 +237,11 @@ fun LibraryPlaylistsScreen(
         showCachedPlaylists,
         showTopPlaylists,
         showUploadedPlaylists,
+        smartPlaylists,
         topSize,
     ) {
         buildList {
+            smartPlaylists.forEach { add(it) }
             if (showLikedPlaylist) {
                 add(
                     VisiblePlaylistItem(

@@ -89,6 +89,7 @@ import com.sachit.music.constants.ShowUpNextPeekKey
 import com.sachit.music.constants.RespectAgentPositioningKey
 import com.sachit.music.constants.SelectedThemeColorKey
 import com.sachit.music.constants.ShowCachedPlaylistKey
+import com.sachit.music.constants.ShowSmartPlaylistsKey
 import com.sachit.music.constants.ShowDownloadedPlaylistKey
 import com.sachit.music.constants.ShowLikedPlaylistKey
 import com.sachit.music.constants.ShowTopPlaylistKey
@@ -338,6 +339,11 @@ fun AppearanceSettings(
     val (showUploadedPlaylist, onShowUploadedPlaylistChange) =
         rememberPreference(
             ShowUploadedPlaylistKey,
+            defaultValue = true,
+        )
+    val (showSmartPlaylists, onShowSmartPlaylistsChange) =
+        rememberPreference(
+            ShowSmartPlaylistsKey,
             defaultValue = true,
         )
 
@@ -1936,6 +1942,27 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onShowUploadedPlaylistChange(!showUploadedPlaylist) },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.trending_up),
+                        title = { Text(stringResource(R.string.smart_playlists_title)) },
+                        trailingContent = {
+                            Switch(
+                                checked = showSmartPlaylists,
+                                onCheckedChange = onShowSmartPlaylistsChange,
+                                thumbContent = {
+                                    Icon(
+                                        painter =
+                                            painterResource(
+                                                id = if (showSmartPlaylists) R.drawable.check else R.drawable.close,
+                                            ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        onClick = { onShowSmartPlaylistsChange(!showSmartPlaylists) },
                     ),
                 ),
         )

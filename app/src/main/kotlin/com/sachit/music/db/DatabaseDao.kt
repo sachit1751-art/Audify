@@ -662,6 +662,62 @@ interface DatabaseDao {
     @Query("SELECT count from playCount WHERE song = :songId AND year = :year AND month = :month")
     fun getPlayCountByMonth(songId: String?, year: Int, month: Int): Flow<Int>
 
+    // -----------------------------------------------------------------
+    // Smart auto-playlists (plan 009). Read-only additive queries over the
+    // existing song/playCount tables - no schema change.
+    // -----------------------------------------------------------------
+
+    @Transaction
+    @Query(
+        """
+        SELECT song.* FROM song
+        JOIN playCount ON playCount.song = song.id
+        WHERE playCount.year = :year AND playCount.month = :month
+        GROUP BY song.id
+        ORDER BY SUM(playCount.count) DESC, song.totalPlayTime DESC
+        LIMIT :limit
+        """
+    )
+    fun mostPlayedSongsInMonth(year: Int, month: Int, limit: Int = 50): Flow<List<Song>>
+
+    @Transaction
+    @Query(
+        """
+        SELECT song.* FROM song
+        JOIN playCount ON playCount.song = song.id
+        WHERE (playCount.year > :fromYear)
+           OR (playCount.year = :fromYear AND playCount.month >= :fromMonth)
+        GROUP BY song.id
+        HAVING SUM(playCount.count) >= :minPlays
+        ORDER BY SUM(playCount.count) DESC, song.totalPlayTime DESC
+        LIMIT :limit
+        """
+    )
+    fun songsPlayedFrequentlySince(fromYear: Int, fromMonth: Int, minPlays: Int = 4, limit: Int = 50): Flow<List<Song>>
+
+    @Transaction
+    @Query(
+        """
+        SELECT * FROM song
+        WHERE inLibrary IS NOT NULL
+        ORDER BY rowId DESC
+        LIMIT :limit
+        """
+    )
+    fun recentlyAddedSongs(limit: Int = 50): Flow<List<Song>>
+
+    @Transaction
+    @Query(
+        """
+        SELECT song.* FROM song
+        WHERE inLibrary IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM playCount WHERE playCount.song = song.id)
+        ORDER BY song.rowId DESC
+        LIMIT :limit
+        """
+    )
+    fun neverPlayedSongs(limit: Int = 50): Flow<List<Song>>
+
     @Transaction
     @Query(
         """

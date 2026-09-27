@@ -112,6 +112,14 @@
     <string name="mini_player_lyrics">Lyrics in the mini player</string>
     <string name="mini_player_lyrics_desc">Show the current synced lyric line under the song title</string>
 
+    <!-- Smart auto-playlists -->
+    <string name="smart_playlists_title">Smart playlists</string>
+    <string name="smart_most_played_month">Most played this month</string>
+    <string name="smart_on_repeat">On repeat</string>
+    <string name="smart_recently_added">Recently added</string>
+    <string name="smart_never_played">Never played</string>
+    <string name="smart_list_empty">Nothing here yet. Play some music and this list will fill up.</string>
+
     <string name="similar_content">Similar content</string>
 
     <string name="player_background_style">Player background style</string>

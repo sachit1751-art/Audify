@@ -36,6 +36,7 @@ import com.sachit.music.ui.screens.playlist.AutoPlaylistScreen
 import com.sachit.music.ui.screens.playlist.CachePlaylistScreen
 import com.sachit.music.ui.screens.playlist.LocalPlaylistScreen
 import com.sachit.music.ui.screens.playlist.OnlinePlaylistScreen
+import com.sachit.music.ui.screens.playlist.SmartPlaylistScreen
 import com.sachit.music.ui.screens.playlist.TopPlaylistScreen
 import com.sachit.music.ui.screens.podcast.OnlinePodcastScreen
 import com.sachit.music.ui.screens.recognition.RecognitionHistoryScreen
@@ -325,6 +326,18 @@ fun NavGraphBuilder.navigationBuilder(
             ),
     ) {
         TopPlaylistScreen(navController)
+    }
+
+    composable(
+        route = "smart_playlist/{list}",
+        arguments =
+            listOf(
+                navArgument("list") {
+                    type = NavType.StringType
+                },
+            ),
+    ) {
+        SmartPlaylistScreen(navController)
     }
 
     composable(
