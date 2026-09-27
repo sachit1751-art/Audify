@@ -27,11 +27,11 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 
 | # | Plan | Category | Effort | Depends on | Requires human gate | Status |
 |---|------|----------|--------|------------|---------------------|--------|
-| 009 | Smart auto-playlists (no schema change) | Feature | M | — | none | proposed |
+| 009 | Smart auto-playlists (no schema change) | Feature | M | — | none | done (implemented 41420e57, 2026-09-27) |
 | 010 | One-tap song radio from the player | Feature | S | — | none | done (implemented 2cc93084, 2026-09-26) |
-| 011 | Quick-settings tiles (shuffle all) | Feature | S | — | Manifest addition | proposed |
-| 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | proposed |
-| 013 | Synced lyric line in the mini player | Feature | M | — | none | proposed |
+| 011 | Quick-settings tiles (shuffle all) | Feature | S | — | Manifest addition | done (implemented 5c7e60a5, 2026-09-26) |
+| 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | done (implemented a01085da, 2026-09-26) |
+| 013 | Synced lyric line in the mini player | Feature | M | — | none | done (implemented fbdfd244, 2026-09-27) |
 | 014 | "Play next" from search results | Feature | S | — | none | done (parity verified, no-op 2026-09-26: search rows open YouTubeSongMenu/YouTubeAlbumMenu which already ship Play next + Add to queue, guest-gated, behind a visible trailing button) |
 
 ## Recommended order
