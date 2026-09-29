@@ -33,8 +33,8 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | 012 | Monthly mini-Wrapped card on Home | Feature | S–M | — | none | done (implemented a01085da, 2026-09-26) |
 | 013 | Synced lyric line in the mini player | Feature | M | — | none | done (implemented fbdfd244, 2026-09-27) |
 | 014 | "Play next" from search results | Feature | S | — | none | done (parity verified, no-op 2026-09-26: search rows open YouTubeSongMenu/YouTubeAlbumMenu which already ship Play next + Add to queue, guest-gated, behind a visible trailing button) |
-| 015 | Monthly & yearly recap (Wrapped with range) | Feature | M | 012 (reuses its window helper) | none | proposed |
-| 016 | Lossless / highest-quality audio option | Feature | M–L | innertubex fork capability | premium account for full verification | proposed |
+| 015 | Monthly & yearly recap (Wrapped with range) | Feature | M | 012 (reuses its window helper) | none | done (implemented 2026-09-29: `wrapped/{range}` route, range chips on intro, empty state, Stats recap entry; verified on emulator with real DB data) |
+| 016 | Lossless / highest-quality audio option | Feature | M–L | innertubex fork capability | premium account for full verification | done (implemented 2026-09-29: LOSSLESS enum + settings + honest badge + StreamPicker tests; fork v0.5.2 exposes no lossless clients so LOSSLESS maps to HIGH with graceful fallback — real FLAC requires a fork change) |
 
 ## Recommended order (round 2)
 

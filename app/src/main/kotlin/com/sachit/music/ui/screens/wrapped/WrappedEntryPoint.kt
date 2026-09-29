@@ -21,13 +21,17 @@ internal interface WrappedEntryPoint {
     fun databaseDao(): DatabaseDao
 }
 
-internal fun provideWrappedManager(context: Context): WrappedManager {
+internal fun provideWrappedManager(
+    context: Context,
+    range: RecapRange = RecapRange.YEARLY,
+): WrappedManager {
     val entryPoint = EntryPointAccessors.fromApplication(
         context.applicationContext,
         WrappedEntryPoint::class.java
     )
     return WrappedManager(
         databaseDao = entryPoint.databaseDao(),
-        context = context.applicationContext
+        context = context.applicationContext,
+        range = range
     )
 }

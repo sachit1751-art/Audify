@@ -24,8 +24,10 @@ dependencyResolutionManagement {
                     includeModule("com.github.sachit1751-art", "innertubex")
                     includeModule("com.github.sachit1751-art", "innertubex-android")
                     includeModule("com.github.sachit1751-art", "innertubex-desktop")
+                    includeModule("com.github.sachit1751-art.innertubex", "innertubex-android")
                 } else {
                     includeGroup("com.github.MetrolistGroup.innertubex")
+                    includeGroup("com.github.sachit1751-art.innertubex")
                 }
             }
         }

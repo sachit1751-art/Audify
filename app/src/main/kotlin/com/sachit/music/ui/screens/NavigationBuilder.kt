@@ -62,6 +62,7 @@ import com.sachit.music.ui.screens.settings.integrations.IntegrationScreen
 import com.sachit.music.ui.screens.settings.integrations.LastFMSettings
 import com.sachit.music.ui.screens.settings.integrations.ListenTogetherSettings
 
+import com.sachit.music.ui.screens.wrapped.RecapRange
 import com.sachit.music.ui.screens.wrapped.WrappedScreen
 import com.sachit.music.utils.rememberEnumPreference
 import com.sachit.music.utils.rememberPreference
@@ -434,6 +435,25 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("wrapped") {
         WrappedScreen()
+    }
+
+    composable(
+        "wrapped/{range}",
+        arguments =
+            listOf(
+                navArgument("range") {
+                    type = NavType.StringType
+                    defaultValue = "yearly"
+                },
+            ),
+    ) { backStackEntry ->
+        val rangeArg = backStackEntry.arguments?.getString("range") ?: "yearly"
+        val range =
+            when (rangeArg) {
+                "monthly" -> RecapRange.MONTHLY
+                else -> RecapRange.YEARLY
+            }
+        WrappedScreen(range = range)
     }
 
     composable("equalizer") {

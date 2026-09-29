@@ -36,7 +36,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.sachit.music.R
 import com.sachit.music.ui.screens.wrapped.MessagePair
+import com.sachit.music.ui.screens.wrapped.RecapRange
 import com.sachit.music.ui.screens.wrapped.components.AnimatedDecorativeElement
 import com.sachit.music.ui.theme.bbh_bartle
 import kotlin.random.Random
@@ -44,7 +47,8 @@ import kotlin.random.Random
 @Composable
 fun WrappedMinutesScreen(
     messagePair: MessagePair?, totalMinutes: Long,
-    isVisible: Boolean
+    isVisible: Boolean,
+    range: RecapRange = RecapRange.YEARLY,
 ) {
     val animatedMinutes = remember { Animatable(0f) }
     val textMeasurer = rememberTextMeasurer()
@@ -124,6 +128,15 @@ fun WrappedMinutesScreen(
                     textAlign = TextAlign.Center
                 )
             }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(
+                    if (range == RecapRange.MONTHLY) R.string.recap_minutes_month else R.string.recap_minutes_year,
+                    totalMinutes
+                ),
+                style = MaterialTheme.typography.labelLarge.copy(color = Color.White.copy(alpha = 0.6f), textAlign = TextAlign.Center),
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
             Spacer(Modifier.height(16.dp))
             FormattedText(
                 text = messagePair?.reveal ?: "", modifier = Modifier.padding(horizontal = 24.dp),

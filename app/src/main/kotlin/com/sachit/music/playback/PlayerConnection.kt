@@ -285,6 +285,24 @@ class PlayerConnection(
         }
     }
 
+    /**
+     * Starts the radio and reports the outcome through [onResult] so the UI can
+     * show a snackbar/toast when the radio could not be started (offline etc.).
+     */
+    fun startRadioWithFeedback(onResult: (MusicService.RadioStartResult) -> Unit = {}) {
+        // Block if Listen Together guest
+        if (shouldBlockPlaybackChanges?.invoke() == true) {
+            Timber.tag("PlayerConnection").d("startRadioWithFeedback blocked - Listen Together guest")
+            return
+        }
+        try {
+            service.startRadioAsync(onResult)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error in startRadioWithFeedback")
+            onResult(MusicService.RadioStartResult.Failed)
+        }
+    }
+
     fun playNext(item: MediaItem) = playNext(listOf(item))
 
     fun playNext(items: List<MediaItem>) {

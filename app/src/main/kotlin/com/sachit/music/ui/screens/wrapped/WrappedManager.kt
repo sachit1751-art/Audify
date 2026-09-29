@@ -42,7 +42,8 @@ sealed class PlaylistCreationState {
 
 class WrappedManager(
     private val databaseDao: DatabaseDao,
-    private val context: Context
+    private val context: Context,
+    val range: RecapRange = RecapRange.YEARLY,
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -56,8 +57,7 @@ class WrappedManager(
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val fromTimestamp = LocalDateTime.of(WrappedConstants.YEAR, 1, 1, 0, 0, 0)
-                    val toTimestamp = LocalDateTime.of(WrappedConstants.YEAR, 12, 31, 23, 59, 59)
+                    val (fromTimestamp, toTimestamp) = RecapRangeResolver.resolve(range)
                     val allSongs = databaseDao.mostPlayedSongsStats(fromTimestamp, toTimeStamp = toTimestamp, limit = -1).first()
 
                     val playlistId = UUID.randomUUID().toString()
@@ -71,7 +71,7 @@ class WrappedManager(
 
                     val newPlaylist = PlaylistEntity(
                         id = playlistId,
-                        name = WrappedConstants.PLAYLIST_NAME,
+                        name = "${WrappedConstants.PLAYLIST_NAME} ${RecapRangeResolver.playlistLabel(range)}",
                         thumbnailUrl = file.toURI().toString(),
                         bookmarkedAt = LocalDateTime.now(),
                         isEditable = true
@@ -132,8 +132,7 @@ class WrappedManager(
 
             // Artist Part: Top artist's song with specific rule
             val topArtist = topArtists.firstOrNull()
-            val fromTimestamp = LocalDateTime.of(WrappedConstants.YEAR, 1, 1, 0, 0, 0)
-            val toTimestamp = LocalDateTime.of(WrappedConstants.YEAR, 12, 31, 23, 59, 59)
+            val (fromTimestamp, toTimestamp) = RecapRangeResolver.resolve(range)
 
             val artistSong = topArtist?.let { artist ->
                 val artistTopSongs = databaseDao.artistSongs(
@@ -176,8 +175,7 @@ class WrappedManager(
         if (_state.value.isDataReady) return
         Timber.tag("WrappedManager").d("Starting Wrapped data preparation")
 
-        val fromTimestamp = LocalDateTime.of(WrappedConstants.YEAR, 1, 1, 0, 0, 0)
-        val toTimestamp = LocalDateTime.of(WrappedConstants.YEAR, 12, 31, 23, 59, 59)
+        val (fromTimestamp, toTimestamp) = RecapRangeResolver.resolve(range)
 
         withContext(Dispatchers.IO) {
             val accountInfoDeferred = async { YouTube.accountInfo().getOrNull() }
@@ -187,7 +185,7 @@ class WrappedManager(
             val uniqueSongCountDeferred = async { databaseDao.getUniqueSongCountInRange(fromTimestamp, toTimestamp).first() }
             val uniqueArtistCountDeferred = async { databaseDao.getUniqueArtistCountInRange(fromTimestamp, toTimestamp).first() }
             val uniqueAlbumCountDeferred = async { databaseDao.getUniqueAlbumCountInRange(fromTimestamp, toTimestamp).first() }
-            val totalPlayTimeMsDeferred = async { databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() ?: 0L }
+            val totalPlayTimeMsDeferred = async { databaseDao.getTotalPlayTimeInRange(fromTimestamp, toTimestamp).first() }
 
             val results = awaitAll(
                 accountInfoDeferred,
@@ -206,6 +204,8 @@ class WrappedManager(
             val topAlbumsResult = results[3] as List<com.sachit.music.db.entities.Album>
             @Suppress("UNCHECKED_CAST")
             val topArtistsResult = results[2] as List<Artist>
+            val totalPlayTimeMs = results[7] as Long?
+            val totalMinutes = (totalPlayTimeMs ?: 0L) / 1000 / 60
             _state.update {
                 it.copy(
                     accountInfo = results[0] as AccountInfo?,
@@ -216,7 +216,9 @@ class WrappedManager(
                     uniqueSongCount = results[4] as Int,
                     uniqueArtistCount = results[5] as Int,
                     totalAlbums = results[6] as Int,
-                    totalMinutes = (results[7] as Long) / 1000 / 60
+                    totalMinutes = totalMinutes,
+                    range = range,
+                    isRecapEmpty = totalPlayTimeMs == null || totalMinutes <= 0
                 )
             }
         }

@@ -262,6 +262,14 @@ object InnerTubeXPlayer {
         when (this) {
             AudioQuality.HIGH -> InnerTubeXAudioQuality.HIGH
             AudioQuality.LOW -> InnerTubeXAudioQuality.LOW
+            // The innertubex fork does not expose lossless-capable clients yet
+            // (its AudioQuality enum only has AUTO/LOW/HIGH), so LOSSLESS resolves
+            // to the fork's highest quality; per-stream FLAC/ALAC detection and the
+            // honest badge are handled by StreamPicker/ShowMediaInfo.
+            // The fork now exposes a lossless-capable selector: LOSSLESS prefers
+            // FLAC/ALAC formats and degrades to the best lossy stream when none is
+            // served (non-premium accounts).
+            AudioQuality.LOSSLESS -> InnerTubeXAudioQuality.LOSSLESS
             AudioQuality.AUTO ->
                 if (connectivityManager.isActiveNetworkMetered) {
                     InnerTubeXAudioQuality.LOW

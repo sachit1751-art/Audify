@@ -121,6 +121,9 @@ enum class AudioQuality {
     AUTO,
     LOW,
     HIGH,
+
+    /** Opt-in: prefer lossless (FLAC/ALAC) when the account/client serves it; falls back to the highest-bitrate lossy stream. */
+    LOSSLESS,
 }
 
 val AudioOffload = booleanPreferencesKey("enableOffload")

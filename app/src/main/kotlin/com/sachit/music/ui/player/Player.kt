@@ -165,6 +165,7 @@ import com.sachit.music.extensions.togglePlayPause
 import com.sachit.music.extensions.toggleRepeatMode
 import com.sachit.music.listentogether.RoomRole
 import com.sachit.music.models.MediaMetadata
+import com.sachit.music.playback.MusicService
 import com.sachit.music.ui.component.BottomSheet
 import com.sachit.music.ui.component.BottomSheetState
 import com.sachit.music.ui.component.LocalBottomSheetPageState
@@ -1148,6 +1149,7 @@ fun BottomSheetPlayer(
                     val middleShape = RoundedCornerShape(3.dp)
 
                     val startingRadioText = stringResource(R.string.starting_radio)
+                    val radioFailedText = stringResource(R.string.radio_failed)
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1206,7 +1208,11 @@ fun BottomSheetPlayer(
                             FilledIconButton(
                                 onClick = {
                                     Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
-                                    playerConnection.startRadioSeamlessly()
+                                    playerConnection.startRadioWithFeedback { result ->
+                                        if (result == MusicService.RadioStartResult.Failed) {
+                                            Toast.makeText(context, radioFailedText, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 },
                                 shape = middleShape,
                                 colors =
@@ -1291,6 +1297,7 @@ fun BottomSheetPlayer(
                     }
                 } else {
                     val startingRadioText = stringResource(R.string.starting_radio)
+                    val radioFailedText = stringResource(R.string.radio_failed)
 
                     AnimatedContent(targetState = showInlineLyrics, label = "ShareButton") { showLyrics ->
                         if (showLyrics) {
@@ -1356,7 +1363,11 @@ fun BottomSheetPlayer(
                                     .background(textButtonColor)
                                     .clickable {
                                         Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
-                                        playerConnection.startRadioSeamlessly()
+                                        playerConnection.startRadioWithFeedback { result ->
+                                            if (result == MusicService.RadioStartResult.Failed) {
+                                                Toast.makeText(context, radioFailedText, Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     },
                         ) {
                             Icon(

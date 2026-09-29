@@ -68,6 +68,19 @@
     <string name="sort_by_last_updated">Date updated</string>
     <string name="link_copied">Link copied to clipboard</string>
     <string name="starting_radio">Starting radio…</string>
+    <string name="radio_failed">Couldn’t start radio. Check your connection and try again.</string>
+    <string name="recap_title_month">Your month in music</string>
+    <string name="recap_title_year">Your year in music</string>
+    <string name="recap_range_month">This month</string>
+    <string name="recap_range_year">This year</string>
+    <string name="recap_minutes_month">%1$d minutes this month</string>
+    <string name="recap_minutes_year">%1$d minutes this year</string>
+    <string name="recap_share">Share</string>
+    <string name="recap_empty">Play something first — your recap appears once you’ve listened to a few songs.</string>
+    <string name="recap_entry_desc">Recap</string>
+    <string name="audio_quality_lossless">Lossless</string>
+    <string name="audio_quality_lossless_desc">FLAC/ALAC up to 24-bit when available — requires YouTube Music Premium; falls back to the highest bitrate otherwise</string>
+    <string name="lossless_badge">Lossless</string>
     <string name="now_playing">Now Playing</string>
 
     <!-- Home greeting -->

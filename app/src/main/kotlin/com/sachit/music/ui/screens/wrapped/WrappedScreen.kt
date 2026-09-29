@@ -43,6 +43,7 @@ import com.sachit.music.LocalNavController
 import com.sachit.music.R
 import com.sachit.music.ui.screens.wrapped.pages.ConclusionPage
 import com.sachit.music.ui.screens.wrapped.pages.PlaylistPage
+import com.sachit.music.ui.screens.wrapped.pages.RecapEmptyPage
 import com.sachit.music.ui.screens.wrapped.pages.WrappedIntro
 import com.sachit.music.ui.screens.wrapped.pages.WrappedMinutesScreen
 import com.sachit.music.ui.screens.wrapped.pages.WrappedMinutesTease
@@ -89,19 +90,29 @@ sealed class WrappedScreenType {
 }
 
 @Composable
-fun WrappedScreen() {
+fun WrappedScreen(
+    range: RecapRange = RecapRange.YEARLY,
+    onRangeSelected: ((RecapRange) -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+) {
     val navController = LocalNavController.current
     val context = LocalContext.current
-    val manager = remember { provideWrappedManager(context) }
+    val manager = remember(range) { provideWrappedManager(context, range) }
 
     CompositionLocalProvider(LocalWrappedManager provides manager) {
-        WrappedScreenContent()
+        WrappedScreenContent(
+            onRangeSelected = onRangeSelected,
+            onShare = onShare,
+        )
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun WrappedScreenContent() {
+fun WrappedScreenContent(
+    onRangeSelected: ((RecapRange) -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+) {
     val navController = LocalNavController.current
     val onClose: () -> Unit = {
         navController.previousBackStackEntry?.savedStateHandle?.set("wrapped_seen", true)
@@ -185,6 +196,11 @@ fun WrappedScreenContent() {
         manager.prepare()
     }
 
+    if (state.isRecapEmpty) {
+        RecapEmptyPage(onClose = onClose)
+        return
+    }
+
     LaunchedEffect(pagerState, state.trackMap) {
         if (state.trackMap.isEmpty()) return@LaunchedEffect
 
@@ -223,7 +239,10 @@ fun WrappedScreenContent() {
         ) { page ->
             when (screens[page]) {
                 is WrappedScreenType.Welcome -> {
-                    WrappedIntro { scope.launch { pagerState.animateScrollToPage(page = 1) } }
+                    WrappedIntro(
+                        range = state.range,
+                        onRangeSelected = onRangeSelected,
+                    ) { scope.launch { pagerState.animateScrollToPage(page = 1) } }
                 }
 
                 is WrappedScreenType.MinutesTease -> {
@@ -239,6 +258,7 @@ fun WrappedScreenContent() {
                         messagePair = messagePair,
                         totalMinutes = state.totalMinutes,
                         isVisible = pagerState.currentPage == screens.indexOf(WrappedScreenType.MinutesReveal),
+                        range = state.range,
                     )
                 }
 
@@ -310,7 +330,10 @@ fun WrappedScreenContent() {
                 }
 
                 is WrappedScreenType.Conclusion -> {
-                    ConclusionPage(onClose = onClose)
+                    ConclusionPage(
+                        onClose = onClose,
+                        onShare = onShare,
+                    )
                 }
             }
         }

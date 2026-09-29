@@ -766,6 +766,15 @@ fun StatsScreen(
                     )
                 }
             } else if (!isSearching) {
+                IconButton(
+                    onClick = { navController.navigate("wrapped/yearly") },
+                    onLongClick = { navController.navigate("wrapped/yearly") },
+                ) {
+                    Icon(
+                        painterResource(R.drawable.replay),
+                        contentDescription = stringResource(R.string.recap_entry_desc),
+                    )
+                }
                 androidx.compose.material3.IconButton(
                     onClick = { isSearching = true },
                 ) {

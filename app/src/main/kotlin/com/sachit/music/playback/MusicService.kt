@@ -1818,18 +1818,30 @@ class MusicService :
         originalQueueSize = initialQueueSize
     }
 
-    fun startRadioSeamlessly() {
+    /**
+     * Result of a radio-start attempt, surfaced so the UI can give feedback when
+     * the radio could not be fetched (offline, empty mix, expired session, ...).
+     */
+    sealed interface RadioStartResult {
+        data object Started : RadioStartResult
+        data object Failed : RadioStartResult
+    }
+
+    private var radioStartJob: Job? = null
+
+    fun startRadioSeamlessly(): RadioStartResult {
         if (!playerInitialized.value) {
             Timber.tag(TAG).w("startRadioSeamlessly called before player initialization")
-            return
+            return RadioStartResult.Failed
         }
 
-        val currentMediaMetadata = player.currentMetadata ?: return
+        val currentMediaMetadata = player.currentMetadata ?: return RadioStartResult.Failed
 
-        val currentIndex = player.currentMediaItemIndex
         val currentMediaId = currentMediaMetadata.id
 
-        scope.launch(SilentHandler) {
+        // Cancel any in-flight radio fetch so two taps don't race each other
+        radioStartJob?.cancel()
+        radioStartJob = scope.launch(SilentHandler) {
             // Use simple videoId to let YouTube personalize recommendations
             val radioQueue =
                 YouTubeQueue(
@@ -1848,8 +1860,19 @@ class MusicService :
                             .filterVideoSongs(dataStore.get(HideVideoSongsKey, false))
                     }
 
+                if (!isActive) return@launch
+
                 if (initialStatus.title != null) {
                     queueTitle = initialStatus.title
+                }
+
+                // Re-read the player state at mutation time: the user may have skipped
+                // or the track may have advanced while the network call was in flight.
+                // Using the stale index would cut the queue at the wrong position.
+                if (player.currentMetadata?.id != currentMediaId) {
+                    Timber.tag(TAG).d("startRadioSeamlessly: song changed during fetch, retrying for new song")
+                    startRadioSeamlessly()
+                    return@launch
                 }
 
                 val radioItems =
@@ -1858,6 +1881,7 @@ class MusicService :
                     }
 
                 if (radioItems.isNotEmpty()) {
+                    val currentIndex = player.currentMediaItemIndex
                     val itemCount = player.mediaItemCount
 
                     if (itemCount > currentIndex + 1) {
@@ -1869,48 +1893,72 @@ class MusicService :
                         val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
                         applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
                     }
+                    currentQueue = radioQueue
+                    Timber.tag(TAG).i("Radio started: ${radioItems.size} tracks queued after index $currentIndex")
+                } else {
+                    Timber.tag(TAG).w("startRadioSeamlessly: radio mix returned no additional tracks")
                 }
-
-                currentQueue = radioQueue
             } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "startRadioSeamlessly primary path failed, trying related fallback")
                 try {
                     val nextResult =
                         withContext(Dispatchers.IO) {
                             YouTube.next(WatchEndpoint(videoId = currentMediaId)).getOrNull()
                         }
-                    nextResult?.relatedEndpoint?.let { relatedEndpoint ->
-                        val relatedPage =
-                            withContext(Dispatchers.IO) {
-                                YouTube.related(relatedEndpoint).getOrNull()
-                            }
-                        relatedPage?.songs?.let { songs ->
-                            val radioItems =
-                                songs
-                                    .filter { it.id != currentMediaId }
-                                    .map { it.toMediaItem() }
-                                    .filterExplicit(cachedHideExplicit)
-                                    .filterVideoSongs(cachedHideVideoSongs)
-
-                            if (radioItems.isNotEmpty()) {
-                                val itemCount = player.mediaItemCount
-                                if (itemCount > currentIndex + 1) {
-                                    player.removeMediaItems(currentIndex + 1, itemCount)
-                                }
-                                player.addMediaItems(currentIndex + 1, radioItems)
-                                if (player.shuffleModeEnabled) {
-                                    applyShuffleOrder(
-                                        player.currentMediaItemIndex,
-                                        player.mediaItemCount,
-                                        cachedShufflePlaylistFirst,
-                                    )
-                                }
-                            }
+                    // relatedEndpoint is no longer served by YouTube for most next()
+                    // responses; fall back to the plain next() items themselves.
+                    val fallbackItems =
+                        nextResult?.let { result ->
+                            result.items
+                                .filter { it.id != currentMediaId }
+                                .map { it.toMediaItem() }
+                                .filterExplicit(cachedHideExplicit)
+                                .filterVideoSongs(cachedHideVideoSongs)
+                        } ?: emptyList()
+                    val radioItems =
+                        if (fallbackItems.isNotEmpty()) {
+                            fallbackItems
+                        } else {
+                            nextResult?.relatedEndpoint
+                                ?.let { relatedEndpoint ->
+                                    withContext(Dispatchers.IO) {
+                                        YouTube.related(relatedEndpoint).getOrNull()
+                                    }
+                                }?.songs
+                                ?.filter { it.id != currentMediaId }
+                                ?.map { it.toMediaItem() }
+                                ?.filterExplicit(cachedHideExplicit)
+                                ?.filterVideoSongs(cachedHideVideoSongs)
+                                ?: emptyList()
                         }
+
+                    if (!isActive) return@launch
+
+                    if (radioItems.isNotEmpty() && player.currentMetadata?.id == currentMediaId) {
+                        val currentIndex = player.currentMediaItemIndex
+                        val itemCount = player.mediaItemCount
+                        if (itemCount > currentIndex + 1) {
+                            player.removeMediaItems(currentIndex + 1, itemCount)
+                        }
+                        player.addMediaItems(currentIndex + 1, radioItems)
+                        if (player.shuffleModeEnabled) {
+                            applyShuffleOrder(
+                                player.currentMediaItemIndex,
+                                player.mediaItemCount,
+                                cachedShufflePlaylistFirst,
+                            )
+                        }
+                        currentQueue = radioQueue
+                        Timber.tag(TAG).i("Radio started via fallback: ${radioItems.size} tracks")
+                    } else {
+                        Timber.tag(TAG).w("startRadioSeamlessly: fallback returned no tracks")
                     }
-                } catch (_: Exception) {
+                } catch (fallbackError: Exception) {
+                    Timber.tag(TAG).e(fallbackError, "startRadioSeamlessly failed completely")
                 }
             }
         }
+        return RadioStartResult.Started
     }
 
     fun getAutomix(playlistId: String) {
@@ -2231,6 +2279,25 @@ class MusicService :
 
     fun toggleStartRadio() {
         startRadioSeamlessly()
+    }
+
+    /**
+     * Fire-and-forget wrapper kept for callers that don't surface a failure UI.
+     * Returns true when the radio fetch was successfully kicked off AND tracks
+     * were queued (via [pendingRadioResult]); used by the snackbar feedback path.
+     */
+    fun startRadioAsync(onResult: (RadioStartResult) -> Unit = {}) {
+        val jobStarted = startRadioSeamlessly()
+        if (jobStarted == RadioStartResult.Failed) {
+            onResult(RadioStartResult.Failed)
+            return
+        }
+        scope.launch {
+            // Wait for the radio job to finish and inspect the outcome
+            radioStartJob?.join()
+            val success = player.mediaItemCount > player.currentMediaItemIndex + 1 || automixItems.value.isNotEmpty()
+            onResult(if (success) RadioStartResult.Started else RadioStartResult.Failed)
+        }
     }
 
     private fun seedLoudnessCacheFromPrefs() {

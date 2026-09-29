@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -29,6 +30,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sachit.music.R
+import com.sachit.music.ui.screens.wrapped.RecapRange
+import com.sachit.music.ui.screens.wrapped.RecapRangeResolver
 import com.sachit.music.ui.screens.wrapped.components.AutoResizingText
 import com.sachit.music.ui.theme.bbhBartle
 import kotlinx.coroutines.delay
@@ -64,7 +69,11 @@ private const val BUTTON_DELAY = 1000
 private val BOTTOM_PADDING = 64.dp
 
 @Composable
-fun WrappedIntro(onNext: () -> Unit) {
+fun WrappedIntro(
+    range: RecapRange = RecapRange.YEARLY,
+    onRangeSelected: ((RecapRange) -> Unit)? = null,
+    onNext: () -> Unit,
+) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         delay(INITIAL_DELAY.toLong())
@@ -142,21 +151,26 @@ fun WrappedIntro(onNext: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // SachitMusic Title with Layered Effect
+            // Range-aware headline: "Your month/year in music"
             AnimatedVisibility(
                 visible = visible,
                 enter = fadeIn(animationSpec = tween(FADE_IN_DURATION, delayMillis = TITLE_DELAY)) + slideInVertically(animationSpec = tween(SLIDE_IN_DURATION, delayMillis = TITLE_DELAY))
             ) {
                 Box {
+                    val headlineRes = if (range == RecapRange.MONTHLY) {
+                        R.string.recap_title_month
+                    } else {
+                        R.string.recap_title_year
+                    }
                     val baseStyle = TextStyle(
                         fontFamily = bbhBartle,
                         textAlign = TextAlign.Center,
                         letterSpacing = 2.sp,
                         fontSize = 50.sp
                     )
-                    AutoResizingText(text = stringResource(id = R.string.wrapped_intro_title), style = baseStyle.copy(color = Color.DarkGray), modifier = Modifier.offset(x = 2.dp, y = 2.dp))
-                    AutoResizingText(text = stringResource(id = R.string.wrapped_intro_title), style = baseStyle.copy(color = Color.Gray), modifier = Modifier.offset(x = 1.dp, y = 1.dp))
-                    AutoResizingText(text = stringResource(id = R.string.wrapped_intro_title), style = baseStyle.copy(color = Color.White))
+                    AutoResizingText(text = stringResource(id = headlineRes), style = baseStyle.copy(color = Color.DarkGray), modifier = Modifier.offset(x = 2.dp, y = 2.dp))
+                    AutoResizingText(text = stringResource(id = headlineRes), style = baseStyle.copy(color = Color.Gray), modifier = Modifier.offset(x = 1.dp, y = 1.dp))
+                    AutoResizingText(text = stringResource(id = headlineRes), style = baseStyle.copy(color = Color.White))
                 }
             }
 
@@ -174,6 +188,42 @@ fun WrappedIntro(onNext: () -> Unit) {
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center
                 )
+            }
+
+            // Time-range picker (plan 015): This month / This year chips
+            if (onRangeSelected != null) {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(animationSpec = tween(FADE_IN_DURATION, delayMillis = SUBTITLE_DELAY)) + slideInVertically(animationSpec = tween(SLIDE_IN_DURATION, delayMillis = SUBTITLE_DELAY))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(top = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        FilterChip(
+                            selected = range == RecapRange.MONTHLY,
+                            onClick = { if (range != RecapRange.MONTHLY) onRangeSelected(RecapRange.MONTHLY) },
+                            label = { Text(stringResource(R.string.recap_range_month), color = if (range == RecapRange.MONTHLY) Color.Black else Color.White, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(50),
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                selectedContainerColor = Color.White
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Transparent)
+                        )
+                        FilterChip(
+                            selected = range == RecapRange.YEARLY,
+                            onClick = { if (range != RecapRange.YEARLY) onRangeSelected(RecapRange.YEARLY) },
+                            label = { Text(stringResource(R.string.recap_range_year), color = if (range == RecapRange.YEARLY) Color.Black else Color.White, fontWeight = FontWeight.SemiBold) },
+                            shape = RoundedCornerShape(50),
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.White.copy(alpha = 0.12f),
+                                selectedContainerColor = Color.White
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Transparent)
+                        )
+                    }
+                }
             }
         }
 

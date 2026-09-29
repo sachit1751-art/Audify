@@ -47,6 +47,7 @@ import com.sachit.music.LocalPlayerConnection
 import com.sachit.music.R
 import com.sachit.music.constants.LoudnessLevel
 import com.sachit.music.constants.LoudnessLevelKey
+import com.sachit.music.utils.StreamPicker
 import com.sachit.music.db.entities.FormatEntity
 import com.sachit.music.db.entities.Song
 import com.sachit.music.ui.component.Material3SettingsGroup
@@ -166,7 +167,18 @@ fun ShowMediaInfo(videoId: String) {
                             stringResource(R.string.dislikes) to info?.dislike?.let(::numberFormatter).orEmpty(),
                             "Itag" to currentFormat?.itag?.toString(),
                             stringResource(R.string.stream_client) to currentStreamClient,
-                            stringResource(R.string.mime_type) to currentFormat?.mimeType,
+                            // Honest lossless indicator (plan 016): suffixed only when the active
+                            // format really is FLAC/ALAC — never as a promise or a fake badge.
+                            stringResource(R.string.mime_type) to currentFormat?.mimeType?.let { mime ->
+                                val isLosslessFormat = StreamPicker.isLossless(
+                                    StreamPicker.Candidate(
+                                        mimeType = mime,
+                                        codecs = currentFormat?.codecs,
+                                        bitrate = null,
+                                    ),
+                                )
+                                if (isLosslessFormat) "$mime · ${stringResource(R.string.lossless_badge)}" else mime
+                            },
                             stringResource(R.string.codecs) to currentFormat?.codecs,
                             stringResource(R.string.bitrate) to currentFormat?.bitrate?.let { "${it / 1000} Kbps" },
                             stringResource(R.string.sample_rate) to currentFormat?.sampleRate?.let { "$it Hz" },

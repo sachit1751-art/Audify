@@ -21,6 +21,9 @@ data class WrappedState(
     val uniqueArtistCount: Int = 0,
     val totalAlbums: Int = 0,
     val isDataReady: Boolean = false,
+    /** True when the queried window has no listening history — show a friendly empty page. */
+    val isRecapEmpty: Boolean = false,
+    val range: RecapRange = RecapRange.YEARLY,
     val trackMap: Map<WrappedScreenType, String?> = emptyMap(),
     val playlistCreationState: PlaylistCreationState = PlaylistCreationState.Idle
 )

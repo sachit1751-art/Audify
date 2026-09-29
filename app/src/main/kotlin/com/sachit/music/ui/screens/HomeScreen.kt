@@ -1474,7 +1474,7 @@ fun HomeScreen(
                                             )
                                         }
                                     }
-                                    TextButton(onClick = { navController.navigate("wrapped") }) {
+                                    TextButton(onClick = { navController.navigate("wrapped/monthly") }) {
                                         Text(stringResource(R.string.open))
                                     }
                                     IconButton(onClick = viewModel::dismissMonthlyCard) {
@@ -1536,7 +1536,7 @@ fun HomeScreen(
                                             )
                                             Spacer(modifier = Modifier.height(16.dp))
                                             Button(onClick = {
-                                                navController.navigate("wrapped")
+                                                navController.navigate("wrapped/monthly")
                                             }) {
                                                 Text(stringResource(R.string.open))
                                             }
