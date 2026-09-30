@@ -36,6 +36,22 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | 015 | Monthly & yearly recap (Wrapped with range) | Feature | M | 012 (reuses its window helper) | none | done (implemented 2026-09-29: `wrapped/{range}` route, range chips on intro, empty state, Stats recap entry; verified on emulator with real DB data) |
 | 016 | Lossless / highest-quality audio option | Feature | M–L | innertubex fork capability | premium account for full verification | done (implemented 2026-09-29: fork extended with `AudioQuality.LOSSLESS` + FLAC/ALAC-preferred selection — sachit1751-art/innertubex `0.5.2-lossless.3` via JitPack; app wiring, settings UI, honest ShowMediaInfo badge, StreamPicker + fork selector tests. Real FLAC still requires a premium-serving client/account; graceful fallback verified on emulator) |
 | 017 | Artwork-mesh player backdrop (smooth animated background) | UI/Feature | M | — | none | planned (port of BitChord v1.7 `ArtworkMeshBackdrop.kt` as an opt-in player backdrop style; player UI only) |
+| 018 | Per-network audio quality ceilings | Feature | S–M | — | none | planned (Wi-Fi vs mobile-data quality with pure resolver; unset keys fall back to the global setting — zero change for existing users) |
+| 019 | "Signal" in-player diagnostics sheet | Feature | S | — | none | planned (live codec/client/buffer/network/loudness sheet from the player menu; 1 Hz ticker only while open) |
+| 020 | Queue skip marks + "Earlier" boundary | Feature | M | — | none | planned (mark rows jumped over by forward queue jumps; divider inside the active row; session-scoped, no persistence) |
+| 021 | Stream source health + fresh-resolution fallback | Feature | M | 019 (surface) | none | planned (per-mediaId failure memory with backoff; FALLBACK state bypasses the URL cache; surfaced in the Signal sheet) |
+
+## Recommended order (round 3)
+
+1. **018** (per-network quality) — smallest blast radius (one pure function + one call site),
+   immediately useful, no UI risk.
+2. **019** (Signal sheet) — build the diagnostics surface before 021 needs it; zero service
+   surgery, all read-only.
+3. **020** (skip marks) — service hook + queue UI; independent of 018/019, but do it after
+   019 so manual verification can use the Signal sheet if needed.
+4. **021** (source health) — last: hooks the error path, benefits from 019's surface and from
+   confidence built by the first three.
+5. **017** (artwork backdrop) — anytime; pure UI, no interaction with 018–021.
 
 ## Recommended order (round 2)
 
