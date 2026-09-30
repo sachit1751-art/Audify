@@ -117,6 +117,12 @@ val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
 
+/** Max quality on unmetered (Wi-Fi) networks. Unset = use [AudioQualityKey] (global). */
+val WifiAudioQualityKey = stringPreferencesKey("wifiAudioQuality")
+
+/** Max quality on metered (mobile data) networks. Unset = use [AudioQualityKey] (global). */
+val MeteredAudioQualityKey = stringPreferencesKey("meteredAudioQuality")
+
 enum class AudioQuality {
     AUTO,
     LOW,

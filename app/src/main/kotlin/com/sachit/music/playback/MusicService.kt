@@ -105,6 +105,8 @@ import com.sachit.music.constants.AndroidAutoTargetPlaylistKey
 import com.sachit.music.constants.AudioNormalizationKey
 import com.sachit.music.constants.AudioOffload
 import com.sachit.music.constants.AudioQualityKey
+import com.sachit.music.constants.MeteredAudioQualityKey
+import com.sachit.music.constants.WifiAudioQualityKey
 import com.sachit.music.constants.AudioTrackPlaybackParamsKey
 import com.sachit.music.constants.AutoDownloadOnLikeKey
 import com.sachit.music.constants.AutoLoadMoreKey
@@ -3798,13 +3800,27 @@ class MusicService :
             }
 
             val cacheGeneration = songUrlCache.generation(mediaId)
-            Timber.tag(TAG).i("FETCHING STREAM: $mediaId | quality=$audioQuality")
+            // Per-network quality ceilings (Plan 018): explicit Wi-Fi/metered keys win,
+            // then the global key — so unset network keys mean zero behavior change.
+            val prefs = runBlocking(Dispatchers.IO) { dataStore.data.first() }
+            val globalQuality = prefs[AudioQualityKey].toAudioQualityOrNull()
+            val wifiQuality = prefs[WifiAudioQualityKey].toAudioQualityOrNull()
+            val meteredQuality = prefs[MeteredAudioQualityKey].toAudioQualityOrNull()
+            val resolvedQuality = resolveAudioQuality(
+                connectivityManager.networkClass(),
+                globalQuality,
+                wifiQuality,
+                meteredQuality,
+            )
+            Timber.tag(TAG).i(
+                "FETCHING STREAM: $mediaId | quality=$resolvedQuality (wifi=$wifiQuality metered=$meteredQuality)"
+            )
             val playbackData =
                 runBlocking(Dispatchers.IO) {
                     val song = database.songEntity(mediaId)
                     InnerTubeXPlayer.playerResponseForPlayback(
                         mediaId,
-                        audioQuality = audioQuality,
+                        audioQuality = resolvedQuality,
                         connectivityManager = connectivityManager,
                         contentHints = ContentHints(
                             isExplicit = song?.explicit,

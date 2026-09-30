@@ -5,18 +5,24 @@
 
 package com.sachit.music.ui.screens.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -27,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -42,6 +49,8 @@ import com.sachit.music.constants.AudioOffload
 import com.sachit.music.constants.AudioTrackPlaybackParamsKey
 import com.sachit.music.constants.AudioQuality
 import com.sachit.music.constants.AudioQualityKey
+import com.sachit.music.constants.MeteredAudioQualityKey
+import com.sachit.music.constants.WifiAudioQualityKey
 import com.sachit.music.constants.AutoDownloadOnLikeKey
 import com.sachit.music.constants.CrossfadeDurationKey
 import com.sachit.music.constants.CrossfadeEnabledKey
@@ -73,6 +82,7 @@ import com.sachit.music.constants.VarispeedKey
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.EnumDialog
 import com.sachit.music.ui.component.IconButton
+import com.sachit.music.ui.component.ListDialog
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.utils.backToMain
@@ -100,6 +110,15 @@ fun PlayerSettings(
     val (audioQuality, onAudioQualityChange) = rememberEnumPreference(
         AudioQualityKey,
         defaultValue = AudioQuality.AUTO
+    )
+    // Per-network ceilings (Plan 018): empty string = unset = follow the general setting.
+    val (wifiQuality, onWifiQualityChange) = rememberPreference(
+        WifiAudioQualityKey,
+        defaultValue = ""
+    )
+    val (meteredQuality, onMeteredQualityChange) = rememberPreference(
+        MeteredAudioQualityKey,
+        defaultValue = ""
     )
     val (crossfadeEnabled, onCrossfadeEnabledChange) = rememberPreference(
         CrossfadeEnabledKey,
@@ -238,6 +257,14 @@ fun PlayerSettings(
         mutableStateOf(false)
     }
 
+    var showWifiQualityDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var showMeteredQualityDialog by remember {
+        mutableStateOf(false)
+    }
+
     var showLoudnessLevelDialog by remember {
         mutableStateOf(false)
     }
@@ -261,6 +288,75 @@ fun PlayerSettings(
                 }
             }
         )
+    }
+
+    // Per-network quality dialogs (Plan 018). Values are (storedString, labelRes) pairs:
+    // the null entry represents unset, i.e. "Same as general setting".
+    val perNetworkQualityOptions =
+        listOf<Pair<String?, Int>>(
+            null to R.string.quality_same_as_global,
+            "AUTO" to R.string.audio_quality_auto,
+            "LOW" to R.string.audio_quality_low,
+            "HIGH" to R.string.audio_quality_high,
+            "LOSSLESS" to R.string.audio_quality_lossless,
+        )
+
+    if (showWifiQualityDialog) {
+        ListDialog(
+            onDismiss = { showWifiQualityDialog = false },
+        ) {
+            items(perNetworkQualityOptions) { (stored, labelRes) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onWifiQualityChange(stored ?: "")
+                                showWifiQualityDialog = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    RadioButton(
+                        selected = stored == wifiQuality.ifEmpty { null },
+                        onClick = null,
+                    )
+                    Text(
+                        text = stringResource(labelRes),
+                        modifier = Modifier.padding(start = 16.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showMeteredQualityDialog) {
+        ListDialog(
+            onDismiss = { showMeteredQualityDialog = false },
+        ) {
+            items(perNetworkQualityOptions) { (stored, labelRes) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onMeteredQualityChange(stored ?: "")
+                                showMeteredQualityDialog = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    RadioButton(
+                        selected = stored == meteredQuality.ifEmpty { null },
+                        onClick = null,
+                    )
+                    Text(
+                        text = stringResource(labelRes),
+                        modifier = Modifier.padding(start = 16.dp),
+                    )
+                }
+            }
+        }
     }
 
     if (showLoudnessLevelDialog) {
@@ -601,6 +697,53 @@ fun PlayerSettings(
                     onClick = { onArtworkTapToPlayPauseChange(!artworkTapToPlayPause) }
                 ))
             }
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
+        // Per-network quality ceilings (Plan 018)
+        Material3SettingsGroup(
+            title = stringResource(R.string.per_network_quality),
+            items = buildList {
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.wifi_proxy),
+                        title = { Text(stringResource(R.string.quality_on_wifi)) },
+                        description = {
+                            Text(
+                                if (wifiQuality.isEmpty()) {
+                                    stringResource(R.string.quality_same_as_global)
+                                } else {
+                                    audioQualityLabel(wifiQuality)
+                                }
+                            )
+                        },
+                        onClick = { showWifiQualityDialog = true }
+                    )
+                )
+                add(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.speed),
+                        title = { Text(stringResource(R.string.quality_on_metered)) },
+                        description = {
+                            Text(
+                                if (meteredQuality.isEmpty()) {
+                                    stringResource(R.string.quality_same_as_global)
+                                } else {
+                                    audioQualityLabel(meteredQuality)
+                                }
+                            )
+                        },
+                        onClick = { showMeteredQualityDialog = true }
+                    )
+                )
+            }
+        )
+        Text(
+            text = stringResource(R.string.per_network_quality_desc),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp),
         )
 
         Spacer(modifier = Modifier.height(27.dp))
@@ -1161,3 +1304,13 @@ fun PlayerSettings(
         }
     )
 }
+
+@Composable
+private fun audioQualityLabel(stored: String): String =
+    when (stored) {
+        "AUTO" -> stringResource(R.string.audio_quality_auto)
+        "LOW" -> stringResource(R.string.audio_quality_low)
+        "HIGH" -> stringResource(R.string.audio_quality_high)
+        "LOSSLESS" -> stringResource(R.string.audio_quality_lossless)
+        else -> stringResource(R.string.quality_same_as_global)
+    }

@@ -80,6 +80,13 @@
     <string name="recap_entry_desc">Recap</string>
     <string name="audio_quality_lossless">Lossless</string>
     <string name="audio_quality_lossless_desc">FLAC/ALAC up to 24-bit when available — requires YouTube Music Premium; falls back to the highest bitrate otherwise</string>
+
+    <!-- Per-network audio quality ceilings (Plan 018) -->
+    <string name="per_network_quality">Audio quality per network</string>
+    <string name="per_network_quality_desc">Separate ceilings for Wi-Fi and mobile data — unset networks follow the general setting</string>
+    <string name="quality_on_wifi">Quality on Wi-Fi</string>
+    <string name="quality_on_metered">Quality on mobile data</string>
+    <string name="quality_same_as_global">Same as general setting</string>
     <string name="lossless_badge">Lossless</string>
     <string name="now_playing">Now Playing</string>
 
