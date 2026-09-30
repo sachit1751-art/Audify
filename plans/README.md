@@ -35,6 +35,7 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 | 014 | "Play next" from search results | Feature | S | — | none | done (parity verified, no-op 2026-09-26: search rows open YouTubeSongMenu/YouTubeAlbumMenu which already ship Play next + Add to queue, guest-gated, behind a visible trailing button) |
 | 015 | Monthly & yearly recap (Wrapped with range) | Feature | M | 012 (reuses its window helper) | none | done (implemented 2026-09-29: `wrapped/{range}` route, range chips on intro, empty state, Stats recap entry; verified on emulator with real DB data) |
 | 016 | Lossless / highest-quality audio option | Feature | M–L | innertubex fork capability | premium account for full verification | done (implemented 2026-09-29: fork extended with `AudioQuality.LOSSLESS` + FLAC/ALAC-preferred selection — sachit1751-art/innertubex `0.5.2-lossless.3` via JitPack; app wiring, settings UI, honest ShowMediaInfo badge, StreamPicker + fork selector tests. Real FLAC still requires a premium-serving client/account; graceful fallback verified on emulator) |
+| 017 | Artwork-mesh player backdrop (smooth animated background) | UI/Feature | M | — | none | planned (port of BitChord v1.7 `ArtworkMeshBackdrop.kt` as an opt-in player backdrop style; player UI only) |
 
 ## Recommended order (round 2)
 
