@@ -3,13 +3,13 @@
 > **What this document is:** the execution order for everything selected in the matrix and invented in the ideas doc.
 > **Goal:** sequence 24 selected features + 12 innovation ideas into 5 phases with dependencies, so implementation never becomes a giant uncontrolled change.
 > **Contains:** Phase 1 Foundation (quick wins) · Phase 2 Core UX · Phase 3 Power User · Phase 4 Differentiation · Phase 5 Polish — each feature with objective, affected files, and approach summary; sequencing rules and DB-schema guardrails at the end.
-> **Result / how to use:** pick the next feature in phase order and execute it via its self-contained plan in `plans/NNN-*.md` (plans exist for 017–021; write one before implementing anything that lacks one). One feature at a time: inspect → design → implement → build → test → regressions → document. Status of each shipped feature is recorded in `plans/README.md`, not here.
+> **Result / how to use:** pick the next feature in phase order and execute it via its self-contained plan in `plans/NNN-*.md` (plans exist for 017 and 019–021; write one before implementing anything that lacks one). One feature at a time: inspect → design → implement → build → test → regressions → document. Status of each shipped feature is recorded in `plans/README.md`, not here.
 
 **Implementation rule (unchanged from the original brief):** one feature at a time — inspect → design Audify-native → implement → `./gradlew :app:assembleFossDebug` → unit tests → fix → regression check → document. Per-feature decision profile (value / cost / risk / perf / maintenance / uniqueness) lives in the matrix; this doc is the order of work.
 
 ## Phase 1 — Foundation (quick wins, low risk)
 
-**1.1 Per-network quality ceilings** (matrix #1, Innovation #2a)
+**1.1 Per-network quality ceilings** (matrix #1, Innovation #2a) — **shipped 2026-09-30** (plan 018, archived in `plans/README.md`)
 - Objective: separate max quality for Wi-Fi vs mobile data; existing global key becomes fallback.
 - Files: `constants/PreferenceKeys.kt` (add `WifiQualityKey`/`MeteredQualityKey`), `utils/InnerTubeXPlayer.kt` (`toInnerTubeX` picks ceiling by `connectivityManager.isActiveNetworkMetered`), `PlayerSettings.kt` (new network group), `sachit_strings.xml`.
 - Steps: add keys defaulting from legacy global → resolution function (pure, unit-tested) → wire into player init → settings UI.

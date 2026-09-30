@@ -43,7 +43,7 @@ Legend: ✅ exists · ⚠️ partial · ❌ missing · ⭐ particularly interest
 | Volume normalization | ✅ (perceptual) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ (ReplayGain) | ✅ ("consistent volume") |
 | System EQ | ✅ | ✅ | ⚠️ | ✅ | ✅ ⭐ (10-band + AutoEq, reverb/delay) | ⚠️ | ✅ | ✅ ⭐ (per-output) | ✅ ⭐ | ⚠️ |
 | Audio quality selection | ✅ | ✅ ⭐ per-network + lossless modules | ⚠️ | ⚠️ | ⚠️ (256k Premium) | ⚠️ | ⚠️ | n/a | ⚠️ (bit-perfect) | ✅ |
-| Lossless source (FLAC/ALAC) | ✅ ⚠️ (module, plan 016) | ✅ ⭐ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (local files) | ✅ | ✅ (Premium) |
+| Lossless source (FLAC/ALAC) | ✅ ⚠️ (module; plan 016 shipped 2026-09-29, archived in plans/README.md) | ✅ ⭐ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (local files) | ✅ | ✅ (Premium) |
 | Per-network (Wi-Fi vs metered) quality | ❌ | ✅ ⭐ | ❌ | ❌ | ❌ | ❌ | ❌ | n/a | ❌ | ✅ |
 | In-player stream diagnostics ("stats for nerds") | ⚠️ (menu dialog) | ✅ ⭐ | ❌ | ❌ | ⚠️ | ⚠️ | ❌ | ❌ | ⚠️ | ✅ ⭐ ("stats for nerds") |
 | Word-by-word lyrics | ✅ | ✅ | ✅ | ✅ ⭐ (TTML) | ✅ ⭐ | ✅ | ✅ | ⚠️ (manual LRC) | ❌ | ✅ |
