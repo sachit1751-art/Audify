@@ -1,6 +1,9 @@
 # Audify Design System
 
-> **Status:** Planning only — a target specification, not a description of current code. Where Audify already has a component, this doc names it and states the rule it must follow. Where it proposes something new, it says so.
+> **What this document is:** Audify's written design identity — the reference every future UI change is checked against.
+> **Goal:** make "does this feel like Audify?" answerable by rule, not taste, and keep Audify visually distinct from every competitor (BitChord check included).
+> **Contains:** identity thesis ("calm signal") + 3 test rules · visual language (color, typography, spacing, radius, elevation, artwork) · interaction language (gestures, loading/empty/error states) · motion language (durations, easing, transitions, reduced-motion) · component language (cards, sliders, sheets, player controls, queue items) · an anti-BitChord merge checklist.
+> **Result / how to use:** run §6's checklist before merging any UI feature; consult §2–§5 when adding or changing any component. Target specification — existing components are named where they already comply, new rules are marked as proposals.
 >
 > **Purpose:** make every future feature answer "does this feel like Audify?" with a written reference instead of taste. BitChord is frosted-glass Apple-Music; SimpMusic is style-switcher; RiMusic was maximal customization. Audify is none of those — Audify is **calm signal**: a warm, editorial surface where the artwork is the color engine and every control is honest about what it does.
 

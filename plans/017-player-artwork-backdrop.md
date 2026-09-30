@@ -16,9 +16,10 @@ Scope guard: **player UI only.** No mini player, queue, home, or settings-screen
 
 ## Why the source implementation is good (recon summary)
 
-BitChord reference files (GPL-3.0 — same license as Audify, porting with attribution is fine):
+BitChord reference files (read-only checkout at `reference-player-sdk/`; GPL-3.0 — same
+license as Audify, porting with attribution is fine):
 
-- `BitChord/.../ui/player/ArtworkMeshBackdrop.kt` (749 lines):
+- `reference-player-sdk/.../ui/player/ArtworkMeshBackdrop.kt` (749 lines):
   - `ArtworkMesh` (line ~83): **no color quantiser.** The artwork is averaged into a
     `MESH_GRID` square of cell means; the row at the seam is kept, everything below is flipped
     and rotated sideways. Result: the cover's own colors in the cover's own proportions
@@ -34,7 +35,7 @@ BitChord reference files (GPL-3.0 — same license as Audify, porting with attri
     32.dp default): deliberately **no live full-screen `Modifier.blur`** — that's a
     per-frame RenderEffect; the blur here is a one-shot cached bitmap so it costs nothing at
     60 Hz.
-- `BitChord/.../ui/player/MeshGradient.kt` (333 lines): the older quantiser approach Audify
+- `reference-player-sdk/.../ui/player/MeshGradient.kt` (333 lines): the older quantiser approach Audify
   already ports (`ui/player/MeshGradient.kt`, used by `BitchordStylePlayer.kt:161`).
 
 ## Audify current state (recon at `d536fad5`)

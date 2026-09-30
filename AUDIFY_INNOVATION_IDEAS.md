@@ -1,8 +1,9 @@
 # Audify Innovation Ideas — What Nobody Does Well
 
-> **Status:** Planning only — no code changed. These 12 ideas go *beyond* copying any competitor; each starts from a real user problem that the whole ecosystem (BitChord, InnerTune, OuterTune, SimpMusic, RiMusic, Musicolet, Poweramp, YTM, Spotify) leaves unsolved or badly solved.
->
-> For every idea: `Problem / Why existing apps don't solve it well / Proposed Audify solution / Why users would care / Technical difficulty`.
+> **What this document is:** the originality track — features no competitor ships well, invented from user problems rather than copied.
+> **Goal:** give Audify a differentiation layer beyond ecosystem parity.
+> **Contains:** 12 ideas (honest queue, data budget, source resilience, Signal panel, queue multiplicity, time-aware discovery, offline truthfulness, accessible lyrics, privacy ledger, queue handoff, library hygiene, week recaps), each as `Problem / Why existing apps don't solve it well / Proposed Audify solution / Why users would care / Technical difficulty`.
+> **Result / how to use:** ideas 1–4 overlap with Phase 1 of `AUDIFY_ROADMAP.md` (same capabilities, restated without a copy frame); ideas 5–12 are future plans — each gets its own `plans/NNN-*.md` when scheduled. Concepts only; nothing implemented.
 
 ---
 

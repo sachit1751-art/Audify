@@ -1,7 +1,10 @@
 # Audify Competitor Feature Matrix
 
-> **Status:** Planning only — no code has been changed. All items below are future implementation plans.
-> **Research date:** 30 September 2026 · **Method:** primary sources (GitHub repos, official product pages, vendor newsrooms) + BitChord v1.7 clone audited locally at `BitChord/`.
+> **What this document is:** the research-and-selection reference for Audify's feature work.
+> **Goal:** decide *which* capabilities are worth building by comparing Audify against every serious competitor, from primary sources.
+> **Contains:** verified competitor states · a 10-column feature matrix (~50 rows, ✅/⚠️/❌/⭐) · 48 candidate features narrowed to 24 selected (with reasons) · 10 explicitly rejected (with reasons) · numbered source table.
+> **Result / how to use:** the 24 selected items feed `AUDIFY_ROADMAP.md`, which sequences them; individual `plans/NNN-*.md` files turn each into an executable spec. Nothing here is implemented — this is decision material, not an achievement log.
+> **Research date:** 30 September 2026 · **Method:** primary sources (GitHub repos, official product pages, vendor newsrooms) + BitChord v1.7 source audited locally at `reference-player-sdk/`.
 
 ## 1. Competitors inspected (primary sources)
 
@@ -134,7 +137,7 @@ Legend: ✅ exists · ⚠️ partial · ❌ missing · ⭐ particularly interest
 | 7 | Poweramp official site (gapless/crossfade/ReplayGain) | https://powerampapp.com/ | primary | 2026-09-30 |
 | 8 | YouTube blog: Ask Music, podcast lineup (2026-09-23) | https://blog.youtube/news-and-events/made-on-youtube-music-new-discovery-features/ | primary | 2026-09-30 |
 | 9 | Spotify newsroom: DJ expansion 4 languages (2026-05-07); daylist (2024-09-04); AI playlists (2024-04-07) | https://newsroom.spotify.com/2026-05-07/dj-expansion-4-new-languages/ | primary | 2026-09-30 |
-| 10 | BitChord v1.7 source + git history (local clone) | `BitChord/` | primary | 2026-09-30 |
+| 10 | BitChord v1.7 source + git history (local read-only checkout) | `reference-player-sdk/` | primary | 2026-09-30 |
 | 11 | GrapheneOS forum: RiMusic discontinued report (corroboration for #4) | https://discuss.grapheneos.org/d/20339-rimusic-has-become-unuseable | secondary | 2026-09-30 |
 | 12 | OuterTune "State of the 'Tune" discussion #1116 (corroboration for #2) | https://github.com/OuterTune/OuterTune/discussions/1116 | primary | 2026-09-30 |
 

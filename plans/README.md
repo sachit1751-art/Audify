@@ -1,10 +1,21 @@
 # Audify improvement plans
 
+This folder is the **execution track**: one self-contained plan file per feature, written so an
+executor with zero session context can implement it. Every plan states its goal, the existing
+code it builds on (with line-level recon), exact in-scope files, step-by-step implementation,
+testing requirements, performance notes, rollback strategy, and rejected alternatives.
+
+Related reference docs (top level, context only — not executed): `BITCHORD_AUDIFY_FEATURE_AUDIT.md`
+(ecosystem audit), `COMPETITOR_FEATURE_MATRIX.md` (feature selection + sources),
+`AUDIFY_INNOVATION_IDEAS.md` (original feature concepts), `AUDIFY_DESIGN_SYSTEM.md` (UI rules),
+`AUDIFY_ROADMAP.md` (multi-phase ordering). A local read-only checkout of the reference project
+lives at `reference-player-sdk/` (gitignored).
+
 Feature-planning track started **2026-09-26**, written against commit **`192b529e`**.
 Each plan is self-contained for an executor with zero session context. Before executing a
-plan, run `git rev-parse --short HEAD`; if the tip has moved past `192b529e`, check whether
-the plan's in-scope files changed (each plan lists them) and report drift instead of blindly
-applying.
+plan, run `git rev-parse --short HEAD`; if the tip has moved past the commit named in the
+plan's header, check whether the plan's in-scope files changed (each plan lists them) and
+report drift instead of blindly applying.
 
 Scope rules that apply to **every** plan (from the repo's AGENTS.md and project rules):
 
@@ -13,7 +24,7 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 - String edits go only in `app/src/main/res/values/sachit_strings.xml` (English). Never
   edit translated `sachit_strings.xml` / `strings.xml` files in `values-*`.
 - No commits, pushes, or merges unless a human explicitly authorized them per-plan.
-- No changes to README/markdown files **except** inside `plans/`.
+- No changes to README/markdown files except inside `plans/` and the top-level planning docs (audit, matrix, ideas, design system, roadmap).
 - Build/verify with JDK 21 (`~/.gradle/jdks/eclipse_adoptium-21-*` is auto-provisioned if no
   standalone JDK 21 is installed):
 
