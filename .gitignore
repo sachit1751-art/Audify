@@ -113,6 +113,7 @@ app/src/main/cpp/coverart/
 
 # Agents dir
 .claude
+BitChord/
 BitChord-main/
 .antigravity*
 .gemini
