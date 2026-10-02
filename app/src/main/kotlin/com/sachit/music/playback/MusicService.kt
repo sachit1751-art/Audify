@@ -213,6 +213,7 @@ import com.sachit.music.utils.SyncUtils
 import com.sachit.music.utils.getArtistSeparator
 import com.sachit.music.utils.joinToArtistString
 import com.sachit.music.utils.InnerTubeXPlayer
+import com.sachit.music.utils.SettingsProperties
 import com.sachit.music.utils.dataStore
 import com.sachit.music.utils.get
 import com.sachit.music.utils.reportException
@@ -293,6 +294,9 @@ class MusicService :
 
     @Inject
     lateinit var listenTogetherManager: com.sachit.music.listentogether.ListenTogetherManager
+
+    @Inject
+    lateinit var settings: com.sachit.music.utils.Settings
 
     private lateinit var audioManager: AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
@@ -1197,15 +1201,15 @@ class MusicService :
             }
 
         combine(
-            dataStore.data.map { prefs ->
-                Triple(
-                    prefs[CrossfadeEnabledKey] ?: false,
-                    prefs[CrossfadeDurationKey] ?: 5f,
-                    prefs[CrossfadeGaplessKey] ?: true,
-                )
-            },
+            combine(
+                settings.observe(SettingsProperties.crossfadeEnabled),
+                settings.observe(SettingsProperties.crossfadeDurationSeconds),
+                settings.observe(SettingsProperties.crossfadeGapless),
+            ) { enabled, duration, gapless -> Triple(enabled, duration, gapless) },
             listenTogetherManager.roomState,
         ) { (enabled, duration, gapless), roomState ->
+            // Crossfade is suppressed inside a Listen Together room: the host drives playback, and a
+            // local overlap would fight the guest's reconciliation.
             Triple(enabled && roomState == null, duration, gapless)
         }.distinctUntilChanged()
             .collect(scope) { (enabled, duration, gapless) ->

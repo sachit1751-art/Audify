@@ -17,6 +17,8 @@ import com.sachit.music.db.InternalDatabase
 import com.sachit.music.db.MusicDatabase
 import com.sachit.music.listentogether.ListenTogetherClient
 import com.sachit.music.listentogether.ListenTogetherManager
+import com.sachit.music.utils.DataStoreSettings
+import com.sachit.music.utils.Settings
 import com.sachit.music.utils.dataStore
 import com.sachit.music.utils.get
 import dagger.Module
@@ -94,6 +96,16 @@ object AppModule {
         NoOpCacheEvictor(),
         databaseProvider,
     )
+
+    /**
+     * A single [Settings] per process. Constructed from the application context because it holds no
+     * state of its own — DataStore is the store, and it is already process-wide.
+     */
+    @Singleton
+    @Provides
+    fun provideSettings(
+        @ApplicationContext context: Context,
+    ): Settings = DataStoreSettings(context.applicationContext)
 
     @Singleton
     @Provides
