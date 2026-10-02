@@ -1,5 +1,13 @@
 # Architecture Audit — Sachit
 
+> **Status: superseded in part.** The execution track for this audit is
+> [`022-deepen-architecture.md`](022-deepen-architecture.md). Since this audit was written,
+> **C1 has partially shipped**: `CrossfadeController` (commit `c810e1ce`) now owns the crossfade
+> policy behind `onTransition`/`onSeek`, and **C7 is fully done** — `CONTEXT.md` and
+> `docs/adr/0001–0003` now exist. The line counts below predate that work. Read this for the
+> reasoning and the candidates that remain (C1 residual, C2, C3, C4, C5, C6); read plan 022 for
+> what to actually do next.
+
 **Date:** 2026-10-02
 **Scope:** `app/` (118k lines Kotlin, 388 files) + `innertube/` (9.6k lines)
 **Method:** hot-spot-weighted read of the 40 most-changed files since 2026-06, plus structural scans of every module boundary.

@@ -1,8 +1,15 @@
 # Plan 017 — Artwork-mesh player backdrop (smooth animated background)
 
-Written against commit **`d536fad5`**. Feature plan: self-contained for an executor with zero
-session context. Run `git rev-parse --short HEAD` before starting; if the tip has moved past
-`d536fad5`, check drift in the in-scope files first.
+**Status: not started.** Verified 2026-10-02 at commit `1ef56d88` — no `ArtworkMesh` or
+`MESH_GRID` symbol and no backdrop-style preference key exist anywhere in
+`app/src/main/kotlin/`, so nothing from this plan has been half-landed. Round 3 (019, 020, 021)
+has since shipped; see `plans/README.md`.
+
+Written against commit **`d536fad5`**, which is now well behind the tip. The in-scope files below
+(`ui/player/Player.kt`, `PlayerSettings.kt`, `PreferenceKeys.kt`) have all changed since. **Re-run
+the recon before implementing** rather than trusting the line numbers quoted further down.
+
+Read `CONTEXT.md` first. `docs/adr/` is not relevant to this plan but the glossary is.
 
 ## Goal
 
