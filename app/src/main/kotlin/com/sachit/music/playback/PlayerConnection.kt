@@ -192,6 +192,12 @@ class PlayerConnection(
     val isMuted = service.isMuted
     val currentStreamClient = service.currentStreamClient
 
+    /** Queue rows jumped over by forward jumps this session (plan 020). */
+    val skippedInQueueIds = service.skippedInQueueIds
+
+    /** Stream source health of the current media item (plan 021). */
+    val streamHealth = service.streamHealth
+
     val waitingForNetworkConnection = service.waitingForNetworkConnection
 
     // Callback to check if playback changes should be blocked (e.g., Listen Together guest)

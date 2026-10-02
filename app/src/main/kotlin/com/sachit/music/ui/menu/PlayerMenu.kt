@@ -93,11 +93,13 @@ import com.sachit.music.db.entities.Song
 import com.sachit.music.db.entities.SpeedDialItem
 import com.sachit.music.ui.component.BottomSheetState
 import com.sachit.music.ui.component.ListDialog
+import com.sachit.music.ui.component.LocalBottomSheetPageState
 import com.sachit.music.ui.component.Material3MenuGroup
 import com.sachit.music.ui.component.Material3MenuItemData
 import com.sachit.music.ui.component.NewAction
 import com.sachit.music.ui.component.NewActionGrid
 import com.sachit.music.ui.component.VolumeSlider
+import com.sachit.music.ui.player.PlaybackStatsSheet
 import com.sachit.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -116,6 +118,7 @@ fun PlayerMenu(
     mediaMetadata ?: return
     val navController = LocalNavController.current
     val context = LocalContext.current
+    val bottomSheetPageState = LocalBottomSheetPageState.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
     val playerVolume = playerConnection.service.playerVolume.collectAsStateWithLifecycle()
@@ -672,6 +675,27 @@ fun PlayerMenu(
                                 },
                                 onClick = {
                                     onShowDetailsDialog()
+                                    onDismiss()
+                                },
+                            ),
+                        )
+
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.playback_stats)) },
+                                description = { Text(text = stringResource(R.string.playback_stats_desc)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.stats),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                },
+                                onClick = {
+                                    val id = mediaMetadata.id
+                                    bottomSheetPageState.show {
+                                        PlaybackStatsSheet(mediaId = id)
+                                    }
                                     onDismiss()
                                 },
                             ),

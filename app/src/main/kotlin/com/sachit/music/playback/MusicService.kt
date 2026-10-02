@@ -303,10 +303,50 @@ class MusicService :
     private var wasPlayingBeforeVolumeMute = false
     private var isPausedByVolumeMute = false
 
-    private var crossfadeEnabled = false
-    private var crossfadeDuration = 5000f
-    private var crossfadeGapless = true
+    // Crossfade *policy* (enabled/duration/gapless guards, trigger time) lives in
+    // CrossfadeController so it is testable without a player. This service supplies the player
+    // facts it needs and performs the actual swap. See CrossfadeController for the interface.
+    private val crossfadeController = CrossfadeController(CrossfadeHostImpl())
     private var crossfadeMessage: PlayerMessage? = null
+
+    private inner class CrossfadeHostImpl : CrossfadeHost {
+        override fun currentTrackDurationMs(): Long = player.duration
+
+        override fun currentPositionMs(): Long = player.currentPosition
+
+        override fun hasNextMediaItem(): Boolean = player.hasNextMediaItem()
+
+        override fun isRepeatOne(): Boolean = player.repeatMode == Player.REPEAT_MODE_ONE
+
+        override fun isPlaying(): Boolean = player.isPlaying
+
+        override fun currentMediaId(): String? = player.currentMediaItem?.mediaId
+
+        override fun currentAlbumTitle(): CharSequence? = player.currentMediaItem?.mediaMetadata?.albumTitle
+
+        override fun nextAlbumTitle(): CharSequence? {
+            val nextIndex = player.nextMediaItemIndex
+            if (nextIndex == C.INDEX_UNSET) return null
+            return player.getMediaItemAt(nextIndex).mediaMetadata.albumTitle
+        }
+
+        override fun pausesAtSongEnd(): Boolean = sleepTimer?.pauseWhenSongEnd == true
+
+        override fun scheduleTrigger(positionMs: Long, action: () -> Unit) {
+            crossfadeMessage = player.createMessage { _, _ -> action() }.apply {
+                setLooper(Looper.getMainLooper())
+                setPosition(positionMs)
+                send()
+            }
+        }
+
+        override fun cancelTrigger() {
+            crossfadeMessage?.cancel()
+            crossfadeMessage = null
+        }
+
+        override fun beginCrossfade() = startCrossfade()
+    }
 
     private val secondaryPlayerListener =
         object : Player.Listener {
@@ -336,6 +376,31 @@ class MusicService :
     val waitingForNetworkConnection = MutableStateFlow(false)
     private val isNetworkConnected = MutableStateFlow(false)
     val currentStreamClient = MutableStateFlow<String?>(null)
+
+    // Plan 020: rows jumped over by forward queue jumps this session, rendered as dimmed
+    // rows + an "Earlier" boundary in the queue sheet. Cleared when a new queue starts.
+    private val queueHistoryState = QueueHistoryState()
+    val skippedInQueueIds = MutableStateFlow<Set<String>>(emptySet())
+
+    // Plan 021: per-mediaId stream source failure memory. At the fallback threshold the
+    // next resolution skips the stream-URL cache so a poisoned URL/client combo is not
+    // retried; surfaced live in the Signal sheet.
+    private val streamSourceHealth = StreamSourceHealth()
+    val streamHealth = MutableStateFlow(StreamHealthStatus())
+
+    private fun refreshStreamHealth(mediaId: String?) {
+        streamHealth.value = mediaId?.let(streamSourceHealth::status) ?: StreamHealthStatus()
+    }
+
+    /** Records a recoverable source-side I/O failure (never called for device/offline errors). */
+    private fun recordStreamSourceFailure(
+        mediaId: String,
+        failedStreamClient: String?,
+    ) {
+        streamSourceHealth.onFailure(mediaId, failedStreamClient)
+        refreshStreamHealth(mediaId)
+        Timber.tag(TAG).i("Stream source failure for $mediaId: ${streamHealth.value}")
+    }
 
     private lateinit var audioQuality: com.sachit.music.constants.AudioQuality
 
@@ -1144,9 +1209,7 @@ class MusicService :
             Triple(enabled && roomState == null, duration, gapless)
         }.distinctUntilChanged()
             .collect(scope) { (enabled, duration, gapless) ->
-                crossfadeEnabled = enabled
-                crossfadeDuration = duration * 1000f // Convert to ms
-                crossfadeGapless = gapless
+                crossfadeController.updateConfig(enabled = enabled, durationSeconds = duration, gapless = gapless)
             }
 
         // Observe and cache common preferences to avoid runBlocking reads in playback callbacks
@@ -1755,6 +1818,15 @@ class MusicService :
 
         currentQueue = queue
         queueTitle = null
+        // A new queue starts a fresh session: earlier skip marks no longer correspond to
+        // rows the user can still see, and source failures of the old queue do not carry
+        // over (restores keep the current state).
+        if (!restoringQueue) {
+            queueHistoryState.clear()
+            skippedInQueueIds.value = emptySet()
+            streamSourceHealth.clearAll()
+            refreshStreamHealth(player.currentMediaItem?.mediaId)
+        }
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         if (!persistShuffleAcrossQueues && !restoringQueue) {
             player.shuffleModeEnabled = false
@@ -2554,6 +2626,28 @@ class MusicService :
                 player.seekTo(previousMediaItemIndex, 0)
             }
         }
+
+        // Plan 020: a SEEK transition jumping more than one row forward means the rows in
+        // between were queued but never heard — mark them. AUTO (natural advance, repeat-one
+        // rewind, crossfade swap re-fire) and backward/adjacent seeks are intentionally
+        // excluded: going back or tapping the next row is not skipping.
+        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK &&
+            previousMediaItemIndex != C.INDEX_UNSET
+        ) {
+            val gap = player.currentMediaItemIndex - previousMediaItemIndex
+            if (gap > 1) {
+                val end = player.currentMediaItemIndex.coerceAtMost(player.mediaItemCount)
+                val jumpedOver =
+                    ((previousMediaItemIndex + 1) until end).mapNotNull {
+                        player.getMediaItemAt(it).metadata?.id
+                    }
+                if (jumpedOver.isNotEmpty()) {
+                    queueHistoryState.markSkipped(jumpedOver)
+                    skippedInQueueIds.value = queueHistoryState.skippedIdsSnapshot()
+                }
+            }
+        }
+
         previousMediaItemIndex = player.currentMediaItemIndex
 
         lastPlaybackSpeed = -1.0f // force update song
@@ -2659,6 +2753,9 @@ class MusicService :
 
             player.currentMediaItem?.mediaId?.let { mediaId ->
                 resetRetryCount(mediaId)
+                // Plan 021: a stream that reached READY proved its source is good again.
+                streamSourceHealth.onSuccess(mediaId)
+                refreshStreamHealth(mediaId)
                 Timber.tag(TAG).d("Playback successful for $mediaId, reset retry count")
             }
             scheduleCrossfade()
@@ -3031,6 +3128,22 @@ class MusicService :
 
         if (mediaId != null) {
             performAggressiveCacheClear(mediaId)
+            // Plan 021: count only failures the retry path can influence — the I/O family
+            // (expired URL, remote, generic IO, page reload, ENOENT). Audio-renderer errors
+            // are device-side and offline waits are network-absent; either would poison the
+            // health state with non-source failures.
+            val isSourceRecoverable =
+                isRangeNotSatisfiableError(error) ||
+                    isPageReloadError(error) ||
+                    isExpiredUrlError(error) ||
+                    isFileNotFoundError(error) ||
+                    isRemotePlaybackError(error) ||
+                    isNetworkRelatedError(error) ||
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS
+            if (isSourceRecoverable) {
+                recordStreamSourceFailure(mediaId, failedStreamClient)
+            }
         }
 
         when {
@@ -3790,10 +3903,18 @@ class MusicService :
                     return@Factory dataSpec
                 }
 
-                songUrlCache[mediaId]?.let { cachedStream ->
-                    recoverSongDeduped(mediaId)
-                    currentStreamClient.value = cachedStream.clientName
-                    return@Factory dataSpec.withResolvedStream(cachedStream)
+                // Plan 021: after repeated source failures a cached URL is exactly the
+                // thing that keeps failing — fall through to a fresh resolution instead.
+                // (performAggressiveCacheClear already invalidated the entry on error, so
+                // this mainly guards URLs re-populated between error and retry.)
+                if (streamSourceHealth.state(mediaId) == StreamHealth.FALLBACK) {
+                    Timber.tag(TAG).i("BYPASSING URL CACHE for $mediaId (source health fallback)")
+                } else {
+                    songUrlCache[mediaId]?.let { cachedStream ->
+                        recoverSongDeduped(mediaId)
+                        currentStreamClient.value = cachedStream.clientName
+                        return@Factory dataSpec.withResolvedStream(cachedStream)
+                    }
                 }
             } else {
                 Timber.tag(TAG).i("BYPASSING CACHE for $mediaId due to quality change")
@@ -4263,8 +4384,7 @@ class MusicService :
         closeAudioEffectSession()
         mediaLibrarySessionCallback.release()
         mediaSession?.release()
-        crossfadeMessage?.cancel()
-        crossfadeMessage = null
+        crossfadeController.cancel()
         crossfadeJob?.cancel()
         crossfadeJob = null
         secondaryPlayer?.let { pendingPlayer ->
@@ -4732,44 +4852,12 @@ class MusicService :
         reason: Int,
     ) {
         if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-            scheduleCrossfade()
+            crossfadeController.onSeek()
         }
     }
 
     private fun scheduleCrossfade() {
-        crossfadeMessage?.cancel()
-        crossfadeMessage = null
-        
-        val mediaCrossfadeDuration = crossfadeDuration.toLong()
-
-        if (!crossfadeEnabled || crossfadeDuration <= 0f || player.duration == C.TIME_UNSET || player.duration <= mediaCrossfadeDuration) return
-        if (crossfadeGapless && isNextItemGapless()) return
-        if (!player.hasNextMediaItem() && player.repeatMode != REPEAT_MODE_ONE) return
-
-        val triggerTime = player.duration - mediaCrossfadeDuration
-        val mediaTimeRemaining = triggerTime - player.currentPosition
-        if (mediaTimeRemaining <= 0) return
-
-        val targetMediaId = player.currentMediaItem?.mediaId
-
-        crossfadeMessage = player.createMessage { _, _ ->
-            val timer = sleepTimer
-            if (player.isPlaying && player.currentMediaItem?.mediaId == targetMediaId && (timer == null || !timer.pauseWhenSongEnd)) {
-                startCrossfade()
-            }
-        }.apply {
-            setLooper(Looper.getMainLooper())
-            setPosition(triggerTime)
-            send()
-        }
-    }
-
-    private fun isNextItemGapless(): Boolean {
-        val current = player.currentMediaItem?.mediaMetadata ?: return false
-        val nextIndex = player.nextMediaItemIndex
-        if (nextIndex == C.INDEX_UNSET) return false
-        val next = player.getMediaItemAt(nextIndex).mediaMetadata
-        return current.albumTitle != null && current.albumTitle == next.albumTitle
+        crossfadeController.onTransition()
     }
 
     private fun startCrossfade() {
@@ -4888,7 +4976,7 @@ class MusicService :
         crossfadeJob =
             scope.launch {
                 val speed = fadingPlayer?.playbackParameters?.speed?.coerceAtLeast(0.01f) ?: 1f
-                val duration = (crossfadeDuration / speed).toLong()
+                val duration = (crossfadeController.durationMs() / speed).toLong()
                 val steps = 20
                 val stepTime = duration / steps
                 val startVolume =

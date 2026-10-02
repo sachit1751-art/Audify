@@ -656,6 +656,7 @@ fun Queue(
     ) {
         val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
         val queueWindows by playerConnection.queueWindows.collectAsStateWithLifecycle()
+        val skippedInQueueIds by playerConnection.skippedInQueueIds.collectAsStateWithLifecycle()
         val automix by playerConnection.service.automixItems.collectAsStateWithLifecycle()
         val mutableQueueWindows = remember { mutableStateListOf<Timeline.Window>() }
         val queueLength =
@@ -828,13 +829,29 @@ fun Queue(
                             }
                         }
 
+                        val isSkipped = window.mediaItem.mediaId in skippedInQueueIds
+
                         val content: @Composable () -> Unit = {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.animateItem(),
-                            ) {
-                                MediaMetadataListItem(
-                                    mediaMetadata = window.mediaItem.metadata!!,
+                            // Plan 020: the timeline boundary is drawn INSIDE the active row's
+                            // content so no list items are added or removed — all index math
+                            // (drag, dismiss, automix) is untouched.
+                            Column(modifier = Modifier.animateItem()) {
+                                if (isActive) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(start = 16.dp, top = 6.dp),
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.queue_earlier),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                    HorizontalDivider(modifier = Modifier.padding(top = 2.dp))
+                                }
+                                Row(horizontalArrangement = Arrangement.Center) {
+                                    MediaMetadataListItem(
+                                        mediaMetadata = window.mediaItem.metadata!!,
                                     isSelected = false,
                                     isActive = isActive,
                                     isPlaying = isPlaying && isActive,
@@ -886,6 +903,9 @@ fun Queue(
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
+                                            // Plan 020: rows jumped over read as skipped (dimmed);
+                                            // alpha only, so tap-to-jump-back still works.
+                                            .alpha(if (isSkipped) 0.5f else 1f)
                                             .background(background)
                                             .combinedClickable(
                                                 onClick = {
@@ -927,6 +947,7 @@ fun Queue(
                                                 },
                                             ),
                                 )
+                                }
                             }
                         }
 

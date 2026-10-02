@@ -1043,6 +1043,29 @@
     <!-- Stream sources -->
     <string name="enable_dynamic_icon">Dynamic icon colors</string>
     <string name="enable_dynamic_icon_desc">Use dynamic theme colors for the app icon. When disabled, the icon uses solid colors.</string>
+    <!-- Signal (live playback diagnostics) sheet -->
+    <string name="playback_stats">Signal</string>
+    <string name="playback_stats_desc">Live playback diagnostics</string>
+    <string name="playback_stats_group_stream">Stream</string>
+    <string name="playback_stats_group_live">Live</string>
+    <string name="playback_stats_codec">Codec</string>
+    <string name="playback_stats_sample_rate">Sample rate</string>
+    <string name="playback_stats_bitrate">Format bitrate</string>
+    <string name="playback_stats_stream_client">Stream client</string>
+    <string name="playback_stats_buffered">Buffered up to %1$s of %2$s</string>
+    <string name="playback_stats_network">Network</string>
+    <string name="playback_stats_network_wifi">Wi-Fi</string>
+    <string name="playback_stats_network_metered">Metered network</string>
+    <string name="playback_stats_network_offline">Offline</string>
+    <string name="playback_stats_loudness">Loudness offset</string>
+    <string name="playback_stats_render_rate">Render sample rate</string>
+    <string name="playback_stats_source_health">Source health</string>
+    <string name="playback_stats_source_health_ok">Healthy</string>
+    <string name="playback_stats_source_health_retrying">Recovering (attempt %1$d)</string>
+    <string name="playback_stats_source_health_fallback">Fallback active — fresh source next resolution</string>
+
+    <!-- Queue timeline (plan 020) -->
+    <string name="queue_earlier">Earlier</string>
     <string name="stream_sources">Stream sources</string>
     <string name="stream_source_order">Stream order</string>
     <string name="stream_source_web_clients">Web clients</string>
