@@ -79,6 +79,7 @@ import com.sachit.music.ui.menu.SelectionMediaMetadataMenu
 import com.sachit.music.ui.menu.SongMenu
 import com.sachit.music.ui.menu.YouTubeSongMenu
 import com.sachit.music.ui.utils.backToMain
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.rememberPreference
 import com.sachit.music.viewmodels.DateAgo
 import com.sachit.music.viewmodels.HistoryViewModel
@@ -137,7 +138,7 @@ fun HistoryScreen(
 
     val events by viewModel.events.collectAsStateWithLifecycle()
 
-    val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
+    val innerTubeCookie by SecureCookieStore.rememberInnerTubeCookie()
     val isLoggedIn =
         remember(innerTubeCookie) {
             "SAPISID" in parseCookieString(innerTubeCookie)

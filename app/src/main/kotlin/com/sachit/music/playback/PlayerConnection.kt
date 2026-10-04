@@ -16,13 +16,6 @@ import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
-import com.sachit.music.constants.SleepTimerCustomDaysKey
-import com.sachit.music.constants.SleepTimerDayTimesKey
-import com.sachit.music.constants.SleepTimerDefaultKey
-import com.sachit.music.constants.SleepTimerEnabledKey
-import com.sachit.music.constants.SleepTimerEndTimeKey
-import com.sachit.music.constants.SleepTimerRepeatKey
-import com.sachit.music.constants.SleepTimerStartTimeKey
 import com.sachit.music.db.MusicDatabase
 import com.sachit.music.db.entities.Song
 import com.sachit.music.extensions.currentMetadata
@@ -34,9 +27,10 @@ import com.sachit.music.extensions.withUpdatedMetadata
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.MusicService.MusicBinder
 import com.sachit.music.playback.queues.Queue
-import com.sachit.music.utils.dataStore
-import com.sachit.music.utils.get
+import com.sachit.music.utils.SettingsProperties
 import com.sachit.music.utils.reportException
+import com.sachit.music.utils.settings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +42,6 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -56,7 +49,7 @@ class PlayerConnection(
     context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) : Player.Listener {
     private companion object {
         private const val TAG = "PlayerConnection"
@@ -490,130 +483,71 @@ class PlayerConnection(
         }
     }
 
-    /** Parses "0=09:00-23:00;1=22:00-06:00" into Map<dayIndex, Pair<start, end>>. */
-    private fun parseDayTimes(raw: String): Map<Int, Pair<String, String>> {
-        if (raw.isBlank()) return emptyMap()
-        return raw
-            .split(";")
-            .mapNotNull { entry ->
-                val parts = entry.split("=")
-                if (parts.size != 2) return@mapNotNull null
-                val dayIndex = parts[0].toIntOrNull() ?: return@mapNotNull null
-                val times = parts[1].split("-")
-                if (times.size != 2) return@mapNotNull null
-                dayIndex to (times[0] to times[1])
-            }.toMap()
+    /**
+     * Starts the automatic sleep timer if the stored schedule says one should start now.
+     *
+     * Runs on [scope] rather than blocking: this is called from [onPlayWhenReadyChanged], an ExoPlayer
+     * callback on the main thread, and the previous implementation read seven preferences there, each
+     * through `runBlocking(Dispatchers.IO)` over a disk-backed DataStore. The rules live in
+     * [SleepTimerPolicy] so they are testable without a player, a service or a clock.
+     */
+    private fun checkAndStartAutomaticSleepTimer() {
+        scope.launch {
+            try {
+                val settings = service.applicationContext.settings()
+
+                if (!settings.read(SettingsProperties.sleepTimerEnabled)) {
+                    Timber.tag(TAG).d("\u2717 Sleep Timer disabled - skipping")
+                    return@launch
+                }
+
+                if (service.sleepTimer?.isActive == true) {
+                    Timber.tag(TAG).d("\u2717 Sleep Timer already active - skipping")
+                    return@launch
+                }
+
+                val schedule =
+                    SleepTimerSchedule(
+                        repeat = settings.read(SettingsProperties.sleepTimerRepeat),
+                        startTime = settings.read(SettingsProperties.sleepTimerStartTime),
+                        endTime = settings.read(SettingsProperties.sleepTimerEndTime),
+                        defaultMinutes = settings.read(SettingsProperties.sleepTimerDefaultMinutes).roundToInt(),
+                        customDays = settings.read(SettingsProperties.sleepTimerCustomDays),
+                        dayTimes = settings.read(SettingsProperties.sleepTimerDayTimes),
+                    )
+
+                when (
+                    val decision =
+                        SleepTimerPolicy.evaluate(
+                            schedule = schedule,
+                            date = LocalDate.now(),
+                            time = LocalTime.now(),
+                        )
+                ) {
+                    is SleepTimerDecision.Start -> {
+                        Timber.tag(TAG).i("AUTO SLEEP TIMER STARTED: ${decision.minutes} minutes")
+                        service.sleepTimer?.start(decision.minutes)
+                    }
+
+                    SleepTimerDecision.DayNotAllowed -> Timber.tag(TAG).d("\u2717 Day not allowed for Sleep Timer")
+                    SleepTimerDecision.OutsideWindow -> Timber.tag(TAG).d("\u2717 Time not in range")
+                    is SleepTimerDecision.InvalidSchedule ->
+                        Timber.tag(TAG).w("\u2717 Sleep Timer schedule could not be parsed: $schedule")
+                    SleepTimerDecision.NotEnabled,
+                    SleepTimerDecision.AlreadyActive,
+                    -> Timber.tag(TAG).d("\u2717 Sleep Timer not started")
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Sleep Timer error")
+            }
+        }
     }
 
-    private fun checkAndStartAutomaticSleepTimer(): Boolean {
-        return try {
-            val sleepTimerEnabled = service.applicationContext.dataStore.get(SleepTimerEnabledKey) ?: false
-            Timber.tag(TAG).d("✓ Sleep Timer Check: enabled=$sleepTimerEnabled")
-
-            if (!sleepTimerEnabled) {
-                Timber.tag(TAG).d("✗ Sleep Timer disabled - skipping")
-                return false
-            }
-
-            if (service.sleepTimer?.isActive == true) {
-                Timber.tag(TAG).d("✗ Sleep Timer already active - skipping")
-                return false
-            }
-
-            val sleepTimerRepeat = service.applicationContext.dataStore.get(SleepTimerRepeatKey) ?: "daily"
-            val sleepTimerStartTime = service.applicationContext.dataStore.get(SleepTimerStartTimeKey) ?: "09:00"
-            val sleepTimerEndTime = service.applicationContext.dataStore.get(SleepTimerEndTimeKey) ?: "23:00"
-            val sleepTimerDefaultMinutes = (service.applicationContext.dataStore.get(SleepTimerDefaultKey) ?: 30f).roundToInt()
-            val sleepTimerCustomDaysStr = service.applicationContext.dataStore.get(SleepTimerCustomDaysKey) ?: "0,1,2,3,4"
-            val sleepTimerDayTimesStr = service.applicationContext.dataStore.get(SleepTimerDayTimesKey) ?: ""
-
-            Timber
-                .tag(
-                    TAG,
-                ).d(
-                    "Sleep Timer Config: repeat=$sleepTimerRepeat start=$sleepTimerStartTime end=$sleepTimerEndTime default=$sleepTimerDefaultMinutes custom=$sleepTimerCustomDaysStr",
-                )
-
-            val currentTime = LocalTime.now()
-            val today = LocalDate.now()
-            val dayOfWeek = today.dayOfWeek.value % 7
-            val adjustedDayOfWeek = if (dayOfWeek == 0) 6 else dayOfWeek - 1
-
-            Timber.tag(TAG).d("Current: time=$currentTime dayOfWeek=$adjustedDayOfWeek")
-
-            val isDayAllowed =
-                when (sleepTimerRepeat) {
-                    "daily" -> {
-                        true
-                    }
-
-                    "weekdays" -> {
-                        adjustedDayOfWeek in 0..4
-                    }
-
-                    "weekends" -> {
-                        adjustedDayOfWeek in 5..6
-                    }
-
-                    "weekdays_weekends" -> {
-                        true
-                    }
-
-                    // both groups active; per-day time handles the distinction
-                    "custom" -> {
-                        val customDays = sleepTimerCustomDaysStr.split(",").mapNotNull { it.trim().toIntOrNull() }
-                        Timber.tag(TAG).d("Custom days: $customDays, adjustedDayOfWeek=$adjustedDayOfWeek")
-                        adjustedDayOfWeek in customDays
-                    }
-
-                    else -> {
-                        false
-                    }
-                }
-
-            if (!isDayAllowed) {
-                Timber.tag(TAG).d("✗ Day not allowed for Sleep Timer")
-                return false
-            }
-
-// "daily" uses the single global time window.
-// All other modes store per-day times in the dayTimes map so that
-// e.g. weekdays and weekends can have different windows.
-            val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
-            val usesDayTimesMap = sleepTimerRepeat != "daily"
-            val (startStr, endStr) =
-                if (usesDayTimesMap) {
-                    parseDayTimes(sleepTimerDayTimesStr)[adjustedDayOfWeek]
-                        ?: (sleepTimerStartTime to sleepTimerEndTime)
-                } else {
-                    sleepTimerStartTime to sleepTimerEndTime
-                }
-
-            val startTime = LocalTime.parse(startStr, timeFormatter)
-            val endTime = LocalTime.parse(endStr, timeFormatter)
-
-            // Support overnight ranges (e.g. 22:00–06:00) in addition to normal ranges
-            val isTimeInRange =
-                if (endTime.isAfter(startTime)) {
-                    currentTime.isAfter(startTime) && currentTime.isBefore(endTime)
-                } else {
-                    currentTime.isAfter(startTime) || currentTime.isBefore(endTime)
-                }
-
-            Timber.tag(TAG).d("Time check: $currentTime between $startStr-$endStr? $isTimeInRange")
-
-            if (isTimeInRange) {
-                Timber.tag(TAG).i("AUTO SLEEP TIMER STARTED: $sleepTimerDefaultMinutes minutes")
-                service.sleepTimer?.start(sleepTimerDefaultMinutes)
-                return true
-            }
-
-            Timber.tag(TAG).d("✗ Time not in range")
-            return false
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "Sleep Timer error")
-            return false
-        }
+    /** Dislikes the current track and skips it. */
+    fun dislike() {
+        service.dislikeCurrentTrack()
     }
 
     override fun onPlaybackStateChanged(state: Int) {

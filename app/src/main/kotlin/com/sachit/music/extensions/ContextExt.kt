@@ -11,6 +11,7 @@ import android.net.NetworkCapabilities
 import com.sachit.innertube.utils.parseCookieString
 import com.sachit.music.constants.InnerTubeCookieKey
 import com.sachit.music.constants.YtmSyncKey
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.dataStore
 import com.sachit.music.utils.get
 import kotlinx.coroutines.runBlocking
@@ -23,7 +24,7 @@ fun Context.isSyncEnabled(): Boolean {
 
 fun Context.isUserLoggedIn(): Boolean {
     return runBlocking {
-        val cookie = dataStore[InnerTubeCookieKey] ?: ""
+        val cookie = SecureCookieStore.decode(dataStore[InnerTubeCookieKey])
         "SAPISID" in parseCookieString(cookie) && isInternetConnected()
     }
 }

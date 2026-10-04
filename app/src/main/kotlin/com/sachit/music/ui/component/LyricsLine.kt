@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -63,8 +64,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sachit.music.lyrics.LyricsEntry
 import com.sachit.music.lyrics.WordTimestamp
+import com.sachit.music.constants.BlurUnfocusedLyricsKey
 import com.sachit.music.playback.PlayerConnection
 import com.sachit.music.ui.screens.settings.LyricsPosition
+import com.sachit.music.utils.rememberPreference
 import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.cos
@@ -79,6 +82,9 @@ private data class HyphenGroupWord(
     val groupStartMs: Long,
     val groupEndMs: Long
 )
+
+/** Blur radius for lyric lines that are not currently being sung. */
+private val UNFOCUSED_LYRICS_BLUR = 6.dp
 
 private fun String.containsRtl(): Boolean {
     for (c in this) {
@@ -196,7 +202,21 @@ internal fun LyricsLine(
     }) {
         @Composable
         fun LyricContent() {
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = agentAlignment) {
+            val blurUnfocused by rememberPreference(BlurUnfocusedLyricsKey, true)
+
+            // Every line except the one being sung is blurred, so the eye lands on the active
+            // line instead of the surrounding text competing for it. Background lines - the
+            // "( )" annotations - are left alone, they are already faint.
+            val blurRadius =
+                if (blurUnfocused && isSynced && !item.isBackground && !isActiveLine) UNFOCUSED_LYRICS_BLUR else 0.dp
+
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .blur(blurRadius),
+                horizontalAlignment = agentAlignment,
+            ) {
                 val inactiveAlpha = if (item.isBackground) 0.08f else 0.2f
                 val activeAlpha = 1f
                 val focusedAlpha = if (item.isBackground) 0.5f else 0.3f

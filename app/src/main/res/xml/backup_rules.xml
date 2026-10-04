@@ -9,4 +9,15 @@
     <exclude
         domain="database"
         path="exoplayer_internal.db" />
+    <!--
+      The innertube session cookie lives in the settings datastore next to ordinary
+      preferences. Excluding the datastore is deliberate: it is what keeps a session cookie
+      out of cloud backup, and the cost is only the user's preferences, since playlists and
+      the library live in the database, which is still backed up. Device-to-device transfer
+      is unaffected (see data_extraction_rules.xml, where this exclusion is applied to cloud
+      backup only), so switching phones by hand keeps every setting.
+    -->
+    <exclude
+        domain="file"
+        path="./datastore" />
 </full-backup-content>

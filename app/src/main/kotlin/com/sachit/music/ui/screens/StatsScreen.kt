@@ -90,6 +90,7 @@ import com.sachit.music.ui.menu.AlbumMenu
 import com.sachit.music.ui.menu.ArtistMenu
 import com.sachit.music.ui.menu.SongMenu
 import com.sachit.music.ui.utils.backToMain
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.joinByBullet
 import com.sachit.music.utils.makeTimeString
 import com.sachit.music.utils.rememberPreference
@@ -174,7 +175,7 @@ fun StatsScreen(
             mostPlayedSongsStats.mapNotNull { statsSong -> songsById[statsSong.id] }
         }
     val mostPeriodPlaylists = listOfNotNull(weeklyMostPlaylist, monthlyMostPlaylist)
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
+    val (innerTubeCookie) = SecureCookieStore.rememberInnerTubeCookie()
     val isLoggedIn =
         remember(innerTubeCookie) {
             "SAPISID" in parseCookieString(innerTubeCookie)

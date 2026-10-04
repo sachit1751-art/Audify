@@ -2269,6 +2269,33 @@ class MusicService :
         }
     }
 
+    /**
+     * Tracks dismissed for this session only.
+     *
+     * Session-scoped on purpose: persisting a dislike needs a column on the song table, and the
+     * schema is off limits without the core team's sign-off. Kept out of the database, it also
+     * keeps this off any path that syncs back to the account.
+     */
+    private val sessionDislikedIds: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
+
+    fun isDisliked(songId: String): Boolean = sessionDislikedIds.contains(songId)
+
+    /**
+     * Dislikes the current track and moves on.
+     *
+     * "Dislike" here means "not this one" rather than a durable judgement: the track is remembered
+     * for the rest of the session so radio and automix skip past it, and playback advances
+     * immediately, which is the behaviour people expect from the gesture.
+     */
+    fun dislikeCurrentTrack() {
+        scope.launch {
+            val song = currentSong.first()?.song ?: return@launch
+            if (song.isEpisode) return@launch
+            sessionDislikedIds.add(song.id)
+            player.seekToNextMediaItem()
+        }
+    }
+
     fun toggleLike() {
         scope.launch {
             val songToToggle = currentSong.first()

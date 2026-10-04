@@ -533,11 +533,23 @@ fun BottomSheetPlayer(
             }
         }
 
+    // Whether the player's controls sit on top of the artwork.
+    //
+    // The Bitchord layout paints the blurred artwork itself, so a "default" background style still
+    // puts every control on a photo. Surface tokens describe a flat surface, not an overlay: with
+    // Material You dynamic colour they resolve from the wallpaper, which rendered the overflow
+    // button as a near-black disc on top of light artwork. Overlay controls therefore use the same
+    // translucent scrim BitchordStylePlayer's own glyphs use, and surface tokens are reserved for the
+    // genuinely flat background.
+    val isArtworkBackdrop =
+        useBitchordPlayerStyle ||
+            playerBackground == PlayerBackgroundStyle.BLUR ||
+            playerBackground == PlayerBackgroundStyle.GRADIENT
+
     // Separate colors for Previous/Next buttons in PRIMARY/TERTIARY modes
     val (sideButtonContainerColor, sideButtonContentColor) =
         when {
-            playerBackground == PlayerBackgroundStyle.BLUR ||
-                playerBackground == PlayerBackgroundStyle.GRADIENT -> {
+            isArtworkBackdrop -> {
                 when (playerButtonsStyle) {
                     PlayerButtonsStyle.DEFAULT -> {
                         Pair(
@@ -1162,8 +1174,8 @@ fun BottomSheetPlayer(
                                     shape = shareShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = sideButtonContainerColor,
+                                            contentColor = sideButtonContentColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1190,8 +1202,8 @@ fun BottomSheetPlayer(
                                     shape = shareShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = sideButtonContainerColor,
+                                            contentColor = sideButtonContentColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1217,8 +1229,8 @@ fun BottomSheetPlayer(
                                 shape = middleShape,
                                 colors =
                                     IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = textButtonColor,
-                                        contentColor = iconButtonColor,
+                                        containerColor = sideButtonContainerColor,
+                                        contentColor = sideButtonContentColor,
                                     ),
                                 modifier = Modifier.size(42.dp),
                             ) {
@@ -1254,8 +1266,8 @@ fun BottomSheetPlayer(
                                     shape = favShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = sideButtonContainerColor,
+                                            contentColor = sideButtonContentColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1274,8 +1286,8 @@ fun BottomSheetPlayer(
                                     shape = favShape,
                                     colors =
                                         IconButtonDefaults.filledIconButtonColors(
-                                            containerColor = textButtonColor,
-                                            contentColor = iconButtonColor,
+                                            containerColor = sideButtonContainerColor,
+                                            contentColor = sideButtonContentColor,
                                         ),
                                     modifier = Modifier.size(42.dp),
                                 ) {
@@ -1306,13 +1318,13 @@ fun BottomSheetPlayer(
                                     Modifier
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(24.dp))
-                                        .background(textButtonColor)
+                                        .background(sideButtonContainerColor)
                                         .clickable { isFullScreen = !isFullScreen },
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.fullscreen),
                                     contentDescription = null,
-                                    tint = iconButtonColor,
+                                    tint = sideButtonContentColor,
                                     modifier =
                                         Modifier
                                             .align(Alignment.Center)
@@ -1325,7 +1337,7 @@ fun BottomSheetPlayer(
                                     Modifier
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(24.dp))
-                                        .background(textButtonColor)
+                                        .background(sideButtonContainerColor)
                                         .clickable {
                                             val intent =
                                                 Intent().apply {
@@ -1342,7 +1354,7 @@ fun BottomSheetPlayer(
                                 Icon(
                                     painter = painterResource(R.drawable.share),
                                     contentDescription = null,
-                                    tint = iconButtonColor,
+                                    tint = sideButtonContentColor,
                                     modifier =
                                         Modifier
                                             .align(Alignment.Center)
@@ -1360,7 +1372,7 @@ fun BottomSheetPlayer(
                                 Modifier
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(24.dp))
-                                    .background(textButtonColor)
+                                    .background(sideButtonContainerColor)
                                     .clickable {
                                         Toast.makeText(context, startingRadioText, Toast.LENGTH_SHORT).show()
                                         playerConnection.startRadioWithFeedback { result ->
@@ -1373,7 +1385,7 @@ fun BottomSheetPlayer(
                             Icon(
                                 painter = painterResource(R.drawable.radio),
                                 contentDescription = stringResource(R.string.start_radio),
-                                tint = iconButtonColor,
+                                tint = sideButtonContentColor,
                                 modifier =
                                     Modifier
                                         .align(Alignment.Center)
@@ -1392,7 +1404,7 @@ fun BottomSheetPlayer(
                                     Modifier
                                         .size(40.dp)
                                         .clip(RoundedCornerShape(24.dp))
-                                        .background(textButtonColor)
+                                        .background(sideButtonContainerColor)
                                         .clickable {
                                             menuState.show {
                                                 com.sachit.music.ui.menu.LyricsMenu(
@@ -1414,7 +1426,7 @@ fun BottomSheetPlayer(
                                 Icon(
                                     painter = painterResource(R.drawable.more_horiz),
                                     contentDescription = null,
-                                    tint = iconButtonColor,
+                                    tint = sideButtonContentColor,
                                     modifier =
                                         Modifier
                                             .align(Alignment.Center)
@@ -1425,8 +1437,8 @@ fun BottomSheetPlayer(
                             PlayerMoreMenuButton(
                                 mediaMetadata = mediaMetadata,
                                 state = state,
-                                textButtonColor = textButtonColor,
-                                iconButtonColor = iconButtonColor,
+                                containerColor = sideButtonContainerColor,
+                                contentColor = sideButtonContentColor,
                             )
                         }
                     }
@@ -1957,20 +1969,6 @@ fun BottomSheetPlayer(
                         },
                         isListenTogetherGuest = isListenTogetherGuest,
                         onOpenQueue = { queueSheetState.expandSoft() },
-                        onOpenMenu = {
-                            menuState.show {
-                                PlayerMenu(
-                                    mediaMetadata = metadata,
-                                    playerBottomSheetState = state,
-                                    onShowDetailsDialog = {
-                                        bottomSheetPageState.show {
-                                            ShowMediaInfo(metadata.id)
-                                        }
-                                    },
-                                    onDismiss = menuState::dismiss,
-                                )
-                            }
-                        },
                         onToggleLyrics = {
                             showInlineLyrics = !showInlineLyrics
                         },
@@ -2157,11 +2155,13 @@ fun BottomSheetPlayer(
                     },
                 onBackgroundColor = onBackgroundColor,
                 TextBackgroundColor = TextBackgroundColor,
-                textButtonColor = textButtonColor,
-                iconButtonColor = iconButtonColor,
+                sideButtonContainerColor = sideButtonContainerColor,
+                sideButtonContentColor = sideButtonContentColor,
                 pureBlack = pureBlack,
                 showInlineLyrics = showInlineLyrics,
-                playerBackground = playerBackground,
+                // BitchordStylePlayer draws its own bottom row of controls, so the queue sheet must
+                // not render a second, identical one underneath it.
+                showCollapsedControls = !useBitchordPlayerStyle,
                 onToggleLyrics = {
                     showInlineLyrics = !showInlineLyrics
                 },
@@ -2317,8 +2317,8 @@ fun InlineLyricsView(
 private fun PlayerMoreMenuButton(
     mediaMetadata: MediaMetadata,
     state: BottomSheetState,
-    textButtonColor: Color,
-    iconButtonColor: Color,
+    containerColor: Color,
+    contentColor: Color,
 ) {
     val navController = LocalNavController.current
     val menuState = LocalMenuState.current
@@ -2330,7 +2330,7 @@ private fun PlayerMoreMenuButton(
             Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(textButtonColor)
+                .background(containerColor)
                 .clickable {
                     menuState.show {
                         PlayerMenu(
@@ -2348,10 +2348,11 @@ private fun PlayerMoreMenuButton(
                     }
                 },
     ) {
-        Image(
+        Icon(
             painter = painterResource(R.drawable.more_horiz),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(iconButtonColor),
+            tint = contentColor,
+            modifier = Modifier.size(24.dp),
         )
     }
 }

@@ -52,8 +52,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sachit.music.LocalPlayerAwareWindowInsets
 import com.sachit.music.R
+import com.sachit.music.constants.BlurUnfocusedLyricsKey
 import com.sachit.music.constants.ChipSortTypeKey
 import com.sachit.music.constants.CropAlbumArtKey
+import com.sachit.music.constants.DarkModeKey
 import com.sachit.music.constants.DefaultOpenTabKey
 import com.sachit.music.constants.DensityScale
 import com.sachit.music.constants.DensityScaleKey
@@ -250,6 +252,7 @@ fun AppearanceSettings(
     val (experimentalLyrics, onExperimentalLyricsChange) = rememberPreference(ExperimentalLyricsKey, defaultValue = true)
 
     val (lyricsGlowEffect, onLyricsGlowEffectChange) = rememberPreference(LyricsGlowEffectKey, defaultValue = false)
+    val (blurUnfocusedLyrics, onBlurUnfocusedLyricsChange) = rememberPreference(BlurUnfocusedLyricsKey, defaultValue = true)
     val (lyricsAnimationStyle, onLyricsAnimationStyleChange) =
         rememberEnumPreference(
             LyricsAnimationStyleKey,
@@ -947,6 +950,23 @@ fun AppearanceSettings(
         }
     }
 
+    val (darkMode, onDarkModeChange) = rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val isSystemInDarkTheme = isSystemInDarkTheme()
+    val isDarkThemeEnabled =
+        when (darkMode) {
+            DarkMode.ON -> true
+            DarkMode.OFF -> false
+            DarkMode.AUTO -> isSystemInDarkTheme
+        }
+    // Shown as the row description so the "follow system" state stays visible even though the
+    // switch itself is binary.
+    val darkModeLabel =
+        when (darkMode) {
+            DarkMode.ON -> stringResource(R.string.dark_theme_on)
+            DarkMode.OFF -> stringResource(R.string.dark_theme_off)
+            DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
+        }
+
     Column(
         Modifier
             .windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
@@ -957,6 +977,32 @@ fun AppearanceSettings(
             title = stringResource(R.string.theme),
             items =
                 buildList {
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.bedtime),
+                            title = { Text(stringResource(R.string.dark_theme)) },
+                            description = { Text(darkModeLabel) },
+                            trailingContent = {
+                                Switch(
+                                    checked = isDarkThemeEnabled,
+                                    onCheckedChange = { checked ->
+                                        onDarkModeChange(if (checked) DarkMode.ON else DarkMode.OFF)
+                                    },
+                                    thumbContent = {
+                                        Icon(
+                                            painter =
+                                                painterResource(
+                                                    id = if (isDarkThemeEnabled) R.drawable.check else R.drawable.close,
+                                                ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                                        )
+                                    },
+                                )
+                            },
+                            onClick = { onDarkModeChange(if (isDarkThemeEnabled) DarkMode.OFF else DarkMode.ON) },
+                        ),
+                    )
                     add(
                         Material3SettingsItem(
                             icon = painterResource(R.drawable.speed),
@@ -1483,7 +1529,7 @@ fun AppearanceSettings(
                                 Switch(
                                     checked = experimentalLyrics,
                                     onCheckedChange = {
-                                        if (!experimentalLyrics) {
+                    if (!experimentalLyrics) {
                                             showExperimentalLyricsBetaDialog = true
                                         } else {
                                             onExperimentalLyricsChange(false)
@@ -1512,6 +1558,30 @@ fun AppearanceSettings(
                     )
 
                     if (!experimentalLyrics) {
+                        add(
+                            Material3SettingsItem(
+                            icon = painterResource(R.drawable.lyrics),
+                            title = { Text(stringResource(R.string.lyrics_blur_unfocused)) },
+                            description = { Text(stringResource(R.string.lyrics_blur_unfocused_desc)) },
+                            trailingContent = {
+                                Switch(
+                                    checked = blurUnfocusedLyrics,
+                                    onCheckedChange = onBlurUnfocusedLyricsChange,
+                                    thumbContent = {
+                                        Icon(
+                                            painter =
+                                                painterResource(
+                                                    id = if (blurUnfocusedLyrics) R.drawable.check else R.drawable.close,
+                                                ),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SwitchDefaults.IconSize),
+                                        )
+                                    },
+                                )
+                            },
+                            onClick = { onBlurUnfocusedLyricsChange(!blurUnfocusedLyrics) },
+                        ),
+                    )
                         add(
                             Material3SettingsItem(
                                 icon = painterResource(R.drawable.lyrics),

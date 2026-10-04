@@ -67,6 +67,13 @@ fun stringSetting(
     name: String,
 ): SettingsProperty<String> = SettingsProperty(key, default, name, { it as? String ?: default }, { it })
 
+/** A long setting. */
+fun longSetting(
+    key: Preferences.Key<Long>,
+    default: Long,
+    name: String,
+): SettingsProperty<Long> = SettingsProperty(key, default, name, { it as? Long ?: default }, { it })
+
 /**
  * An enum setting, persisted by [Enum.name].
  *
@@ -213,6 +220,64 @@ object SettingsProperties {
             key = com.sachit.music.constants.HideVideoSongsKey,
             default = false,
             name = "hideVideoSongs",
+        )
+
+    // Automatic sleep timer. The window strings are stored as "HH:mm" and the day-time map as
+    // "0=09:00-23:00;1=22:00-06:00", which is the format SleepTimerSchedule parses.
+    val sleepTimerEnabled =
+        booleanSetting(
+            key = com.sachit.music.constants.SleepTimerEnabledKey,
+            default = false,
+            name = "sleepTimerEnabled",
+        )
+
+    val sleepTimerRepeat =
+        stringSetting(
+            key = com.sachit.music.constants.SleepTimerRepeatKey,
+            default = "daily",
+            name = "sleepTimerRepeat",
+        )
+
+    val sleepTimerStartTime =
+        stringSetting(
+            key = com.sachit.music.constants.SleepTimerStartTimeKey,
+            default = "09:00",
+            name = "sleepTimerStartTime",
+        )
+
+    val sleepTimerEndTime =
+        stringSetting(
+            key = com.sachit.music.constants.SleepTimerEndTimeKey,
+            default = "23:00",
+            name = "sleepTimerEndTime",
+        )
+
+    val sleepTimerDefaultMinutes =
+        floatSetting(
+            key = com.sachit.music.constants.SleepTimerDefaultKey,
+            default = 30f,
+            name = "sleepTimerDefaultMinutes",
+        )
+
+    val sleepTimerCustomDays =
+        stringSetting(
+            key = com.sachit.music.constants.SleepTimerCustomDaysKey,
+            default = "0,1,2,3,4",
+            name = "sleepTimerCustomDays",
+        )
+
+    val sleepTimerDayTimes =
+        stringSetting(
+            key = com.sachit.music.constants.SleepTimerDayTimesKey,
+            default = "",
+            name = "sleepTimerDayTimes",
+        )
+
+    val lastFullSync =
+        longSetting(
+            key = com.sachit.music.constants.LastFullSyncKey,
+            default = 0L,
+            name = "lastFullSync",
         )
 }
 

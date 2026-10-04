@@ -48,6 +48,7 @@ import com.sachit.music.ui.component.ListDialog
 import com.sachit.music.ui.component.ListItem
 import com.sachit.music.ui.component.PlaylistListItem
 import com.sachit.music.ui.component.SortHeader
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.rememberEnumPreference
 import com.sachit.music.utils.rememberPreference
 import com.sachit.music.viewmodels.PlaylistsViewModel
@@ -104,7 +105,7 @@ fun AddToPlaylistDialog(
         false
     )
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
+    val (innerTubeCookie) = SecureCookieStore.rememberInnerTubeCookie()
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }

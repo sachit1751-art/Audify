@@ -74,6 +74,7 @@ import com.sachit.music.constants.InnerTubeCookieKey
 import com.sachit.music.constants.VisitorDataKey
 import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.utils.backToMain
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.reportException
 import com.sachit.music.utils.safeDataStoreEdit
 import kotlinx.coroutines.CompletableDeferred
@@ -190,7 +191,8 @@ fun LoginScreen(
             val saved =
                 withContext(Dispatchers.IO) {
                     context.safeDataStoreEdit { settings ->
-                        settings[InnerTubeCookieKey] = authData.cookie
+                        // Encrypted at rest: this cookie grants full account access.
+                        settings[InnerTubeCookieKey] = SecureCookieStore.encode(authData.cookie)
                         settings[VisitorDataKey] = authData.visitorData
                         settings[DataSyncIdKey] = authData.dataSyncId
                         settings[InnerTubeAuthUserKey] = authData.authUser

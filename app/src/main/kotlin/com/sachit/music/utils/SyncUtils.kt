@@ -18,7 +18,6 @@ import com.sachit.innertube.utils.parseCookieString
 import com.sachit.lastfm.LastFM
 import com.sachit.music.constants.InnerTubeCookieKey
 import com.sachit.music.constants.LastFMUseSendLikes
-import com.sachit.music.constants.LastFullSyncKey
 import com.sachit.music.constants.SYNC_COOLDOWN
 import com.sachit.music.db.MusicDatabase
 import com.sachit.music.db.entities.ArtistEntity
@@ -147,7 +146,7 @@ class SyncUtils @Inject constructor(
             }
 
         syncScope.launch {
-            val loaded = context.dataStore.get(LastFullSyncKey, 0L)
+            val loaded = context.settings().read(SettingsProperties.lastFullSync)
             cachedLastSyncEpoch = maxOf(cachedLastSyncEpoch, loaded)
         }
 
@@ -311,7 +310,7 @@ class SyncUtils @Inject constructor(
                 return@launch
             }
 
-            val lastSync = context.dataStore.get(LastFullSyncKey, 0L)
+            val lastSync = context.settings().read(SettingsProperties.lastFullSync)
             val effectiveLastSync = maxOf(lastSync, cachedLastSyncEpoch)
             val currentTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
             if (effectiveLastSync > 0 && (currentTime - effectiveLastSync) < SYNC_COOLDOWN) {
@@ -322,9 +321,7 @@ class SyncUtils @Inject constructor(
 
             val now = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
             cachedLastSyncEpoch = now
-            context.safeDataStoreEdit { settings ->
-                settings[LastFullSyncKey] = now
-            }
+            context.settings().set(SettingsProperties.lastFullSync, now)
         }
     }
 

@@ -35,6 +35,7 @@ import com.sachit.music.extensions.toInetSocketAddress
 import com.sachit.music.utils.CrashHandler
 import com.sachit.music.utils.ArtistNameAliases
 import com.sachit.music.utils.InnerTubeXPlayer
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.dataStore
 import com.sachit.music.utils.lowEndMemoryCacheFraction
 import com.sachit.music.utils.lowEndUseCrossfade
@@ -243,6 +244,7 @@ class App :
             dataStore.data
                 .map { it[InnerTubeCookieKey] }
                 .distinctUntilChanged()
+                .map { SecureCookieStore.decode(it) }
                 .collect { cookie ->
                     try {
                         YouTube.cookie = cookie

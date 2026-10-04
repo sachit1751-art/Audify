@@ -396,6 +396,24 @@ fun PlayerMenu(
             Material3MenuGroup(
                 items =
                     buildList {
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.dislike_song)) },
+                                description = { Text(text = stringResource(R.string.dislike_song_desc)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.close),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                },
+                                onClick = {
+                                    playerConnection.dislike()
+                                    playerBottomSheetState.collapseSoft()
+                                    onDismiss()
+                                },
+                            ),
+                        )
                         // Don't show "View Artist" for podcasts - only show "View Podcast"
                         if (artists.isNotEmpty() && !isPodcast) {
                             add(

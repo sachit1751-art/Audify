@@ -14,6 +14,14 @@
         <exclude
             domain="database"
             path="exoplayer_internal.db" />
+        <!--
+          Keeps the innertube session cookie out of cloud backup. Deliberately scoped to
+          cloud-backup and not device-transfer: restoring onto a new phone by hand still
+          carries every setting, so the trade-off does not cost anyone their setup.
+        -->
+        <exclude
+            domain="file"
+            path="./datastore" />
     </cloud-backup>
     <device-transfer>
         <exclude

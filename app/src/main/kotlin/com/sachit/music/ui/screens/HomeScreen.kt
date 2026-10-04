@@ -163,6 +163,7 @@ import com.sachit.music.ui.menu.YouTubeSongMenu
 import com.sachit.music.ui.utils.SnapLayoutInfoProvider
 import com.sachit.music.ui.utils.resize
 import com.sachit.music.utils.ArtistNameAliases
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.artworkDecodeCapPx
 import com.sachit.music.utils.joinByBullet
 import com.sachit.music.utils.joinToArtistString
@@ -741,7 +742,7 @@ fun HomeScreen(
 
     val accountName by viewModel.accountName.collectAsStateWithLifecycle()
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
-    val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
+    val innerTubeCookie by SecureCookieStore.rememberInnerTubeCookie()
     val (randomizeHomeOrder) = rememberPreference(RandomizeHomeOrderKey, true)
     val autoRadioQueue by rememberPreference(AutoRadioQueueKey, defaultValue = true)
 

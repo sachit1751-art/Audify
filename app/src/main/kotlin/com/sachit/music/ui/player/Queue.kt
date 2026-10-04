@@ -104,7 +104,6 @@ import com.sachit.music.LocalListenTogetherManager
 import com.sachit.music.LocalPlayerConnection
 import com.sachit.music.R
 import com.sachit.music.constants.ListItemHeight
-import com.sachit.music.constants.PlayerBackgroundStyle
 import com.sachit.music.constants.QueueEditLockKey
 import com.sachit.music.constants.UseNewPlayerDesignKey
 import com.sachit.music.extensions.metadata
@@ -152,11 +151,11 @@ fun Queue(
     background: Color,
     onBackgroundColor: Color,
     TextBackgroundColor: Color,
-    textButtonColor: Color,
-    iconButtonColor: Color,
+    sideButtonContainerColor: Color,
+    sideButtonContentColor: Color,
     pureBlack: Boolean,
     showInlineLyrics: Boolean,
-    playerBackground: PlayerBackgroundStyle = PlayerBackgroundStyle.DEFAULT,
+    showCollapsedControls: Boolean = true,
     onToggleLyrics: () -> Unit = {},
 ) {
     val navController = LocalNavController.current
@@ -263,7 +262,12 @@ fun Queue(
             Box(Modifier.fillMaxSize().background(Color.Unspecified))
         },
         collapsedContent = {
-            if (useNewPlayerDesign) {
+            // The Bitchord player draws its own queue / sleep / shuffle / lyrics / repeat row, so
+            // rendering this one as well showed the same controls twice. The sheet is still opened
+            // from the player's own queue button, and collapses from its own bar when expanded.
+            if (!showCollapsedControls) {
+                // Nothing: the host player owns the collapsed controls.
+            } else if (useNewPlayerDesign) {
                 // New design
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -280,33 +284,20 @@ fun Queue(
                 ) {
                     val buttonSize = 42.dp
                     val iconSize = 24.dp
-                    val queueShape =
-                        RoundedCornerShape(
-                            topStart = 50.dp,
-                            bottomStart = 50.dp,
-                            topEnd = 3.dp,
-                            bottomEnd = 3.dp,
-                        )
-                    val middleShape = RoundedCornerShape(3.dp)
-                    val repeatShape =
-                        RoundedCornerShape(
-                            topStart = 3.dp,
-                            bottomStart = 3.dp,
-                            topEnd = 50.dp,
-                            bottomEnd = 50.dp,
-                        )
+                    // One shape for all five. The bar used to give the outer buttons 50dp end
+                    // radii and the inner ones 3dp, and because the buttons are separated by gaps
+                    // they never joined up - it read as five mismatched chips rather than one row.
+                    val buttonShape = RoundedCornerShape(percent = 50)
 
                     PlayerQueueButton(
                         icon = R.drawable.queue_music,
                         onClick = { state.expandSoft() },
                         isActive = false,
-                        shape = queueShape,
+                        shape = buttonShape,
                         modifier = Modifier.size(buttonSize),
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
+                        containerColor = sideButtonContainerColor,
+                        contentColor = sideButtonContentColor,
                         iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
                     )
 
                     PlayerQueueButton(
@@ -320,14 +311,12 @@ fun Queue(
                         },
                         isActive = sleepTimerEnabled,
                         enabled = !isListenTogetherGuest,
-                        shape = middleShape,
+                        shape = buttonShape,
                         modifier = Modifier.size(buttonSize),
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
+                        containerColor = sideButtonContainerColor,
+                        contentColor = sideButtonContentColor,
                         text = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else null,
                         iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
                     )
 
                     val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
@@ -338,26 +327,22 @@ fun Queue(
                         },
                         isActive = shuffleModeEnabled,
                         enabled = !isListenTogetherGuest,
-                        shape = middleShape,
+                        shape = buttonShape,
                         modifier = Modifier.size(buttonSize),
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
+                        containerColor = sideButtonContainerColor,
+                        contentColor = sideButtonContentColor,
                         iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
                     )
 
                     PlayerQueueButton(
                         icon = R.drawable.lyrics,
                         onClick = { onToggleLyrics() },
                         isActive = showInlineLyrics,
-                        shape = middleShape,
+                        shape = buttonShape,
                         modifier = Modifier.size(buttonSize),
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
+                        containerColor = sideButtonContainerColor,
+                        contentColor = sideButtonContentColor,
                         iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
                     )
 
                     PlayerQueueButton(
@@ -372,13 +357,11 @@ fun Queue(
                         },
                         isActive = repeatMode != Player.REPEAT_MODE_OFF,
                         enabled = !isListenTogetherGuest,
-                        shape = repeatShape,
+                        shape = buttonShape,
                         modifier = Modifier.size(buttonSize),
-                        textButtonColor = textButtonColor,
-                        iconButtonColor = iconButtonColor,
+                        containerColor = sideButtonContainerColor,
+                        contentColor = sideButtonContentColor,
                         iconSize = iconSize,
-                        textBackgroundColor = TextBackgroundColor,
-                        playerBackground = playerBackground,
                     )
 
                     Spacer(modifier = Modifier.weight(1f))
@@ -388,7 +371,7 @@ fun Queue(
                             Modifier
                                 .size(buttonSize)
                                 .clip(CircleShape)
-                                .background(textButtonColor)
+                                .background(sideButtonContainerColor)
                                 .clickable {
                                     menuState.show {
                                         PlayerMenu(
@@ -411,7 +394,7 @@ fun Queue(
                             painter = painterResource(id = R.drawable.more_vert),
                             contentDescription = null,
                             modifier = Modifier.size(iconSize),
-                            tint = iconButtonColor,
+                            tint = sideButtonContentColor,
                         )
                     }
                 }
@@ -1298,32 +1281,30 @@ private fun PlayerQueueButton(
     shape: RoundedCornerShape,
     modifier: Modifier = Modifier,
     text: String? = null,
-    textButtonColor: Color,
-    iconButtonColor: Color,
+    containerColor: Color,
+    contentColor: Color,
     iconSize: androidx.compose.ui.unit.Dp,
-    textBackgroundColor: Color,
-    playerBackground: PlayerBackgroundStyle,
 ) {
-    val buttonModifier =
-        Modifier
-            .clip(shape)
-            .clickable(enabled = enabled, onClick = onClick)
-
     val alphaFactor = if (enabled) 1f else 0.35f
 
+    // Segmented control: the active segment gets a filled tonal container, the rest stay outlined
+    // with the same content colour so the whole bar reads as one control instead of a set of
+    // mismatched chips.
     val appliedModifier =
-        if (isActive) {
-            modifier.then(buttonModifier.background(textButtonColor)).alpha(alphaFactor)
-        } else {
-            modifier
-                .then(
-                    buttonModifier.border(
+        modifier
+            .clip(shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .then(
+                if (isActive) {
+                    Modifier.background(containerColor)
+                } else {
+                    Modifier.border(
                         width = 1.dp,
-                        color = textButtonColor.copy(alpha = 0.3f),
+                        color = contentColor.copy(alpha = 0.32f),
                         shape = shape,
-                    ),
-                ).alpha(alphaFactor)
-        }
+                    )
+                },
+            ).alpha(alphaFactor)
 
     Box(
         modifier = appliedModifier,
@@ -1332,7 +1313,7 @@ private fun PlayerQueueButton(
         if (text != null) {
             Text(
                 text = text,
-                color = iconButtonColor.copy(alpha = if (enabled) 1f else 0.6f),
+                color = contentColor.copy(alpha = if (enabled) 1f else 0.6f),
                 fontSize = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1343,20 +1324,7 @@ private fun PlayerQueueButton(
                         .basicMarquee(),
             )
         } else {
-            val baseTint =
-                if (isActive) {
-                    iconButtonColor
-                } else {
-                    when (playerBackground) {
-                        PlayerBackgroundStyle.BLUR, PlayerBackgroundStyle.GRADIENT -> {
-                            Color.White
-                        }
-
-                        PlayerBackgroundStyle.DEFAULT -> {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        }
-                    }
-                }
+            val baseTint = if (isActive) contentColor else contentColor.copy(alpha = 0.72f)
             val finalTint = if (enabled) baseTint else baseTint.copy(alpha = 0.5f)
             Icon(
                 painter = painterResource(id = icon),

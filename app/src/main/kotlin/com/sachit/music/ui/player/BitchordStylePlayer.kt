@@ -24,6 +24,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -133,7 +135,6 @@ fun BitchordStylePlayerContent(
     onPlayPause: () -> Unit,
     isListenTogetherGuest: Boolean,
     onOpenQueue: () -> Unit,
-    onOpenMenu: () -> Unit,
     onToggleLyrics: () -> Unit,
     showLyrics: Boolean,
     positionProvider: () -> Long,
@@ -197,20 +198,6 @@ fun BitchordStylePlayerContent(
                     } else {
                         BitchordArtwork(mediaMetadata)
                     }
-                }
-
-                // The menu, top right over the artwork slot — the one place the
-                // BitChord layout keeps an escape hatch to the player menu.
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 4.dp),
-                ) {
-                    BottomGlyph(
-                        icon = painterResource(R.drawable.more_horiz),
-                        contentDescription = stringResource(R.string.details_desc),
-                        onClick = onOpenMenu,
-                    )
                 }
             }
 
@@ -286,11 +273,15 @@ fun BitchordStylePlayerContent(
                             color = Color.White.copy(alpha = 0.55f),
                         )
                         Text(
-                            text = if (dur > 0L) {
-                                "-" + makeTimeString((dur - (sliderPosition ?: positionMs)).coerceAtLeast(0L))
-                            } else {
-                                ""
-                            },
+                            text =
+                                if (dur > 0L) {
+                                    // No minus sign once the track has run out: "-0:00" at the end of
+                                    // every song read as a rendering glitch.
+                                    val remaining = (dur - (sliderPosition ?: positionMs)).coerceAtLeast(0L)
+                                    if (remaining == 0L) makeTimeString(0L) else "-" + makeTimeString(remaining)
+                                } else {
+                                    ""
+                                },
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White.copy(alpha = 0.55f),
                         )
@@ -312,6 +303,7 @@ fun BitchordStylePlayerContent(
                     icon = R.drawable.skip_previous,
                     contentDescription = stringResource(R.string.previous),
                     size = TRANSPORT_SIZE,
+                    discAlpha = 0.14f,
                     onClick = onPrevious,
                     enabled = canSkipPrevious && !isListenTogetherGuest,
                 )
@@ -334,6 +326,7 @@ fun BitchordStylePlayerContent(
                         contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
                         size = PLAY_PAUSE_SIZE,
                         touchSize = PLAY_PAUSE_TOUCH_SIZE,
+                        discAlpha = 0.26f,
                         onClick = onPlayPause,
                     )
                 }
@@ -341,6 +334,7 @@ fun BitchordStylePlayerContent(
                     icon = R.drawable.skip_next,
                     contentDescription = stringResource(R.string.next),
                     size = TRANSPORT_SIZE,
+                    discAlpha = 0.14f,
                     onClick = onNext,
                     enabled = canSkipNext && !isListenTogetherGuest,
                 )
@@ -549,7 +543,11 @@ private fun PillSegment(
 }
 
 /**
- * Transport / bottom glyphs. No ripple: the oversized glyph is the feedback.
+ * Transport glyph. No ripple: the disc brightening under the finger is the feedback.
+ *
+ * [discAlpha] gives the control a translucent disc behind it. The transport row used to be bare
+ * outline glyphs on the artwork, which left the primary action with no visual weight at all; the
+ * discs follow the same language as [BottomGlyph] so the row reads as one set of controls.
  */
 @Composable
 private fun TransportGlyph(
@@ -557,6 +555,7 @@ private fun TransportGlyph(
     contentDescription: String,
     size: Dp,
     touchSize: Dp = size,
+    discAlpha: Float = 0f,
     onClick: () -> Unit,
     enabled: Boolean = true,
 ) {
@@ -565,23 +564,42 @@ private fun TransportGlyph(
         targetValue = if (enabled) 1f else 0.3f,
         label = "transportAlpha",
     )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressedScale by animateFloatAsState(
+        targetValue = if (isPressed) 1.08f else 1f,
+        label = "transportPressScale",
+    )
+
     Box(
-        modifier = Modifier
-            .size(touchSize)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                enabled = enabled,
-            ) {
-                onClick()
-            },
+        modifier =
+            Modifier
+                .size(touchSize)
+                .then(
+                    if (discAlpha > 0f) {
+                        Modifier
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (isPressed) discAlpha + 0.1f else discAlpha))
+                    } else {
+                        Modifier
+                    },
+                ).clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                ) {
+                    onClick()
+                },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
             tint = Color.White.copy(alpha = alpha),
-            modifier = Modifier.size(size),
+            modifier =
+                Modifier
+                    .size(size)
+                    .scale(pressedScale),
         )
     }
 }

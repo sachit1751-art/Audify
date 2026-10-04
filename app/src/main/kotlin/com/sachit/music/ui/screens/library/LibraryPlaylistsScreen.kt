@@ -86,6 +86,7 @@ import com.sachit.music.ui.component.PlaylistListItem
 import com.sachit.music.ui.component.SortHeader
 import com.sachit.music.extensions.matchesNormalizedQuery
 import com.sachit.music.extensions.normalizeForSearch
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.rememberEnumPreference
 import com.sachit.music.utils.rememberPreference
 import com.sachit.music.viewmodels.LibraryPlaylistsViewModel
@@ -314,7 +315,7 @@ fun LibraryPlaylistsScreen(
     val scrollToTop =
         backStackEntry?.savedStateHandle?.getStateFlow("scrollToTop", false)?.collectAsStateWithLifecycle()
 
-    val (innerTubeCookie) = rememberPreference(InnerTubeCookieKey, "")
+    val (innerTubeCookie) = SecureCookieStore.rememberInnerTubeCookie()
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }

@@ -33,6 +33,7 @@ import com.sachit.music.R
 import com.sachit.music.constants.InnerTubeCookieKey
 import com.sachit.music.db.entities.PlaylistEntity
 import com.sachit.music.extensions.isSyncEnabled
+import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,7 +53,7 @@ fun CreatePlaylistDialog(
     var syncedPlaylist by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val innerTubeCookie by rememberPreference(InnerTubeCookieKey, "")
+    val innerTubeCookie by SecureCookieStore.rememberInnerTubeCookie()
     val isSignedIn = innerTubeCookie.isNotEmpty()
 
     val notLoggedInYoutubeStr = stringResource(R.string.not_logged_in_youtube)
