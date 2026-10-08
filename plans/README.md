@@ -50,8 +50,8 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 
 | # | Plan | Category | Effort | Depends on | Requires human gate | Status |
 |---|------|----------|--------|------------|---------------------|--------|
-| 017 | Artwork-mesh player backdrop (smooth animated background) | UI/Feature | M | — | none | planned — **not started**. Verified 2026-10-02: no `ArtworkMesh`/`MESH_GRID` symbol and no backdrop-style preference key exist, so nothing has been half-landed. Still written against `d536fad5`; re-check drift before starting |
-| 022 | Deepen the architecture (C5 settings → C1 MusicService → C2 transports) | Architecture | L | — | none | planned — the only remaining architecture plan; C5 is the prerequisite, see the plan file |
+| 017 | Artwork-mesh player backdrop (smooth animated background) | UI/Feature | M | — | none | planned — **not started**. Verified 2026-10-08: no `ArtworkMesh`/`MESH_GRID` symbol and no `PlayerBackdropKey`/`player_backdrop` string exist, so nothing has been half-landed. |
+| 022 | Deepen the architecture (C5 settings → C1 MusicService → C2 transports) | Architecture | L | — | none | **step 1 done** (Settings interface landed in `utils/Settings.kt`); steps 2–3 not started |
 
 Round 3 (019, 020, 021) shipped in `1ef56d88`. Round 3 is closed.
 
