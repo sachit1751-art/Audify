@@ -449,6 +449,15 @@ enum class PlayerBackgroundStyle {
     BLUR,
 }
 
+enum class PlayerBackdrop {
+    MESH,
+    ARTWORK_MESH,
+    BLUR,
+    OFF,
+}
+
+val PlayerBackdropKey = stringPreferencesKey("playerBackdrop")
+
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")
 

@@ -146,6 +146,8 @@ import com.sachit.music.constants.HideStatusBarOnFullscreenKey
 import com.sachit.music.constants.KeepScreenOn
 import com.sachit.music.constants.PlayerBackgroundStyle
 import com.sachit.music.constants.PlayerBackgroundStyleKey
+import com.sachit.music.constants.PlayerBackdrop
+import com.sachit.music.constants.PlayerBackdropKey
 import com.sachit.music.constants.PlayerButtonsStyle
 import com.sachit.music.constants.PlayerButtonsStyleKey
 import com.sachit.music.constants.PlayerHorizontalPadding
@@ -243,6 +245,11 @@ fun BottomSheetPlayer(
         key = PlayerBackgroundStyleKey,
         defaultValue = PlayerBackgroundStyle.DEFAULT,
     )
+    val (backdropStyle, onBackdropStyleChange) = rememberEnumPreference(
+        key = PlayerBackdropKey,
+        defaultValue = PlayerBackdrop.MESH,
+    )
+
     val playerButtonsStyle by rememberEnumPreference(
         key = PlayerButtonsStyleKey,
         defaultValue = PlayerButtonsStyle.DEFAULT,
@@ -324,6 +331,7 @@ fun BottomSheetPlayer(
 
     val playbackState by playerConnection.playbackState.collectAsState()
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    val artworkMesh = rememberArtworkMesh(mediaMetadata?.thumbnailUrl)
     val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val automix by playerConnection.service.automixItems.collectAsStateWithLifecycle()
     val repeatMode by playerConnection.repeatMode.collectAsStateWithLifecycle()
@@ -858,79 +866,32 @@ fun BottomSheetPlayer(
                         .fillMaxSize()
                         .background(bottomSheetBackgroundColor),
             ) {
-                when (playerBackground) {
-                    PlayerBackgroundStyle.BLUR -> {
-                        AnimatedContent(
-                            targetState = mediaMetadata?.thumbnailUrl,
-                            transitionSpec = {
-                                fadeIn(tween(800)).togetherWith(fadeOut(tween(800)))
-                            },
-                            label = "blurBackground",
-                        ) { thumbnailUrl ->
-                            if (thumbnailUrl != null) {
-                                Box(modifier = Modifier.alpha(backgroundAlpha)) {
-                                    AsyncImage(
-                                        model =
-                                            ImageRequest
-                                                .Builder(context)
-                                                .data(thumbnailUrl)
-                                                .size(100, 100)
-                                                .allowHardware(false)
-                                                .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .blur(if (useDarkTheme) 150.dp else 100.dp),
-                                    )
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .background(Color.Black.copy(alpha = 0.3f)),
-                                    )
-                                }
-                            }
-                        }
+                when (backdropStyle) {
+                    PlayerBackdrop.MESH -> {
+                        MeshGradientBackground(
+                            palette = rememberArtworkColors(mediaMetadata?.thumbnailUrl),
+                            modifier = Modifier.alpha(backgroundAlpha),
+                            trackKey = mediaMetadata?.id,
+                        )
                     }
 
-                    PlayerBackgroundStyle.GRADIENT -> {
-                        AnimatedContent(
-                            targetState = gradientColors,
-                            transitionSpec = {
-                                fadeIn(tween(800)).togetherWith(fadeOut(tween(800)))
-                            },
-                            label = "gradientBackground",
-                        ) { colors ->
-                            if (colors.isNotEmpty()) {
-                                val gradientColorStops =
-                                    if (colors.size >= 3) {
-                                        arrayOf(
-                                            0.0f to colors[0],
-                                            0.5f to colors[1],
-                                            1.0f to colors[2],
-                                        )
-                                    } else {
-                                        arrayOf(
-                                            0.0f to colors[0],
-                                            0.6f to colors[0].copy(alpha = 0.7f),
-                                            1.0f to Color.Black,
-                                        )
-                                    }
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .alpha(backgroundAlpha)
-                                        .background(Brush.verticalGradient(colorStops = gradientColorStops))
-                                        .background(Color.Black.copy(alpha = 0.2f)),
-                                )
-                            }
-                        }
+                    PlayerBackdrop.ARTWORK_MESH -> {
+                        ArtworkMeshBackdrop(
+                            mesh = artworkMesh,
+                            modifier = Modifier.alpha(backgroundAlpha),
+                            seam = 0.dp,
+                        )
                     }
 
-                    else -> {
-                        PlayerBackgroundStyle.DEFAULT
+                    PlayerBackdrop.BLUR -> {
+                        FullArtworkBlurBackdrop(
+                            image = rememberFullArtworkBlurImage(mediaMetadata?.thumbnailUrl),
+                            modifier = Modifier.alpha(backgroundAlpha),
+                        )
+                    }
+
+                    PlayerBackdrop.OFF -> {
+                        // Flat surface, no artwork backdrop.
                     }
                 }
             }

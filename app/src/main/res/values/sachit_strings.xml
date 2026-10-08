@@ -151,6 +151,15 @@
     <string name="bitchord_player_style_desc">Bold transport controls, hairline scrubber and artwork mesh backdrop</string>
     <string name="bitchord_style_hide_volume">Hide volume bar</string>
 
+    <!-- Player backdrop (Plan 017) -->
+    <string name="player_backdrop">Player backdrop</string>
+    <string name="player_backdrop_desc">Choose how the player screen background looks behind the artwork and controls</string>
+    <string name="player_backdrop_mesh">Mesh gradient</string>
+    <string name="player_backdrop_artwork_mesh">Artwork mesh</string>
+    <string name="player_backdrop_artwork_mesh_desc">The cover\'s own colours, averaged into a mesh and flipped below the artwork</string>
+    <string name="player_backdrop_blur">Cover blur</string>
+    <string name="player_backdrop_off">Off</string>
+
     <!-- Audio export -->
     <string name="export_audio">Save as MP4</string>
     <string name="export_audio_progress">Preparing export… %d%%</string>

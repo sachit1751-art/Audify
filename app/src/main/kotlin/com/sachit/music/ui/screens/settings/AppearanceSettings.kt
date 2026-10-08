@@ -82,6 +82,8 @@ import com.sachit.music.constants.MiniPlayerBackgroundStyle
 import com.sachit.music.constants.MiniPlayerBackgroundStyleKey
 import com.sachit.music.constants.PlayerArtworkCornerRadius
 import com.sachit.music.constants.PlayerArtworkCornerRadiusKey
+import com.sachit.music.constants.PlayerBackdrop
+import com.sachit.music.constants.PlayerBackdropKey
 import com.sachit.music.constants.PlayerBackgroundStyle
 import com.sachit.music.constants.PlayerBackgroundStyleKey
 import com.sachit.music.constants.PlayerButtonsStyle
@@ -216,6 +218,11 @@ fun AppearanceSettings(
             PlayerBackgroundStyleKey,
             defaultValue = PlayerBackgroundStyle.DEFAULT,
         )
+    val (backdropStyle, onBackdropStyleChange) =
+        rememberEnumPreference(
+            PlayerBackdropKey,
+            defaultValue = PlayerBackdrop.MESH,
+        )
     val (artworkCornerRadius, onArtworkCornerRadiusChange) =
         rememberEnumPreference(
             PlayerArtworkCornerRadiusKey,
@@ -265,6 +272,7 @@ fun AppearanceSettings(
     var showLyricsAnimationStyleDialog by remember { mutableStateOf(false) }
     var showLyricsTextSizeDialog by remember { mutableStateOf(false) }
     var showLyricsLineSpacingDialog by remember { mutableStateOf(false) }
+    var showPlayerBackdropDialog by rememberSaveable { mutableStateOf(false) }
 
     val (sliderStyle, onSliderStyleChange) =
         rememberEnumPreference(
@@ -585,6 +593,27 @@ fun AppearanceSettings(
                     PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
                     PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
                     PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
+                }
+            },
+        )
+    }
+
+    if (showPlayerBackdropDialog) {
+        EnumDialog(
+            onDismiss = { showPlayerBackdropDialog = false },
+            onSelect = {
+                onBackdropStyleChange(it)
+                showPlayerBackdropDialog = false
+            },
+            title = stringResource(R.string.player_backdrop),
+            current = backdropStyle,
+            values = PlayerBackdrop.entries.toList(),
+            valueText = {
+                when (it) {
+                    PlayerBackdrop.MESH -> stringResource(R.string.player_backdrop_mesh)
+                    PlayerBackdrop.ARTWORK_MESH -> stringResource(R.string.player_backdrop_artwork_mesh)
+                    PlayerBackdrop.BLUR -> stringResource(R.string.player_backdrop_blur)
+                    PlayerBackdrop.OFF -> stringResource(R.string.player_backdrop_off)
                 }
             },
         )
@@ -1302,6 +1331,21 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { showPlayerBackgroundDialog = true },
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.widget_background),
+                        title = { Text(stringResource(R.string.player_backdrop)) },
+                        description = {
+                            Text(
+                                when (backdropStyle) {
+                                    PlayerBackdrop.MESH -> stringResource(R.string.player_backdrop_mesh)
+                                    PlayerBackdrop.ARTWORK_MESH -> stringResource(R.string.player_backdrop_artwork_mesh)
+                                    PlayerBackdrop.BLUR -> stringResource(R.string.player_backdrop_blur)
+                                    PlayerBackdrop.OFF -> stringResource(R.string.player_backdrop_off)
+                                },
+                            )
+                        },
+                        onClick = { showPlayerBackdropDialog = true },
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.hide_image),
