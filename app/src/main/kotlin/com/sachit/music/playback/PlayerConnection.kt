@@ -205,6 +205,24 @@ class PlayerConnection(
 
     private var attachedPlayer: Player? = null
 
+    // Guest guard: consolidates the 7 duplicated Listen Together guest checks.
+    private val guestGuard = GuestGuard(
+        isGuest = { shouldBlockPlaybackChanges?.invoke() == true },
+        shouldBlock = { null },
+    )
+
+    // PlaybackTarget: collapses Cast-vs-local branches. Selected when casting state changes.
+    private var playbackTarget: PlaybackTarget = LocalPlayerTarget(service.player, guestGuard)
+
+    private fun updatePlaybackTarget() {
+        val castHandler = service.castConnectionHandler
+        if (castHandler?.isCasting?.value == true) {
+            playbackTarget = CastPlayerTarget(castHandler, guestGuard)
+        } else {
+            playbackTarget = LocalPlayerTarget(service.player, guestGuard)
+        }
+    }
+
     init {
         scope.launch {
             service.playerFlow.collect { newPlayer ->
@@ -384,15 +402,7 @@ class PlayerConnection(
      */
     fun play() {
         try {
-            val castHandler = service.castConnectionHandler
-            if (castHandler?.isCasting?.value == true) {
-                castHandler.play()
-            } else {
-                if (player.playbackState == Player.STATE_IDLE) {
-                    player.prepare()
-                }
-                player.playWhenReady = true
-            }
+            playbackTarget.play()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in play")
         }
@@ -403,12 +413,7 @@ class PlayerConnection(
      */
     fun pause() {
         try {
-            val castHandler = service.castConnectionHandler
-            if (castHandler?.isCasting?.value == true) {
-                castHandler.pause()
-            } else {
-                player.playWhenReady = false
-            }
+            playbackTarget.pause()
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in pause")
         }
@@ -419,12 +424,7 @@ class PlayerConnection(
      */
     fun seekTo(position: Long) {
         try {
-            val castHandler = service.castConnectionHandler
-            if (castHandler?.isCasting?.value == true) {
-                castHandler.seekTo(position)
-            } else {
-                player.seekTo(position)
-            }
+            playbackTarget.seekTo(position)
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in seekTo")
         }
@@ -432,13 +432,11 @@ class PlayerConnection(
 
     fun seekToNext() {
         try {
-            // When casting, use Cast skip instead of local player
-            val castHandler = service.castConnectionHandler
-            if (castHandler?.isCasting?.value == true) {
-                castHandler.skipToNext()
+            playbackTarget.skipNext()
+            if (playbackTarget.isCasting()) {
+                // Cast handles its own prepare/playWhenReady
                 return
             }
-            player.seekToNext()
             if (player.playbackState == Player.STATE_IDLE || player.playbackState == Player.STATE_ENDED) {
                 player.prepare()
             }
@@ -453,10 +451,8 @@ class PlayerConnection(
 
     fun seekToPrevious() {
         try {
-            // When casting, use Cast skip instead of local player
-            val castHandler = service.castConnectionHandler
-            if (castHandler?.isCasting?.value == true) {
-                castHandler.skipToPrevious()
+            if (playbackTarget.isCasting()) {
+                playbackTarget.skipPrevious()
                 return
             }
 
@@ -587,6 +583,12 @@ class PlayerConnection(
         currentMediaItemIndex.value = player.currentMediaItemIndex
         currentWindowIndex.value = player.getCurrentQueueIndex()
         updateCanSkipPreviousAndNext()
+        updatePlaybackTarget()
+    }
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        super.onIsPlayingChanged(isPlaying)
+        updatePlaybackTarget()
     }
 
     override fun onShuffleModeEnabledChanged(enabled: Boolean) {
