@@ -487,6 +487,6 @@ fun StorageSettings(
                     contentDescription = null,
                 )
             }
-        },
+        }
     )
 }

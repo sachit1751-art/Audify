@@ -254,6 +254,6 @@ fun UpdaterScreen(
                     contentDescription = null,
                 )
             }
-        },
+        }
     )
 }

@@ -112,6 +112,7 @@ fun PlayerMenu(
     mediaMetadata: MediaMetadata?,
     playerBottomSheetState: BottomSheetState,
     isQueueTrigger: Boolean? = false,
+    onSleepTimerClick: (() -> Unit)? = null,
     onShowDetailsDialog: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -344,6 +345,30 @@ fun PlayerMenu(
                         } else {
                             null
                         },
+                        NewAction(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.share),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            text = stringResource(R.string.share),
+                            onClick = {
+                                val intent =
+                                    Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        type = "text/plain"
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            "https://music.youtube.com/watch?v=${mediaMetadata.id}",
+                                        )
+                                    }
+                                context.startActivity(Intent.createChooser(intent, null))
+                                onDismiss()
+                            },
+                        ),
                         NewAction(
                             icon = {
                                 Icon(
@@ -680,6 +705,25 @@ fun PlayerMenu(
             Material3MenuGroup(
                 items =
                     buildList {
+                        if (onSleepTimerClick != null) {
+                            add(
+                                Material3MenuItemData(
+                                    title = { Text(text = stringResource(R.string.sleep_timer)) },
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.bedtime),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    },
+                                    onClick = {
+                                        onSleepTimerClick()
+                                        onDismiss()
+                                    },
+                                ),
+                            )
+                        }
+
                         add(
                             Material3MenuItemData(
                                 title = { Text(text = stringResource(R.string.details)) },

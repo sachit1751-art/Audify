@@ -889,7 +889,7 @@ fun DiscordSettings(
                     contentDescription = null,
                 )
             }
-        },
+        }
     )
 }
 

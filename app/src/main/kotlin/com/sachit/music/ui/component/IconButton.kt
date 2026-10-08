@@ -38,8 +38,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun ResizableIconButton(
     @DrawableRes icon: Int,
-    modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     indication: Indication? = null,
     onClick: () -> Unit = {},
@@ -63,7 +63,7 @@ fun ResizableIconButton(
 @Composable
 fun IconButton(
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
