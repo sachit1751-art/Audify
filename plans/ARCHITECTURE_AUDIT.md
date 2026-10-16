@@ -1,12 +1,13 @@
 # Architecture Audit — Sachit
 
-> **Status: superseded in part.** The execution track for this audit is
-> [`022-deepen-architecture.md`](022-deepen-architecture.md). Since this audit was written,
-> **C1 has partially shipped**: `CrossfadeController` (commit `c810e1ce`) now owns the crossfade
-> policy behind `onTransition`/`onSeek`, and **C7 is fully done** — `CONTEXT.md` and
-> `docs/adr/0001–0003` now exist. The line counts below predate that work. Read this for the
-> reasoning and the candidates that remain (C1 residual, C2, C3, C4, C5, C6); read plan 022 for
-> what to actually do next.
+> **Status: superseded in part.** The execution track for this audit was
+> [`022-deepen-architecture.md`](022-deepen-architecture.md) (deleted — fully implemented).
+> Since this audit was written, **C1 has shipped**: `CrossfadeController` (commit `c810e1ce`)
+> owns the crossfade discipline, and the full C1 decomposition landed in commit `ee8c0aa3`
+> (`PlaybackTarget.kt`, `PlaybackIntent.kt`, `StreamResolver.kt`). The Settings interface (C5)
+> landed in `eadfeac3` (`utils/Settings.kt`). C2 (twenty duplicated Cast branches) is collapsed
+> behind `PlaybackTarget` in the same commit. The candidates that remain are C3, C4, C6, C7; read
+> the audit below for the reasoning.
 
 **Date:** 2026-10-02
 **Scope:** `app/` (118k lines Kotlin, 388 files) + `innertube/` (9.6k lines)
