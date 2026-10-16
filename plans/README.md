@@ -76,20 +76,29 @@ Plans written, not started:
 | 037 | Stats export (CSV) | Stats/Portability | L | none | none | **planned — not started** |
 | 038 | Playlist import expansion (Spotify-converted) | Import | M | none | none | **planned — not started** |
 
-No active plans beyond Phase 3. See completed table below.
+### Phase 4 — Trust, privacy, ecosystem (plans written, not started)
 
-## Considered and rejected for this round
+| # | Plan | Category | Effort | Depends on | Requires human gate | Status |
+|---|------|----------|--------|------------|---------------------|--------|
+| 039 | Offline truthfulness badges | UX/Honesty | M | none | none | **planned — not started** |
+| 040 | Library hygiene tools | Library/UX | M | none | none | **planned — not started** |
+| 041 | Queue handoff (SharePlay / nearby) | Social/Queue | H | 031 (queue slots) | none | **planned — not started** |
+| 042 | "Ask Audify" conversational queue | UX/AI-lite | L | none | none | **planned — not started** |
+| 043 | Privacy ledger | Privacy/UX | L | none | none | **planned — not started** |
+| 044 | Artist new-release notifications | Discovery/Notifications | M | none | none | **planned — not started** |
 
-- **Lyrics translation on-tap** — already shipped (`LyricsTranslationHelper` + DeepL in
-  `ui/menu/LyricsMenu.kt`).
-- **Volume-normalization settings** — already shipped end to end: `AudioNormalizationKey`,
-  `LoudnessLevelKey` (QUIET/BALANCED/LOUD/AGGRESSIVE) with settings UI in
-  `PlayerSettings.kt` and a per-track info display in `ShowMediaInfo.kt`. Nothing left to plan.
-- **Playlist folders** — needs a DB schema change (AGENTS.md forbids); revisit if the core
-  team approves a migration.
-- **Wear OS companion** — high value but a multi-week effort; deserves its own plan round.
-- **Wear/Android Auto/external-display audits** — Auto is already covered
-  (`MediaLibrarySessionCallback` + settings); nothing actionable without hardware QA.
+### Phase 5 — Accessibility, performance, reach (plans written, not started)
+
+| # | Plan | Category | Effort | Depends on | Requires human gate | Status |
+|---|------|----------|--------|------------|---------------------|--------|
+| 045 | Accessibility-first lyrics | Accessibility/Lyrics | H | none | none | **planned — not started** |
+| 046 | MotionTokens cleanup | Animation/Behind-the-scenes | M | none | none | **planned — not started** |
+| 047 | Performance pass | Performance/General | M | none | none | **planned — not started** |
+| 048 | Preferred audio language | Audio/UX | L | none | none | **planned — not started** |
+| 049 | TV intents + WebDAV source | Reach/Import | M | none | none | **planned — not started** |
+| 050 | Backup auto-schedule + integrity | Backup/Portability | M | none | none | **planned — not started** |
+
+No active plans beyond Phase 5. See completed table below.
 
 ## Considered and rejected for this round
 
@@ -126,7 +135,7 @@ full plan text is in git history (delete commits reference these hashes).
 | 021 | Stream source health + fresh-resolution fallback | 2026-10-02 | commit `c810e1ce`: `playback/StreamSourceHealth.kt` per-mediaId failure memory with injectable clock, TTL sweep and a 2-strike `FALLBACK` threshold + `StreamSourceHealthTest`. `MusicService.recordStreamSourceFailure` feeds it; a `FALLBACK` state bypasses the stream-URL cache so a poisoned URL/client pair is not retried. Surfaced live in the Signal sheet (019) via 4 `playback_stats_source_health_*` strings |
 | 022 | Deepen the architecture (C5 settings → C1 MusicService → C2 transports) | 2026-10-08 | commit `ee8c0aa3`: `playback/PlaybackTarget.kt` (interface + `QueueTarget`/`MediaSourceTarget` adapters, collapsing duplicated transport branches), `playback/PlaybackIntent.kt` (sealed class: `Play`/`EnqueueNext`/`Enqueue`/`Replace`/`ClearAutomix`/`StartRadio`), `playback/StreamResolver.kt` (extracted stream resolution). Step 1 (Settings interface) shipped earlier in `eadfeac3` (`utils/Settings.kt`). All three steps complete. |
 
-## Verification state (2026-10-02)
+## Verification state (2026-10-16)
 
 `./gradlew :app:testFossDebugUnitTest` → **269 tests, 0 failures.** All three signed release
 APKs build and pass `apksigner`, and the FOSS release APK was installed and smoke-tested on an

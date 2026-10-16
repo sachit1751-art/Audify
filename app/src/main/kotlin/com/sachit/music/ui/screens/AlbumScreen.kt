@@ -81,7 +81,6 @@ import com.sachit.music.constants.HideVideoSongsKey
 import com.sachit.music.db.entities.Album
 import com.sachit.music.playback.queues.LocalAlbumRadio
 import com.sachit.music.ui.component.ClickableArtistText
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.NavigationTitle
 import com.sachit.music.ui.component.SongListItem
@@ -417,7 +416,7 @@ fun AlbumScreen(
                                     onCheckedChange = onCheckedChange,
                                 )
                             } else {
-                                IconButton(
+                                androidx.compose.material3.IconButton(
                                     onClick = {
                                         menuState.show {
                                             SongMenu(
@@ -534,16 +533,15 @@ fun AlbumScreen(
         },
         navigationIcon = {
             if (inSelectMode) {
-                IconButton(onClick = onExitSelectionMode) {
+                androidx.compose.material3.IconButton(onClick = onExitSelectionMode) {
                     Icon(
                         painter = painterResource(R.drawable.close),
                         contentDescription = null,
                     )
                 }
             } else {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = { navController.navigateUp() },
-                    onLongClick = { navController.backToMain() },
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
@@ -565,7 +563,7 @@ fun AlbumScreen(
                         }
                     },
                 )
-                IconButton(
+                androidx.compose.material3.IconButton(
                     enabled = selection.isNotEmpty(),
                     onClick = {
                         menuState.show {

@@ -81,7 +81,6 @@ import com.sachit.music.constants.StopMusicOnTaskClearKey
 import com.sachit.music.constants.VarispeedKey
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.EnumDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.ListDialog
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
@@ -1292,9 +1291,8 @@ fun PlayerSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.player_and_audio)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

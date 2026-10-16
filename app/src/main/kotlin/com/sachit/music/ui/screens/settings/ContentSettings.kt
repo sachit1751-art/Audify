@@ -88,7 +88,6 @@ import com.sachit.music.constants.ShowMonthlyListenersKey
 import com.sachit.music.constants.ShowWrappedCardKey
 import com.sachit.music.constants.TopSize
 import com.sachit.music.ui.component.EnumDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.component.DraggableLyricsProviderItem
@@ -1084,9 +1083,8 @@ fun ContentSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.content)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

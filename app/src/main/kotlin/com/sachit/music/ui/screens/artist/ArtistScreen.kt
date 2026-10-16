@@ -103,7 +103,6 @@ import com.sachit.music.playback.queues.YouTubeQueue
 import com.sachit.music.ui.component.AlbumGridItem
 import com.sachit.music.ui.component.ExpandableText
 import com.sachit.music.ui.component.HideOnScrollFAB
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LinkSegment
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.NavigationTitle
@@ -422,7 +421,7 @@ fun ArtistScreen(
                                         // Shuffle Button
                                         if (!showLocal && !isGuest) {
                                             artistPage?.artist?.shuffleEndpoint?.let { shuffleEndpoint ->
-                                                IconButton(
+                                                androidx.compose.material3.IconButton(
                                                     onClick = {
                                                         playerConnection.playQueue(YouTubeQueue(shuffleEndpoint))
                                                     },
@@ -563,7 +562,7 @@ fun ArtistScreen(
                                 isActive = song.id == mediaMetadata?.id,
                                 isPlaying = isPlaying,
                                 trailingContent = {
-                                    IconButton(
+                                    androidx.compose.material3.IconButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -692,7 +691,7 @@ fun ArtistScreen(
                                     isActive = mediaMetadata?.id == song.id,
                                     isPlaying = isPlaying,
                                     trailingContent = {
-                                        IconButton(
+                                        androidx.compose.material3.IconButton(
                                             onClick = {
                                                 menuState.show {
                                                     YouTubeSongMenu(
@@ -1014,9 +1013,8 @@ fun ArtistScreen(
     TopAppBar(
         title = { if (!transparentAppBar) Text(displayArtistName.orEmpty()) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),
@@ -1025,7 +1023,7 @@ fun ArtistScreen(
             }
         },
         actions = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = {
                     viewModel.artistPage?.artist?.shareLink?.let { link ->
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

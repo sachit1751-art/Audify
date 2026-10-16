@@ -93,7 +93,6 @@ import com.sachit.music.db.entities.PlaylistSongMap
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.queues.YouTubePlaylistQueue
 import com.sachit.music.ui.component.ExpandableText
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.YouTubeListItem
 import com.sachit.music.ui.menu.YouTubePlaylistMenu
@@ -329,7 +328,7 @@ fun OnlinePlaylistScreen(
                                         onCheckedChange = onCheckedChange,
                                     )
                                 } else {
-                                    IconButton(onClick = {
+                                    androidx.compose.material3.IconButton(onClick = {
                                         menuState.show {
                                             YouTubeSongMenu(songItem, menuState::dismiss)
                                         }
@@ -401,7 +400,7 @@ fun OnlinePlaylistScreen(
                 }
             },
             navigationIcon = {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = {
                         if (isSearching) {
                             isSearching = false
@@ -440,7 +439,7 @@ fun OnlinePlaylistScreen(
                             }
                         },
                     )
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         enabled = selection.isNotEmpty(),
                         onClick = {
                             menuState.show {
@@ -461,7 +460,7 @@ fun OnlinePlaylistScreen(
                         )
                     }
                 } else if (!isSearching) {
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = { isSearching = true },
                     ) {
                         Icon(

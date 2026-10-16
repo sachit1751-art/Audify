@@ -82,7 +82,6 @@ import coil3.compose.AsyncImage
 import com.sachit.music.LocalDatabase
 import com.sachit.music.R
 import com.sachit.music.db.entities.RecognitionHistory
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.utils.backToMain
 import com.sachit.music.utils.SearchRoutes
 import com.sachit.shazamkit.models.RecognitionResult
@@ -202,9 +201,8 @@ fun RecognitionScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.recognize_music)) },
                 navigationIcon = {
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = { navController.navigateUp() },
-                        onLongClick = { navController.backToMain() },
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back),
@@ -213,7 +211,7 @@ fun RecognitionScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { navController.navigate("recognition_history") }) {
+                    androidx.compose.material3.IconButton(onClick = { navController.navigate("recognition_history") }) {
                         Icon(
                             painter = painterResource(R.drawable.history),
                             contentDescription = stringResource(R.string.recognition_history),

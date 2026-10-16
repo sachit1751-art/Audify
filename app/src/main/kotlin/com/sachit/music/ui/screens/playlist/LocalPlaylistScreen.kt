@@ -129,7 +129,6 @@ import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.DraggableScrollbar
 import com.sachit.music.ui.component.EmptyPlaceholder
 import com.sachit.music.ui.component.ExpandableText
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.OverlayEditButton
 import com.sachit.music.ui.component.SongListItem
@@ -531,7 +530,7 @@ fun LocalPlaylistScreen(
                                 modifier = Modifier.weight(1f),
                             )
                             if (editable) {
-                                IconButton(
+                                androidx.compose.material3.IconButton(
                                     onClick = { locked = !locked },
                                     modifier = Modifier.padding(horizontal = 6.dp),
                                 ) {
@@ -627,7 +626,7 @@ fun LocalPlaylistScreen(
                                         onCheckedChange = onCheckedChange,
                                     )
                                 } else {
-                                    IconButton(
+                                    androidx.compose.material3.IconButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -646,7 +645,7 @@ fun LocalPlaylistScreen(
                                     }
 
                                     if (sortType == PlaylistSongSortType.CUSTOM && !locked && !inSelectMode && !isSearching && editable) {
-                                        IconButton(
+                                        androidx.compose.material3.IconButton(
                                             onClick = { },
                                             modifier = Modifier.draggableHandle(),
                                         ) {
@@ -772,14 +771,14 @@ fun LocalPlaylistScreen(
             },
             navigationIcon = {
                 if (inSelectMode) {
-                    IconButton(onClick = onExitSelectionMode) {
+                    androidx.compose.material3.IconButton(onClick = onExitSelectionMode) {
                         Icon(
                             painter = painterResource(R.drawable.close),
                             contentDescription = null,
                         )
                     }
                 } else {
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = {
                             if (isSearching) {
                                 isSearching = false
@@ -814,7 +813,7 @@ fun LocalPlaylistScreen(
                             }
                         },
                     )
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         enabled = selection.isNotEmpty(),
                         onClick = {
                             menuState.show {
@@ -840,7 +839,7 @@ fun LocalPlaylistScreen(
                     }
                 } else if (!isSearching) {
                     // Only search button remains in TopAppBar
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = { isSearching = true },
                     ) {
                         Icon(

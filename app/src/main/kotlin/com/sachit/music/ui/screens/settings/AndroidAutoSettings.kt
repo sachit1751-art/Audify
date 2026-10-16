@@ -50,7 +50,6 @@ import com.sachit.music.constants.AndroidAutoSectionsOrderKey
 import com.sachit.music.constants.AndroidAutoTargetPlaylistKey
 import com.sachit.music.constants.AndroidAutoYouTubePlaylistsKey
 import com.sachit.music.constants.MediaSessionConstants
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.utils.backToMain
@@ -370,9 +369,8 @@ fun AndroidAutoSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.android_auto)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

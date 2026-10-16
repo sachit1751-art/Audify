@@ -100,7 +100,6 @@ import com.sachit.music.discord.DiscordRpcManager
 import com.sachit.music.discord.DiscordTemplateRenderer
 import com.sachit.music.ui.component.EnumDialog
 import com.sachit.music.ui.component.DefaultDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.utils.backToMain

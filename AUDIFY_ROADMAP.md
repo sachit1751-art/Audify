@@ -36,40 +36,67 @@
 ## Phase 2 — Core UX (everyday value)
 
 **2.1 Local file library beside YTM** (matrix #5) — MediaStore scan → "On device" library tab; reuse `LocalAlbumRadio`/`PersistQueue.LOCAL_ALBUM_RADIO` plumbing that already exists. High effort: permission flow, scanner, list screens. Audify-native: one tab, no folder maze.
+- Plan: [`plans/025-local-file-library.md`](plans/025-local-file-library.md)
 **2.2 Tablet / two-pane player** (matrix #15) — window-size-class: queue sheet becomes side pane ≥ expanded width. Pure UI.
+- Plan: [`plans/026-tablet-two-pane-player.md`](plans/026-tablet-two-pane-player.md)
 **2.3 Landscape fullscreen lyrics** (matrix #16) — portrait `LyricsLine` reused in a landscape layout; completes the lyrics story.
+- Plan: [`plans/027-landscape-fullscreen-lyrics.md`](plans/027-landscape-fullscreen-lyrics.md)
 **2.4 Week-shape recap card** (Innovation #12) — local queries + one Home card; reuse wrapped/share-image infra.
+- Plan: [`plans/028-week-shape-recap-card.md`](plans/028-week-shape-recap-card.md)
 **2.5 Time-aware discovery shelf** (Innovation #6) — hour-block play counts → "Morning/Late night" shelf, private and offline.
+- Plan: [`plans/029-time-aware-discovery-shelf.md`](plans/029-time-aware-discovery-shelf.md)
 **2.6 Lyrics share-as-image** (matrix #8) — compose lyric card to bitmap, system share sheet.
+- Plan: [`plans/030-lyrics-share-as-image.md`](plans/030-lyrics-share-as-image.md)
 
 ## Phase 3 — Power user
 
 **3.1 Named queue slots with resume** (matrix #10, Innovation #5) — 2–3 sidecar-persisted slots; swap live queue with resume; mini player shows slot; excluded for Listen Together guests. Highest-value hardest item in Phase 3.
+- Plan: [`plans/031-named-queue-slots.md`](plans/031-named-queue-slots.md)
 **3.2 10-band EQ + AutoEq profiles** (matrix #9, #22) — extend existing custom DSP with preset bands, AutoEq import (parse CSV/text), per-output association.
+- Plan: [`plans/032-10-band-eq-autoeeq.md`](plans/032-10-band-eq-autoeeq.md)
 **3.3 ListenBrainz scrobbling** (matrix #6) — REST + user token alongside existing ScrobbleManager lifecycle.
+- Plan: [`plans/033-listenbrainz-scrobbling.md`](plans/033-listenbrainz-scrobbling.md)
 **3.4 SponsorBlock** (matrix #7) — community segments API, skip categories user-selected, off by default; only for video-song content.
+- Plan: [`plans/034-sponsorblock.md`](plans/034-sponsorblock.md)
 **3.5 Download quality upgrade + storage budget** (matrix #19) — re-download at current quality when it improved; budget cap with LRU eviction prompt.
+- Plan: [`plans/035-download-quality-upgrade-storage-budget.md`](plans/035-download-quality-upgrade-storage-budget.md)
 **3.6 Tag editor for downloads** (matrix #18) — edit embedded metadata/artwork on downloaded files.
+- Plan: [`plans/036-tag-editor-for-downloads.md`](plans/036-tag-editor-for-downloads.md)
 **3.7 Stats export (CSV)** (matrix #20) — export play counts/history from existing tables.
+- Plan: [`plans/037-stats-export-csv.md`](plans/037-stats-export-csv.md)
 **3.8 Playlist import expansion** (matrix #14) — beyond CSV/M3U (Spotify-converted lists).
+- Plan: [`plans/038-playlist-import-expansion.md`](plans/038-playlist-import-expansion.md)
 
 ## Phase 4 — Differentiation (the "nobody does this" layer)
 
 **4.1 Offline truthfulness** (Innovation #7) — download state chips + background verify via WorkManager.
+- Plan: [`plans/039-offline-truthfulness.md`](plans/039-offline-truthfulness.md)
 **4.2 Library hygiene** (Innovation #11) — duplicate detection (normalized title+duration), ghost flagging fed by 1.4's failure memory; suggestions only, never auto-delete.
+- Plan: [`plans/040-library-hygiene.md`](plans/040-library-hygiene.md)
 **4.3 Queue handoff** (Innovation #10) — audio-device-change snapshot + resume offer; slots from 3.1 make same-device automatic.
+- Plan: [`plans/041-queue-handoff.md`](plans/041-queue-handoff.md)
+- Dependency: plan 031 (queue slots); don't reorder.
 **4.4 "Ask Audify" conversational queue** (matrix #21) — local prompt → queue using existing AiSettings providers; privacy-safe, no server.
+- Plan: [`plans/042-ask-audify-conversational-queue.md`](plans/042-ask-audify-conversational-queue.md)
 **4.5 Privacy ledger** (Innovation #9) — local log + kill switches for outbound AI/lyrics/recognition calls; exportable.
+- Plan: [`plans/043-privacy-ledger.md`](plans/043-privacy-ledger.md)
 **4.6 Artist new-release notifications** (matrix #12) — subscription checks in existing sync worker → notification channels.
+- Plan: [`plans/044-artist-new-release-notifications.md`](plans/044-artist-new-release-notifications.md)
 
 ## Phase 5 — Polish
 
 **5.1 Accessibility-first lyrics** (Innovation #8) — fontScale to 2×, steady mode, reduced-motion compliance, high-contrast.
+- Plan: [`plans/045-accessibility-first-lyrics.md`](plans/045-accessibility-first-lyrics.md)
 **5.2 MotionTokens cleanup** — centralize all durations/easings per design system §4; remove literals.
+- Plan: [`plans/046-motiontokens-cleanup.md`](plans/046-motiontokens-cleanup.md)
 **5.3 Performance pass** — startup trace, recomposition audit on Home/Queue, Coil cache tuning revisit; APK size check.
+- Plan: [`plans/047-performance-pass.md`](plans/047-performance-pass.md)
 **5.4 Preferred audio language** (matrix #13) — multi-track selection for videos that have it.
+- Plan: [`plans/048-preferred-audio-language.md`](plans/048-preferred-audio-language.md)
 **5.5 TV intents + WebDAV source** (matrix #17, #23) — lean-back intent handling; WebDAV-only remote source (SMB deferred by design).
+- Plan: [`plans/049-tv-intents-webdav-source.md`](plans/049-tv-intents-webdav-source.md)
 **5.6 Backup auto-schedule + integrity** (matrix #24) — WorkManager scheduled backups; restore validation; ensure encrypted prefs stay excluded (BitChord v1.7 lesson).
+- Plan: [`plans/050-backup-auto-schedule-integrity.md`](plans/050-backup-auto-schedule-integrity.md)
 
 ## Sequencing notes
 

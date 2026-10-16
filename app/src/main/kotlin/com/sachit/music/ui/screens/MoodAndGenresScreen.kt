@@ -37,7 +37,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.sachit.music.LocalPlayerAwareWindowInsets
 import com.sachit.music.R
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.NavigationTitle
 import com.sachit.music.ui.component.shimmer.ListItemPlaceHolder
 import com.sachit.music.ui.component.shimmer.ShimmerHost
@@ -108,9 +107,8 @@ fun MoodAndGenresScreen(
     TopAppBar(
         title = { Text(stringResource(R.string.mood_and_genres)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

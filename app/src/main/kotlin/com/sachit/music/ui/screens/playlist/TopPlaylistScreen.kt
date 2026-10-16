@@ -88,7 +88,6 @@ import com.sachit.music.playback.queues.ListQueue
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.DraggableScrollbar
 import com.sachit.music.ui.component.EmptyPlaceholder
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.SongListItem
 import com.sachit.music.ui.component.SortHeader
@@ -328,7 +327,7 @@ fun TopPlaylistScreen(
                                         onCheckedChange = onCheckedChange
                                     )
                                 } else {
-                                    IconButton(
+                                    androidx.compose.material3.IconButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -447,7 +446,7 @@ fun TopPlaylistScreen(
                 }
             },
             navigationIcon = {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = {
                         when {
                             isSearching -> {
@@ -490,7 +489,7 @@ fun TopPlaylistScreen(
                             }
                         }
                     )
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         enabled = selection.isNotEmpty(),
                         onClick = {
                             menuState.show {
@@ -508,7 +507,7 @@ fun TopPlaylistScreen(
                         )
                     }
                 } else if (!isSearching) {
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = { isSearching = true }
                     ) {
                         Icon(

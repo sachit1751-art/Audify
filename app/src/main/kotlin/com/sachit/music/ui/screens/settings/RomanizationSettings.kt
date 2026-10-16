@@ -35,7 +35,6 @@ import com.sachit.music.R
 import com.sachit.music.constants.LyricsRomanizeAsMainKey
 import com.sachit.music.constants.LyricsRomanizeCyrillicByLineKey
 import com.sachit.music.constants.LyricsRomanizeList
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.utils.backToMain
@@ -191,9 +190,8 @@ fun RomanizationSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.lyrics_romanize_title)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

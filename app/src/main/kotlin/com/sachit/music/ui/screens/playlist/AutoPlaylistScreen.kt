@@ -108,7 +108,6 @@ import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.DraggableScrollbar
 import com.sachit.music.ui.component.EmptyPlaceholder
 import com.sachit.music.ui.component.HideOnScrollFAB
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.SongListItem
 import com.sachit.music.ui.component.SortHeader
@@ -578,7 +577,7 @@ fun AutoPlaylistScreen(
                                         onCheckedChange = onCheckedChange,
                                     )
                                 } else {
-                                    IconButton(
+                                    androidx.compose.material3.IconButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -752,8 +751,7 @@ fun AutoPlaylistScreen(
                     }
                 }
             },
-            navigationIcon = {
-                IconButton(
+            navigationIcon = {                androidx.compose.material3.IconButton(
                     onClick = {
                         when {
                             isSearching -> {
@@ -761,12 +759,11 @@ fun AutoPlaylistScreen(
                                 query = TextFieldValue()
                                 focusManager.clearFocus()
                             }
-
                             inSelectMode -> {
                                 onExitSelectionMode()
                             }
-
                             else -> {
+
                                 navController.navigateUp()
                             }
                         }
@@ -799,7 +796,7 @@ fun AutoPlaylistScreen(
                             }
                         },
                     )
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         enabled = selection.isNotEmpty(),
                         onClick = {
                             menuState.show {
@@ -818,7 +815,7 @@ fun AutoPlaylistScreen(
                         )
                     }
                 } else if (!isSearching) {
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = { isSearching = true },
                     ) {
                         Icon(

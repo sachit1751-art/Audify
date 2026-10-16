@@ -72,7 +72,6 @@ import com.sachit.music.constants.DataSyncIdKey
 import com.sachit.music.constants.InnerTubeAuthUserKey
 import com.sachit.music.constants.InnerTubeCookieKey
 import com.sachit.music.constants.VisitorDataKey
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.utils.backToMain
 import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.reportException
@@ -371,9 +370,8 @@ fun LoginScreen(
                 )
             },
             navigationIcon = {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = navController::navigateUp,
-                    onLongClick = navController::backToMain,
                 ) {
                     Icon(
                         painterResource(R.drawable.arrow_back),

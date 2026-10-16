@@ -40,7 +40,6 @@ import com.sachit.music.constants.GridItemsSizeKey
 import com.sachit.music.constants.GridThumbnailHeight
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.queues.YouTubeQueue
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.YouTubeGridItem
 import com.sachit.music.ui.component.shimmer.GridItemPlaceHolder
@@ -198,10 +197,8 @@ fun YouTubeBrowseScreen(
 
     TopAppBar(
         title = { Text(browseResult?.title.orEmpty()) },
-        navigationIcon = {
-            IconButton(
+        navigationIcon = {            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),
@@ -210,4 +207,4 @@ fun YouTubeBrowseScreen(
             }
         },
     )
-}
+} 

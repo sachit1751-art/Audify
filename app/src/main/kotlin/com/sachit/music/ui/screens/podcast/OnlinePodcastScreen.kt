@@ -78,7 +78,6 @@ import com.sachit.music.R
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.playback.queues.ListQueue
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.YouTubeListItem
 import com.sachit.music.ui.menu.YouTubeSongMenu
@@ -219,7 +218,7 @@ fun OnlinePodcastScreen(
                                 )
                                 .animateItem(),
                             trailingContent = {
-                                IconButton(onClick = {
+                                androidx.compose.material3.IconButton(onClick = {
                                     menuState.show {
                                         YouTubeSongMenu(episode.asSongItem(), menuState::dismiss)
                                     }
@@ -264,7 +263,7 @@ fun OnlinePodcastScreen(
                 }
             },
             navigationIcon = {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = {
                         if (isSearching) {
                             isSearching = false
@@ -272,11 +271,7 @@ fun OnlinePodcastScreen(
                         } else {
                             navController.navigateUp()
                         }
-                    },
-                    onLongClick = {
-                        if (!isSearching) navController.backToMain()
-                    }
-                ) {
+                    },) {
                     Icon(
                         painter = painterResource(R.drawable.arrow_back),
                         contentDescription = null
@@ -285,7 +280,7 @@ fun OnlinePodcastScreen(
             },
             actions = {
                 if (!isSearching) {
-                    IconButton(onClick = { isSearching = true }) {
+                    androidx.compose.material3.IconButton(onClick = { isSearching = true }) {
                         Icon(
                             painter = painterResource(R.drawable.search),
                             contentDescription = stringResource(R.string.search)

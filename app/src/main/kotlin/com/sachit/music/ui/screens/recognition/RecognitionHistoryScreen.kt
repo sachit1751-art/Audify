@@ -56,7 +56,6 @@ import com.sachit.music.R
 import com.sachit.music.constants.ThumbnailCornerRadius
 import com.sachit.music.db.entities.RecognitionHistory
 import com.sachit.music.ui.component.DefaultDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.utils.backToMain
 import com.sachit.music.utils.SearchRoutes
@@ -150,9 +149,8 @@ fun RecognitionHistoryScreen(navController: NavController) {
             TopAppBar(
                 title = { Text(stringResource(R.string.recognition_history)) },
                 navigationIcon = {
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = { navController.navigateUp() },
-                        onLongClick = { navController.backToMain() },
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.arrow_back),
@@ -162,7 +160,7 @@ fun RecognitionHistoryScreen(navController: NavController) {
                 },
                 actions = {
                     if (historyItems.isNotEmpty()) {
-                        IconButton(onClick = { showClearDialog = true }) {
+                        androidx.compose.material3.IconButton(onClick = { showClearDialog = true }) {
                             Icon(
                                 painter = painterResource(R.drawable.clear_all),
                                 contentDescription = stringResource(R.string.clear_recognition_history),
@@ -296,7 +294,7 @@ private fun RecognitionHistoryItem(
             }
 
             // Delete action
-            IconButton(onClick = onDelete) {
+            androidx.compose.material3.IconButton(onClick = onDelete) {
                 Icon(
                     painter = painterResource(R.drawable.delete),
                     contentDescription = stringResource(R.string.delete_from_history),

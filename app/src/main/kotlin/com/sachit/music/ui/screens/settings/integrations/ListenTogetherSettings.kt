@@ -90,7 +90,6 @@ import com.sachit.music.listentogether.LogEntry
 import com.sachit.music.listentogether.LogLevel
 import com.sachit.music.listentogether.RoomRole
 import com.sachit.music.ui.component.DefaultDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.IntegrationCard
 import com.sachit.music.ui.component.IntegrationCardItem
 import com.sachit.music.ui.utils.backToMain
@@ -516,9 +515,8 @@ fun ListenTogetherSettings(navController: NavController) {
     TopAppBar(
         title = { Text(stringResource(R.string.listen_together)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

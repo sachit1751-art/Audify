@@ -69,7 +69,6 @@ import com.sachit.music.playback.queues.ListQueue
 import com.sachit.music.playback.queues.YouTubeQueue
 import com.sachit.music.ui.component.ChipsRow
 import com.sachit.music.ui.component.HideOnScrollFAB
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.NavigationTitle
 import com.sachit.music.ui.component.SongListItem
@@ -264,7 +263,7 @@ fun HistoryScreen(
                             isActive = song.id == mediaMetadata?.id,
                             isPlaying = isPlaying,
                             trailingContent = {
-                                IconButton(
+                                androidx.compose.material3.IconButton(
                                     onClick = {
                                         menuState.show {
                                             YouTubeSongMenu(
@@ -348,7 +347,7 @@ fun HistoryScreen(
                                         onCheckedChange = onCheckedChange,
                                     )
                                 } else {
-                                    IconButton(
+                                    androidx.compose.material3.IconButton(
                                         onClick = {
                                             menuState.show {
                                                 SongMenu(
@@ -469,14 +468,14 @@ fun HistoryScreen(
         },
         navigationIcon = {
             if (inSelectMode) {
-                IconButton(onClick = onExitSelectionMode) {
+                androidx.compose.material3.IconButton(onClick = onExitSelectionMode) {
                     Icon(
                         painter = painterResource(R.drawable.close),
                         contentDescription = null,
                     )
                 }
             } else {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = {
                         if (isSearching) {
                             isSearching = false
@@ -511,7 +510,7 @@ fun HistoryScreen(
                         }
                     },
                 )
-                IconButton(
+                androidx.compose.material3.IconButton(
                     enabled = selection.isNotEmpty(),
                     onClick = {
                         menuState.show {
@@ -537,7 +536,7 @@ fun HistoryScreen(
                     )
                 }
             } else if (!isSearching) {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = { isSearching = true },
                 ) {
                     Icon(

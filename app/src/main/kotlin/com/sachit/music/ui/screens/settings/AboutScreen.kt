@@ -76,7 +76,6 @@ import com.sachit.music.LocalPlayerConnection
 import com.sachit.music.R
 import com.sachit.music.playback.PlayerConnection
 import com.sachit.music.playback.queues.YouTubeQueue
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.utils.backToMain
@@ -421,9 +420,8 @@ fun AboutScreen(
     TopAppBar(
         title = { Text(stringResource(R.string.about)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.arrow_back),

@@ -47,7 +47,6 @@ import com.sachit.music.constants.HideExplicitKey
 import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.playback.queues.ListQueue
 import com.sachit.music.ui.component.HideOnScrollFAB
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.SongListItem
 import com.sachit.music.ui.component.SortHeader
@@ -134,7 +133,7 @@ fun ArtistSongsScreen(
                     isActive = song.id == mediaMetadata?.id,
                     isPlaying = isPlaying,
                     trailingContent = {
-                        IconButton(
+                        androidx.compose.material3.IconButton(
                             onClick = {
                                 menuState.show {
                                     SongMenu(
@@ -184,9 +183,8 @@ fun ArtistSongsScreen(
         TopAppBar(
             title = { Text(artist?.artist?.name.orEmpty()) },
             navigationIcon = {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = navController::navigateUp,
-                    onLongClick = navController::backToMain,
                 ) {
                     Icon(
                         painterResource(R.drawable.arrow_back),

@@ -112,7 +112,6 @@ import com.sachit.music.constants.UseNewPlayerDesignKey
 import com.sachit.music.constants.UseBitchordPlayerStyleKey
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.EnumDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.component.PlayerSliderTrack
@@ -2106,9 +2105,8 @@ fun AppearanceSettings(
     TopAppBar(
         title = { Text(stringResource(R.string.appearance)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

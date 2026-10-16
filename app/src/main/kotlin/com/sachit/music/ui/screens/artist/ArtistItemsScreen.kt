@@ -49,7 +49,6 @@ import com.sachit.music.constants.GridItemsSizeKey
 import com.sachit.music.constants.GridThumbnailHeight
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.queues.YouTubeQueue
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.YouTubeGridItem
 import com.sachit.music.ui.component.YouTubeListItem
@@ -131,7 +130,7 @@ fun ArtistItemsScreen(
                         },
                     isPlaying = isPlaying,
                     trailingContent = {
-                        IconButton(
+                        androidx.compose.material3.IconButton(
                             onClick = {
                                 menuState.show {
                                     when (item) {
@@ -376,9 +375,8 @@ fun ArtistItemsScreen(
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

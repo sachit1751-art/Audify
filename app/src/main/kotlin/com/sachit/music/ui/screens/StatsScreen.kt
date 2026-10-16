@@ -78,7 +78,6 @@ import com.sachit.music.ui.component.ArtistListItem
 import com.sachit.music.ui.component.ChoiceChipsRow
 import com.sachit.music.ui.component.EmptyPlaceholder
 import com.sachit.music.ui.component.HideOnScrollFAB
-import com.sachit.music.ui.component.IconButton
 
 import com.sachit.music.ui.component.LocalAlbumsGrid
 import com.sachit.music.ui.component.LocalArtistsGrid
@@ -728,7 +727,7 @@ fun StatsScreen(
                     )
                 }
             } else {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = {
                         if (isSearching) {
                             isSearching = false
@@ -768,9 +767,8 @@ fun StatsScreen(
                     )
                 }
             } else if (!isSearching) {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = { navController.navigate("wrapped/yearly") },
-                    onLongClick = { navController.navigate("wrapped/yearly") },
                 ) {
                     Icon(
                         painterResource(R.drawable.replay),
@@ -785,9 +783,8 @@ fun StatsScreen(
                         contentDescription = "Search Button",
                     )
                 }
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = { showTimeTransfer = true },
-                    onLongClick = { showTimeTransfer = true },
                 ) {
                     Icon(
                         painterResource(R.drawable.sync),

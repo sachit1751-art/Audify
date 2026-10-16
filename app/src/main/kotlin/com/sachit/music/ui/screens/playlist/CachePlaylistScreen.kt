@@ -86,7 +86,6 @@ import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.playback.queues.ListQueue
 import com.sachit.music.ui.component.DraggableScrollbar
 import com.sachit.music.ui.component.EmptyPlaceholder
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.SongListItem
 import com.sachit.music.ui.component.SortHeader
@@ -273,7 +272,7 @@ fun CachePlaylistScreen(
                                     onCheckedChange = onCheckedChange
                                 )
                             } else {
-                                IconButton(onClick = {
+                                androidx.compose.material3.IconButton(onClick = {
                                     menuState.show {
                                         SongMenu(
                                             originalSong = song,
@@ -394,7 +393,7 @@ fun CachePlaylistScreen(
                 }
             },
             navigationIcon = {
-                IconButton(onClick = {
+                androidx.compose.material3.IconButton(onClick = {
                     when {
                         isSearching -> {
                             isSearching = false
@@ -434,7 +433,7 @@ fun CachePlaylistScreen(
                             }
                         }
                     )
-                    IconButton(
+                    androidx.compose.material3.IconButton(
                         enabled = selection.isNotEmpty(),
                         onClick = {
                             menuState.show {
@@ -452,7 +451,7 @@ fun CachePlaylistScreen(
                         )
                     }
                 } else if (!isSearching) {
-                    IconButton(onClick = { isSearching = true }) {
+                    androidx.compose.material3.IconButton(onClick = { isSearching = true }) {
                         Icon(
                             painter = painterResource(R.drawable.search),
                             contentDescription = null

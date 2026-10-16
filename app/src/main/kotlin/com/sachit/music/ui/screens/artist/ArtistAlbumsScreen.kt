@@ -53,7 +53,6 @@ import com.sachit.music.constants.CONTENT_TYPE_HEADER
 import com.sachit.music.constants.GridItemSize
 import com.sachit.music.constants.GridItemsSizeKey
 import com.sachit.music.constants.GridThumbnailHeight
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LibraryAlbumGridItem
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.utils.backToMain
@@ -144,9 +143,8 @@ fun ArtistAlbumsScreen(
         TopAppBar(
             title = { Text(artist?.artist?.name.orEmpty()) },
             navigationIcon = {
-                IconButton(
+                androidx.compose.material3.IconButton(
                     onClick = navController::navigateUp,
-                    onLongClick = navController::backToMain,
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.arrow_back),

@@ -39,7 +39,6 @@ import com.sachit.music.constants.DisableScreenshotKey
 import com.sachit.music.constants.PauseListenHistoryKey
 import com.sachit.music.constants.PauseSearchHistoryKey
 import com.sachit.music.ui.component.DefaultDialog
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.Material3SettingsGroup
 import com.sachit.music.ui.component.Material3SettingsItem
 import com.sachit.music.ui.utils.backToMain
@@ -250,9 +249,8 @@ fun PrivacySettings(
     TopAppBar(
         title = { Text(stringResource(R.string.privacy)) },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

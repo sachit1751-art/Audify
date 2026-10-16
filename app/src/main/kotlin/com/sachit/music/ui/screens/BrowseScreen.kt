@@ -33,7 +33,6 @@ import com.sachit.music.R
 import com.sachit.music.constants.GridItemSize
 import com.sachit.music.constants.GridItemsSizeKey
 import com.sachit.music.constants.GridThumbnailHeight
-import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.YouTubeGridItem
 import com.sachit.music.ui.component.shimmer.GridItemPlaceHolder
@@ -147,9 +146,8 @@ fun BrowseScreen(
     TopAppBar(
         title = { Text(title ?: "") },
         navigationIcon = {
-            IconButton(
+            androidx.compose.material3.IconButton(
                 onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),
