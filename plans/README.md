@@ -63,7 +63,20 @@ Plans written, not started:
 | 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **planned — not started** |
 | 030 | Lyrics share-as-image | Social/UI | L | none | none | **planned — not started** |
 
-No active plans beyond Phase 2. See completed table below.
+### Phase 3 — Power user (plans written, not started)
+
+| # | Plan | Category | Effort | Depends on | Requires human gate | Status |
+|---|------|----------|--------|------------|---------------------|--------|
+| 031 | Named queue slots with resume | Queue | H | none | none | **planned — not started** |
+| 032 | 10-band EQ + AutoEq profiles | Audio/EQ | M | none | none | **planned — not started** |
+| 033 | ListenBrainz scrobbling | Social/Integrations | M | none | none | **planned — not started** |
+| 034 | SponsorBlock integration | Video/Skip | M | none | **category list + API check at impl time** | **planned — not started** |
+| 035 | Download quality upgrade + storage budget | Downloads | M | none | none | **planned — not started** |
+| 036 | Tag editor for downloads | Downloads/UI | M | none | none | **planned — not started** |
+| 037 | Stats export (CSV) | Stats/Portability | L | none | none | **planned — not started** |
+| 038 | Playlist import expansion (Spotify-converted) | Import | M | none | none | **planned — not started** |
+
+No active plans beyond Phase 3. See completed table below.
 
 ## Considered and rejected for this round
 
