@@ -1,6 +1,12 @@
 <div align="center">
 
-<img src="fastlane/metadata/android/en-US/images/icon.png" alt="Audify icon" width="96" />
+<img src="assets/audify_banner.svg" alt="Audify banner" width="100%" max-width="1200" style="max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);" />
+
+</div>
+
+<div align="center">
+
+<img src="fastlane/metadata/android/en-US/images/icon.png" alt="Audify icon" width="72" />
 
 # Audify
 
@@ -8,9 +14,10 @@
 
 <br/>
 
-[![Latest release](https://img.shields.io/github/v/release/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases/latest)
-[![License](https://img.shields.io/github/license/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/sachit1751-art/Audify/total?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases)
+[![Latest release](https://img.shields.io/github/v/release/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117&color=1C1B1F)](https://github.com/sachit1751-art/Audify/releases/latest)
+[![License](https://img.shields.io/github/license/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117&color=1C1B1F)](https://github.com/sachit1751-art/Audify/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/sachit1751-art/Audify/total?style=for-the-badge&labelColor=0d1117&color=1C1B1F)](https://github.com/sachit1751-art/Audify/releases)
+[![F-Droid](https://img.shields.io/f-droid/v/com.sachit.music?style=for-the-badge&labelColor=0d1117&color=1C1B1F&link=https://f-droid.org/packages/com.sachit.music/)](https://f-droid.org/packages/com.sachit.music/)
 
 <br/>
 
@@ -30,9 +37,11 @@
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_1.png" alt="Home screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_2.png" alt="Artist screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_3.png" alt="Recognize music screen" width="30%" />
+<br/>
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_4.png" alt="Listen together screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_5.png" alt="Player screen" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_6.png" alt="Player lyrics screen" width="30%" />
+<br/>
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_7.png" alt="Smart auto-playlists in the library" width="30%" />
 
 </div>
@@ -45,74 +54,73 @@
 
 </div>
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
+### 🎵 Playback
 
-#### 🎵 Playback
-- Stream any song or video from YouTube Music
-- Background playback
-- Download & cache for offline use
-- **One-tap song radio** from the player
-- **Play next / add to queue** straight from search results
-- Skip silence · Sleep timer
+| | |
+|---|---|
+| **Stream any song, album, artist, video or playlist** from YouTube Music | **Background playback** with media notification |
+| **Download & cache** for offline listening | **One-tap song radio** from the player |
+| **Play next / add to queue** from search results | **Skip silence** · **Sleep timer** |
+| Remix / automix mode | Playlist shuffle with **queue skip marks** + "Earlier" boundary |
 
-</td>
-    <td width="50%" valign="top">
+### 🔊 Audio
 
-#### 🔊 Audio
-- Audio normalization with loudness presets
-- Tempo & pitch control
-- Built-in equalizer
+| | |
+|---|---|
+| **Audio normalization** — Quiet / Balanced / Loud / Aggressive presets | **Tempo & pitch control** |
+| **Built-in equalizer** with presets | **Lossless / highest quality** audio option |
+| **Per-network quality ceilings** — separate max quality for Wi-Fi vs mobile data | **Custom DSP** Effects |
 
-</td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
+### 📝 Lyrics & Discovery
 
-#### 📝 Lyrics & Discovery
-- Live synced lyrics with word-by-word highlighting
-- AI-powered lyrics translation
-- **Current lyric line in the mini player**
-- Personalized quick picks
-- Search songs, albums, artists, videos and playlists
+| | |
+|---|---|
+| **Live synced lyrics** with word-by-word highlighting | **AI-powered lyrics translation** |
+| **Current lyric line in the mini player** | **Lyrics translation on-tap** |
+| **Music recognition** (Shazam-style) | **Romanization** support |
+| Search songs, albums, artists, videos & playlists | Personalized quick picks |
 
-</td>
-    <td width="50%" valign="top">
+### 📚 Library & Account
 
-#### 📚 Library & Account
-- Full library management with local playlists & imports
-- **Smart auto-playlists** — Most played this month · On repeat · Recently added · Never played
-- **Monthly listening card** — minutes, top artist & top song, refreshed every month
-- Reorder songs in playlists and the queue
-- YouTube Music account login & sync
+| | |
+|---|---|
+| **Full library management** with local playlists & imports | **Smart auto-playlists** — Most played this month · On repeat · Recently added · Never played |
+| **Monthly & yearly recap** (Wrapped-style) — minutes, top artist & song | **Queue history** with skip tracking |
+| **Reorder songs** in playlists and the queue | SIGN-IN **YouTube Music account** login & sync |
+| **Stream source health** — per-song failure memory with automatic fallback | **In-player Signal panel** — live codec, bitrate, buffer, network info |
 
-</td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
+### 👥 Social
 
-#### 👥 Social
-- Listen together with friends in real time
-- Guest-aware playback controls
+| | |
+|---|---|
+| **Listen together** with friends in real time | **Guest-aware** playback controls |
+| Chromecast / Google Cast support | |
 
-</td>
-    <td width="50%" valign="top">
+### 🎨 Interface
 
-#### 🎨 Interface
-- Home screen widget & **shuffle-all quick-settings tile**
-- Light / Dark / Black / Dynamic theme modes
-- Dynamic color + 19 preset palettes
-- Up Next peek, tap-to-pause artwork, mini-player lyric line
-- Built with Material 3
+| | |
+|---|---|
+| **Material 3** design | **Home screen widget** & **shuffle-all quick-settings tile** |
+| **Light / Dark / Black / Dynamic** theme modes | **Dynamic color** + 19 preset palettes |
+| **Up Next peek** in the mini player | **Tap-to-pause** on artwork |
+| **Artwork mesh backdrop** in the player | **Mini-player lyric line** |
+| **System UI dark mode** support | **Per-network audio quality** toggles in settings |
 
-</td>
-  </tr>
-</table>
+---
 
-<div align="center">
-<i>Bold items are recent additions — see the <a href="https://github.com/sachit1751-art/Audify/releases/latest">latest release notes</a> for details.</i>
-</div>
+## What's new
+
+### Recent additions
+
+- **Artwork mesh backdrop** — animated mesh gradient behind album art in the player (settings toggle)
+- **Queue skip marks + Earlier boundary** — see what you skipped in the queue at a glance
+- **Stream source health** — per-song failure memory; automatic fresh-resolution fallback on repeated failures
+- **In-player Signal panel** — live codec, sample rate, bitrate, buffered vs played, network class, loudness offset
+- **PlaybackTarget architecture** — consolidated transport verbs behind one interface, collapsed 20 duplicated Cast branches
+- **Per-network audio quality ceilings** — separate max quality for Wi-Fi vs mobile data
+- **Lossless / highest quality audio** option with FLAC/ALAC-preferred selection
+
+> Full changelog: [Releases](../../releases) · [Changelog](changelog.md)
 
 ---
 
@@ -139,6 +147,13 @@
       </a>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <a href="https://f-droid.org/packages/com.sachit.music/">
+        <img src="https://f-droid.org/badge/badge.svg" alt="Available on F-Droid" height="60">
+      </a>
+    </td>
+  </tr>
 </table>
 
 Every release ships three signed variants — pick the one that matches your device:
@@ -152,6 +167,23 @@ Every release ships three signed variants — pick the one that matches your dev
 <sub>Tip: with Obtainium, track *releases* (not prereleases) to only receive stable builds.</sub>
 
 </div>
+
+---
+
+## Tech stack
+
+| | |
+|---|---|
+| **Language** | Kotlin 100% |
+| **UI** | Jetpack Compose + Material Design 3 |
+| **Playback** | AndroidX Media3 (ExoPlayer) |
+| **Dependency injection** | Hilt |
+| **Local storage** | Room database + DataStore preferences |
+| **Networking** | Retrofit + OkHttp + Ktor |
+| **Image loading** | Coil |
+| **Async** | Kotlin Coroutines + Flow |
+| ** минимум SDK** | 26 (Android 8.0) |
+| **Target SDK** | 36 |
 
 ---
 

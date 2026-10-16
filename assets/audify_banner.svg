@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="Audify banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4EFE6"/>
+      <stop offset="1" stop-color="#E8E2D9"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1C1B1F"/>
+      <stop offset="1" stop-color="#3A3A42"/>
+    </linearGradient>
+    <linearGradient id="subtitle" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#49454F"/>
+      <stop offset="1" stop-color="#6B6573"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#1C1B1F" flood-opacity="0.15"/>
+    </filter>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1C1B1F" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="300" fill="url(#bg)"/>
+
+  <!-- Subtle texture lines -->
+  <g opacity="0.04">
+    <line x1="0" y1="50" x2="1200" y2="50" stroke="#1C1B1F" stroke-width="1"/>
+    <line x1="0" y1="100" x2="1200" y2="100" stroke="#1C1B1F" stroke-width="1"/>
+    <line x1="0" y1="150" x2="1200" y2="150" stroke="#1C1B1F" stroke-width="1"/>
+    <line x1="0" y1="200" x2="1200" y2="200" stroke="#1C1B1F" stroke-width="1"/>
+    <line x1="0" y1="250" x2="1200" y2="250" stroke="#1C1B1F" stroke-width="1"/>
+  </g>
+
+  <!-- Decorative circle accent -->
+  <circle cx="950" cy="80" r="120" fill="none" stroke="#1C1B1F" stroke-width="2" opacity="0.06"/>
+  <circle cx="950" cy="80" r="80" fill="none" stroke="#1C1B1F" stroke-width="1" opacity="0.04"/>
+
+  <!-- Logo monogram - bold S -->
+  <g transform="translate(180, 100)" filter="url(#shadow)">
+    <rect x="0" y="0" width="120" height="120" rx="16" fill="#1C1B1F"/>
+    <path d="M 87,42 C 87,34 77,28 63,28 C 46,28 35,35 35,46 C 35,58 40,64 40,68 C 45,74 57,79 66,79 C 76,79 82,82 82,92 C 82,104 74,112 62,112 C 48,112 36,103 36,88 C 36,78 32,73 32,66"
+          fill="none" stroke="#F4EFE6" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- App name -->
+  <text x="340" y="130" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="64" font-weight="700" fill="url(#accent)" letter-spacing="-0.02em">Audify</text>
+
+  <!-- Tagline -->
+  <text x="340" y="168" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="22" fill="url(#subtitle)" letter-spacing="0.01em">Your YouTube Music client — stream, download, organize.</text>
+
+  <!-- Feature pills -->
+  <g transform="translate(340, 200)">
+    <rect x="0" y="0" width="170" height="36" rx="18" fill="#1C1B1F" opacity="0.08"/>
+    <text x="18" y="24" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#1C1B1F">Stream</text>
+
+    <rect x="185" y="0" width="155" height="36" rx="18" fill="#1C1B1F" opacity="0.06"/>
+    <text x="203" y="24" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#1C1B1F">Download</text>
+
+    <rect x="355" y="0" width="175" height="36" rx="18" fill="#1C1B1F" opacity="0.08"/>
+    <text x="373" y="24" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#1C1B1F">Playlist sync</text>
+
+    <rect x="545" y="0" width="160" height="36" rx="18" fill="#1C1B1F" opacity="0.06"/>
+    <text x="563" y="24" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#1C1B1F">Material 3</text>
+  </g>
+
+  <!-- Bottom right decorative element -->
+  <g transform="translate(1080, 220)" opacity="0.12">
+    <rect x="0" y="0" width="80" height="4" rx="2" fill="#1C1B1F"/>
+    <rect x="0" y="10" width="60" height="4" rx="2" fill="#1C1B1F"/>
+    <rect x="0" y="20" width="70" height="4" rx="2" fill="#1C1B1F"/>
+    <rect x="0" y="30" width="50" height="4" rx="2" fill="#1C1B1F"/>
+  </g>
+
+  <!-- GPL badge -->
+  <g transform="translate(1090, 260)">
+    <rect x="0" y="0" width="80" height="24" rx="4" fill="#1C1B1F" opacity="0.05" stroke="#1C1B1F" stroke-width="1" stroke-opacity="0.1"/>
+    <text x="40" y="16" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="10" font-weight="500" fill="#49454F" text-anchor="middle" letter-spacing="0.05em">GPL-3.0</text>
+  </g>
+</svg>
