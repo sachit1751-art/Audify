@@ -50,9 +50,20 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 
 Round 3 (019, 020, 021) shipped in `1ef56d88`. Round 3 is closed.
 
-## Recommended order
+### Phase 2 — Core UX (next up)
 
-No active plans. See completed table below.
+Plans written, not started:
+
+| # | Plan | Category | Effort | Depends on | Requires human gate | Status |
+|---|------|----------|--------|------------|---------------------|--------|
+| 025 | Local file library beside YTM | Library | H | none | none | **planned — not started** |
+| 026 | Tablet / two-pane player | UI | M | none | none | **planned — not started** |
+| 027 | Landscape fullscreen lyrics | Lyrics/UI | M | none | none | **planned — not started** |
+| 028 | Week-shape recap card | Discovery | M | none | none | **planned — not started** |
+| 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **planned — not started** |
+| 030 | Lyrics share-as-image | Social/UI | L | none | none | **planned — not started** |
+
+No active plans beyond Phase 2. See completed table below.
 
 ## Considered and rejected for this round
 
