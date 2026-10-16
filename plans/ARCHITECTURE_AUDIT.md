@@ -77,7 +77,7 @@ Seven deepening opportunities, ordered by the leverage they would return.
 
 ---
 
-### C1 — `MusicService` is a shallow module wearing a deep module's clothes ✅ SHIPPED ✅ SHIPPED
+### C1 — `MusicService` is a shallow module wearing a deep module's clothes ✅ SHIPPED
 
 **Strength: Strong**
 
@@ -109,7 +109,7 @@ Its interface is not simpler than its implementation — `playQueue`, `adoptQueu
 
 ---
 
-### C2 — `PlayerConnection` re-implements the Cast branch 20 times instead of hiding it ✅ SHIPPED ✅ SHIPPED
+### C2 — `PlayerConnection` re-implements the Cast branch 20 times instead of hiding it ✅ SHIPPED
 
 **Strength: Strong**
 
@@ -202,7 +202,7 @@ Both exist because the singleton needs a `Context` to initialize but the UI need
 
 ---
 
-### C5 — Preferences are read two incompatible ways, one of them blocking ✅ SHIPPED ✅ SHIPPED (step 1)
+### C5 — Preferences are read two incompatible ways, one of them blocking ✅ SHIPPED
 
 **Strength: Worth exploring**
 
