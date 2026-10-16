@@ -216,12 +216,12 @@ fun AutoPlaylistScreen(
         )
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
 
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     var downloadState by remember {
         mutableIntStateOf(Download.STATE_STOPPED)
     }
 
-    val scope = rememberCoroutineScope()
+    val autoScope = rememberCoroutineScope()
 
     // Upload state
     var showUploadDialog by remember { mutableStateOf(false) }
@@ -246,7 +246,7 @@ fun AutoPlaylistScreen(
                     }
                 }
                 uploadJob =
-                    scope.launch {
+                    autoScope.launch {
                         isUploading = true
                         showUploadDialog = true
                         totalUploads = uris.size
@@ -350,7 +350,7 @@ fun AutoPlaylistScreen(
             songs?.let { addAll(it) }
         }
         if (songs?.isEmpty() == true) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
+        downloadUtil!!.downloads.collect { downloads ->
             downloadState =
                 if (songs?.all { downloads[it.song.id]?.state == Download.STATE_COMPLETED } == true) {
                     Download.STATE_COMPLETED
@@ -844,7 +844,7 @@ private fun AutoPlaylistHeader(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
 
     Column(
         modifier =
@@ -997,7 +997,8 @@ private fun AutoPlaylistHeader(
                                     }
 
                                     else -> {
-                                        songs.forEach { downloadUtil.download(it) }
+                                        val launchDownload = { song: com.sachit.innertube.models.SongItem -> autoScope.launch { downloadUtil!!.download(it) } }
+                                        songs.forEach(launchDownload)
                                     }
                                 }
                             },

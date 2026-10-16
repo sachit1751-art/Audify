@@ -92,7 +92,7 @@ fun YouTubeAlbumMenu(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val playerConnection = LocalPlayerConnection.current ?: return
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
@@ -123,7 +123,7 @@ fun YouTubeAlbumMenu(
 
     LaunchedEffect(album) {
         val songs = album?.songs?.map { it.id } ?: return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
+        downloadUtil!!.downloads.collect { downloads ->
             downloadState =
                 if (songs.all { downloads[it]?.state == Download.STATE_COMPLETED }) {
                     Download.STATE_COMPLETED
@@ -504,7 +504,7 @@ fun YouTubeAlbumMenu(
                                         )
                                     },
                                     onClick = {
-                                        album?.songs?.forEach { downloadUtil.download(it) }
+                                        album?.songs?.forEach { downloadUtil!!.download(it) }
                                     },
                                 )
                             }

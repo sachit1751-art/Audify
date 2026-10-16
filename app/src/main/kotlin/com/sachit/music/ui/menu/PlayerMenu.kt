@@ -141,7 +141,7 @@ fun PlayerMenu(
 
     val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
     val coroutineScope = rememberCoroutineScope()
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
 
     val download by downloadUtil
         .getDownload(mediaMetadata.id)
@@ -629,7 +629,9 @@ fun PlayerMenu(
                                         )
                                     },
                                     onClick = {
-                                        downloadUtil.download(mediaMetadata)
+                                        coroutineScope.launch {
+                                            downloadUtil!!.download(mediaMetadata)
+                                        }
                                     },
                                 )
                             }

@@ -7,6 +7,9 @@
 
 package com.sachit.music.playback
 
+import com.sachit.music.recognition.AudioRecognizerContract
+import com.sachit.music.recognition.WidgetTargetContract
+
 import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.NotificationChannel
@@ -2315,6 +2318,8 @@ class MusicService :
 
                 database.query {
                     update(song)
+                }
+                scope.launch {
                     syncUtils.likeSong(song)
 
                     if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
@@ -2379,7 +2384,9 @@ class MusicService :
 
         // Sync with YouTube (handles login check internally)
         val setVideoId = if (isCurrentlySaved) database.getSetVideoId(songEntity.id)?.setVideoId else null
-        syncUtils.saveEpisode(songEntity.id, shouldBeSaved, setVideoId)
+        scope.launch {
+            syncUtils.saveEpisode(songEntity.id, shouldBeSaved, setVideoId)
+        }
     }
 
     fun toggleStartRadio() {
@@ -4565,15 +4572,15 @@ class MusicService :
     }
 
     private fun openPlaylistWidgetTarget(source: Intent) {
-        val activityIntent = Intent(this, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_OPEN_WIDGET_TARGET
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        val activityIntent = android.content.Intent(this, MainActivity::class.java).apply {
+            action = com.sachit.music.recognition.WidgetTargetContract.ACTION_OPEN_WIDGET_TARGET
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(
-                MainActivity.EXTRA_WIDGET_TARGET_TYPE,
+                com.sachit.music.recognition.WidgetTargetContract.EXTRA_WIDGET_TARGET_TYPE,
                 source.getStringExtra(PlaylistWidgetReceiver.EXTRA_TARGET_TYPE),
             )
             putExtra(
-                MainActivity.EXTRA_WIDGET_TARGET_ID,
+                com.sachit.music.recognition.WidgetTargetContract.EXTRA_WIDGET_TARGET_ID,
                 source.getStringExtra(PlaylistWidgetReceiver.EXTRA_TARGET_ID),
             )
         }

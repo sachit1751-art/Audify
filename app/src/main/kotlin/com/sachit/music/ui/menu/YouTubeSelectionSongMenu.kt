@@ -59,7 +59,7 @@ fun YouTubeSelectionSongMenu(
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val playerConnection = LocalPlayerConnection.current ?: return
     val coroutineScope = rememberCoroutineScope()
     val syncUtils = LocalSyncUtils.current
@@ -376,7 +376,7 @@ fun YouTubeSelectionSongMenu(
                                     )
                                 },
                                 onClick = {
-                                    songSelection.forEach { downloadUtil.download(it) }
+                                    songSelection.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                                     clearAction()
                                     onDismiss()
                                 },
@@ -425,7 +425,9 @@ fun YouTubeSelectionSongMenu(
                                                 libraryRemoveToken = metadata.libraryRemoveToken,
                                             )
                                         update(songEntity)
-                                        syncUtils.likeSong(songEntity)
+                                        coroutineScope.launch {
+                                            syncUtils.likeSong(songEntity)
+                                        }
                                     }
                                 }
                             }

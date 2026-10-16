@@ -9,7 +9,6 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
@@ -38,6 +37,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import com.sachit.music.recognition.WidgetTargetContract
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -607,7 +607,7 @@ class PlaylistWidgetManager @Inject constructor(
     }
 
     private fun getOpenAppIntent(): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java)
+        val intent = android.content.Intent(context, MainActivity::class.java)
         return PendingIntent.getActivity(
             context,
             500,
@@ -617,10 +617,16 @@ class PlaylistWidgetManager @Inject constructor(
     }
 
     private fun getOpenTargetIntent(item: QuickPick): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_OPEN_WIDGET_TARGET
-            putExtra(MainActivity.EXTRA_WIDGET_TARGET_TYPE, item.targetType)
-            putExtra(MainActivity.EXTRA_WIDGET_TARGET_ID, item.targetId)
+        val intent = android.content.Intent(context, MainActivity::class.java).apply {
+            action = com.sachit.music.recognition.WidgetTargetContract.ACTION_OPEN_WIDGET_TARGET
+            putExtra(
+                com.sachit.music.recognition.WidgetTargetContract.EXTRA_WIDGET_TARGET_TYPE,
+                item.targetType
+            )
+            putExtra(
+                com.sachit.music.recognition.WidgetTargetContract.EXTRA_WIDGET_TARGET_ID,
+                item.targetId
+            )
         }
         return PendingIntent.getActivity(
             context,
@@ -631,7 +637,7 @@ class PlaylistWidgetManager @Inject constructor(
     }
 
     private fun getPlayTargetIntent(item: QuickPick): PendingIntent {
-        val intent = Intent(context, PlaylistWidgetReceiver::class.java).apply {
+        val intent = android.content.Intent(context, PlaylistWidgetReceiver::class.java).apply {
             action = PlaylistWidgetReceiver.ACTION_PLAY_TARGET
             putExtra(PlaylistWidgetReceiver.EXTRA_TARGET_TYPE, item.targetType)
             putExtra(PlaylistWidgetReceiver.EXTRA_TARGET_ID, item.targetId)
@@ -649,7 +655,7 @@ class PlaylistWidgetManager @Inject constructor(
         action: String,
         requestCode: Int,
     ): PendingIntent {
-        val intent = Intent(context, MusicWidgetReceiver::class.java).apply {
+        val intent = android.content.Intent(context, MusicWidgetReceiver::class.java).apply {
             this.action = action
         }
         return PendingIntent.getBroadcast(

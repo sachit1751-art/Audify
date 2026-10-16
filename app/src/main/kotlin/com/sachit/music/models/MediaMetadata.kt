@@ -13,6 +13,7 @@ import com.sachit.music.db.entities.Song
 import com.sachit.music.db.entities.SongEntity
 import com.sachit.music.ui.utils.resize
 import com.sachit.music.utils.ArtistNameAliases
+import com.sachit.music.LocalArtistNameAliases
 import java.io.Serializable
 import java.time.LocalDateTime
 
@@ -91,7 +92,7 @@ fun Song.toMediaMetadata() =
         orderedArtists.map {
             MediaMetadata.Artist(
                 id = it.id,
-                name = ArtistNameAliases.resolve(it.id, it.name),
+                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name),
             )
         },
         duration = song.duration,
@@ -127,7 +128,7 @@ fun SongItem.toMediaMetadata() =
         artists.map {
             MediaMetadata.Artist(
                 id = it.id,
-                name = ArtistNameAliases.resolve(it.id, it.name),
+                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name),
             )
         },
         duration = duration ?: -1,
@@ -160,7 +161,7 @@ fun EpisodeItem.toMediaMetadata() =
         artists = listOfNotNull(author).map {
             MediaMetadata.Artist(
                 id = it.id,
-                name = ArtistNameAliases.resolve(it.id, it.name),
+                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name),
             )
         },
         duration = duration ?: -1,

@@ -78,7 +78,7 @@ fun SelectionSongMenu(
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
     val syncUtils = LocalSyncUtils.current
@@ -558,7 +558,7 @@ fun SelectionSongMenu(
                                             )
                                         },
                                         onClick = {
-                                            songSelection.forEach { downloadUtil.download(it) }
+                                            songSelection.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                                         },
                                     )
                                 }
@@ -591,7 +591,9 @@ fun SelectionSongMenu(
                                             if ((!allLiked && !song.song.liked) || allLiked) {
                                                 val s = song.song.toggleLike()
                                                 update(s)
-                                                syncUtils.likeSong(s)
+                                                coroutineScope.launch {
+                                                    syncUtils.likeSong(s)
+                                                }
                                             }
                                         }
                                     }
@@ -655,7 +657,7 @@ fun SelectionMediaMetadataMenu(
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val coroutineScope = rememberCoroutineScope()
     val playerConnection = LocalPlayerConnection.current ?: return
     val listenTogetherManager = com.sachit.music.LocalListenTogetherManager.current
@@ -959,7 +961,7 @@ fun SelectionMediaMetadataMenu(
                                             )
                                         },
                                         onClick = {
-                                            songSelection.forEach { downloadUtil.download(it) }
+                                            songSelection.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                                         },
                                     )
                                 }

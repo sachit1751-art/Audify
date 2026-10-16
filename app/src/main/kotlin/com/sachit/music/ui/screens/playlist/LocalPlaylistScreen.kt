@@ -243,7 +243,7 @@ fun LocalPlaylistScreen(
         BackHandler(onBack = onExitSelectionMode)
     }
 
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     var downloadState by remember {
         mutableIntStateOf(Download.STATE_STOPPED)
     }
@@ -558,25 +558,29 @@ fun LocalPlaylistScreen(
                 ) {
                     val currentItem by rememberUpdatedState(song)
 
-                    fun deleteFromPlaylist() {
+                    val deleteFromPlaylist = run {
                         // Capture values before deletion — DB entry will be gone afterwards
                         val browseId = playlist?.playlist?.browseId
                         val setVideoId = currentItem.map.setVideoId
                         val songId = currentItem.map.songId
                         val playlistId = currentItem.map.playlistId
 
-                        database.transaction {
-                            move(playlistId, currentItem.map.position, Int.MAX_VALUE)
-                            delete(currentItem.map.copy(position = Int.MAX_VALUE))
-                        }
+                        { ->
+                            database.transaction {
+                                move(playlistId, currentItem.map.position, Int.MAX_VALUE)
+                                delete(currentItem.map.copy(position = Int.MAX_VALUE))
+                            }
 
-                        if (browseId != null) {
-                            syncUtils.scheduleRemoveFromPlaylist(
-                                browseId,
-                                songId,
-                                playlistId
-                            ) {
-                                setVideoId
+                            if (browseId != null) {
+                                localScope.launch {
+                                    syncUtils.scheduleRemoveFromPlaylist(
+                                        browseId,
+                                        songId,
+                                        playlistId
+                                    ) {
+                                        setVideoId
+                                    }
+                                }
                             }
                         }
                     }
@@ -595,7 +599,7 @@ fun LocalPlaylistScreen(
                             )
                         ) {
                             processedDismiss = true
-                            deleteFromPlaylist()
+                            deleteFromPlaylist.invoke()
                         }
                         if (dv == SwipeToDismissBoxValue.Settled) {
                             processedDismiss = false
@@ -876,7 +880,7 @@ fun LocalPlaylistHeader(
     val database = LocalDatabase.current
     val menuState = LocalMenuState.current
     val syncUtils = LocalSyncUtils.current
-    val scope = rememberCoroutineScope()
+    val localScope = rememberCoroutineScope()
     val editPlaylistCoverStr = stringResource(R.string.edit_playlist_cover)
     val playlistSyncedStr = stringResource(R.string.playlist_synced)
 
@@ -885,7 +889,7 @@ fun LocalPlaylistHeader(
             songs.fastSumBy { it.song.song.duration }
         }
 
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     var downloadState by remember {
         mutableIntStateOf(Download.STATE_STOPPED)
     }
@@ -1123,7 +1127,7 @@ fun LocalPlaylistHeader(
                                                         }
 
                                                         else -> {
-                                                            scope.launch(Dispatchers.IO) {
+                                                            localScope.launch(Dispatchers.IO) {
                                                                 YouTube.removeThumbnailPlaylist(playlist.playlist.browseId).onSuccess { newThumbnailUrl ->
                                                                     overrideThumbnail.value = newThumbnailUrl
                                                                     database.query {
@@ -1204,7 +1208,7 @@ fun LocalPlaylistHeader(
                                                         }
 
                                                         else -> {
-                                                            scope.launch(Dispatchers.IO) {
+                                                            localScope.launch(Dispatchers.IO) {
                                                                 YouTube.removeThumbnailPlaylist(playlist.playlist.browseId).onSuccess { newThumbnailUrl ->
                                                                     overrideThumbnail.value = newThumbnailUrl
                                                                     database.query {
@@ -1386,7 +1390,7 @@ fun LocalPlaylistHeader(
                             downloadState = downloadState,
                             onEdit = onShowEditDialog,
                             onSync = {
-                                scope.launch(Dispatchers.IO) {
+                                localScope.launch(Dispatchers.IO) {
                                     val playlistPage =
                                         YouTube
                                             .playlist(playlist.playlist.browseId!!)
@@ -1426,7 +1430,9 @@ fun LocalPlaylistHeader(
 
                                     else -> {
                                         songs.forEach { song ->
-                                            downloadUtil.download(song.song)
+                                            localScope.launch {
+                                                downloadUtil.download(song.song)
+                                            }
                                         }
                                     }
                                 }

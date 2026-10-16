@@ -29,6 +29,8 @@ import com.sachit.music.widget.MusicRecognizerWidgetReceiver
 import com.sachit.shazamkit.models.RecognitionResult
 import com.sachit.shazamkit.models.RecognitionStatus
 import dagger.hilt.EntryPoint
+import com.sachit.music.recognition.AudioRecognizerContract
+import com.sachit.music.recognition.WidgetTargetContract
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent

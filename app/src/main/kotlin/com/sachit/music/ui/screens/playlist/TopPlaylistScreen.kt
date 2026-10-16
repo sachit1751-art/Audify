@@ -77,6 +77,8 @@ import coil3.compose.AsyncImage
 import com.sachit.music.LocalDownloadUtil
 import com.sachit.music.LocalPlayerAwareWindowInsets
 import com.sachit.music.LocalPlayerConnection
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.sachit.music.R
 import com.sachit.music.constants.MyTopFilter
 import com.sachit.music.db.entities.Song
@@ -175,7 +177,8 @@ fun TopPlaylistScreen(
     val sortType by viewModel.topPeriod.collectAsStateWithLifecycle()
     val name = stringResource(R.string.my_top) + " $maxSize"
 
-    val downloadUtil = LocalDownloadUtil.current
+    val coroutineScope = rememberCoroutineScope()
+    val downloadUtil = LocalDownloadUtil.current ?: return
     var downloadState by remember { mutableIntStateOf(Download.STATE_STOPPED) }
 
     LaunchedEffect(songs) {
@@ -184,7 +187,7 @@ fun TopPlaylistScreen(
             songs?.let { addAll(it) }
         }
         if (songs?.isEmpty() == true) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
+        downloadUtil!!.downloads.collect { downloads ->
             downloadState =
                 if (songs?.all { downloads[it.song.id]?.state == Download.STATE_COMPLETED } == true) {
                     Download.STATE_COMPLETED
@@ -531,7 +534,8 @@ private fun TopPlaylistHeader(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
-    val downloadUtil = LocalDownloadUtil.current
+    val coroutineScope = rememberCoroutineScope()
+    val downloadUtil = LocalDownloadUtil.current ?: return
 
     Column(
         modifier = modifier
@@ -676,7 +680,7 @@ private fun TopPlaylistHeader(
                                         }
                                     }
                                     else -> {
-                                        songs.forEach { downloadUtil.download(it) }
+                                        songs.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                                     }
                                 }
                             },

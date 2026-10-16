@@ -51,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -499,8 +500,10 @@ fun SongListItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id)
-                .collectAsStateWithLifecycle(initialValue = null)
+            val downloadUtil = LocalDownloadUtil.current
+            val download by downloadUtil?.getDownload(song.id)
+                ?.collectAsStateWithLifecycle(initialValue = null)
+                ?: remember { mutableStateOf<Download?>(null) }
             Icon.Download(download?.state)
         }
     },
@@ -591,7 +594,10 @@ fun SongGridItem(
             Icon.Library()
         }
         if (showDownloadIcon) {
-            val download by LocalDownloadUtil.current.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
+            val downloadUtil = LocalDownloadUtil.current
+            val download by downloadUtil?.getDownload(song.id)
+                ?.collectAsStateWithLifecycle(initialValue = null)
+                ?: remember { mutableStateOf<Download?>(null) }
             Icon.Download(download?.state)
         }
     },
@@ -731,7 +737,7 @@ fun AlbumListItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsStateWithLifecycle()
+        val allDownloads by downloadUtil?.downloads?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(emptyMap()) }
 
         val downloadState by remember(songs, allDownloads) {
             androidx.compose.runtime.mutableIntStateOf(
@@ -802,7 +808,7 @@ fun AlbumGridItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsStateWithLifecycle()
+        val allDownloads by downloadUtil?.downloads?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(emptyMap()) }
 
         val downloadState by remember(songs, allDownloads) {
             androidx.compose.runtime.mutableIntStateOf(
@@ -895,7 +901,7 @@ fun PlaylistListItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsStateWithLifecycle()
+        val allDownloads by downloadUtil?.downloads?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(emptyMap()) }
 
         val downloadState by remember(songs, allDownloads) {
             androidx.compose.runtime.mutableIntStateOf(
@@ -976,7 +982,7 @@ fun PlaylistGridItem(
             }
         }
 
-        val allDownloads by downloadUtil.downloads.collectAsStateWithLifecycle()
+        val allDownloads by downloadUtil?.downloads?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(emptyMap()) }
 
         val downloadState by remember(songs, allDownloads) {
             mutableIntStateOf(
@@ -1148,7 +1154,9 @@ fun YouTubeListItem(
         //     Icon.Library()
         // }
         if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsStateWithLifecycle(null)
+            val downloadUtil = LocalDownloadUtil.current
+            val download by downloadUtil?.getDownload(item.id)
+                ?.collectAsStateWithLifecycle(null) ?: remember { mutableStateOf<Download?>(null) }
             Icon.Download(download?.state)
         }
     },
@@ -1253,7 +1261,9 @@ fun YouTubeGridItem(
         if (item.explicit) Icon.Explicit()
         // if (item is SongItem && song?.song?.inLibrary != null) Icon.Library()
         if (item is SongItem) {
-            val download by LocalDownloadUtil.current.getDownload(item.id).collectAsStateWithLifecycle(null)
+            val downloadUtil = LocalDownloadUtil.current
+            val download by downloadUtil?.getDownload(item.id)
+                ?.collectAsStateWithLifecycle(null) ?: remember { mutableStateOf<Download?>(null) }
             Icon.Download(download?.state)
         }
     },

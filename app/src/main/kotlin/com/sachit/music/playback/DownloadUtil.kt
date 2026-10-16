@@ -313,7 +313,7 @@ constructor(
 
     fun download(song: Song) = download(song.toMediaMetadata())
 
-    fun download(song: SongItem) = download(song.toMediaMetadata())
+    suspend fun download(song: SongItem) = download(song.toMediaMetadata())
 
     fun download(mediaMetadata: MediaMetadata) {
         scope.launch {

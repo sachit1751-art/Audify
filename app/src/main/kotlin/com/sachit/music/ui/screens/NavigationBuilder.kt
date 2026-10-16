@@ -47,7 +47,7 @@ import com.sachit.music.ui.screens.settings.AboutScreen
 import com.sachit.music.ui.screens.settings.AiSettings
 import com.sachit.music.ui.screens.settings.AndroidAutoSettings
 import com.sachit.music.ui.screens.settings.AppearanceSettings
-import com.sachit.music.ui.screens.settings.BackupAndRestore
+import com.sachit.music.ui.screens.settings.BackupAndRestoreScreen
 import com.sachit.music.ui.screens.settings.ContentSettings
 import com.sachit.music.ui.screens.settings.DarkMode
 import com.sachit.music.ui.screens.settings.PlayerSettings
@@ -359,7 +359,7 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings") {
-        SettingsScreen(navController, latestVersionName)
+        SettingsScreen(onNavigateUp = { navController.popBackStack() })
     }
 
     composable("settings/appearance") {
@@ -395,7 +395,7 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings/backup_restore") {
-        BackupAndRestore(navController)
+        BackupAndRestoreScreen(onNavigateUp = { navController.popBackStack() })
     }
 
     composable("settings/integrations") {

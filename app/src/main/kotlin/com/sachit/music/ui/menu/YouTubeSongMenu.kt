@@ -103,7 +103,7 @@ fun YouTubeSongMenu(
     val context = LocalContext.current
     val database = LocalDatabase.current
     val playerConnection = LocalPlayerConnection.current ?: return
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val librarySong by database.song(song.id).collectAsStateWithLifecycle(initialValue = null)
     val download by downloadUtil.getDownload(song.id).collectAsStateWithLifecycle(initialValue = null)
     val coroutineScope = rememberCoroutineScope()
@@ -263,7 +263,9 @@ fun YouTubeSongMenu(
                                     s = librarySong.song.toggleLike()
                                     update(s)
                                 }
-                                syncUtils.likeSong(s)
+                                coroutineScope.launch {
+                                    syncUtils.likeSong(s)
+                                }
                             }
                         }
                     }
@@ -443,7 +445,9 @@ fun YouTubeSongMenu(
                                             librarySong?.song?.let { update(it.copy(inLibrary = null)) }
                                         }
                                         // Sync with YouTube (handles login check internally)
-                                        syncUtils.saveEpisode(song.id, false, song.setVideoId)
+                                        coroutineScope.launch {
+                                            syncUtils.saveEpisode(song.id, false, song.setVideoId)
+                                        }
                                         onDismiss()
                                     }
                                 )
@@ -470,7 +474,9 @@ fun YouTubeSongMenu(
                                             }
                                         }
                                         // Sync with YouTube (handles login check internally)
-                                        syncUtils.saveEpisode(song.id, true, null)
+                                        coroutineScope.launch {
+                                            syncUtils.saveEpisode(song.id, true, null)
+                                        }
                                         onDismiss()
                                     }
                                 )
@@ -631,7 +637,9 @@ fun YouTubeSongMenu(
                                     )
                                 },
                                 onClick = {
-                                    downloadUtil.download(song)
+                                    coroutineScope.launch {
+                                        downloadUtil!!.download(song)
+                                    }
                                 }
                             )
                         }

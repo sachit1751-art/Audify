@@ -102,7 +102,7 @@ fun AlbumMenu(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val playerConnection = LocalPlayerConnection.current ?: return
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
@@ -127,7 +127,7 @@ fun AlbumMenu(
 
     LaunchedEffect(songs) {
         if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
+        downloadUtil!!.downloads.collect { downloads ->
             downloadState =
                 if (songs.all { downloads[it.id]?.state == STATE_COMPLETED }) {
                     STATE_COMPLETED
@@ -542,7 +542,7 @@ fun AlbumMenu(
                                         )
                                     },
                                     onClick = {
-                                        songs.forEach { downloadUtil.download(it) }
+                                        songs.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                                     },
                                 )
                             }

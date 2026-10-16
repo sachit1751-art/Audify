@@ -137,7 +137,9 @@ fun AddToPlaylistDialog(
         )
         targetPlaylist.playlist.browseId?.let { plist ->
             ids.forEach { songId ->
-                syncUtils.addToPlaylist(plist, targetPlaylist.id, songId)
+                coroutineScope.launch {
+                    syncUtils.addToPlaylist(plist, targetPlaylist.id, songId)
+                }
             }
         }
     }

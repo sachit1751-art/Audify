@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.core.content.ContextCompat
 import com.sachit.music.MainActivity
+import com.sachit.music.recognition.AudioRecognizerContract
 
 class RecognitionLaunchActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,8 +38,8 @@ class RecognitionLaunchActivity : Activity() {
     private fun openRecognitionPermissionFlow() {
         val intent =
             Intent(this, MainActivity::class.java).apply {
-                action = MainActivity.ACTION_RECOGNITION
-                putExtra(MainActivity.EXTRA_AUTO_START_RECOGNITION, true)
+                action = AudioRecognizerContract.ACTION_RECOGNITION
+                putExtra(AudioRecognizerContract.EXTRA_AUTO_START_RECOGNITION, true)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
         startActivity(intent)

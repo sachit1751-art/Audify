@@ -34,6 +34,7 @@ import com.sachit.music.extensions.filterExplicit
 import com.sachit.music.extensions.filterExplicitAlbums
 import com.sachit.music.utils.SyncUtils
 import com.sachit.music.utils.ArtistNameAliases
+import com.sachit.music.LocalArtistNameAliases
 import com.sachit.music.utils.dataStore
 import com.sachit.music.utils.get
 import com.sachit.music.utils.reportException
@@ -230,7 +231,7 @@ class ArtistViewModel @Inject constructor(
                             if (existingArtist != null) {
                                 database.update(
                                     existingArtist.copy(
-                                        name = ArtistNameAliases.resolve(existingArtist.id, resolvedPage.artist.title),
+                                        name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), existingArtist.id, resolvedPage.artist.title),
                                         channelId = resolvedPage.artist.channelId ?: existingArtist.channelId,
                                         thumbnailUrl = resolvedPage.artist.thumbnail ?: existingArtist.thumbnailUrl,
                                         cachedPageJson = cachedJson,
@@ -242,7 +243,7 @@ class ArtistViewModel @Inject constructor(
                                 database.insert(
                                     ArtistEntity(
                                         id = artistId,
-                                        name = ArtistNameAliases.resolve(artistId, apiArtist.title),
+                                        name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artistId, apiArtist.title),
                                         channelId = apiArtist.channelId,
                                         thumbnailUrl = apiArtist.thumbnail,
                                         cachedPageJson = cachedJson,
@@ -296,7 +297,7 @@ class ArtistViewModel @Inject constructor(
                     database.insert(
                         ArtistEntity(
                             id = artistId,
-                            name = ArtistNameAliases.resolve(artistId, it.title),
+                            name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artistId, it.title),
                             channelId = it.channelId,
                             thumbnailUrl = it.thumbnail,
                             bookmarkedAt = java.time.LocalDateTime.now(),

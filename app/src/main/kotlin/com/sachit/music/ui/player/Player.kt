@@ -136,6 +136,7 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.sachit.music.LocalDatabase
 import com.sachit.music.LocalDownloadUtil
+import androidx.media3.exoplayer.offline.Download
 import com.sachit.music.LocalListenTogetherManager
 import com.sachit.music.LocalPlayerConnection
 import com.sachit.music.R
@@ -609,8 +610,8 @@ fun BottomSheetPlayer(
             }
         }
 
-    val download by LocalDownloadUtil.current
-        .getDownload(mediaMetadata?.id ?: "")
+    val downloadUtil = LocalDownloadUtil.current ?: return
+    val download by downloadUtil.getDownload(mediaMetadata?.id ?: "")
         .collectAsStateWithLifecycle(initialValue = null)
 
     val sleepTimerEnabled =

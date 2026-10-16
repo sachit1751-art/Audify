@@ -8,7 +8,6 @@ package com.sachit.music.widget
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.content.Intent
 import com.sachit.music.MainActivity
 import com.sachit.music.playback.MusicService
 import dagger.hilt.android.AndroidEntryPoint
@@ -17,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import timber.log.Timber
+import com.sachit.music.recognition.WidgetTargetContract
 
 @AndroidEntryPoint
 class PlaylistWidgetReceiver : AppWidgetProvider() {
@@ -41,12 +41,12 @@ class PlaylistWidgetReceiver : AppWidgetProvider() {
         refreshIdleWidget(appWidgetId, newOptions)
     }
 
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(context: Context, intent: android.content.Intent) {
         super.onReceive(context, intent)
 
         when (intent.action) {
             ACTION_PLAY_TARGET -> {
-                val serviceIntent = Intent(context, MusicService::class.java).apply {
+                val serviceIntent = android.content.Intent(context, MusicService::class.java).apply {
                     action = ACTION_PLAY_TARGET
                     putExtra(EXTRA_TARGET_TYPE, intent.getStringExtra(EXTRA_TARGET_TYPE))
                     putExtra(EXTRA_TARGET_ID, intent.getStringExtra(EXTRA_TARGET_ID))
@@ -111,16 +111,16 @@ class PlaylistWidgetReceiver : AppWidgetProvider() {
         }
     }
 
-    private fun openTargetInApp(context: Context, source: Intent) {
-        val activityIntent = Intent(context, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_OPEN_WIDGET_TARGET
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+    private fun openTargetInApp(context: Context, source: android.content.Intent) {
+        val activityIntent = android.content.Intent(context, MainActivity::class.java).apply {
+            action = com.sachit.music.recognition.WidgetTargetContract.ACTION_OPEN_WIDGET_TARGET
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(
-                MainActivity.EXTRA_WIDGET_TARGET_TYPE,
+                com.sachit.music.recognition.WidgetTargetContract.EXTRA_WIDGET_TARGET_TYPE,
                 source.getStringExtra(EXTRA_TARGET_TYPE),
             )
             putExtra(
-                MainActivity.EXTRA_WIDGET_TARGET_ID,
+                com.sachit.music.recognition.WidgetTargetContract.EXTRA_WIDGET_TARGET_ID,
                 source.getStringExtra(EXTRA_TARGET_ID),
             )
         }

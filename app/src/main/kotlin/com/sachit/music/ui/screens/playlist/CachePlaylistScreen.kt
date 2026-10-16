@@ -74,6 +74,8 @@ import coil3.compose.AsyncImage
 import com.sachit.music.LocalDownloadUtil
 import com.sachit.music.LocalPlayerAwareWindowInsets
 import com.sachit.music.LocalPlayerConnection
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.sachit.music.R
 import com.sachit.music.constants.HideExplicitKey
 import com.sachit.music.constants.SongSortDescendingKey
@@ -470,7 +472,8 @@ private fun CachePlaylistHeader(
     modifier: Modifier = Modifier
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
-    val downloadUtil = LocalDownloadUtil.current
+    val coroutineScope = rememberCoroutineScope()
+    val downloadUtil = LocalDownloadUtil.current ?: return
 
     Column(
         modifier = modifier
@@ -597,7 +600,7 @@ private fun CachePlaylistHeader(
                             },
                             onDownload = {
                                 // Download all cached songs
-                                songs.forEach { downloadUtil.download(it) }
+                                songs.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                             },
                             onDismiss = { menuState.dismiss() }
                         )

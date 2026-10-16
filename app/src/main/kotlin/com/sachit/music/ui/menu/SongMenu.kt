@@ -85,7 +85,6 @@ import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.models.toMediaMetadata
 import com.sachit.music.playback.ExoDownloadService
 import com.sachit.music.playback.queues.YouTubeQueue
-import com.sachit.music.utils.AudioContainer
 import com.sachit.music.utils.AudioExporter
 import com.sachit.music.ui.component.DefaultDialog
 import com.sachit.music.ui.component.ListDialog
@@ -124,7 +123,7 @@ fun SongMenu(
     val playerConnection = LocalPlayerConnection.current ?: return
     val songState = database.song(originalSong.id).collectAsStateWithLifecycle(initialValue = originalSong)
     val song = songState.value ?: originalSong
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val download by downloadUtil
         .getDownload(originalSong.id)
         .collectAsStateWithLifecycle(initialValue = null)
@@ -516,7 +515,9 @@ fun SongMenu(
                         database.query {
                             update(s)
                         }
-                        syncUtils.likeSong(s)
+                        coroutineScope.launch {
+                            syncUtils.likeSong(s)
+                        }
                     }
                 },
             ) {
@@ -789,7 +790,9 @@ fun SongMenu(
 
                                             // Sync with YouTube (handles login check internally)
                                             val setVideoId = if (isEpisodeSaved) database.getSetVideoId(song.id)?.setVideoId else null
-                                            syncUtils.saveEpisode(song.id, shouldBeSaved, setVideoId)
+                                            coroutineScope.launch {
+                                                syncUtils.saveEpisode(song.id, shouldBeSaved, setVideoId)
+                                            }
                                         }
                                         onDismiss()
                                     },
@@ -884,12 +887,14 @@ fun SongMenu(
                                                 delete(ps.map.copy(position = Int.MAX_VALUE))
                                             }
                                             playlistBrowseId?.let { browseId ->
-                                                syncUtils.scheduleRemoveFromPlaylist(
-                                                    browseId,
-                                                    ps.map.songId,
-                                                    ps.map.playlistId
-                                                ) {
-                                                    capturedSetVideoId
+                                                coroutineScope.launch {
+                                                    syncUtils.scheduleRemoveFromPlaylist(
+                                                        browseId,
+                                                        ps.map.songId,
+                                                        ps.map.playlistId
+                                                    ) {
+                                                        capturedSetVideoId
+                                                    }
                                                 }
                                             }
                                             onDismiss()
@@ -979,6 +984,7 @@ fun SongMenu(
                                     exportError = null
                                     coroutineScope.launch(Dispatchers.IO) {
                                         val result = audioExporter.exportAudio(
+                                            context = context,
                                             songId = song.id,
                                             title = song.song.title,
                                             artistName = song.orderedArtists.firstOrNull()?.name,
@@ -1012,20 +1018,19 @@ fun SongMenu(
                                         painter = painterResource(R.drawable.share),
                                         contentDescription = null,
                                     )
-                                },
-                                onClick = {
-                                    coroutineScope.launch(Dispatchers.IO) {
-                                        val result = audioExporter.exportAudio(
-                                            songId = song.id,
-                                            title = song.song.title,
-                                            artistName = song.orderedArtists.firstOrNull()?.name,
-                                        )
+                                },                                    onClick = {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            val result = audioExporter.exportAudio(
+                                                context = context,
+                                                songId = song.id,
+                                                title = song.song.title,
+                                                artistName = song.orderedArtists.firstOrNull()?.name,
+                                            )
                                         kotlinx.coroutines.withContext(Dispatchers.Main) {
                                             result.onSuccess { file ->
                                                 audioExporter.shareAudio(
                                                     context,
                                                     file,
-                                                    AudioExporter.mimeTypeForFile(file),
                                                 )
                                             }.onFailure {
                                                 Toast.makeText(context, R.string.export_audio_failed, Toast.LENGTH_SHORT).show()
@@ -1103,7 +1108,9 @@ fun SongMenu(
                                         )
                                     },
                                     onClick = {
-                                        downloadUtil.download(song)
+                                        coroutineScope.launch {
+                                            downloadUtil.download(song)
+                                        }
                                     },
                                 )
                             }

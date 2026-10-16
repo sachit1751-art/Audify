@@ -94,7 +94,7 @@ fun QueueMenu(
     val coroutineScope = rememberCoroutineScope()
     val syncUtils = LocalSyncUtils.current
 
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val librarySong by database.song(mediaMetadata.id).collectAsStateWithLifecycle(initialValue = null)
     val download by downloadUtil.getDownload(mediaMetadata.id)
         .collectAsStateWithLifecycle(initialValue = null)
@@ -233,7 +233,9 @@ fun QueueMenu(
                                 database.query {
                                     update(s)
                                 }
-                                syncUtils.likeSong(s)
+                                coroutineScope.launch {
+                                    syncUtils.likeSong(s)
+                                }
                             }
                         }
                     }
@@ -441,7 +443,9 @@ fun QueueMenu(
                                     )
                                 },
                                 onClick = {
-                                    downloadUtil.download(mediaMetadata)
+                                    coroutineScope.launch {
+                                        downloadUtil!!.download(mediaMetadata)
+                                    }
                                 }
                             )
                         }

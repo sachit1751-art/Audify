@@ -26,6 +26,7 @@ import com.sachit.music.db.entities.PlaylistSongMap
 import com.sachit.music.db.entities.PodcastEntity
 import com.sachit.music.db.entities.SetVideoIdEntity
 import com.sachit.music.db.entities.SongEntity
+import com.sachit.music.LocalArtistNameAliases
 import com.sachit.music.extensions.collectLatest
 import com.sachit.music.extensions.isInternetConnected
 import com.sachit.music.extensions.isSyncEnabled
@@ -954,7 +955,7 @@ class SyncUtils @Inject constructor(
                                     insert(
                                         ArtistEntity(
                                             id = artist.id,
-                                            name = ArtistNameAliases.resolve(artist.id, artist.title),
+                                            name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.title),
                                             thumbnailUrl = artist.thumbnail,
                                             channelId = channelId,
                                             bookmarkedAt = LocalDateTime.now()
@@ -963,7 +964,7 @@ class SyncUtils @Inject constructor(
                                 } else {
                                     val existing = dbArtist
                                     val needsChannelIdUpdate = existing.channelId == null && channelId != null
-                                    val resolvedName = ArtistNameAliases.resolve(existing.id, artist.title)
+                                    val resolvedName = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), existing.id, artist.title)
                                     if (existing.bookmarkedAt == null || needsChannelIdUpdate ||
                                         existing.name != resolvedName || existing.thumbnailUrl != artist.thumbnail) {
                                         update(

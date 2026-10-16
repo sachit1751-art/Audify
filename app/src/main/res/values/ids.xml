@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget target resolution -->
+    <string name="ACTION_OPEN_WIDGET_TARGET">com.sachit.music.action.OPEN_WIDGET_TARGET</string>
+    <string name="EXTRA_WIDGET_TARGET_TYPE">com.sachit.music.extra.WIDGET_TARGET_TYPE</string>
+    <string name="EXTRA_WIDGET_TARGET_ID">com.sachit.music.extra.WIDGET_TARGET_ID</string>
+
+    <!-- Audio recognition -->
+    <string name="ACTION_RECOGNITION">com.sachit.music.action.RECOGNITION</string>
+    <string name="EXTRA_AUTO_START_RECOGNITION">com.sachit.music.extra.AUTO_START_RECOGNITION</string>
+</resources>

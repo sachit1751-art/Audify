@@ -109,7 +109,7 @@ fun YouTubePlaylistMenu(
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
-    val downloadUtil = LocalDownloadUtil.current
+    val downloadUtil = LocalDownloadUtil.current ?: return
     val playerConnection = LocalPlayerConnection.current ?: return
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
@@ -258,7 +258,7 @@ fun YouTubePlaylistMenu(
     }
     LaunchedEffect(songs) {
         if (songs.isEmpty()) return@LaunchedEffect
-        downloadUtil.downloads.collect { downloads ->
+        downloadUtil!!.downloads.collect { downloads ->
             downloadState =
                 if (songs.all { downloads[it.id]?.state == Download.STATE_COMPLETED }) {
                     Download.STATE_COMPLETED
@@ -645,7 +645,7 @@ fun YouTubePlaylistMenu(
                                                 )
                                             },
                                             onClick = {
-                                                songs.forEach { downloadUtil.download(it) }
+                                                songs.forEach { coroutineScope.launch { downloadUtil!!.download(it) } }
                                             },
                                         )
                                     }

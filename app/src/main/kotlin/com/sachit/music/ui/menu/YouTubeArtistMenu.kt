@@ -44,6 +44,7 @@ import com.sachit.music.ui.component.NewAction
 import com.sachit.music.ui.component.NewActionGrid
 import com.sachit.music.ui.component.YouTubeListItem
 import com.sachit.music.utils.ArtistNameAliases
+import com.sachit.music.LocalArtistNameAliases
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -189,7 +190,7 @@ fun YouTubeArtistMenu(
                                     insert(
                                         ArtistEntity(
                                             id = artist.id,
-                                            name = ArtistNameAliases.resolve(artist.id, artist.title),
+                                            name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.title),
                                             channelId = artist.channelId,
                                             thumbnailUrl = artist.thumbnail,
                                         ).toggleLike()
