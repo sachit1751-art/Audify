@@ -295,17 +295,6 @@ fun HistoryScreen(
                                                 )
                                             }
                                         },
-                                        onLongClick = {
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    onDismiss = menuState::dismiss,
-                                                    onHistoryRemoved = {
-                                                        viewModel.fetchRemoteHistory()
-                                                    },
-                                                )
-                                            }
-                                        },
                                     ).animateItem(),
                         )
                     }
@@ -382,13 +371,6 @@ fun HistoryScreen(
                                                         startIndex = index,
                                                     ),
                                                 )
-                                            }
-                                        },
-                                        onLongClick = {
-                                            if (!inSelectMode) {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                inSelectMode = true
-                                                onCheckedChange(true)
                                             }
                                         },
                                     ).animateItem(),
@@ -482,11 +464,6 @@ fun HistoryScreen(
                             query = TextFieldValue()
                         } else {
                             navController.navigateUp()
-                        }
-                    },
-                    onLongClick = {
-                        if (!isSearching) {
-                            navController.backToMain()
                         }
                     },
                 ) {

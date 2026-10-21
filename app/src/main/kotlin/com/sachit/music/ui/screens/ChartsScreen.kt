@@ -296,15 +296,6 @@ fun ChartsScreen(
                                                                 )
                                                             }
                                                         },
-                                                        onLongClick = {
-                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            menuState.show {
-                                                                YouTubeSongMenu(
-                                                                    song = song,
-                                                                    onDismiss = menuState::dismiss,
-                                                                )
-                                                            }
-                                                        },
                                                     ),
                                         )
                                     }
@@ -349,15 +340,6 @@ fun ChartsScreen(
                                                                     endpoint = WatchEndpoint(videoId = video.id),
                                                                     preloadItem = video.toMediaMetadata(),
                                                                 ),
-                                                            )
-                                                        }
-                                                    },
-                                                    onLongClick = {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        menuState.show {
-                                                            YouTubeSongMenu(
-                                                                song = video,
-                                                                onDismiss = menuState::dismiss,
                                                             )
                                                         }
                                                     },

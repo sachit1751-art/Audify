@@ -613,32 +613,6 @@ fun AutoPlaylistScreen(
                                                 )
                                             }
                                         },
-                                        onLongClick = {
-                                            if (!inSelectMode) {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                inSelectMode = true
-                                                onCheckedChange(true)
-                                                selectionAnchorSongId = song.id
-                                            } else {
-                                                val anchorIndex =
-                                                    selectionAnchorSongId?.let { anchorSongId ->
-                                                        filteredSongs.indexOfFirst { it.id == anchorSongId }
-                                                    } ?: -1
-
-                                                if (anchorIndex == -1) {
-                                                    onCheckedChange(true)
-                                                    selectionAnchorSongId = song.id
-                                                } else {
-                                                    val range = if (anchorIndex <= index) anchorIndex..index else index..anchorIndex
-                                                    for (rangeIndex in range) {
-                                                        val rangeSongId = filteredSongs[rangeIndex].id
-                                                        if (rangeSongId !in selection) {
-                                                            selection.add(rangeSongId)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
                                     ).animateItem(),
                         )
                     }
@@ -766,11 +740,6 @@ fun AutoPlaylistScreen(
 
                                 navController.navigateUp()
                             }
-                        }
-                    },
-                    onLongClick = {
-                        if (!isSearching && !inSelectMode) {
-                            navController.backToMain()
                         }
                     },
                 ) {

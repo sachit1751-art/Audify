@@ -92,7 +92,7 @@ fun Song.toMediaMetadata() =
         orderedArtists.map {
             MediaMetadata.Artist(
                 id = it.id,
-                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name),
+                name = ArtistNameAliases.resolve(it.id, it.name),
             )
         },
         duration = song.duration,
@@ -128,7 +128,7 @@ fun SongItem.toMediaMetadata() =
         artists.map {
             MediaMetadata.Artist(
                 id = it.id,
-                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name),
+                name = ArtistNameAliases.resolve(it.id, it.name),
             )
         },
         duration = duration ?: -1,
@@ -161,7 +161,7 @@ fun EpisodeItem.toMediaMetadata() =
         artists = listOfNotNull(author).map {
             MediaMetadata.Artist(
                 id = it.id,
-                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name),
+                name = ArtistNameAliases.resolve(it.id, it.name),
             )
         },
         duration = duration ?: -1,

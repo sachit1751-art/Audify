@@ -151,18 +151,9 @@ fun SmartPlaylistScreen(
                                         ),
                                     )
                                 }
-                            },
-                            onLongClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                menuState.show {
-                                    SongMenu(
-                                        originalSong = song,
-                                        onDismiss = menuState::dismiss,
-                                    )
-                                }
-                            },
-                        )
-                        .animateItem(),
+                            }
+                        },
+                        ).animateItem(),
                 )
             }
         }

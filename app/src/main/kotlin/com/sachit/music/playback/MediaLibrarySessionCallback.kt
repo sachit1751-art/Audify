@@ -324,10 +324,10 @@ constructor(
                                                 MediaMetadata.Builder()
                                                     .setTitle(songItem.title)
                                                     .setSubtitle(songItem.artists.joinToArtistString(getArtistSeparator(context)) {
-                                                        ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                                                        ArtistNameAliases.resolve(it.id, it.name)
                                                     })
                                                     .setArtist(songItem.artists.joinToArtistString(getArtistSeparator(context)) {
-                                                        ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                                                        ArtistNameAliases.resolve(it.id, it.name)
                                                     })
                                                     .setArtworkUri(songItem.thumbnail.toUri())
                                                     .setIsPlayable(true)
@@ -364,7 +364,7 @@ constructor(
                 database.artistsByCreateDateAsc(request.limit, request.offset).map { artist ->
                     browsableMediaItem(
                         "${MusicService.ARTIST}/${artist.id}",
-                        ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.artist.name),
+                        ArtistNameAliases.resolve(artist.id, artist.artist.name),
                         context.resources.getQuantityString(
                             R.plurals.n_song,
                             artist.songCount,
@@ -381,7 +381,7 @@ constructor(
                         "${MusicService.ALBUM}/${album.id}",
                         album.album.title,
                         album.artists.joinToString {
-                            ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                            ArtistNameAliases.resolve(it.id, it.name)
                         },
                         album.album.thumbnailUrl?.toUri(),
                         MediaMetadata.MEDIA_TYPE_ALBUM,
@@ -602,9 +602,9 @@ constructor(
                                 .setMediaMetadata(
                                     MediaMetadata.Builder()
                                         .setTitle(songItem.title)
-                                        .setSubtitle(songItem.artists.joinToArtistString(getArtistSeparator(context)) {                    ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                                        .setSubtitle(songItem.artists.joinToArtistString(getArtistSeparator(context)) {                    ArtistNameAliases.resolve(it.id, it.name)
                      })
-                                        .setArtist(songItem.artists.joinToArtistString(getArtistSeparator(context)) {                    ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                                        .setArtist(songItem.artists.joinToArtistString(getArtistSeparator(context)) {                    ArtistNameAliases.resolve(it.id, it.name)
                      })
                                         .setArtworkUri(songItem.thumbnail.toUri())
                                         .setIsPlayable(true)
@@ -912,10 +912,10 @@ constructor(
                      .Builder()
                      .setTitle(song.title)
                      .setSubtitle(artists.joinToArtistString(getArtistSeparator(context)) {
-                         ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                         ArtistNameAliases.resolve(it.id, it.name)
                      })
                      .setArtist(artists.joinToArtistString(getArtistSeparator(context)) {
-                         ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), it.id, it.name)
+                         ArtistNameAliases.resolve(it.id, it.name)
                      })
                      .setArtworkUri(song.thumbnailUrl?.toUri())
                     .setIsPlayable(isPlayable)

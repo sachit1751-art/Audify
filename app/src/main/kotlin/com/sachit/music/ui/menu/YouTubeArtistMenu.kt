@@ -190,7 +190,7 @@ fun YouTubeArtistMenu(
                                     insert(
                                         ArtistEntity(
                                             id = artist.id,
-                                            name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.title),
+                                            name = ArtistNameAliases.resolve(artist.id, artist.title),
                                             channelId = artist.channelId,
                                             thumbnailUrl = artist.thumbnail,
                                         ).toggleLike()

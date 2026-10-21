@@ -531,17 +531,6 @@ fun DailyDiscoverCard(
                 .clip(RoundedCornerShape(28.dp))
                 .combinedClickable(
                     onClick = onClick,
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (song != null) {
-                            menuState.show {
-                                YouTubeSongMenu(
-                                    song = song,
-                                    onDismiss = { menuState.dismiss() },
-                                )
-                            }
-                        }
-                    },
                 ),
         colors =
             CardDefaults.cardColors(
@@ -888,17 +877,6 @@ fun HomeScreen(
                                         }
                                     }
                                 },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(
-                                        HapticFeedbackType.LongPress,
-                                    )
-                                    menuState.show {
-                                        SongMenu(
-                                            originalSong = it,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-                                },
                             ),
                     isActive = it.id == mediaMetadata?.id,
                     isPlaying = isPlaying,
@@ -918,15 +896,6 @@ fun HomeScreen(
                                 onClick = {
                                     navController.navigate("album/${it.id}")
                                 },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    menuState.show {
-                                        AlbumMenu(
-                                            originalAlbum = it,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-                                },
                             ),
                 )
             }
@@ -940,18 +909,6 @@ fun HomeScreen(
                             .combinedClickable(
                                 onClick = {
                                     navController.navigate("artist/${it.id}")
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(
-                                        HapticFeedbackType.LongPress,
-                                    )
-                                    menuState.show {
-                                        ArtistMenu(
-                                            originalArtist = it,
-                                            coroutineScope = scope,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
                                 },
                             ),
                 )
@@ -1016,56 +973,6 @@ fun HomeScreen(
                                                 title = item.title,
                                                 items = listOf(item.toMediaMetadata().toMediaItem()),
                                             ),
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        onLongClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            menuState.show {
-                                when (item) {
-                                    is SongItem -> {
-                                        YouTubeSongMenu(
-                                            song = item,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-
-                                    is AlbumItem -> {
-                                        YouTubeAlbumMenu(
-                                            albumItem = item,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-
-                                    is ArtistItem -> {
-                                        YouTubeArtistMenu(
-                                            artist = item,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-
-                                    is PlaylistItem -> {
-                                        YouTubePlaylistMenu(
-                                            playlist = item,
-                                            coroutineScope = scope,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-
-                                    is PodcastItem -> {
-                                        YouTubePlaylistMenu(
-                                            playlist = item.asPlaylistItem(),
-                                            coroutineScope = scope,
-                                            onDismiss = menuState::dismiss,
-                                        )
-                                    }
-
-                                    is EpisodeItem -> {
-                                        YouTubeSongMenu(
-                                            song = item.asSongItem(),
-                                            onDismiss = menuState::dismiss,
                                         )
                                     }
                                 }
@@ -1781,58 +1688,6 @@ fun HomeScreen(
                                                                                             }
                                                                                         }
                                                                                     },
-                                                                                    onLongClick = {
-                                                                                        haptic.performHapticFeedback(
-                                                                                            HapticFeedbackType.LongPress,
-                                                                                        )
-                                                                                        menuState.show {
-                                                                                            when (item) {
-                                                                                                is SongItem -> {
-                                                                                                    YouTubeSongMenu(
-                                                                                                        song = item,
-                                                                                                        onDismiss = menuState::dismiss,
-                                                                                                    )
-                                                                                                }
-
-                                                                                                is AlbumItem -> {
-                                                                                                    YouTubeAlbumMenu(
-                                                                                                        albumItem = item,
-                                                                                                        onDismiss = menuState::dismiss,
-                                                                                                    )
-                                                                                                }
-
-                                                                                                is ArtistItem -> {
-                                                                                                    YouTubeArtistMenu(
-                                                                                                        artist = item,
-                                                                                                        onDismiss = menuState::dismiss,
-                                                                                                    )
-                                                                                                }
-
-                                                                                                is PlaylistItem -> {
-                                                                                                    YouTubePlaylistMenu(
-                                                                                                        playlist = item,
-                                                                                                        coroutineScope = scope,
-                                                                                                        onDismiss = menuState::dismiss,
-                                                                                                    )
-                                                                                                }
-
-                                                                                                is PodcastItem -> {
-                                                                                                    YouTubePlaylistMenu(
-                                                                                                        playlist = item.asPlaylistItem(),
-                                                                                                        coroutineScope = scope,
-                                                                                                        onDismiss = menuState::dismiss,
-                                                                                                    )
-                                                                                                }
-
-                                                                                                is EpisodeItem -> {
-                                                                                                    YouTubeSongMenu(
-                                                                                                        song = item.asSongItem(),
-                                                                                                        onDismiss = menuState::dismiss,
-                                                                                                    )
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    },
                                                                                 ),
                                                                     )
                                                                 }
@@ -1967,15 +1822,6 @@ fun HomeScreen(
                                                                             }
                                                                         )
                                                                     }
-                                                                }
-                                                            },
-                                                            onLongClick = {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                menuState.show {
-                                                                    SongMenu(
-                                                                        originalSong = song!!,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
                                                                 }
                                                             },
                                                         ),
@@ -2292,15 +2138,6 @@ fun HomeScreen(
                                                                     }
                                                                 }
                                                             },
-                                                            onLongClick = {
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                menuState.show {
-                                                                    SongMenu(
-                                                                        originalSong = song!!,
-                                                                        onDismiss = menuState::dismiss,
-                                                                    )
-                                                                }
-                                                            },
                                                         ),
                                             )
                                         }
@@ -2514,15 +2351,6 @@ fun HomeScreen(
                                                                                     items = listOf(song.toMediaItem())
                                                                                 )
                                                                             }
-                                                                        )
-                                                                    }
-                                                                },
-                                                                onLongClick = {
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                    menuState.show {
-                                                                        YouTubeSongMenu(
-                                                                            song = song,
-                                                                            onDismiss = menuState::dismiss,
                                                                         )
                                                                     }
                                                                 },

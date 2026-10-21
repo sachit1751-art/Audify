@@ -1834,7 +1834,7 @@ interface DatabaseDao {
                 ArtistEntity(
                     id = artist.id ?: artistByName(artist.name)?.id
                     ?: ArtistEntity.generateArtistId(),
-                    name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.name),
+                    name = ArtistNameAliases.resolve(artist.id, artist.name),
                 )
             }?.onEach(::insert)
             ?.mapIndexed { index, artist ->
@@ -1918,7 +1918,7 @@ interface DatabaseDao {
     ) {
         update(
             artist.copy(
-                name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artistPage.artist.title),
+                name = ArtistNameAliases.resolve(artist.id, artistPage.artist.title),
                 thumbnailUrl = artistPage.artist.thumbnail?.resize(1080, 1080),
                 lastUpdateTime = LocalDateTime.now()
             )
@@ -1975,7 +1975,7 @@ interface DatabaseDao {
                     ArtistEntity(
                         id = artist.id ?: artistByName(artist.name)?.id
                         ?: ArtistEntity.generateArtistId(),
-                        name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.name),
+                        name = ArtistNameAliases.resolve(artist.id, artist.name),
                     )
                 }.onEach(::insert)
                 .mapIndexed { index, artist ->

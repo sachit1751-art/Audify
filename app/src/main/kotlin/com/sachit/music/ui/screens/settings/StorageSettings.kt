@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -478,8 +479,7 @@ fun StorageSettings(
         title = { Text(stringResource(R.string.storage)) },
         navigationIcon = {
             IconButton(
-                onClick = navController::navigateUp,
-                onLongClick = navController::backToMain,
+                onClick = { navController.navigateUp(); navController.backToMain() },
             ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),

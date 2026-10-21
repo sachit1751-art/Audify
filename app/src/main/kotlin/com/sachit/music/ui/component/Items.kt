@@ -511,6 +511,8 @@ fun SongListItem(
     isActive: Boolean = false,
     isPlaying: Boolean = false,
     isSwipeable: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
+    shapes: RoundedCornerShape = RoundedCornerShape(12.dp),
     trailingContent: @Composable RowScope.() -> Unit = {},
 ) {
     val artistNameAliases = LocalArtistNameAliases.current

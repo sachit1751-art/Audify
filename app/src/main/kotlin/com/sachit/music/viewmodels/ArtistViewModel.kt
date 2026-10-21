@@ -231,7 +231,7 @@ class ArtistViewModel @Inject constructor(
                             if (existingArtist != null) {
                                 database.update(
                                     existingArtist.copy(
-                                        name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), existingArtist.id, resolvedPage.artist.title),
+                                        name = ArtistNameAliases.resolve(existingArtist.id, resolvedPage.artist.title),
                                         channelId = resolvedPage.artist.channelId ?: existingArtist.channelId,
                                         thumbnailUrl = resolvedPage.artist.thumbnail ?: existingArtist.thumbnailUrl,
                                         cachedPageJson = cachedJson,
@@ -243,7 +243,7 @@ class ArtistViewModel @Inject constructor(
                                 database.insert(
                                     ArtistEntity(
                                         id = artistId,
-                                        name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artistId, apiArtist.title),
+                                        name = ArtistNameAliases.resolve(artistId, apiArtist.title),
                                         channelId = apiArtist.channelId,
                                         thumbnailUrl = apiArtist.thumbnail,
                                         cachedPageJson = cachedJson,
@@ -297,7 +297,7 @@ class ArtistViewModel @Inject constructor(
                     database.insert(
                         ArtistEntity(
                             id = artistId,
-                            name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artistId, it.title),
+                            name = ArtistNameAliases.resolve(artistId, it.title),
                             channelId = it.channelId,
                             thumbnailUrl = it.thumbnail,
                             bookmarkedAt = java.time.LocalDateTime.now(),

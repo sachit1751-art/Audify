@@ -82,6 +82,12 @@ object ArtistNameAliases {
         return resolvedName
     }
 
+    fun resolve(
+        aliases: ArtistNameAliases,
+        artistId: String?,
+        fallback: String,
+    ): String = resolve(aliases._aliases.value, artistId, fallback)
+
     fun serialize(): String = Json.encodeToString(_aliases.value)
 
     fun deserialize(serializedAliases: String): Map<String, String> = Json.decodeFromString(serializedAliases)

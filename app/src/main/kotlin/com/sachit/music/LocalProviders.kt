@@ -48,7 +48,7 @@ val LocalListenTogetherManager = staticCompositionLocalOf<ListenTogetherManager?
 /** ArtistNameAliases for artist name resolution */
 @JvmField
 val LocalArtistNameAliases = staticCompositionLocalOf<ArtistNameAliases> {
-    ArtistNameAliases.getInstance()
+    ArtistNameAliases
 }
 
 /** WindowInsets that are aware of the player UI (mini player, transport etc.) */

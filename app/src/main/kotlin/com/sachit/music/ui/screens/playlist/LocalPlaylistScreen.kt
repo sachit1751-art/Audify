@@ -676,32 +676,6 @@ fun LocalPlaylistScreen(
                                                 )
                                             }
                                         },
-                                        onLongClick = {
-                                            if (!inSelectMode) {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                inSelectMode = true
-                                                onCheckedChange(true)
-                                                selectionAnchorMapId = song.map.id
-                                            } else {
-                                                val anchorIndex =
-                                                    selectionAnchorMapId?.let { anchorMapId ->
-                                                        displayedSongs.indexOfFirst { it.map.id == anchorMapId }
-                                                    } ?: -1
-
-                                                if (anchorIndex == -1) {
-                                                    onCheckedChange(true)
-                                                    selectionAnchorMapId = song.map.id
-                                                } else {
-                                                    val range = if (anchorIndex <= index) anchorIndex..index else index..anchorIndex
-                                                    for (rangeIndex in range) {
-                                                        val rangeMapId = displayedSongs[rangeIndex].map.id
-                                                        if (rangeMapId !in selection) {
-                                                            selection.add(rangeMapId)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
                                     ),
                         )
                     }
@@ -785,11 +759,6 @@ fun LocalPlaylistScreen(
                                 query = TextFieldValue()
                             } else {
                                 navController.navigateUp()
-                            }
-                        },
-                        onLongClick = {
-                            if (!isSearching) {
-                                navController.backToMain()
                             }
                         },
                     ) {

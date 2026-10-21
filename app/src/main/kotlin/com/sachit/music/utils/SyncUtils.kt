@@ -955,7 +955,7 @@ class SyncUtils @Inject constructor(
                                     insert(
                                         ArtistEntity(
                                             id = artist.id,
-                                            name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.title),
+                                            name = ArtistNameAliases.resolve(artist.id, artist.title),
                                             thumbnailUrl = artist.thumbnail,
                                             channelId = channelId,
                                             bookmarkedAt = LocalDateTime.now()
@@ -964,7 +964,7 @@ class SyncUtils @Inject constructor(
                                 } else {
                                     val existing = dbArtist
                                     val needsChannelIdUpdate = existing.channelId == null && channelId != null
-                                    val resolvedName = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), existing.id, artist.title)
+                                    val resolvedName = ArtistNameAliases.resolve(existing.id, artist.title)
                                     if (existing.bookmarkedAt == null || needsChannelIdUpdate ||
                                         existing.name != resolvedName || existing.thumbnailUrl != artist.thumbnail) {
                                         update(

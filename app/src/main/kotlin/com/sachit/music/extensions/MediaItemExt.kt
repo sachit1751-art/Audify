@@ -53,7 +53,7 @@ fun MediaMetadata.toMediaItem(): MediaItem {
 fun MediaMetadata.withResolvedArtistNameAliases(): MediaMetadata {
     val resolvedArtists =
         artists.map { artist ->
-            artist.copy(name = ArtistNameAliases.resolve(ArtistNameAliases.getInstance(), artist.id, artist.name))
+            artist.copy(name = ArtistNameAliases.resolve(artist.id, artist.name))
         }
     return if (resolvedArtists == artists) this else copy(artists = resolvedArtists)
 }

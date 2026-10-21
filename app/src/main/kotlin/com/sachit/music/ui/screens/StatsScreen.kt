@@ -490,18 +490,6 @@ fun StatsScreen(
                                                     }
                                                 }
                                             },
-                                            onLongClick = {
-                                                val targetSong = mostPlayedSongs.find { it.id == song.id }
-                                                if (targetSong != null) {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    menuState.show {
-                                                        SongMenu(
-                                                            originalSong = targetSong,
-                                                            onDismiss = menuState::dismiss,
-                                                        )
-                                                    }
-                                                }
-                                            },
                                         ).animateItem(),
                             )
                         }
@@ -540,16 +528,6 @@ fun StatsScreen(
                                         .combinedClickable(
                                             onClick = {
                                                 navController.navigate("artist/${artist.id}")
-                                            },
-                                            onLongClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                menuState.show {
-                                                    ArtistMenu(
-                                                        originalArtist = artist,
-                                                        coroutineScope = coroutineScope,
-                                                        onDismiss = menuState::dismiss,
-                                                    )
-                                                }
                                             },
                                         ).animateItem(),
                             )
@@ -593,15 +571,6 @@ fun StatsScreen(
                                             .combinedClickable(
                                                 onClick = {
                                                     navController.navigate("album/${album.id}")
-                                                },
-                                                onLongClick = {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    menuState.show {
-                                                        AlbumMenu(
-                                                            originalAlbum = album,
-                                                            onDismiss = menuState::dismiss,
-                                                        )
-                                                    }
                                                 },
                                             ).animateItem(),
                                 )
@@ -734,11 +703,6 @@ fun StatsScreen(
                             query = TextFieldValue()
                         } else {
                             navController.navigateUp()
-                        }
-                    },
-                    onLongClick = {
-                        if (!isSearching) {
-                            navController.backToMain()
                         }
                     },
                 ) {
