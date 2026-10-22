@@ -2,8 +2,6 @@
 
 <img src="assets/audify_banner.svg" alt="Audify banner" width="100%" max-width="1200" style="max-width:100%;height:auto;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);" />
 
-# Audify
-
 ### Stream, discover and organize YouTube Music — your way.
 
 <br/>
