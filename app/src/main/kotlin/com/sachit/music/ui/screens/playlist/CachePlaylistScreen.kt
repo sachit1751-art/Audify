@@ -86,6 +86,7 @@ import com.sachit.music.extensions.toMediaItem
 import com.sachit.music.playback.queues.ListQueue
 import com.sachit.music.ui.component.DraggableScrollbar
 import com.sachit.music.ui.component.EmptyPlaceholder
+import com.sachit.music.ui.component.IconButton
 import com.sachit.music.ui.component.LocalMenuState
 import com.sachit.music.ui.component.SongListItem
 import com.sachit.music.ui.component.SortHeader
@@ -368,25 +369,28 @@ fun CachePlaylistScreen(
                 }
             },
             navigationIcon = {
-                androidx.compose.material3.IconButton(onClick = {
-                    when {
-                        isSearching -> {
-                            isSearching = false
-                            query = TextFieldValue()
-                            focusManager.clearFocus()
+                IconButton(
+                    onClick = {
+                        when {
+                            isSearching -> {
+                                isSearching = false
+                                query = TextFieldValue()
+                                focusManager.clearFocus()
+                            }
+                            inSelectMode -> {
+                                onExitSelectionMode()
+                            }
+                            else -> {
+                                navController.navigateUp()
+                            }
                         }
-                        inSelectMode -> {
-                            onExitSelectionMode()
+                    },
+                    onLongClick = {
+                        if (!isSearching && !inSelectMode) {
+                            navController.backToMain()
                         }
-                        else -> {
-                            navController.navigateUp()
-                        }
-                    }
-                }
-                    if (!isSearching && !inSelectMode) {
-                        navController.backToMain()
-                    }
-                }) {
+                    },
+                ) {
                     Icon(
                         painter = painterResource(
                             if (inSelectMode) R.drawable.close else R.drawable.arrow_back
@@ -395,9 +399,8 @@ fun CachePlaylistScreen(
                     )
                 }
             },
-            },
             actions = {
-            if (inSelectMode) {
+                if (inSelectMode) {
                     Checkbox(
                         checked = selection.size == filteredSongs.size && selection.isNotEmpty(),
                         onCheckedChange = {

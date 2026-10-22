@@ -23,6 +23,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.navArgument
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.sachit.music.constants.DarkModeKey
 import com.sachit.music.constants.PureBlackKey
 import com.sachit.music.ui.screens.artist.ArtistAlbumsScreen
@@ -359,7 +360,10 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings") {
-        SettingsScreen(onNavigateUp = { navController.popBackStack() })
+        SettingsScreen(
+            navController = navController,
+            latestVersionName = latestVersionName,
+        )
     }
 
     composable("settings/appearance") {

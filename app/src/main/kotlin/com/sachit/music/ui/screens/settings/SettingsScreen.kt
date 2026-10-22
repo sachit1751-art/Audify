@@ -236,7 +236,7 @@ fun SettingsScreen(
                     val releaseInfo = Updater.getCachedLatestRelease()
                     val downloadUrl = releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) }
 
-                    if (downloadUrl != null) {
+                    if (downloadUrl != null && downloadUrl.startsWith("https://")) {
                         add(
                             Material3SettingsItem(
                                 icon = painterResource(R.drawable.update),
@@ -260,7 +260,8 @@ fun SettingsScreen(
                 }
             }
         )
-    if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.BASE_VERSION_NAME) {
+
+        if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.BASE_VERSION_NAME) {
             Spacer(modifier = Modifier.height(16.dp))
             ReleaseNotesCard()
         }
@@ -272,7 +273,8 @@ fun SettingsScreen(
         title = { Text(stringResource(R.string.settings)) },
         navigationIcon = {
             IconButton(
-                onClick = navController::navigateUp{
+                onClick = navController::navigateUp,
+            ) {
                 Icon(
                     painterResource(R.drawable.arrow_back),
                     contentDescription = null

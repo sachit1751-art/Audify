@@ -655,7 +655,7 @@
     <string name="listen_together_server_url">Server URL</string>
     <string name="listen_together_choose_server">Choose server</string>
     <string name="listen_together_custom_server">Custom server</string>
-    <string name="lt_unencrypted_server_warning">This server connection is unencrypted (not wss://). Only use it on networks you trust — others on the network could see your Listen Together activity.</string>
+    <string name="lt_unencrypted_server_warning">Custom servers must use wss:// (encrypted). Cleartext ws:// connections are blocked, so the server address is not accepted.</string>
     <string name="listen_together_use_custom_server">Use custom server</string>
     <string name="listen_together_username">Username</string>
     <string name="listen_together_connected">Connected</string>

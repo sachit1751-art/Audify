@@ -625,11 +625,16 @@ class ListenTogetherClient
         private fun normalizeServerUrl(url: String): String {
             val trimmed = url.trim()
             if (trimmed.isEmpty()) return DEFAULT_SERVER_URL
-            return if (trimmed.contains("metroserver.meowery.eu", ignoreCase = true)) {
-                DEFAULT_SERVER_URL
-            } else {
-                trimmed
+            if (trimmed.contains("metroserver.meowery.eu", ignoreCase = true)) {
+                return DEFAULT_SERVER_URL
             }
+            // Cleartext WebSocket connections are blocked by the app's network
+            // security config, so a persisted ws:// server would only produce
+            // confusing connection errors. Fall back to the default server.
+            if (!trimmed.startsWith("wss://", ignoreCase = true)) {
+                return DEFAULT_SERVER_URL
+            }
+            return trimmed
         }
 
         private fun getServerUrl(): String {

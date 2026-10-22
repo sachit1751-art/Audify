@@ -519,7 +519,7 @@ class MainActivity : FragmentActivity() {
                                 onLatestVersionNameChange(releaseInfo.versionName)
                                 if (hasUpdate && notifEnabled) {
                                     val downloadUrl = Updater.getDownloadUrlForCurrentVariant(releaseInfo)
-                                    if (downloadUrl != null) {
+                                    if (downloadUrl != null && downloadUrl.startsWith("https://")) {
                                         val intent = Intent(Intent.ACTION_VIEW, downloadUrl.toUri())
 
                                         val flags =
@@ -1630,25 +1630,25 @@ class MainActivity : FragmentActivity() {
                             .onSuccess { songs ->
                                 songs.firstOrNull()?.album?.id?.let { browseId ->
                                     withContext(Dispatchers.Main) {
-                                        navController.navigate("album/$browseId")
+                                        navController.navigate("album/${android.net.Uri.encode(browseId)}")
                                     }
                                 }
                             }.onFailure { reportException(it) }
                     }
                 } else {
-                    navController.navigate("online_playlist/$playlistId")
+                    navController.navigate("online_playlist/${android.net.Uri.encode(playlistId)}")
                 }
             }
 
             "browse" -> {
                 uri.lastPathSegment?.let { browseId ->
-                    navController.navigate("album/$browseId")
+                    navController.navigate("album/${android.net.Uri.encode(browseId)}")
                 }
             }
 
             "channel", "c" -> {
                 uri.lastPathSegment?.let { artistId ->
-                    navController.navigate("artist/$artistId")
+                    navController.navigate("artist/${android.net.Uri.encode(artistId)}")
                 }
             }
 

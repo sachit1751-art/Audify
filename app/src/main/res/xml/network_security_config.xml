@@ -1,18 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Cleartext (http/ws) is enabled globally on purpose — and ONLY because the
-    Listen Together feature lets users supply a custom server URL that may be a
-    plain ws:// address on a local network (Android's network-security-config
-    cannot scope cleartext to private IP ranges).
+    Cleartext (http/ws) traffic is not permitted anywhere in the app.
 
-    All first-party traffic (YouTube, LastFM, Discord gateway, lyrics providers,
-    updater) is HTTPS/WSS. Before this file is ever tightened to
-    cleartextTrafficPermitted="false", the Listen Together custom-server flow must
-    be restricted to wss:// or localhost/LAN-only; users are already warned
-    in-app when they enter a non-wss:// custom server.
+    Every first-party endpoint (YouTube, LastFM, Discord gateway, lyrics
+    providers, the updater and the Listen Together server) is reached over
+    HTTPS/WSS. The Listen Together custom-server flow used to be the single
+    reason for allowing cleartext app-wide; it now requires a wss:// URL, so
+    the exemption is no longer needed.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>

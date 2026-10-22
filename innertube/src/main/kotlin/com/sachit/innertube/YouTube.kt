@@ -2091,7 +2091,9 @@ object YouTube {
                 }
             }
         } catch (e: Exception) {
-            println("Error converting chart item: ${e.message}\n${Json.encodeToString(renderer)}")
+            // Never print to stdout: since Android 4.1 an app's stdout is
+            // redirected to the system log, which every other app can read.
+            Timber.e(e, "Error converting chart item")
             null
         }
     }
@@ -2162,7 +2164,7 @@ object YouTube {
                 }
             }
         } catch (e: Exception) {
-            println("Error converting two row item: ${e.message}\n${Json.encodeToString(renderer)}")
+            Timber.e(e, "Error converting two row item")
             null
         }
     }

@@ -152,8 +152,8 @@ fun SmartPlaylistScreen(
                                     )
                                 }
                             }
-                        },
-                        ).animateItem(),
+                        )
+                        .animateItem(),
                 )
             }
         }

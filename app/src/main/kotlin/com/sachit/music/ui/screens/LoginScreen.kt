@@ -9,7 +9,6 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -76,14 +75,17 @@ import com.sachit.music.ui.utils.backToMain
 import com.sachit.music.utils.SecureCookieStore
 import com.sachit.music.utils.reportException
 import com.sachit.music.utils.safeDataStoreEdit
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
+import org.json.JSONTokener
 import timber.log.Timber
+import kotlin.coroutines.resume
 
 private enum class LoginStage {
     Authenticating,
@@ -100,7 +102,7 @@ private data class AuthData(
     val authUser: String,
 )
 
-@SuppressLint("SetJavaScriptEnabled", "JavascriptInterface")
+@SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
@@ -109,7 +111,6 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val jsInterface = remember { LoginJsInterface() }
     var loginStage by remember { mutableStateOf(LoginStage.Authenticating) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var accounts by remember { mutableStateOf<List<YouTubeAccount>>(emptyList()) }
@@ -123,49 +124,21 @@ fun LoginScreen(
         repeat(20) {
             val cookie = CookieManager.getInstance().getCookie("https://music.youtube.com").orEmpty()
             val cookieMap = runCatching { parseCookieString(cookie) }.getOrDefault(emptyMap())
-            val visitorDataDeferred = CompletableDeferred<String?>()
-            val dataSyncIdDeferred = CompletableDeferred<String?>()
-            val authUserDeferred = CompletableDeferred<String?>()
-            jsInterface.onVisitorDataReceived = { visitorData ->
-                if (!visitorDataDeferred.isCompleted) visitorDataDeferred.complete(visitorData)
-            }
-            jsInterface.onDataSyncIdReceived = { dataSyncId ->
-                if (!dataSyncIdDeferred.isCompleted) dataSyncIdDeferred.complete(dataSyncId)
-            }
-            jsInterface.onAuthUserReceived = { authUser ->
-                if (!authUserDeferred.isCompleted) authUserDeferred.complete(authUser)
-            }
+            // The session values are read straight out of the page with
+            // evaluateJavascript: no JavaScript bridge is exposed to the WebView,
+            // so a page that manages to run script cannot call back into the app.
+            val visitorData = view.evaluateJsExpression(EXTRACT_VISITOR_DATA_JS)
+            val dataSyncId = view.evaluateJsExpression(EXTRACT_DATA_SYNC_ID_JS)
+            val authUser = view.evaluateJsExpression(EXTRACT_AUTH_USER_JS)
 
-            view.loadUrl(
-                "javascript:Android.onRetrieveVisitorData(" +
-                    "window.yt&&window.yt.config_?window.yt.config_.VISITOR_DATA:null)",
-            )
-            view.loadUrl(
-                "javascript:Android.onRetrieveDataSyncId(" +
-                    "window.yt&&window.yt.config_?window.yt.config_.DATASYNC_ID:null)",
-            )
-            view.loadUrl(
-                "javascript:Android.onRetrieveAuthUser(" +
-                    "window.yt&&window.yt.config_?String(window.yt.config_.SESSION_INDEX||0):'0')",
-            )
-
-            val pageAuthData =
-                withTimeoutOrNull(1_000) {
-                    WebAuthData(
-                        visitorData = visitorDataDeferred.await(),
-                        dataSyncId = dataSyncIdDeferred.await(),
-                        authUser = authUserDeferred.await().orEmpty(),
-                    )
-                }
             hasAuthCookie = "SAPISID" in cookieMap
-            val visitorData = pageAuthData?.visitorData
             hasVisitorData = !visitorData.isNullOrBlank()
-            if (hasAuthCookie && pageAuthData != null && !visitorData.isNullOrBlank()) {
+            if (hasAuthCookie && !visitorData.isNullOrBlank()) {
                 return AuthData(
                     cookie = cookie,
                     visitorData = visitorData,
-                    dataSyncId = pageAuthData.dataSyncId.orEmpty().substringBefore("||"),
-                    authUser = pageAuthData.authUser.filter(Char::isDigit).ifBlank { "0" },
+                    dataSyncId = dataSyncId.orEmpty().substringBefore("||"),
+                    authUser = authUser.orEmpty().filter(Char::isDigit).ifBlank { "0" },
                 )
             }
             delay(500)
@@ -308,17 +281,32 @@ fun LoginScreen(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): Boolean {
-                                val scheme = request.url.scheme
-                                if (scheme == "http" || scheme == "https") return false
+                                val url = request.url
+                                val scheme = url.scheme?.lowercase()
+                                if (scheme == "http" || scheme == "https") {
+                                    // Keep the sign-in flow inside the WebView only for
+                                    // Google's own hosts; anything else is handed to the
+                                    // browser so the WebView never renders a foreign page
+                                    // (and never shares the session cookies with it).
+                                    if (isAllowedLoginHost(url.host)) return false
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, url))
+                                    }
+                                    return true
+                                }
 
                                 if (scheme == "intent") {
+                                    // Only follow intent:// links that point back at an
+                                    // allowed host, so a page cannot launch arbitrary
+                                    // apps on the user's behalf.
                                     runCatching {
-                                        Intent.parseUri(request.url.toString(), Intent.URI_INTENT_SCHEME)
-                                            .apply {
+                                        Intent.parseUri(url.toString(), Intent.URI_INTENT_SCHEME)
+                                            .takeIf { isAllowedLoginHost(it.data?.host) }
+                                            ?.apply {
                                                 addCategory(Intent.CATEGORY_BROWSABLE)
                                                 component = null
                                                 selector = null
-                                            }.let(context::startActivity)
+                                            }?.let(context::startActivity)
                                     }
                                 }
                                 return true
@@ -341,7 +329,6 @@ fun LoginScreen(
                         builtInZoomControls = true
                         displayZoomControls = false
                     }
-                    addJavascriptInterface(jsInterface, "Android")
                     webViewRef = this
                     if (isSwitchingChannel) {
                         restoreYouTubeCookies(YouTube.cookie)
@@ -552,32 +539,79 @@ private fun YouTubeAccountPickerItem(
     }
 }
 
-private class LoginJsInterface {
-    var onVisitorDataReceived: ((String?) -> Unit)? = null
-    var onDataSyncIdReceived: ((String?) -> Unit)? = null
-    var onAuthUserReceived: ((String?) -> Unit)? = null
+private const val EXTRACT_VISITOR_DATA_JS =
+    "window.yt&&window.yt.config_?window.yt.config_.VISITOR_DATA:null"
 
-    @JavascriptInterface
-    fun onRetrieveVisitorData(visitorData: String?) {
-        onVisitorDataReceived?.invoke(visitorData)
+private const val EXTRACT_DATA_SYNC_ID_JS =
+    "window.yt&&window.yt.config_?window.yt.config_.DATASYNC_ID:null"
+
+private const val EXTRACT_AUTH_USER_JS =
+    "window.yt&&window.yt.config_?String(window.yt.config_.SESSION_INDEX||0):'0'"
+
+private const val JS_EVALUATION_TIMEOUT_MILLIS = 2_000L
+
+/**
+ * Evaluates [expression] in the page and returns its value as a plain string.
+ *
+ * `evaluateJavascript` hands the result back JSON encoded, so a JavaScript
+ * string arrives wrapped in quotes and `null` arrives as the literal `null`.
+ */
+private suspend fun WebView.evaluateJsExpression(expression: String): String? =
+    withTimeoutOrNull(JS_EVALUATION_TIMEOUT_MILLIS) {
+        suspendCancellableCoroutine { continuation ->
+            evaluateJavascript(expression) { raw ->
+                if (continuation.isActive) {
+                    continuation.resume(decodeJsValue(raw))
+                }
+            }
+        }
     }
 
-    @JavascriptInterface
-    fun onRetrieveDataSyncId(dataSyncId: String?) {
-        onDataSyncIdReceived?.invoke(dataSyncId)
-    }
-
-    @JavascriptInterface
-    fun onRetrieveAuthUser(authUser: String?) {
-        onAuthUserReceived?.invoke(authUser)
-    }
+private fun decodeJsValue(raw: String?): String? {
+    if (raw.isNullOrBlank() || raw == "null") return null
+    return runCatching {
+        when (val value = JSONTokener(raw).nextValue()) {
+            is String -> value
+            JSONObject.NULL -> null
+            else -> value.toString()
+        }
+    }.getOrNull()
 }
 
-private data class WebAuthData(
-    val visitorData: String?,
-    val dataSyncId: String?,
-    val authUser: String,
-)
+/**
+ * Hosts the sign-in WebView is allowed to render.
+ *
+ * The WebView shares the app's cookie jar, so it must never display a page
+ * from an untrusted host: everything outside this list is opened in the
+ * browser instead.
+ */
+private val ALLOWED_LOGIN_HOSTS =
+    setOf(
+        "google.com",
+        "youtube.com",
+        "youtu.be",
+    )
+
+private val ALLOWED_LOGIN_HOST_SUFFIXES =
+    listOf(
+        ".google.com",
+        ".googleapis.com",
+        ".gstatic.com",
+        ".googleusercontent.com",
+        ".youtube.com",
+        ".youtu.be",
+    )
+
+/** Country specific Google accounts hosts, e.g. `accounts.google.co.uk`. */
+private val GOOGLE_COUNTRY_HOST = Regex("^[a-z0-9-]+\\.google\\.[a-z]{2,3}(\\.[a-z]{2})?$")
+
+internal fun isAllowedLoginHost(host: String?): Boolean {
+    val normalized = host?.lowercase()?.trimEnd('.') ?: return false
+    if (normalized.isEmpty()) return false
+    if (normalized in ALLOWED_LOGIN_HOSTS) return true
+    if (ALLOWED_LOGIN_HOST_SUFFIXES.any { normalized.endsWith(it) }) return true
+    return GOOGLE_COUNTRY_HOST.matches(normalized)
+}
 
 private fun restoreYouTubeCookies(cookie: String?) {
     val cookieManager = CookieManager.getInstance()

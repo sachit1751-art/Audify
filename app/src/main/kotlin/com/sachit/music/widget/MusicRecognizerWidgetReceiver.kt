@@ -12,8 +12,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.os.Binder
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import android.view.View
 import android.widget.RemoteViews
 import com.sachit.music.MainActivity
@@ -71,6 +73,10 @@ class MusicRecognizerWidgetReceiver : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+        val callingUid = Binder.getCallingUid()
+        if (callingUid != Process.myUid()) {
+            return
+        }
         when (intent.action) {
             ACTION_START_RECOGNITION -> handleStartRecognition(context)
             ACTION_UPDATE_WIDGET -> updateAllWidgets(context, AppWidgetManager.getInstance(context))

@@ -8,6 +8,7 @@ package com.sachit.music.utils
 import android.content.Context
 import android.content.res.Configuration
 import com.sachit.music.R
+import timber.log.Timber
 import java.util.Locale
 
 fun getArtistSeparator(context: Context): String = " ${context.getString(R.string.and)} "
@@ -22,8 +23,16 @@ fun <T> List<T>.joinToArtistString(
     else -> dropLast(1).joinToString(", ") { transform(it) } + "$conjunction${transform(last())}"
 }
 
+/**
+ * Reports a non-fatal exception.
+ *
+ * Deliberately avoids [Throwable.printStackTrace]: since Android 4.1 an app's
+ * stderr is redirected to the system log, which every other app (and `adb
+ * shell`) can read. Timber routes the trace to the app's private log file in
+ * release builds and to logcat in debug builds.
+ */
 fun reportException(throwable: Throwable) {
-    throwable.printStackTrace()
+    Timber.e(throwable, "Unhandled exception")
 }
 
 @Suppress("DEPRECATION")

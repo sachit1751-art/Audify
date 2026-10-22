@@ -7,6 +7,7 @@ package com.sachit.music.playback
 
 import android.content.ContentResolver
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.DrawableRes
@@ -95,6 +96,14 @@ constructor(
         controller: MediaSession.ControllerInfo,
     ): MediaSession.ConnectionResult {
         val connectionResult = super.onConnect(session, controller)
+        if (!isTrustedController(controller)) {
+            // An untrusted controller may still drive playback, but it must not
+            // reach the custom commands that mutate the user's library.
+            return MediaSession.ConnectionResult.accept(
+                connectionResult.availableSessionCommands,
+                connectionResult.availablePlayerCommands,
+            )
+        }
         return MediaSession.ConnectionResult.accept(
             connectionResult.availableSessionCommands
                 .buildUpon()
@@ -109,12 +118,36 @@ constructor(
         )
     }
 
+    /**
+     * A controller is trusted when it is this app, or when it holds
+     * [android.Manifest.permission.BIND_MEDIA_SESSION] — a signature|privileged
+     * permission that only the platform and the system media controllers
+     * (Android Auto, the TV launcher, Wear OS) hold.
+     *
+     * The media service is exported so that those system controllers can bind
+     * to it. Without this check every app installed on the device could bind
+     * as well and browse the user's entire local library.
+     */
+    private fun isTrustedController(controller: MediaSession.ControllerInfo): Boolean {
+        val packageName = controller.packageName
+        if (packageName == context.packageName) return true
+        return context.packageManager.checkPermission(
+            "android.permission.BIND_MEDIA_SESSION",
+            packageName,
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     override fun onCustomCommand(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
         customCommand: SessionCommand,
         args: Bundle,
     ): ListenableFuture<SessionResult> {
+        if (!isTrustedController(controller)) {
+            return Futures.immediateFuture(
+                SessionResult(SessionResult.RESULT_ERROR_PERMISSION_DENIED),
+            )
+        }
         when (customCommand.customAction) {
             MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
             MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
@@ -143,20 +176,24 @@ constructor(
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<MediaItem>> =
         Futures.immediateFuture(
-            LibraryResult.ofItem(
-                MediaItem
-                    .Builder()
-                    .setMediaId(MusicService.ROOT)
-                    .setMediaMetadata(
-                        MediaMetadata
-                            .Builder()
-                            .setIsPlayable(false)
-                            .setIsBrowsable(true)
-                            .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                            .build(),
-                    ).build(),
-                params,
-            ),
+            if (!isTrustedController(browser)) {
+                LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED, params)
+            } else {
+                LibraryResult.ofItem(
+                    MediaItem
+                        .Builder()
+                        .setMediaId(MusicService.ROOT)
+                        .setMediaMetadata(
+                            MediaMetadata
+                                .Builder()
+                                .setIsPlayable(false)
+                                .setIsBrowsable(true)
+                                .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                                .build(),
+                        ).build(),
+                    params,
+                )
+            },
         )
 
     override fun onSubscribe(
@@ -166,10 +203,15 @@ constructor(
         params: MediaLibraryService.LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> =
         Futures.immediateFuture(
-            if (isBrowsableMediaId(parentId)) {
-                LibraryResult.ofVoid(params)
-            } else {
-                LibraryResult.ofError(SessionError.ERROR_BAD_VALUE, params)
+            when {
+                !isTrustedController(browser) ->
+                    LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED, params)
+
+                isBrowsableMediaId(parentId) ->
+                    LibraryResult.ofVoid(params)
+
+                else ->
+                    LibraryResult.ofError(SessionError.ERROR_BAD_VALUE, params)
             },
         )
 
@@ -180,8 +222,13 @@ constructor(
         page: Int,
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?,
-    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-        scope.future(Dispatchers.IO) {
+    ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        if (!isTrustedController(browser)) {
+            return Futures.immediateFuture(
+                LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED, params),
+            )
+        }
+        return scope.future(Dispatchers.IO) {
             try {
                 loadLocalChildren(parentId, page, pageSize)?.let { children ->
                     return@future LibraryResult.ofItemList(children, params)
@@ -352,6 +399,7 @@ constructor(
                 LibraryResult.ofItemList(emptyList(), params)
             }
         }
+    }
 
     private suspend fun loadLocalChildren(
         parentId: String,
@@ -523,8 +571,13 @@ constructor(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
         mediaId: String,
-    ): ListenableFuture<LibraryResult<MediaItem>> =
-        scope.future(Dispatchers.IO) {
+    ): ListenableFuture<LibraryResult<MediaItem>> {
+        if (!isTrustedController(browser)) {
+            return Futures.immediateFuture(
+                LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED),
+            )
+        }
+        return scope.future(Dispatchers.IO) {
             try {
                 database.song(mediaId).first()?.toMediaItem()?.let {
                     LibraryResult.ofItem(it, null)
@@ -534,6 +587,7 @@ constructor(
                 LibraryResult.ofError(SessionError.ERROR_UNKNOWN)
             }
         }
+    }
 
     override fun onSearch(
         session: MediaLibrarySession,
@@ -541,6 +595,11 @@ constructor(
         query: String,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<Void>> {
+        if (!isTrustedController(browser)) {
+            return Futures.immediateFuture(
+                LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED, params),
+            )
+        }
         session.notifySearchResultChanged(browser, query, 1, params)
         return Futures.immediateFuture(LibraryResult.ofVoid())
     }
@@ -553,6 +612,11 @@ constructor(
         pageSize: Int,
         params: MediaLibraryService.LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        if (!isTrustedController(browser)) {
+            return Futures.immediateFuture(
+                LibraryResult.ofError(SessionError.ERROR_PERMISSION_DENIED, params),
+            )
+        }
         return scope.future(Dispatchers.IO) {
             if (query.isEmpty()) {
                 return@future LibraryResult.ofItemList(emptyList(), params)
@@ -634,8 +698,13 @@ constructor(
         mediaItems: MutableList<MediaItem>,
         startIndex: Int,
         startPositionMs: Long,
-    ): ListenableFuture<MediaItemsWithStartPosition> =
-        scope.future(Dispatchers.IO) {
+    ): ListenableFuture<MediaItemsWithStartPosition> {
+        if (!isTrustedController(controller)) {
+            return Futures.immediateFuture(
+                MediaItemsWithStartPosition(emptyList(), startIndex, startPositionMs),
+            )
+        }
+        return scope.future(Dispatchers.IO) {
             val defaultResult = MediaItemsWithStartPosition(emptyList(), startIndex, startPositionMs)
             val voiceQuery = mediaItems.firstOrNull()?.requestMetadata?.searchQuery
 
@@ -870,6 +939,7 @@ constructor(
                 else -> defaultResult
             }
         }
+    }
 
     private fun drawableUri(
         @DrawableRes id: Int,

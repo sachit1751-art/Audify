@@ -571,7 +571,7 @@ fun LocalPlaylistScreen(
                             }
 
                             if (browseId != null) {
-                                localScope.launch {
+                                coroutineScope.launch {
                                     syncUtils.scheduleRemoveFromPlaylist(
                                         browseId,
                                         songId,

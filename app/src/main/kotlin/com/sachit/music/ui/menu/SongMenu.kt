@@ -984,7 +984,6 @@ fun SongMenu(
                                     exportError = null
                                     coroutineScope.launch(Dispatchers.IO) {
                                         val result = audioExporter.exportAudio(
-                                            context = context,
                                             songId = song.id,
                                             title = song.song.title,
                                             artistName = song.orderedArtists.firstOrNull()?.name,
@@ -996,9 +995,7 @@ fun SongMenu(
                                             exportProgress = null
                                             result.onSuccess { file ->
                                                 pendingExportFile = file
-                                                saveExportLauncher.launch(
-                                                    AudioExporter.safeFileName(song.song.title, song.orderedArtists.firstOrNull()?.name) + ".mp4",
-                                                )
+                                                saveExportLauncher.launch(file.name)
                                             }.onFailure { error ->
                                                 exportError = when (error) {
                                                     is AudioExporter.ExportError.NotAvailable -> R.string.export_error_unavailable
@@ -1021,7 +1018,6 @@ fun SongMenu(
                                 },                                    onClick = {
                                         coroutineScope.launch(Dispatchers.IO) {
                                             val result = audioExporter.exportAudio(
-                                                context = context,
                                                 songId = song.id,
                                                 title = song.song.title,
                                                 artistName = song.orderedArtists.firstOrNull()?.name,
@@ -1031,6 +1027,7 @@ fun SongMenu(
                                                 audioExporter.shareAudio(
                                                     context,
                                                     file,
+                                                    AudioExporter.mimeTypeForFile(file),
                                                 )
                                             }.onFailure {
                                                 Toast.makeText(context, R.string.export_audio_failed, Toast.LENGTH_SHORT).show()

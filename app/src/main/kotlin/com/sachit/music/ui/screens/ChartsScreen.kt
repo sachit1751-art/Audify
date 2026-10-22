@@ -265,18 +265,19 @@ fun ChartsScreen(
                                             isPlaying = isPlaying,
                                             isSwipeable = false,
                                             trailingContent = {
-                                    androidx.compose.material3.IconButton(
-                                        onClick = {
-                                            menuState.show {
-                                                YouTubeSongMenu(
-                                                    song = song,
-                                                    onDismiss = menuState::dismiss,
-                                                )
-                                                }
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.more_vert),
-                                                    contentDescription = null,
+                                                androidx.compose.material3.IconButton(
+                                                    onClick = {
+                                                        menuState.show {
+                                                            YouTubeSongMenu(
+                                                                song = song,
+                                                                onDismiss = menuState::dismiss,
+                                                            )
+                                                        }
+                                                    },
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.more_vert),
+                                                        contentDescription = null,
                                                     )
                                                 }
                                             },

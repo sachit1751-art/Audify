@@ -6,9 +6,10 @@ import com.sachit.music.db.MusicDatabase
 import com.sachit.music.listentogether.ListenTogetherManager
 import com.sachit.music.playback.PlayerConnection
 import com.sachit.music.playback.DownloadUtil
-import com.sachit.music.utils.ArtistNameAliases
-import com.sachit.music.sync.SyncUtils
-import com.sachit.music.utils.ChangelogState
+import com.sachit.music.utils.AudioExporter
+import com.sachit.music.utils.SyncUtils
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.layout.WindowInsets
 
 // ─── Local providers ──────────────────────────────────────────────────────
@@ -47,8 +48,8 @@ val LocalListenTogetherManager = staticCompositionLocalOf<ListenTogetherManager?
 
 /** ArtistNameAliases for artist name resolution */
 @JvmField
-val LocalArtistNameAliases = staticCompositionLocalOf<ArtistNameAliases> {
-    ArtistNameAliases
+val LocalArtistNameAliases = staticCompositionLocalOf<Map<String, String>> {
+    emptyMap()
 }
 
 /** WindowInsets that are aware of the player UI (mini player, transport etc.) */
@@ -59,20 +60,20 @@ val LocalPlayerAwareWindowInsets = staticCompositionLocalOf<androidx.compose.fou
 
 /** Changelog state (whether user has seen the latest changelog) */
 @JvmField
-val LocalChangelogState = staticCompositionLocalOf<ChangelogState> {
-    ChangelogState()
+val LocalChangelogState = staticCompositionLocalOf<MutableState<Boolean>> {
+    mutableStateOf(false)
 }
 
 /** Sync utilities for library/podcast operations */
 @JvmField
-val LocalSyncUtils = staticCompositionLocalOf<com.sachit.music.sync.SyncUtils> {
-    com.sachit.music.sync.SyncUtils
+val LocalSyncUtils = staticCompositionLocalOf<SyncUtils> {
+    error("No LocalSyncUtils provided. Make sure MainActivity provides it.")
 }
 
 /** Audio export utility */
 @JvmField
-val LocalAudioExporter = staticCompositionLocalOf<com.sachit.music.utils.AudioExporter> {
-    com.sachit.music.utils.AudioExporter
+val LocalAudioExporter = staticCompositionLocalOf<AudioExporter> {
+    error("No LocalAudioExporter provided. Make sure MainActivity provides it.")
 }
 
 /** Whether the player is expanded (fullscreen) */

@@ -59,8 +59,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 152
-        versionName = "13.6.3"
+        versionCode = 153
+        versionName = "13.7.0"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
@@ -77,8 +77,19 @@ android {
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
 
+        // Google API key (for PoToken) - overridable via gradle property (-P GOOGLE_API_KEY=...)
+        // or local.properties (GOOGLE_API_KEY=...) or env var (GOOGLE_API_KEY). This key is used
+        // only for the internal BotGuard/poToken request to Google's endpoints; if you override it,
+        // ensure it is restricted (e.g. Android app restrictions) to prevent abuse.
+        val googleApiKey =
+            (project.findProperty("GOOGLE_API_KEY") as String?)
+                ?: localProperties.getProperty("GOOGLE_API_KEY")
+                ?: System.getenv("GOOGLE_API_KEY")
+                ?: "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"
+
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
+        buildConfigField("String", "GOOGLE_API_KEY", "\"$googleApiKey\"")
         buildConfigField("String", "ARCHITECTURE", "\"universal\"")
         buildConfigField("Long", "DISCORD_APP_ID", "1447278780795064401L")
     }

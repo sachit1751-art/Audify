@@ -33,6 +33,7 @@ import com.sachit.music.di.ApplicationScope
 import com.sachit.music.extensions.toEnum
 import com.sachit.music.extensions.toInetSocketAddress
 import com.sachit.music.utils.CrashHandler
+import com.sachit.music.utils.AppFileLogTree
 import com.sachit.music.utils.ArtistNameAliases
 import com.sachit.music.utils.InnerTubeXPlayer
 import com.sachit.music.utils.SecureCookieStore
@@ -92,7 +93,14 @@ class App :
         }
 
         // Plant logging before extraction services initialize.
-        Timber.plant(Timber.DebugTree())
+        // Debug builds write to logcat; release builds keep warnings and errors in a
+        // bounded file inside the app's private storage so that no verbose
+        // diagnostics leak into the system log, which other apps can read.
+        if (BuildConfig.DEBUG) {
+            Timber.plant(Timber.DebugTree())
+        } else {
+            Timber.plant(AppFileLogTree(this))
+        }
         InnerTubeXPlayer.initialize(this)
 
         // Pre-read Coil cache size on background to avoid runBlocking in newImageLoader

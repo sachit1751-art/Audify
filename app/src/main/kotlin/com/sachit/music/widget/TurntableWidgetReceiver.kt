@@ -9,6 +9,8 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.os.Binder
+import android.os.Process
 import com.sachit.music.playback.MusicService
 
 class TurntableWidgetReceiver : AppWidgetProvider() {
@@ -35,6 +37,11 @@ class TurntableWidgetReceiver : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
+
+        val callingUid = Binder.getCallingUid()
+        if (callingUid != Process.myUid()) {
+            return
+        }
 
         when (intent.action) {
             ACTION_TURNTABLE_PLAY_PAUSE, ACTION_TURNTABLE_NEXT, ACTION_TURNTABLE_PREVIOUS -> {

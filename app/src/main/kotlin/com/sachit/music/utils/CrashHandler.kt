@@ -45,9 +45,7 @@ class CrashHandler private constructor(
     }
 
     private fun buildCrashLog(throwable: Throwable): String {
-        val stackTrace = StringWriter().apply {
-            throwable.printStackTrace(PrintWriter(this))
-        }.toString()
+        val stackTrace = android.util.Log.getStackTraceString(throwable)
 
         return buildString {
             appendLine("Audify Crash Report")

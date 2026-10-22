@@ -1,18 +1,21 @@
----Unreleased
+---v13.7.0
 
-# Rebrand & new features
-- Rebranded the app to **Sachit** with a new launcher icon: a bold rounded "S" on an off-white parchment background (adaptive, monochrome, and store icon)
+# Security hardening
+- Restrict exported media session access to trusted controllers only
+- Remove WebView JS bridge and enforce login host allowlist
+- Gate Timber logging to debug builds; drop printStackTrace usage
+- Disable cleartext traffic and require wss:// for custom Listen Together servers
+- URL-encode deep-link route parameters
+- Verify sender UID on exported widget receivers
+- Narrow FileProvider paths
+- Make Google API key overridable via gradle properties with documented restrictions
+- Validate updater/KMP download URLs are https before opening
 
-## Notable new features
-- Added single-tap play/pause on the player artwork
-- Added configurable artwork corner radius (None / Subtle / Rounded)
-- Added a time-aware greeting header on the home screen with your account name
-- Added an "Up Next" peek above the mini-player showing the next three tracks, tap to jump
-- Added haptic feedback when double-tapping the artwork to seek
+---v13.6.3
 
-## Performance (low-end devices)
-- Low-RAM devices now get a smaller image memory cache and no image crossfades
-- The Daily Discover card artwork is decoded at a density-matched size instead of a fixed 1080px
+This is a hotfix release to fix borked lyrics and media controller. We apologize for the inconvenience.  
+
+~ sachit1751-art
 
 ---v13.6.3
 

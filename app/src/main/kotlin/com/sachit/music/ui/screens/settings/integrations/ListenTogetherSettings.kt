@@ -719,7 +719,7 @@ private fun ServerChooserDialog(
             }
             Button(
                 onClick = { onUseCustom(trimmedCustomUrl) },
-                enabled = trimmedCustomUrl.isNotBlank(),
+                enabled = trimmedCustomUrl.startsWith("wss://", ignoreCase = true),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
             ) {

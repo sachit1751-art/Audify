@@ -416,7 +416,7 @@ fun AccountSettings(
                 if (BuildConfig.UPDATER_AVAILABLE && latestVersionName != BuildConfig.BASE_VERSION_NAME) {
                     val releaseInfo = Updater.getCachedLatestRelease()
                     val downloadUrl = releaseInfo?.let { Updater.getDownloadUrlForCurrentVariant(it) }
-                    if (downloadUrl != null) {
+                    if (downloadUrl != null && downloadUrl.startsWith("https://")) {
                         add(
                             Material3SettingsItem(
                                 title = { Text(stringResource(R.string.new_version_available)) },

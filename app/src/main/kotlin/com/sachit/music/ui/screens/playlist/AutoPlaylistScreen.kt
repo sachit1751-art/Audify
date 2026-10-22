@@ -326,20 +326,18 @@ fun AutoPlaylistScreen(
         }
 
     LaunchedEffect(Unit) {
-        println("[UPLOAD_DEBUG] AutoPlaylistScreen LaunchedEffect: playlistId=$playlistId, playlistType=$playlistType, ytmSync=$ytmSync")
+        Timber.tag(TAG).d(
+            "Sync effect: playlistId=$playlistId, playlistType=$playlistType, ytmSync=$ytmSync",
+        )
         if (ytmSync) {
             withContext(Dispatchers.IO) {
                 if (playlistType == PlaylistType.LIKE) {
-                    println("[UPLOAD_DEBUG] AutoPlaylistScreen: Calling syncLikedSongs()")
                     viewModel.syncLikedSongs()
                 }
                 if (playlistType == PlaylistType.UPLOADED) {
-                    println("[UPLOAD_DEBUG] AutoPlaylistScreen: Calling syncUploadedSongs()")
                     viewModel.syncUploadedSongs()
                 }
             }
-        } else {
-            println("[UPLOAD_DEBUG] AutoPlaylistScreen: ytmSync is false, not syncing")
         }
     }
 
@@ -963,8 +961,9 @@ private fun AutoPlaylistHeader(
                                     }
 
                                     else -> {
-                                        val launchDownload = { song: com.sachit.innertube.models.SongItem -> autoScope.launch { downloadUtil!!.download(it) } }
-                                        songs.forEach(launchDownload)
+                                        songs.forEach { song ->
+                                            downloadUtil.download(song)
+                                        }
                                     }
                                 }
                             },
@@ -999,3 +998,5 @@ enum class PlaylistType {
     UPLOADED,
     OTHER,
 }
+
+private const val TAG = "AutoPlaylistScreen"

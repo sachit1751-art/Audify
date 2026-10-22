@@ -1,15 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Only the directories the app actually hands out through FileProvider are
+    exposed. The previous <external-path path="."/> root published the whole
+    shared-storage tree to every app we shared a URI with, and the playlist
+    export path ("Documents/Sachit MusicExports/") did not match the real
+    export directory ("Documents/AudifyExports/"), which made playlist export
+    throw IllegalArgumentException while building its content URI.
+-->
 <paths>
-    <external-path
-        name="external_files"
-        path="." />
+    <!-- Crash reports, cropped playlist covers, exported audio and rendered images. -->
     <cache-path
         name="cache"
         path="." />
-    <external-cache-path
-        name="external_cache"
-        path="." />
+    <!-- Playlist exports (PlaylistExporter writes to Documents/AudifyExports). -->
     <external-files-path
         name="external_files_documents"
-        path="Documents/Sachit MusicExports/" />
+        path="Documents/AudifyExports/" />
+    <!-- Audio saved to the Music collection on pre-Q devices. -->
+    <external-files-path
+        name="external_files_music"
+        path="Music/Audify/" />
 </paths>

@@ -8,6 +8,8 @@ package com.sachit.music.widget
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.os.Binder
+import android.os.Process
 import com.sachit.music.MainActivity
 import com.sachit.music.playback.MusicService
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,6 +45,11 @@ class PlaylistWidgetReceiver : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: android.content.Intent) {
         super.onReceive(context, intent)
+
+        val callingUid = Binder.getCallingUid()
+        if (callingUid != Process.myUid()) {
+            return
+        }
 
         when (intent.action) {
             ACTION_PLAY_TARGET -> {
