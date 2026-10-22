@@ -866,3 +866,4 @@ class Migration35To36 : AutoMigrationSpec {
         }
     }
 }
+

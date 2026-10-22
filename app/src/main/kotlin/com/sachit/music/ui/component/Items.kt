@@ -499,6 +499,15 @@ fun SongListItem(
         if (showInLibraryIcon && song.song.inLibrary != null) {
             Icon.Library()
         }
+        if (song.song.isLocal) {
+            androidx.compose.material3.Icon(
+                painter = painterResource(R.drawable.storage_outlined),
+                contentDescription = stringResource(R.string.on_device),
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(end = 2.dp),
+            )
+        }
         if (showDownloadIcon) {
             val downloadUtil = LocalDownloadUtil.current
             val download by downloadUtil?.getDownload(song.id)
@@ -594,6 +603,15 @@ fun SongGridItem(
         }
         if (showInLibraryIcon && song.song.inLibrary != null) {
             Icon.Library()
+        }
+        if (song.song.isLocal) {
+            androidx.compose.material3.Icon(
+                painter = painterResource(R.drawable.storage_outlined),
+                contentDescription = stringResource(R.string.on_device),
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(end = 2.dp),
+            )
         }
         if (showDownloadIcon) {
             val downloadUtil = LocalDownloadUtil.current

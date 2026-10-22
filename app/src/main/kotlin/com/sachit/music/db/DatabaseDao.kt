@@ -767,6 +767,33 @@ interface DatabaseDao {
     @Query("SELECT id FROM song WHERE id IN (:songIds)")
     suspend fun existingSongIds(songIds: List<String>): List<String>
 
+    @Query("SELECT id FROM song WHERE isLocal = 1")
+    suspend fun existingLocalSongIds(): List<String>
+
+    @Transaction
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertLocalSong(song: SongEntity): Long
+
+    @Transaction
+    @Query("DELETE FROM song WHERE isLocal = 1 AND id = :songId")
+    suspend fun deleteLocalSong(songId: String): Int
+
+    @Transaction
+    @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY rowId")
+    fun localSongs(): Flow<List<Song>>
+
+    @Transaction
+    @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY rowId LIMIT :limit OFFSET :offset")
+    suspend fun localSongs(limit: Int, offset: Int): List<Song>
+
+    @Transaction
+    @Query("SELECT * FROM song WHERE isLocal = 1 ORDER BY title")
+    fun localSongsByNameAsc(): Flow<List<Song>>
+
+    @Transaction
+    @Query("SELECT COUNT(1) FROM song WHERE isLocal = 1")
+    fun localSongsCount(): Flow<Int>
+
 
     @Transaction
     @Query("SELECT * FROM song_artist_map WHERE songId = :songId")

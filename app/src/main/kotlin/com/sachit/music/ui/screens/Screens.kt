@@ -45,6 +45,13 @@ sealed class Screens(
         route = "library"
     )
 
+    object LocalFiles : Screens(
+        titleId = R.string.on_device,
+        iconIdInactive = R.drawable.storage_outlined,
+        iconIdActive = R.drawable.storage_filled,
+        route = "local_files"
+    )
+
     companion object {
         val MainScreens = listOf(Home, Search, ListenTogether, Library)
     }

@@ -32,6 +32,7 @@ import com.sachit.music.ui.screens.artist.ArtistScreen
 import com.sachit.music.ui.screens.artist.ArtistSongsScreen
 import com.sachit.music.ui.screens.equalizer.EqScreen
 import com.sachit.music.ui.screens.equalizer.wizard.WizardScreen
+import com.sachit.music.ui.screens.library.LocalSongsScreen
 import com.sachit.music.ui.screens.library.LibraryScreen
 import com.sachit.music.ui.screens.playlist.AutoPlaylistScreen
 import com.sachit.music.ui.screens.playlist.CachePlaylistScreen
@@ -100,6 +101,15 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable(Screens.Library.route) {
         LibraryScreen()
+    }
+
+    composable("local_files") {
+        LocalSongsScreen(
+            navController = navController,
+            onDeselect = {
+                navController.navigate(Screens.Library.route) { popUpTo(navController.graph.startDestinationId) { inclusive = true } }
+            },
+        )
     }
 
     composable(Screens.ListenTogether.route) {
