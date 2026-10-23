@@ -102,7 +102,7 @@ fun LyricsMenu(
 ) {
     val context = LocalContext.current
     val database = LocalDatabase.current
-    
+
     val openRouterApiKey by rememberPreference(OpenRouterApiKey, "")
     val deeplApiKey by rememberPreference(DeeplApiKey, "")
     val aiProvider by rememberPreference(AiProviderKey, "OpenRouter")
@@ -115,7 +115,7 @@ fun LyricsMenu(
     var showIntervalIndicator by rememberPreference(ShowIntervalIndicatorKey, true)
 
     val hasApiKey = if (aiProvider == "DeepL") deeplApiKey.isNotBlank() else openRouterApiKey.isNotBlank()
-    
+
     // Observe the authoritative translation-active state from the singleton; this persists
     // correctly across menu open/close cycles and avoids the lyricsProvider() race condition.
     val hasTranslations by LyricsTranslationHelper.hasActiveTranslations.collectAsStateWithLifecycle()
@@ -229,7 +229,7 @@ fun LyricsMenu(
                             searchMediaMetadata.album?.title
                         )
                         showSearchResultDialog = true
-                        
+
                         // Show warning only if network is definitely unavailable
                         if (!isNetworkAvailable) {
                             Toast.makeText(context, context.getString(R.string.error_no_internet), Toast.LENGTH_SHORT).show()
@@ -465,6 +465,34 @@ fun LyricsMenu(
                                 }
                             },
                         ),
+                        NewAction(
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.share),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            text = stringResource(R.string.share_as_image),
+                            onClick = {
+                                lyricsProvider()?.let { lyrics ->
+                                    val metadata = mediaMetadataProvider()
+                                    val line = LyricsUtils.parseLyrics(lyrics.lyrics)
+                                        .firstOrNull()
+                                        ?.text
+                                        ?: lyrics.lyrics
+
+                                    kotlinx.coroutines.runBlocking {
+                                        com.sachit.music.ui.component.shareLyricsAsImage(
+                                            context = context,
+                                            mediaMetadata = metadata,
+                                            lyricLine = line,
+                                        )
+                                    }
+                                }
+                            },
+                        ),
                     ),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 16.dp),
                 columns = 4,
@@ -538,7 +566,7 @@ fun LyricsMenu(
                             )
                         )
                     }
-                    
+
                     add(
                         Material3MenuItemData(
                             title = { Text(stringResource(R.string.respect_agent_positioning)) },
@@ -576,7 +604,7 @@ fun LyricsMenu(
                             }
                         )
                     )
-                    
+
                     add(
                         Material3MenuItemData(
                             title = { Text(stringResource(R.string.show_interval_indicator)) },
@@ -614,7 +642,7 @@ fun LyricsMenu(
                             }
                         )
                     )
-                    
+
                     add(
                         Material3MenuItemData(
                             title = { Text(stringResource(R.string.lyrics_offset)) },
@@ -637,7 +665,7 @@ fun LyricsMenu(
                             }
                         )
                     )
-                    
+
                     add(
                         Material3MenuItemData(
                             title = { Text(text = stringResource(R.string.romanize_current_track)) },
