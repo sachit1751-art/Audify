@@ -1,37 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup and device-transfer rules for Android 12 and newer; see
+   backup_rules.xml for why these files are excluded.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <exclude
-            domain="file"
-            path="./exoplayer" />
-        <exclude
-            domain="file"
-            path="./download" />
-        <exclude
-            domain="database"
-            path="exoplayer_internal.db" />
-        <!--
-          Keeps the innertube session cookie out of cloud backup. Deliberately scoped to
-          cloud-backup and not device-transfer: restoring onto a new phone by hand still
-          carries every setting, so the trade-off does not cost anyone their setup.
-        -->
-        <exclude
-            domain="file"
-            path="./datastore" />
+        <exclude domain="sharedpref" path="audify_auth.xml" />
+        <exclude domain="sharedpref" path="audify_auth_plain.xml" />
+        <exclude domain="sharedpref" path="audify_sources.xml" />
+        <exclude domain="sharedpref" path="audify_sources_plain.xml" />
+        <!-- Playback queues are local session state; do not resurrect them after reinstall. -->
+        <exclude domain="sharedpref" path="audify_last_played.xml" />
+        <exclude domain="sharedpref" path="audify_bounded_context.xml" />
+        <exclude domain="sharedpref" path="audify_party_queue_stash.xml" />
     </cloud-backup>
     <device-transfer>
-        <exclude
-            domain="file"
-            path="./exoplayer" />
-        <exclude
-            domain="file"
-            path="./download" />
-        <exclude
-            domain="database"
-            path="exoplayer_internal.db" />
+        <exclude domain="sharedpref" path="audify_auth.xml" />
+        <exclude domain="sharedpref" path="audify_auth_plain.xml" />
+        <exclude domain="sharedpref" path="audify_sources.xml" />
+        <exclude domain="sharedpref" path="audify_sources_plain.xml" />
+        <!-- Playback queues are local session state; do not resurrect them after reinstall. -->
+        <exclude domain="sharedpref" path="audify_last_played.xml" />
+        <exclude domain="sharedpref" path="audify_bounded_context.xml" />
+        <exclude domain="sharedpref" path="audify_party_queue_stash.xml" />
     </device-transfer>
 </data-extraction-rules>
