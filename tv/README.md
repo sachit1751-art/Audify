@@ -1,6 +1,6 @@
-# BitChord TV
+# Audify TV
 
-Android TV / Google TV build of BitChord: a remote-first Compose-for-TV interface
+Android TV / Google TV build of Audify: a remote-first Compose-for-TV interface
 (home, library, search, settings, a full-screen now-playing view with synced
 lyrics, display refresh-rate switching, spatial audio, and QR-code sign-in).
 
@@ -22,3 +22,6 @@ data and playback layers, resources, native code — is built straight from
 ```
 
 The module is only included when an Android SDK is available, like `:app`.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

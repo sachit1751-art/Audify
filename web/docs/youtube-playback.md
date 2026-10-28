@@ -62,3 +62,6 @@ So the signed-in path is WEB_REMIX with the user's cookies, which makes the web-
 **VISIONOS is "PROBE_ONLY" in InnerTubeX's catalog** (version 1.02). Android's automatic first choice is `VISIONOS_0_1`: version 0.1, osName `VISION_OS`, `RealityDevice14,1`, platform MOBILE, the music player endpoint. 1.02 works here today; switching to 0.1 needs YouTube.js to send a client version it doesn't define.
 
 **SABR forward seeks past the buffer** were refused before the `pyv` fix. They weren't retested afterwards, because SABR no longer carries any of the 17 tracks.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

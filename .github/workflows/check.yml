@@ -51,7 +51,7 @@ jobs:
       - name: Upload the dev APK
         uses: actions/upload-artifact@v4
         with:
-          name: bitchord-dev-debug
+          name: audify-dev-debug
           path: app/build/outputs/apk/dev/debug/*.apk
 
       - name: Upload test reports

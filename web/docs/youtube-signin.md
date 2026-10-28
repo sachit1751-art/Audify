@@ -1,6 +1,6 @@
 # YouTube Music sign-in (phase 5)
 
-Prompt §5.3. There's no login screen: BitChord uses the YouTube session the browser already has, through the extension. The cookies and the signature never reach the page; it only gets names, pictures and InnerTube responses.
+Prompt §5.3. There's no login screen: Audify uses the YouTube session the browser already has, through the extension. The cookies and the signature never reach the page; it only gets names, pictures and InnerTube responses.
 
 ## How a signed-in request travels
 
@@ -15,16 +15,16 @@ Prompt §5.3. There's no login screen: BitChord uses the YouTube session the bro
 
 ## Accounts and channels
 
-- **Logins:** a browser can hold up to ten Google logins, addressed by `X-Goog-AuthUser`, and the live ones needn't be contiguous. In the user's Chrome, 1, 2 and 4 were signed in and 0 and 3 had expired (`account_menu` answers 403 for those). So every index from 0 to 9 is tried, and a login counts only when `account_menu` returns an account header. `accounts_list` alone isn't trusted: it answers even for an expired index, with another login's channels. Taking that at face value made BitChord act as dead login 0, so everything came back signed out.
+- **Logins:** a browser can hold up to ten Google logins, addressed by `X-Goog-AuthUser`, and the live ones needn't be contiguous. In the user's Chrome, 1, 2 and 4 were signed in and 0 and 3 had expired (`account_menu` answers 403 for those). So every index from 0 to 9 is tried, and a login counts only when `account_menu` returns an account header. `accounts_list` alone isn't trusted: it answers even for an expired index, with another login's channels. Taking that at face value made Audify act as dead login 0, so everything came back signed out.
 - **Channels:** `account/accounts_list` for each live login gives its own channel and its brand channels (`pageId` from the item's tokens). If that call fails, the login's own channel stands in.
 - **Default:** the login YouTube Music's own page uses: `SESSION_INDEX` from the music.youtube.com HTML (4 for the user, not 0). Within it, the channel YouTube has selected (`isSelected`). The user's choice is stored in `storage.local` (`yt.prefs`).
 - **Caching:** the list is cached for 10 minutes. A change to a session cookie (SAPISID, SID and their `__Secure-` forms; not SIDCC, which rotates constantly) clears it, re-reads, and pushes the new state.
-- **Disconnect** (sidebar account menu, or the popup) stops BitChord using the session. The user stays signed in to Google.
+- **Disconnect** (sidebar account menu, or the popup) stops Audify using the session. The user stays signed in to Google.
 
 ## Pushes
 
 `Bridge.subscribe`:
-- On Chromium the page opens an `externally_connectable` port (`bitchord-events`).
+- On Chromium the page opens an `externally_connectable` port (`audify-events`).
 - On Firefox the relay content script holds the port and forwards each event with `postMessage`.
 
 An MV3 worker drops its ports when it sleeps, so ports reconnect only while the page is visible. The page also re-reads the state when the tab regains focus.
@@ -56,3 +56,6 @@ When the identity changes, the page resets every `['music', …]` query and the 
 - **Dropped:** two changes made while chasing the expired-login bug did nothing and were reverted: the three-hash signature, and setting the Cookie header from the jar through a session rule. Chrome attaches the cookies to the worker's `credentials: 'include'` requests itself.
 - **When the account can't be read**, the extension says why: an HTTP status, or YouTube's own `logged_in=0` from `responseContext.serviceTrackingParams`. The popup shows it, the Extension page too, and the sidebar shows a Retry pill.
 - **Still to check signed in:** the writes (Favorite, Add to Library, Add to Playlist), not tried because they change the account; channel switching, and age-restricted playback (and whether the signed web clients' streams outlast ~60 s, given the WebPO problem in `youtube-playback.md`).
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

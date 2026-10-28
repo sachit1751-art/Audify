@@ -59,7 +59,7 @@ val betaSuffix = rootProject.extra["audifyBetaSuffix"] as String
 android {
     namespace = "com.music.audify"
     // InnerTubeX's AAR requires compiling against 37; targetSdk (runtime behaviour) stays 36.
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.music.audify"

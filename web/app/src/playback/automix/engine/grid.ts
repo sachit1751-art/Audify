@@ -27,7 +27,7 @@ export function gridOf(a: TrackAnalysis): Grid | null {
 }
 
 /**
- * BitChord: the analysis as the outgoing side of a blend sees it, its grid
+ * Audify: the analysis as the outgoing side of a blend sees it, its grid
  * fields swapped for the tail grid (see TrackAnalysis). The scheduler and the
  * mix loop read the outgoing track through this, so they stay AutoMix's.
  */

@@ -1,7 +1,7 @@
 // Adapted from AutoMix's src/lib/engine/autodj.ts (https://github.com/heydavidf/automix),
 // Copyright (C) 2026 David Finnegan. AGPL-3.0-only: see ../LICENSE and ../NOTICE.md.
 //
-// BitChord: AutoMix picks every next track from a local library. Here the
+// Audify: AutoMix picks every next track from a local library. Here the
 // queue decides what comes next, as on the phone, and only the playing and
 // the next song are analysed, so AutoMix's selector isn't used. Tracks
 // are analyzed from YouTube on the way (analysis/analyzer.ts); a track whose
@@ -52,16 +52,16 @@ export interface AutomixHost {
   handoff(): void;
   /** The blend is over: the old deck can let go of its track. */
   finished(): void;
-  /** BitChord: the two stretch decks the loop mix plays on (built on first use). */
+  /** Audify: the two stretch decks the loop mix plays on (built on first use). */
   loopDecks(): Promise<[LoopDeck, LoopDeck]>;
   /**
-   * BitChord: where [videoId] is sung, from its synced lyrics; null when it
+   * Audify: where [videoId] is sung, from its synced lyrics; null when it
    * has none. The loop mix never loops a sung word, and these are its truest
    * answer (the vocal mask is the fallback).
    */
   sungSpans(videoId: string): Promise<SungSpans | null>;
   /**
-   * BitChord: while a loop mix runs, the elements are paused and started by
+   * Audify: while a loop mix runs, the elements are paused and started by
    * the mix, not the user; the player must not read that as a pause or an end.
    */
   hold(on: boolean): void;
@@ -87,7 +87,7 @@ export interface AutoDJSnapshot {
   startsInSec: number | null;
   /** The outgoing track's beat at the rate it plays, for a pulse in time with the blend; null without a grid. */
   beatSec: number | null;
-  /** BitChord: the loop mix planned or running, for stats for nerds. */
+  /** Audify: the loop mix planned or running, for stats for nerds. */
   loop: LoopMixPlan | null;
 }
 
@@ -98,9 +98,9 @@ export interface MixWindow {
 }
 
 const PRELOAD_WINDOW_SEC = 60;
-/** BitChord: the loop mix is prepared (bars chosen, decks loaded) from this far before the end. */
+/** Audify: the loop mix is prepared (bars chosen, decks loaded) from this far before the end. */
 const LOOP_PREPARE_SEC = OUT_SEARCH_SEC + 40;
-/** BitChord: the outgoing loop starts at least this far ahead of the playhead when it's planned. */
+/** Audify: the outgoing loop starts at least this far ahead of the playhead when it's planned. */
 const LOOP_SETUP_SEC = 15;
 const SCHEDULE_WINDOW_SEC = 12;
 const EMERGENCY_REMAINING_SEC = 10;
@@ -130,7 +130,7 @@ export class AutoDJ {
   private window: MixWindow | null = null;
   /** Both songs of the coming mix are analysed (the seek bar shows nothing until they are). */
   private bothAnalyzed = false;
-  /** BitChord: the loop mix for the coming pair, once its bars are chosen and loaded on the decks. */
+  /** Audify: the loop mix for the coming pair, once its bars are chosen and loaded on the decks. */
   private loopPlan: LoopMixPlan | null = null;
   private loopPreparing: string | null = null;
   private loopTimes: LoopMixTimes | null = null;
@@ -327,7 +327,7 @@ export class AutoDJ {
       // and the playing track ahead of it, if it's still waiting: its mix-out comes first
       analyzer.request(playing.videoId, tags(playing), true);
 
-      // BitChord, as the phone: only with both songs analysed is there a mix
+      // Audify, as the phone: only with both songs analysed is there a mix
       // to plan. Until then nothing is drawn on the seek bar, and if they
       // aren't ready in time the song plays to its end and crossfades there
       // (a stub has no grid and no outro, so AutoMix's fallback lands at the
@@ -443,7 +443,7 @@ export class AutoDJ {
   }
 
   /**
-   * BitChord: picks the bars to loop and loads both decks, in the background
+   * Audify: picks the bars to loop and loads both decks, in the background
    * while the song plays. Decodes each song once (from the bytes the analysis
    * kept) and holds only the stretch each deck plays.
    */
@@ -480,7 +480,7 @@ export class AutoDJ {
     }
   }
 
-  /** BitChord: puts the loop mix on the clock: the outgoing element hands over at its loop start. */
+  /** Audify: puts the loop mix on the clock: the outgoing element hands over at its loop start. */
   private async scheduleLoop(cur: TrackAnalysis): Promise<void> {
     const plan = this.loopPlan!;
     const queued = this.host.next();

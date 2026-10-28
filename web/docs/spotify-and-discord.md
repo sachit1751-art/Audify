@@ -52,7 +52,7 @@ All go through Pathfinder (`api-partner.spotify.com/pathfinder/v2/query`). Hashe
 
 `extension/lib/discord.ts`, behind the build flag `DISCORD_PRESENCE`.
 
-- **The flag.** On for the site's zips. A Web Store build (`BITCHORD_STORE_BUILD=1`) leaves it out unless `DISCORD_PRESENCE=1`. Without it there's no `scripting` permission, no discord.com optional permission, no connect page, and no `discord` capability.
+- **The flag.** On for the site's zips. A Web Store build (`AUDIFY_STORE_BUILD=1`) leaves it out unless `DISCORD_PRESENCE=1`. Without it there's no `scripting` permission, no discord.com optional permission, no connect page, and no `discord` capability.
 - **Connecting.**
   - "Connect Discord" (the app's Extension page or the popup) opens `discord.html`.
   - Its button asks for `https://discord.com/*`.
@@ -76,7 +76,7 @@ All go through Pathfinder (`api-partner.spotify.com/pathfinder/v2/query`). Hashe
   - a track change, a resume, a seek, or an options change publishes;
   - a pause clears the card;
   - buffering and the gap between tracks are ignored.
-- **When it stops.** When the last BitChord page has been gone for 30 s, the card is cleared and the socket closed. A cleared card with nothing new for 5 minutes closes the socket too.
+- **When it stops.** When the last Audify page has been gone for 30 s, the card is cleared and the socket closed. A cleared card with nothing new for 5 minutes closes the socket too.
 - **Options** are kept in the app (Extension page → Discord): activity type, name, status, lead with the song, and the two buttons with their text. A one-line warning says the token use is against Discord's terms.
 
 ## Verified
@@ -107,3 +107,6 @@ All go through Pathfinder (`api-partner.spotify.com/pathfinder/v2/query`). Hashe
 - **Discord against the real gateway:** connecting needs the user's own click and account.
 - **Canvas** only shows in the Lyrics side panel; the full-screen player stands on the artwork's mesh instead.
 - **Importing a public playlist by link** (`SpotifyImporter.extractPlaylistId` and the embed page) isn't built; the library covers the signed-in case.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

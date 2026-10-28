@@ -11,7 +11,7 @@ that folder's `NOTICE.md`.
    from YouTube (the direct Opus URL), decoded at 44.1 kHz and analyzed in a
    worker with essentia.js: tempo, a beat grid for the opening and one for
    the end, downbeat, key (Camelot), energy curve, intro and outro. About
-   12–18 s per track; cached in IndexedDB (`bitchord-automix`).
+   12–18 s per track; cached in IndexedDB (`audify-automix`).
 2. **Choosing.** The queue decides what comes next; only the playing and the
    next song are analysed. Until both are, nothing is planned or drawn on
    the seek bar, and a song whose mix wasn't ready plays to its end and
@@ -138,3 +138,6 @@ the fallback.
   per_channel=True)`.
 - **Download note:** Python's bundled CA list rejects cloud.cp.jku.at; curl
   with the Windows store verifies it.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

@@ -1,15 +1,15 @@
 /*
  * Beat This! beat/downbeat tracking and the open-unmix vocal mask, as the
- * phone runs them: a TypeScript port of BitChord's native front ends
+ * phone runs them: a TypeScript port of Audify's native front ends
  * (native/analyzer/mel_spectrogram.cpp, vocal_spectrogram.cpp) and of
  * BeatTracker.kt / VocalTracker.kt, which are themselves ported from Orchard
  * (https://github.com/SFG5453/Orchard).
  *
  * Copyright (C) 2026 SFG545 (original Orchard implementation)
- * Copyright (C) 2026 Kushagra Singh (BitChord adaptation)
+ * Copyright (C) 2026 Kushagra Singh (Audify adaptation)
  *
  * Orchard's source is AGPL-3.0-or-later; per AGPLv3 §13 this file is
- * combined into BitChord (GPL-3.0) and remains governed by the AGPLv3. Both
+ * combined into Audify (GPL-3.0) and remains governed by the AGPLv3. Both
  * models' weights are MIT (Beat This!: CPJKU; open-unmix umxhq: Sony/Inria).
  *
  * Runs inside the analysis worker. Everything here is optional: a model that

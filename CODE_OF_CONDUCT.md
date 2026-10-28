@@ -16,7 +16,7 @@ The following behaviors are unacceptable within the project:
 
 ## Reporting
 If you experience or witness unacceptable behavior, report it privately to the project maintainer:
-- Email: `kushagrasinghx@gmail.com`
+- Email: `sachit1751@gmail.com` (or reach out to [@sachit1751-art](https://github.com/sachit1751-art) on GitHub)
 
 Reports will be handled privately and with appropriate discretion.
 
@@ -24,3 +24,6 @@ Reports will be handled privately and with appropriate discretion.
 The project maintainer reserves the right to:
 - Remove, edit, or reject comments, commits, code, issues, or pull requests that violate this code of conduct.
 - Temporarily or permanently restrict or block participation in project repositories for repeated or severe violations.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

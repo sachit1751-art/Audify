@@ -4,7 +4,7 @@ This document lists the maintainers responsible for Audify.
 
 | Maintainer | GitHub | Responsibilities |
 |---|---|---|
-| Kushagra Singh | [@kushagrasinghx](https://github.com/kushagrasinghx) | Project creator, core architecture, release management, and PR reviews |
+| Sachit | [@sachit1751-art](https://github.com/sachit1751-art) | Project owner: Audify, core architecture, release management, and PR reviews |
 
 ## Responsibilities
 
@@ -63,3 +63,6 @@ This list is automatically generated from GitHub repository contributor data.
 - [@bazilbycom](https://github.com/bazilbycom)
 - [@Aimar-18](https://github.com/Aimar-18)
 <!-- END CONTRIBUTORS -->
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

@@ -114,7 +114,7 @@ describe('AutoPlay supplier', () => {
 describe('invites', () => {
   it('reads both link shapes and normalises the code', () => {
     expect(parseInvite('https://bitchord.kushagrasingh.in/invite/ab12cd')).toEqual({ code: 'AB12CD', serverUrl: null });
-    expect(parseInvite('bitchord://party/AB12CD?server=jam.example.com')).toEqual({ code: 'AB12CD', serverUrl: 'https://jam.example.com' });
+    expect(parseInvite('audify://party/AB12CD?server=jam.example.com')).toEqual({ code: 'AB12CD', serverUrl: 'https://jam.example.com' });
     expect(parseInvite('https://example.com/nope')).toBeNull();
     expect(cleanCode(' ab-12 cd ')).toBe('AB12CD');
   });

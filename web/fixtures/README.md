@@ -76,3 +76,6 @@ Captured with an anonymous web-player token (no `sp_dc`), minted the way `extens
 | `canvas-anonymous.json` | `canvas` for "Espresso": `null` anonymously. Signed in, the same query returns a `canvaz.scdn.co` mp4 |
 
 The library, Liked Songs and profile shapes were read from the user's own session in the browser and match `SpotifyLibrary.kt`'s parsers. They are not saved here, because they hold the user's data.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

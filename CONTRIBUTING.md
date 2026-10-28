@@ -51,7 +51,7 @@ Windows:
 
 Run a specific test:
 ```bash
-./gradlew testDevDebugUnitTest --tests "com.music.bitchord.playback.audio.DirectAudioStreamingRegressionTest"
+./gradlew testDevDebugUnitTest --tests "com.music.audify.playback.audio.DirectAudioStreamingRegressionTest"
 ```
 
 ## Code Quality
@@ -73,3 +73,6 @@ All pull requests require review and approval by repository maintainers before m
 Audify is licensed under the **GNU General Public License v3.0 (GPLv3)**.
 
 All contributed code and dependencies must be strictly compatible with GPLv3. Avoid introducing external dependencies unless strictly necessary; any new dependency must be evaluated for necessity, binary size, and license compliance.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

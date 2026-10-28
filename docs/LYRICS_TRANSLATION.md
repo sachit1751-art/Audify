@@ -124,9 +124,9 @@ settings.
 
 ## Files
 
-- `app/src/main/java/com/music/bitchord/data/lyrics/LyricsTranslation.kt`
+- `app/src/main/java/com/music/audify/data/lyrics/LyricsTranslation.kt`
   contains batching, source detection, timing reconstruction and bounded caching.
-- `app/src/main/java/com/music/bitchord/ui/player/NowPlayingScreen.kt`
+- `app/src/main/java/com/music/audify/ui/player/NowPlayingScreen.kt`
   contains the toggle, state handling and motion response.
 - `app/src/main/res/values-*/strings.xml` localizes the new UI messages for every
   language currently offered by Audify.
@@ -146,3 +146,6 @@ settings.
 - Change tracks while a translation is loading and verify no stale text appears.
 - Enable **Reduce animations** and verify the particle transition is skipped.
 - Clear the app cache and verify original lyrics continue to work normally.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

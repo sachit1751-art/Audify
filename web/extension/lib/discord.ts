@@ -201,7 +201,7 @@ export class Gateway {
       try {
         this.onMessage(JSON.parse(String(event.data)) as Payload);
       } catch (error) {
-        console.warn('BitChord: Discord gateway payload', error);
+        console.warn('Audify: Discord gateway payload', error);
       }
     };
     socket.onclose = (event) => {
@@ -246,7 +246,7 @@ export class Gateway {
   }
 
   private drop(why: string): void {
-    console.info(`BitChord: Discord gateway dropped (${why})`);
+    console.info(`Audify: Discord gateway dropped (${why})`);
     this.ready = false;
     this.socket?.close();
   }
@@ -508,7 +508,7 @@ export async function setPresence(track: DiscordNowPlaying | null, options: Disc
   await ensureGateway(held.token).sendActivity(presence);
 }
 
-/** Every BitChord page has gone: nobody is playing, so the card comes down with the socket. */
+/** Every Audify page has gone: nobody is playing, so the card comes down with the socket. */
 export function allPagesClosed(): void {
   gateway?.clearActivity();
   idleTimer = setTimeout(closeGateway, 2_000);

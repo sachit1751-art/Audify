@@ -26,9 +26,11 @@ jobs:
         echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
         echo "LISTEN_TOGETHER_SERVER=${{ secrets.LISTEN_TOGETHER_SERVER }}" >> local.properties
 
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks
+        # `KEYSTORE` is the base64 of the release keystore (the same secret the
+        # old release workflow fed to its signing step).
+        echo "${{ secrets.KEYSTORE }}" | base64 -d > audify-release.jks
         {
-          echo "storeFile=bitchord-release.jks"
+          echo "storeFile=audify-release.jks"
           echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
           echo "keyAlias=${{ secrets.KEY_ALIAS }}"
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
@@ -43,7 +45,7 @@ jobs:
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: bitchord-prod-release-signed
+        name: audify-prod-release-signed
         path: app/build/outputs/apk/prod/release/*.apk
 
     # Built by the same assembleProdRelease, with the same key. The watch app
@@ -52,5 +54,5 @@ jobs:
     - name: Upload Wear OS APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: bitchord-wear-prod-release-signed
+        name: audify-wear-prod-release-signed
         path: wearos/build/outputs/apk/prod/release/*.apk

@@ -59,7 +59,7 @@ function pretty(text, contentType) {
 
 /**
  * Fetch, save the body, and record what a browser at SITE_ORIGIN would get.
- * `init.headers` are the headers BitChord's Kotlin client sends.
+ * `init.headers` are the headers Audify's Kotlin client sends.
  */
 async function capture(rel, url, init = {}) {
   const started = Date.now();
@@ -269,7 +269,7 @@ async function lyrics() {
   } catch { /* not JSON */ }
 
   // 13. LRCLIB.
-  const lrclib = { 'User-Agent': 'BitChord (https://github.com/bitchord)' };
+  const lrclib = { 'User-Agent': 'Audify (https://github.com/audify)' };
   await capture('lyrics/lrclib-get.json', q('https://lrclib.net/api/get', {
     track_name: t.title, artist_name: t.artist, duration: t.durationSec,
   }), { headers: lrclib });

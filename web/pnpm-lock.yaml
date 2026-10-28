@@ -168,7 +168,7 @@ importers:
 
   app:
     dependencies:
-      '@bitchord/shared':
+      '@audify/shared':
         specifier: workspace:*
         version: link:../shared
       '@tanstack/react-query':
@@ -259,7 +259,7 @@ importers:
 
   extension:
     dependencies:
-      '@bitchord/shared':
+      '@audify/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

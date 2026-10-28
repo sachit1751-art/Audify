@@ -1,6 +1,6 @@
 // From AutoMix's src/lib/analysis/selftest.ts (https://github.com/heydavidf/automix),
 // Copyright (C) 2026 David Finnegan. AGPL-3.0-only: see ../LICENSE and ../NOTICE.md.
-// BitChord: exposed from the player store in dev builds instead of on import.
+// Audify: exposed from the player store in dev builds instead of on import.
 import { makeTestLoop } from './testtones';
 import type { AnalyzeResponse } from './analysis.worker';
 

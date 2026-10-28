@@ -9,11 +9,13 @@
 
 ### Aesthetic YouTube Music Client
 
+Made by **[Sachit](https://github.com/sachit1751-art)**
+
 <br/>
 
-[![Latest release](https://img.shields.io/github/v/release/kushagrasinghx/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/kushagrasinghx/Audify/releases)
-[![License](https://img.shields.io/github/license/kushagrasinghx/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/kushagrasinghx/Audify/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/kushagrasinghx/Audify/total?style=for-the-badge&labelColor=0d1117)](https://github.com/kushagrasinghx/Audify/releases)
+[![Latest release](https://img.shields.io/github/v/release/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases)
+[![License](https://img.shields.io/github/license/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/sachit1751-art/Audify/total?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases)
 [![Listening now](https://api.audify.kushagrasingh.in/api/stats/live/badge.svg)](https://api.audify.kushagrasingh.in/api/stats/live)
 
 <br/>
@@ -23,8 +25,8 @@
 <br/>
 
 <a href="https://fmhy.net/mobile#youtube-music" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/available/fmhy/cozy.svg" alt="Featured on FMHY" height="55"/></a>
-<a href="https://trendshift.io/repositories/177639?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-177639" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/177639/daily?language=Kotlin" alt="kushagrasinghx%2FAudify | Trendshift" width="250" height="55"/></a>
-<a href="https://trendshift.io/repositories/177639?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-177639" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/177639/weekly?language=Kotlin" alt="kushagrasinghx%2FAudify | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/177639?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-177639" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/177639/daily?language=Kotlin" alt="sachit1751-art%2FAudify | Trendshift" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/177639?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-177639" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/177639/weekly?language=Kotlin" alt="sachit1751-art%2FAudify | Trendshift" width="250" height="55"/></a>
 
 </div>
 
@@ -89,9 +91,9 @@
 
 <h1><a id="download"></a>Download</h1>
 
-<a href="https://github.com/kushagrasinghx/Audify/releases" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/supported/android/cozy.svg" alt="Download for Android" height="55"/></a>
+<a href="https://github.com/sachit1751-art/Audify/releases" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/supported/android/cozy.svg" alt="Download for Android" height="55"/></a>
 
-Grab the latest signed APK from the [Releases](https://github.com/kushagrasinghx/Audify/releases) page. Sideloading requires enabling "Install unknown apps" for whichever app you download it with.
+Grab the latest signed APK from the [Releases](https://github.com/sachit1751-art/Audify/releases) page. Sideloading requires enabling "Install unknown apps" for whichever app you download it with.
 
 
 </div>
@@ -108,8 +110,8 @@ We welcome contributions to Audify! Please review our [Contributing Guide](CONTR
 
 ### Thanks to all contributors ❤
 
-<a href="https://github.com/kushagrasinghx/Audify/graphs/contributors">
-  <img src="https://raw.githubusercontent.com/kushagrasinghx/Audify/contributors/contributors.svg" />
+<a href="https://github.com/sachit1751-art/Audify/graphs/contributors">
+  <img src="https://raw.githubusercontent.com/sachit1751-art/Audify/contributors/contributors.svg" />
 </a>
 
 </div>

@@ -100,6 +100,6 @@ export const useDiscordOptions = create<DiscordOptionsStore>()(
       set: (change) => set((s) => ({ options: { ...s.options, ...change } })),
       reset: () => set({ options: DEFAULT_DISCORD_OPTIONS }),
     }),
-    { name: 'bitchord:discord', version: 1 },
+    { name: 'audify:discord', version: 1 },
   ),
 );

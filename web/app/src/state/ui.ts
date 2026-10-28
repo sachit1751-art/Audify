@@ -18,7 +18,7 @@ interface UiState {
   dismissInstallBanner: () => void;
 }
 
-const BANNER_KEY = 'bitchord:install-banner-dismissed';
+const BANNER_KEY = 'audify:install-banner-dismissed';
 
 export const useUi = create<UiState>()((set) => ({
   sidePanel: null,

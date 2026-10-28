@@ -30,12 +30,12 @@ export interface TransitionPlan {
   /** True when grids were unusable and a plain crossfade was scheduled. */
   fallback: boolean;
   /**
-   * BitChord: how the blend is played. 'blend' is AutoMix's beatmatch;
+   * Audify: how the blend is played. 'blend' is AutoMix's beatmatch;
    * 'filter' the phone's DJ_FILTER for a pair that can't be beatmatched;
    * 'crossfade' AutoMix's fallback.
    */
   style: 'blend' | 'filter' | 'crossfade' | 'loop';
-  /** BitChord: why a pair wasn't beatmatched, for stats for nerds. */
+  /** Audify: why a pair wasn't beatmatched, for stats for nerds. */
   reason: string | null;
 }
 
@@ -89,7 +89,7 @@ export function scheduleTransition(req: TransitionRequest): TransitionPlan {
     fromAnalysis.gridConfidence >= MIN_GRID_CONFIDENCE &&
     toAnalysis.gridConfidence >= MIN_GRID_CONFIDENCE;
 
-  // BitChord: only the outgoing side's grid decides between a beat-aware mix
+  // Audify: only the outgoing side's grid decides between a beat-aware mix
   // and AutoMix's plain crossfade. An incoming track without one, or a tempo
   // too far off to stretch, gets the phone's filter mix (scheduleFilterMix):
   // a radio queue isn't picked for tempo the way AutoMix's library was, and
@@ -106,7 +106,7 @@ export function scheduleTransition(req: TransitionRequest): TransitionPlan {
   const rate = [rawRate, rawRate / 2, rawRate * 2].reduce((best, r) =>
     Math.abs(r - 1) < Math.abs(best - 1) ? r : best,
   );
-  // tempo gap too wide to beatmatch musically. BitChord: the next song slowed
+  // tempo gap too wide to beatmatch musically. Audify: the next song slowed
   // at most 10% or sped up at most 25% (stretchAllowed) rather than AutoMix's
   // 8%; past it, a filter mix.
   if (!stretchAllowed(rate)) {
@@ -177,7 +177,7 @@ export function scheduleTransition(req: TransitionRequest): TransitionPlan {
 }
 
 /**
- * BitChord: the bars the scheduler will use for this pair, so the mix loop
+ * Audify: the bars the scheduler will use for this pair, so the mix loop
  * times the mix-out for the same length: a filter mix (no incoming grid, or
  * tempos too far apart) is up to FILTER_MAX_BARS, a beatmatch is AutoMix's
  * confidence-scaled length.
@@ -199,7 +199,7 @@ export function plannedBars(
 }
 
 /**
- * BitChord: how far the element blend may stretch the incoming song (the
+ * Audify: how far the element blend may stretch the incoming song (the
  * user's call, 2026-10-23; the phone's STRETCH_WINDOW is 0.9..1.1). [rate] is
  * the incoming song's playback rate, outgoing BPM over incoming BPM:
  * - below 1, the incoming song is slowed down: at most 10%;
@@ -211,11 +211,11 @@ export function stretchAllowed(rate: number): boolean {
 }
 const MAX_SLOW_DOWN = 0.1;
 const MAX_SPEED_UP = 0.25;
-/** BitChord: a filter mix is at most this many outgoing bars (the phone's DJ_FILTER length). */
+/** Audify: a filter mix is at most this many outgoing bars (the phone's DJ_FILTER length). */
 const FILTER_MAX_BARS = 8;
 
 /**
- * BitChord, after the phone's DJ_FILTER (TransitionPlanner.kt): a pair that
+ * Audify, after the phone's DJ_FILTER (TransitionPlanner.kt): a pair that
  * can't be beatmatched still mixes on the outgoing track's phrase. The
  * incoming track starts on its own downbeat exactly on the outgoing one's, at
  * its own tempo, low-passed; the outgoing track drains away through a

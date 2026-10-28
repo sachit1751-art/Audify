@@ -49,7 +49,7 @@ The store runs two `YouTubeEngine`s, each with its own `<audio>` element.
 
 Verified in Chromium and Firefox (Planet Her: the next track took over on the second deck and ended at full volume).
 
-Lengths: off, 3, 6, 9 or 12 seconds, from the ⋯ menu in Up Next. Shuffle, repeat, AutoPlay, volume, mute and crossfade persist in `localStorage` (`bitchord:player`).
+Lengths: off, 3, 6, 9 or 12 seconds, from the ⋯ menu in Up Next. Shuffle, repeat, AutoPlay, volume, mute and crossfade persist in `localStorage` (`audify:player`).
 
 Known risk: googlevideo's SABR adapter registers Shaka's http(s) schemes globally. Two SABR streams at once (both decks on a web client mid-fade) could interfere. VISIONOS plays direct URLs, so it doesn't arise in practice today.
 
@@ -78,3 +78,6 @@ Known risk: googlevideo's SABR adapter registers Shaka's http(s) schemes globall
 Dev builds expose `window.__bcPlayer` (the store) and `window.__bcAudio` (the element in front). Scripts are in the scratch harness described in the testing memory.
 
 Importing `/src/state/player.ts` from a test gets a separate copy of the module, not the app's store. Use the globals.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

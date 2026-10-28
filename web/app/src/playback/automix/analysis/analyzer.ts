@@ -1,6 +1,6 @@
 // Adapted from AutoMix's src/lib/analysis/analyzer.ts (https://github.com/heydavidf/automix),
 // Copyright (C) 2026 David Finnegan. AGPL-3.0-only: see ../LICENSE and ../NOTICE.md.
-// BitChord: the audio comes from YouTube (fetchTrackAudio) instead of a local
+// Audify: the audio comes from YouTube (fetchTrackAudio) instead of a local
 // file, the queue is keyed by video id and takes priorities, and results are
 // kept in memory as well as IndexedDB so the mix loop can read them synchronously.
 import { trackLog } from '@/playback/trackLog';
@@ -16,10 +16,10 @@ export type AnalysisStatus = 'pending' | 'analyzing' | 'done' | 'error';
 /** A failed analysis is asked for again after this long. */
 const RETRY_FAILED_MS = 60_000;
 const ANALYSIS_SR = 44100; // RhythmExtractor2013 assumes 44.1 kHz
-/** BitChord: Beat This! is run over this much of the opening and of the end: two model chunks. */
+/** Audify: Beat This! is run over this much of the opening and of the end: two model chunks. */
 const BEAT_WINDOW_SEC = 59;
 /**
- * BitChord: the phone's models (analysis/models.ts). Beat This! runs from a
+ * Audify: the phone's models (analysis/models.ts). Beat This! runs from a
  * re-export of the official checkpoint (the phone's beat_this_int8.onnx finds
  * no beats); its beats and downbeats are what the loop mix cuts on, with
  * essentia's grid as the fallback. The open-unmix vocal mask picks the
@@ -27,7 +27,7 @@ const BEAT_WINDOW_SEC = 59;
  */
 const USE_BEAT_MODEL = true;
 const USE_VOCAL_MODEL = true;
-/** BitChord: compressed audio kept for the loop mix to decode from (current, next, a few around). */
+/** Audify: compressed audio kept for the loop mix to decode from (current, next, a few around). */
 const KEEP_BYTES_FOR = 6;
 
 /**
@@ -44,7 +44,7 @@ class Analyzer {
   private readonly status = new Map<string, AnalysisStatus>();
   private readonly listeners = new Set<() => void>();
   private readonly failedAt = new Map<string, number>();
-  /** BitChord: each recent track's compressed audio (~5 MB), so a mix can decode the bars it loops. */
+  /** Audify: each recent track's compressed audio (~5 MB), so a mix can decode the bars it loops. */
   private readonly bytes = new Map<string, Promise<TrackAudio>>();
 
   /** The track's compressed audio: fetched once, kept for the last few tracks. */
@@ -168,7 +168,7 @@ class Analyzer {
 
     const beatWindows: { offsetSec: number; pcm: Float32Array }[] = [];
     const vocalWindows: { offsetSec: number; left: Float32Array; right: Float32Array }[] = [];
-    // BitChord: the phone's models read the opening and the end. Beat This!
+    // Audify: the phone's models read the opening and the end. Beat This!
     // wants mono at 22,050 Hz (the browser's resampler, not decimation: an
     // aliased spectrogram gives a wrong grid, not a noisy one); open-unmix
     // stereo at 44.1 kHz.

@@ -14,3 +14,6 @@ Placeholder for component-specific technical documentation and implementation no
 
 ## Future Documentation
 Placeholder for future project and technical documentation.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

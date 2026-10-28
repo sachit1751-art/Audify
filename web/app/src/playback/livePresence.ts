@@ -1,7 +1,7 @@
 import { config } from '@/config';
 
 /**
- * Tells the BitChord server this tab is open, so it can count the web player
+ * Tells the Audify server this tab is open, so it can count the web player
  * beside the phone and PC apps (`GET /api/stats/live`), as the apps do
  * (Presence.kt). One small POST every few minutes while the tab is open; the
  * server sets the interval in each reply. Closing the tab sends a
@@ -12,7 +12,7 @@ import { config } from '@/config';
  * about the listener or what they play.
  */
 
-const ID_KEY = 'bitchord:presence-id';
+const ID_KEY = 'audify:presence-id';
 const DEFAULT_INTERVAL_SEC = 300;
 const MIN_INTERVAL_SEC = 60;
 const MAX_INTERVAL_SEC = 3600;

@@ -193,14 +193,14 @@ Use Manifest V3 and build with WXT (or a Vite-based MV3 setup) to get Chrome and
   - The old YouTube.js browser example (dash.js + `toDash`) is marked outdated. Don't start from it.
 - **BgUtils** (https://github.com/LuanRT/BgUtils, npm `bgutils-js`): generates bot-check tokens (PO tokens) by running Google's BotGuard script. Generate tokens in the page or extension context: the user's real browser is where BotGuard expects to run.
 - **Audify's own Kotlin implementation.** It's the behavioural reference for which client to use, what to retry, and when to fall back:
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/innertube/StreamResolver.kt`
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/innertube/StreamResolver.kt`
   - `…/innertube/InnerTubeXResolver.kt`: client catalog and cipher tiers, from the InnerTubeX library that the vivi app also uses.
   - `…/innertube/PlayerClient.kt`
   - `…/innertube/potoken/`: PO token generation on Android (a WebView runs BotGuard).
   - `…/innertube/Innertube.kt`: WEB_REMIX context; the live client version read from `https://www.youtube.com/sw.js_data` with a fallback version; SAPISIDHASH signing; `X-Goog-AuthUser`; `X-Origin`.
   - `…/innertube/InnertubeParser.kt`
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/YtMusicRepository.kt`: which endpoints back which screens.
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/sources/{StreamFormat.kt,TrackMatcher.kt,SourceTrackKeys.kt}`
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/YtMusicRepository.kt`: which endpoints back which screens.
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/sources/{StreamFormat.kt,TrackMatcher.kt,SourceTrackKeys.kt}`
 
 ### 5.2 Playback pipeline
 
@@ -214,8 +214,8 @@ Use Manifest V3 and build with WXT (or a Vite-based MV3 setup) to get Chrome and
 ### 5.3 YouTube Music sign-in (Integration 1)
 
 - There's no login screen. The extension reads the user's existing Google session cookies for `music.youtube.com`/`.youtube.com` with the `cookies` API.
-  - The Android equivalent is `app/src/main/java/com/music/bitchord/auth/{YtMusicLoginScreen.kt,WebSession.kt,AuthStore.kt}`.
-  - The **closest analogue** is the desktop app, which already reads cookies from installed browsers: `desktopApp/src/main/kotlin/com/music/bitchord/desktop/{DesktopBrowserCookies.kt,DesktopYouTubeAuth.kt,DesktopWebSignIn.kt}`.
+  - The Android equivalent is `app/src/main/java/com/music/audify/auth/{YtMusicLoginScreen.kt,WebSession.kt,AuthStore.kt}`.
+  - The **closest analogue** is the desktop app, which already reads cookies from installed browsers: `desktopApp/src/main/kotlin/com/music/audify/desktop/{DesktopBrowserCookies.kt,DesktopYouTubeAuth.kt,DesktopWebSignIn.kt}`.
 - Signed-in requests run in the background worker:
   - Cookie header from the jar.
   - `Authorization: SAPISIDHASH <ts>_<sha1(ts + " " + SAPISID + " " + origin)>`, exactly as `Innertube.kt` builds it.
@@ -229,10 +229,10 @@ Use Manifest V3 and build with WXT (or a Vite-based MV3 setup) to get Chrome and
 ## 6. Addons (same protocol as the app)
 
 Reference implementation:
-- `app/src/main/java/com/music/bitchord/data/sources/addon/AddonClient.kt`
+- `app/src/main/java/com/music/audify/data/sources/addon/AddonClient.kt`
 - `…/addon/AddonModels.kt`
 - `…/addon/SourceFormats.kt`
-- `app/src/main/java/com/music/bitchord/data/sources/AddonSource.kt`
+- `app/src/main/java/com/music/audify/data/sources/AddonSource.kt`
 
 Port the request and response shapes, caching (shared calls with manifest and stream time-to-live caches), and matching **exactly**.
 
@@ -266,10 +266,10 @@ Port the request and response shapes, caching (shared calls with manifest and st
 ### 7.1 Spotify (Integration 2)
 
 - Reference implementation:
-  - `app/src/main/java/com/music/bitchord/auth/SpotifyLoginScreen.kt`: captures the `sp_dc` cookie.
-  - `app/src/main/java/com/music/bitchord/data/canvas/{SpotifyToken.kt,SpotifyCanvas.kt}`: token from `sp_dc` (TOTP-based, via `open.spotify.com`/`accounts.spotify.com`) and a client token from `clienttoken.spotify.com/v1/clienttoken`.
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/canvas/SpotifyCanvasQuery.kt`
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/spotify/{SpotifyImporter.kt,SpotifyLibrary.kt}`: `api-partner.spotify.com/pathfinder` queries.
+  - `app/src/main/java/com/music/audify/auth/SpotifyLoginScreen.kt`: captures the `sp_dc` cookie.
+  - `app/src/main/java/com/music/audify/data/canvas/{SpotifyToken.kt,SpotifyCanvas.kt}`: token from `sp_dc` (TOTP-based, via `open.spotify.com`/`accounts.spotify.com`) and a client token from `clienttoken.spotify.com/v1/clienttoken`.
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/canvas/SpotifyCanvasQuery.kt`
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/spotify/{SpotifyImporter.kt,SpotifyLibrary.kt}`: `api-partner.spotify.com/pathfinder` queries.
   - Desktop: `desktopApp/.../DesktopSpotifyCanvas.kt` and `DesktopIntegrationsUi.kt`.
 - The extension reads `sp_dc` from the user's own open.spotify.com session and mints the tokens in the background worker. The page never sees `sp_dc` or the tokens.
 - Features:
@@ -280,10 +280,10 @@ Port the request and response shapes, caching (shared calls with manifest and st
 ### 7.2 Discord, setup
 
 - Reference implementation:
-  - `app/src/main/java/com/music/bitchord/auth/DiscordLoginScreen.kt`: token from discord.com `localStorage`.
+  - `app/src/main/java/com/music/audify/auth/DiscordLoginScreen.kt`: token from discord.com `localStorage`.
   - `shared/src/jvmSharedMain/kotlin/com/my/kizzy/{gateway,rpc,utils}`: gateway at `wss://gateway.discord.gg/?v=9&encoding=json`, external assets via `discord.com/api/v9/applications/{id}/external-assets`.
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/discord/DiscordApplication.kt`: application id.
-  - `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/presence/Presence.kt`: what the activity shows.
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/discord/DiscordApplication.kt`: application id.
+  - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/presence/Presence.kt`: what the activity shows.
 - In the extension:
   - When the user connects Discord, read the token from an open discord.com tab's `localStorage`, through a content script that runs only on the user's explicit "Connect Discord" action.
   - Hold the gateway WebSocket in the background worker. MV3 service workers sleep, so keep it alive with an offscreen document or the Chrome 116+ WebSocket keep-alive.
@@ -315,7 +315,7 @@ Server: `https://api.bitchord.kushagrasingh.in`, the Go server in `backend/`. Re
 - Frame types (defined in `backend/protocol/protocol.go`): `welcome`, `state`, `sync`, `members`, `queue`, `control` (`play`, `pause`, `seek`, `next`, `previous`), `ping`/`pong`, `activity`, `kick`, `bye`, `error`, `report`. Copy the field names from the Go structs.
 
 ### 8.2 Client
-- Port `app/src/main/java/com/music/bitchord/data/listentogether/{ListenTogether.kt,JamInviteLink.kt}`, `app/src/main/java/com/music/bitchord/playback/PartySync.kt` and `shared/src/jvmSharedMain/kotlin/com/music/bitchord/playback/QueueTimeline.kt` (the shared queue model).
+- Port `app/src/main/java/com/music/audify/data/listentogether/{ListenTogether.kt,JamInviteLink.kt}`, `app/src/main/java/com/music/audify/playback/PartySync.kt` and `shared/src/jvmSharedMain/kotlin/com/music/audify/playback/QueueTimeline.kt` (the shared queue model).
   - The memory index lists sync and queue bugs that were already fixed (the AutoPlay double-send and the duplicate-track index). Port the fixed behaviour.
 - **Clock:**
   - Time readings come from `performance.timeOrigin + performance.now()`.
@@ -336,8 +336,8 @@ Server: `https://api.bitchord.kushagrasingh.in`, the Go server in `backend/`. Re
 ## 9. Replay
 
 - Reference implementation:
-  - `app/src/main/java/com/music/bitchord/data/stats/{ListeningRecorder.kt,ListeningStats.kt,ArtistFacts.kt,Backup.kt}`
-  - `app/src/main/java/com/music/bitchord/ui/replay/{ReplayModel.kt,ReplayScreen.kt,ReplayStories.kt,ReplayPoster.kt,ReplayShareSheet.kt}`
+  - `app/src/main/java/com/music/audify/data/stats/{ListeningRecorder.kt,ListeningStats.kt,ArtistFacts.kt,Backup.kt}`
+  - `app/src/main/java/com/music/audify/ui/replay/{ReplayModel.kt,ReplayScreen.kt,ReplayStories.kt,ReplayPoster.kt,ReplayShareSheet.kt}`
 - **Storage:** IndexedDB (via `idb`), with the same bucket model the phone keeps as JSON files: per-period buckets with track, artist and album entries, hourly and daily counters, and per-day stats (`StoredBucket`, `TrackEntry`, `NameEntry`, `DayStats`).
 - **Recording rules** (what counts as a play, minimum listened time, skips, seeks): copy `ListeningRecorder.kt` exactly.
 - **Import:** accept the phone's backup file (`Backup.kt` format) so a user's existing history comes with them.
@@ -350,8 +350,8 @@ Server: `https://api.bitchord.kushagrasingh.in`, the Go server in `backend/`. Re
 ### 10.1 Providers
 
 Use the same chain as the desktop app:
-- `desktopApp/src/main/kotlin/com/music/bitchord/desktop/DesktopLyricsClient.kt`
-- `shared/src/jvmSharedMain/kotlin/com/music/bitchord/data/lyrics/LyricsRepository.kt`
+- `desktopApp/src/main/kotlin/com/music/audify/desktop/DesktopLyricsClient.kt`
+- `shared/src/jvmSharedMain/kotlin/com/music/audify/data/lyrics/LyricsRepository.kt`
 - `…/lyrics/LyricsSource.kt`
 
 The default priority is the declaration order of `LyricsSource`, minus the `hidden` entries (SimpMusic and Megalobiz). The user can reorder and disable providers, as on the desktop:
@@ -428,7 +428,7 @@ Finish each phase, verify it in the browser and commit before starting the next.
 5. **YouTube Music sign-in (Integration 1).** Library, likes, account switching.
 6. **Queue and player.**
    - Up Next panel, shuffle and repeat, radio and autoplay, crossfade, keyboard shortcuts.
-   - Port the queue semantics from `shared/src/jvmSharedMain/kotlin/com/music/bitchord/playback/{QueueBuilder.kt,QueueTimeline.kt,QueueWindow.kt,QueueSections.kt}`.
+   - Port the queue semantics from `shared/src/jvmSharedMain/kotlin/com/music/audify/playback/{QueueBuilder.kt,QueueTimeline.kt,QueueWindow.kt,QueueSections.kt}`.
 7. **Addons.** Full protocol, CORS fallback, DASH/FLAC playback, settings UI.
 8. **Lyrics.** Provider chain, TTML conversion, am-lyrics, steered clock, translation.
 9. **Spotify and Discord (Integrations 2 and 3).**
@@ -448,3 +448,6 @@ Finish each phase, verify it in the browser and commit before starting the next.
 - Mobile-browser playback (show the Android app banner instead).
 - Discord OAuth.
 - Counting web users in `/api/presence`.
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

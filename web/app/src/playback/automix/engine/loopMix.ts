@@ -1,5 +1,5 @@
 /*
- * BitChord: the loop mix, a DJ transition on AutoMix's grids and stretch
+ * Audify: the loop mix, a DJ transition on AutoMix's grids and stretch
  * decks. AGPL-3.0-only with the rest of playback/automix (see ../NOTICE.md).
  *
  * The outgoing song hands over from its <audio> element to a stretch deck at

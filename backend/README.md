@@ -353,3 +353,6 @@ main.go               REST routes, the socket loop, the heartbeat ticker
 main_test.go          REST endpoints and WebSocket integration tests
 party/party_test.go   Capacity limits, queue limits, delta moves, step
 ```
+---
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).

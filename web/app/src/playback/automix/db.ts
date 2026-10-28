@@ -11,7 +11,7 @@ interface AutomixDB extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<AutomixDB>> | null = null;
 
 function getDb(): Promise<IDBPDatabase<AutomixDB>> {
-  dbPromise ??= openDB<AutomixDB>('bitchord-automix', 1, {
+  dbPromise ??= openDB<AutomixDB>('audify-automix', 1, {
     upgrade(db) {
       db.createObjectStore('tracks');
     },

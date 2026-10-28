@@ -286,7 +286,7 @@
  * system fonts. Its own family name, so a copy installed on a Mac can't stand in.
  */
 @font-face {
-  font-family: 'BitChord SF Pro Display';
+  font-family: 'Audify SF Pro Display';
   src: url('../assets/fonts/sf-pro-display-regular.woff2') format('woff2');
   font-weight: 400;
   font-display: block;
@@ -295,7 +295,7 @@
 }
 
 @font-face {
-  font-family: 'BitChord SF Pro Display';
+  font-family: 'Audify SF Pro Display';
   src: url('../assets/fonts/sf-pro-display-bold.woff2') format('woff2');
   font-weight: 700;
   font-display: block;

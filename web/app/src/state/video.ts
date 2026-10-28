@@ -27,7 +27,7 @@ interface VideoState {
   activeHeight: number | null;
 }
 
-const QUALITY_KEY = 'bitchord:video-quality';
+const QUALITY_KEY = 'audify:video-quality';
 
 function storedQuality(): VideoQuality {
   const stored = localStorage.getItem(QUALITY_KEY);

@@ -1,7 +1,7 @@
 // Adapted from AutoMix's src/lib/engine/deck.ts (https://github.com/heydavidf/automix),
 // Copyright (C) 2026 David Finnegan. AGPL-3.0-only: see ../LICENSE and ../NOTICE.md.
 //
-// BitChord: AutoMix's deck is a signalsmith-stretch worklet over a decoded
+// Audify: AutoMix's deck is a signalsmith-stretch worklet over a decoded
 // buffer. Here it is one of the player's two <audio> elements (Shaka-fed),
 // routed through Web Audio. The public surface is AutoMix's, so the
 // transition scheduler runs unchanged: a Timeline mirror of every scheduled
@@ -51,7 +51,7 @@ export class Deck {
   readonly gain: GainNode;
   /** The player's plain-crossfade share and nothing else; AutoMix never touches it. */
   readonly fader: GainNode;
-  /** BitChord: the filter mix's high- and low-pass, open (inaudible) except during one. */
+  /** Audify: the filter mix's high- and low-pass, open (inaudible) except during one. */
   readonly sweep: { highpass: BiquadFilterNode; lowpass: BiquadFilterNode };
   readonly timeline = new Timeline();
   loaded: LoadedTrackMeta | null = null;
@@ -118,7 +118,7 @@ export class Deck {
   }
 
   /**
-   * BitChord: anchor() from the median of several readings (the element's
+   * Audify: anchor() from the median of several readings (the element's
    * clock moves in audio-callback steps), for a handover that has to land on
    * the element's real position: the loop mix.
    */

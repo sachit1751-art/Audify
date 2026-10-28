@@ -40,6 +40,9 @@ keystore.properties
 .tmp_verify/
 .debug/
 
+# Fresh APK set copied out by build-apks.bat
+/dist/
+
 # AI agent configuration
 AGENTS.md
 /output/

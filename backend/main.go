@@ -748,7 +748,7 @@ var inviteTemplate = template.Must(template.New("invite").Parse(`<!DOCTYPE html>
                     <div class="now-playing">🎵 {{.CurrentSongTitle}} - {{.CurrentSongArtist}}</div>
                 {{end}}
             </div>
-            <a id="joinBtn" href="{{.IntentURI}}" class="btn">Join Party in BitChord</a>
+            <a id="joinBtn" href="{{.IntentURI}}" class="btn">Join Party in Audify</a>
             <p class="footer-note">
                 Didn’t open automatically? Tap the button above.<br>
                 Don't have Audify yet? <a href="https://github.com/kushagrasinghx/Audify/releases" target="_blank" rel="noopener">Download it here</a>.

@@ -3,7 +3,7 @@
 The DJ engine in this folder is ported from **AutoMix**
 (https://github.com/heydavidf/automix), Copyright (C) 2026 David Finnegan,
 licensed under the GNU Affero General Public License v3.0 (`./LICENSE`).
-BitChord is GPL-3.0; GPLv3 §13 permits combining it with AGPLv3 code, and the
+Audify is GPL-3.0; GPLv3 §13 permits combining it with AGPLv3 code, and the
 files here stay under the AGPL. Because the web player is served over a
 network, its users are offered the source (the repository is public).
 
@@ -15,7 +15,7 @@ Universitat Pompeu Fabra) and **idb** (ISC, Jake Archibald).
 `analysis/energy.ts`, `analysis/camelot.ts`, `analysis/testtones.ts`,
 `analysis/essentia.d.ts`, `engine/timeline.ts`, `engine/eq.ts` and
 `engine/selector.ts` are AutoMix's files with only this attribution header
-added (plus `!` where BitChord's `noUncheckedIndexedAccess` needs one).
+added (plus `!` where Audify's `noUncheckedIndexedAccess` needs one).
 `engine/transition-scheduler.ts` changes only how it reaches the AudioContext.
 
 ## What changed in the analysis, and why
@@ -50,7 +50,7 @@ almost never usable, so nearly every mix took its plain-crossfade fallback:
 ## What is adapted to the player, and why
 
 AutoMix plays whole decoded files through `signalsmith-stretch` worklets.
-BitChord streams YouTube through Shaka into two `<audio>` decks, which the
+Audify streams YouTube through Shaka into two `<audio>` decks, which the
 lyrics, video, Listen Together and Media Session code all read. So:
 
 - `engine/deck.ts` keeps AutoMix's Deck interface (Timeline mirror,
@@ -62,7 +62,7 @@ lyrics, video, Listen Together and Media Session code all read. So:
 - `analysis/analyzer.ts` downloads the track's own audio from YouTube
   (`fetchAudio.ts`, the direct URL Shaka plays) instead of reading a local
   file.
-- `engine/autodj.ts` follows BitChord's queue for the next track and hands
+- `engine/autodj.ts` follows Audify's queue for the next track and hands
   over at the blend's midpoint, as the phone does. Only the playing and the
   next song are analysed; until both are, nothing is planned or drawn, and
   if they aren't ready in time the song plays to its end and crossfades
@@ -81,7 +81,7 @@ lyrics, video, Listen Together and Media Session code all read. So:
   MIT weights); the phone's `beat_this_int8.onnx` finds no beats.
 - `db.ts` caches analyses in IndexedDB by YouTube video id.
 
-## The loop mix (BitChord)
+## The loop mix (Audify)
 
 `engine/loopDeck.ts` is AutoMix's signalsmith-stretch deck again, playing a
 decoded region of a song, and `engine/loopMix.ts` plans and schedules a DJ
