@@ -1,9 +1,8 @@
 <div align="center">
 
-<br/>
-<br/>
+<img src="audify_banner.svg" alt="Audify — Stream, discover and organize YouTube Music, your way." width="100%" />
 
-<img src="Logo.png" alt="Audify app icon" width="200" />
+<br/>
 
 # Audify
 
@@ -20,7 +19,7 @@ Made by **[Sachit](https://github.com/sachit1751-art)**
 
 <br/>
 
-[**Download**](#download) · [**Features**](#features) · [**Contributing**](#contributing) · [**Support**](#support) · [**Disclaimer**](#disclaimer)
+[**Download**](#download) · [**Features**](#features) · [**Build from source**](#build) · [**Contributing**](#contributing) · [**Support**](#support) · [**Disclaimer**](#disclaimer)
 
 <br/>
 
@@ -32,6 +31,10 @@ Made by **[Sachit](https://github.com/sachit1751-art)**
 
 > [!IMPORTANT]
 > Audify is not affiliated with, endorsed by, or connected to YouTube or Google in any way. Use it at your own discretion.
+
+---
+
+Audify is a free and open-source (GPLv3) client for YouTube Music: search, stream, queue and organize your music without ads, without Google Play Services, and with full control over how it looks and sounds. One APK covers the phone, and separate builds ship for Android TV and Wear OS.
 
 ---
 
@@ -93,10 +96,36 @@ Made by **[Sachit](https://github.com/sachit1751-art)**
 
 <a href="https://github.com/sachit1751-art/Audify/releases" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/supported/android/cozy.svg" alt="Download for Android" height="55"/></a>
 
-Grab the latest signed APK from the [Releases](https://github.com/sachit1751-art/Audify/releases) page. Sideloading requires enabling "Install unknown apps" for whichever app you download it with.
+Grab the latest signed APK from the [Releases](https://github.com/sachit1751-art/Audify/releases) page.
 
+Each release ships one APK per CPU architecture — `arm64-v8a` for almost every modern phone, plus `armeabi-v7a`, `x86_64` and a `universal` build if you are unsure. Sideloading requires enabling "Install unknown apps" for whichever app you download it with.
 
 </div>
+
+---
+
+<div align="center">
+
+<h1><a id="build"></a>Build from source</h1>
+
+</div>
+
+Audify builds with the bundled Gradle wrapper — no Android Studio required.
+
+```bash
+# One signed release APK for the phone
+./gradlew assembleProdRelease
+
+# Everything at once — phone (4 ABIs), Android TV and Wear OS,
+# copied into dist/ as fresh APKs
+build-apks.bat        # Windows
+```
+
+Other useful targets: `assembleProdDebug`, `:tv:assembleProdRelease`, `:wearos:assembleProdRelease`.
+
+**Release signing:** copy `keystore.properties.example` to `keystore.properties` and point it at your own `.jks` — the file is gitignored so passwords never land in the repo. CI signs automatically from repository secrets when you push to `main`.
+
+**Requirements:** JDK 17 and the Android SDK (AGP 8.10.1, compileSdk 37).
 
 ---
 
@@ -106,7 +135,7 @@ Grab the latest signed APK from the [Releases](https://github.com/sachit1751-art
 
 We welcome contributions to Audify! Please review our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a Pull Request.
 
-[**Contributing Guide**](CONTRIBUTING.md) · [**Code of Conduct**](CODE_OF_CONDUCT.md) · [**Maintainers**](MAINTAINERS.md) · [**Additional Docs**](ADDITIONAL.md)
+[**Contributing Guide**](CONTRIBUTING.md) · [**Code of Conduct**](CODE_OF_CONDUCT.md) · [**Additional Docs**](ADDITIONAL.md)
 
 ### Thanks to all contributors ❤
 
@@ -154,5 +183,9 @@ Audify is an independent, community-driven third-party audio player and client. 
 <h1><a id="license"></a>License</h1>
 
 This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the [LICENSE](LICENSE) file for details.
+
+<br/>
+
+> **Audify** — made by [Sachit](https://github.com/sachit1751-art).
 
 </div>
