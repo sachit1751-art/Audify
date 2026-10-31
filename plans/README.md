@@ -58,7 +58,7 @@ Plans written, not started:
 |---|------|----------|--------|------------|---------------------|--------|
 | 025 | Local file library beside YTM | Library | H | none | none | **planned — not started** |
 | 026 | Tablet / two-pane player | UI | M | none | none | **planned — not started** |
-| 027 | Landscape fullscreen lyrics | Lyrics/UI | M | none | none | **planned — not started** |
+| 027 | Landscape fullscreen lyrics | Lyrics/UI | M | none | none | **verified on Android emulator** |
 | 028 | Week-shape recap card | Discovery | M | none | none | **planned — not started** |
 | 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **planned — not started** |
 | 030 | Lyrics share-as-image | Social/UI | L | none | none | **planned — not started** |

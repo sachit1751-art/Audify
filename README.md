@@ -1,191 +1,92 @@
-<div align="center">
-
-<img src="audify_banner.svg" alt="Audify ‚Äî Stream, discover and organize YouTube Music, your way." width="100%" />
-
-<br/>
-
 # Audify
 
-### Aesthetic YouTube Music Client
+An open-source YouTube Music client for Android, Android TV, and Wear OS.
 
-Made by **[Sachit](https://github.com/sachit1751-art)**
+<p>
+  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/github/v/release/sachit1751-art/Audify" alt="Latest release"></a>
+  <a href="https://github.com/sachit1751-art/Audify/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sachit1751-art/Audify" alt="License"></a>
+  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/github/downloads/sachit1751-art/Audify/total" alt="GitHub downloads"></a>
+</p>
 
-<br/>
+Audify lets you search, stream, queue, and organize music through a customizable interface. It is free software licensed under GPL-3.0.
 
-[![Latest release](https://img.shields.io/github/v/release/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases)
-[![License](https://img.shields.io/github/license/sachit1751-art/Audify?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/sachit1751-art/Audify/total?style=for-the-badge&labelColor=0d1117)](https://github.com/sachit1751-art/Audify/releases)
-[![Listening now](https://api.audify.kushagrasingh.in/api/stats/live/badge.svg)](https://api.audify.kushagrasingh.in/api/stats/live)
+> **Disclaimer:** Audify is an independent third-party project. It is not affiliated with, endorsed by, or connected to Google or YouTube.
 
-<br/>
+## Features
 
-[**Download**](#download) ¬∑ [**Features**](#features) ¬∑ [**Build from source**](#build) ¬∑ [**Contributing**](#contributing) ¬∑ [**Support**](#support) ¬∑ [**Disclaimer**](#disclaimer)
+### A complete listening experience
+- **Music discovery** ó search tracks, albums, artists, and playlists across YouTube Music.
+- **Personalized library** ó sign in with Google to access personalized content and keep your music organized.
+- **Queue management** ó build and manage your listening queue with background playback support.
+- **Local playback** ó browse and play audio stored on your device.
 
-<br/>
+### Playback controls
+- **Gapless playback** ó move between tracks without unwanted pauses.
+- **Crossfade** ó blend consecutive tracks with an adjustable transition duration.
+- **Automix (Beta)** ó experiment with DJ-style transitions, beat matching, and tempo stretching.
+- **Fine-grained controls** ó adjust playback speed, skip silence, set a sleep timer, and use your device's system equalizer.
+- **Audio quality settings** ó configure separate quality preferences for Wi-Fi and mobile data.
 
-<a href="https://fmhy.net/mobile#youtube-music" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/available/fmhy/cozy.svg" alt="Featured on FMHY" height="55"/></a>
-<a href="https://trendshift.io/repositories/177639?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-177639" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/177639/daily?language=Kotlin" alt="sachit1751-art%2FAudify | Trendshift" width="250" height="55"/></a>
-<a href="https://trendshift.io/repositories/177639?utm_source=trendshift-badge&utm_medium=badge&utm_campaign=badge-trendshift-177639" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/177639/weekly?language=Kotlin" alt="sachit1751-art%2FAudify | Trendshift" width="250" height="55"/></a>
+### Lyrics and visual experience
+- **Synchronized lyrics** ó follow line- and word-level timing from supported lyric providers.
+- **Animated artwork** ó view motion artwork and album art on the now-playing screen.
+- **Dynamic theming** ó adapt the interface palette to the currently playing artwork.
+- **Material 3 interface** ó a customizable interface with translucent visual elements.
 
-</div>
+### Downloads and integrations
+- **Offline listening** ó download tracks with embedded metadata for local playback.
+- **Spotify connection** ó access supported Spotify playlists and Liked Songs.
+- **Discord Rich Presence** ó share current track and playback progress.
+- **Listening history** ó scrobble tracks to Last.fm and ListenBrainz.
+- **External sources** ó configure and check supported module sources, including optional high-resolution audio sources.
 
-> [!IMPORTANT]
-> Audify is not affiliated with, endorsed by, or connected to YouTube or Google in any way. Use it at your own discretion.
+### Built for more than phones
+- **Android** ó the primary mobile listening experience.
+- **Android TV** ó a dedicated build for television devices.
+- **Wear OS** ó a separate build for supported watches.
+## Download
 
----
+Download the latest signed APK from [GitHub Releases](https://github.com/sachit1751-art/Audify/releases).
 
-Audify is a free and open-source (GPLv3) client for YouTube Music: search, stream, queue and organize your music without ads, without Google Play Services, and with full control over how it looks and sounds. One APK covers the phone, and separate builds ship for Android TV and Wear OS.
+Each release may include builds for `arm64-v8a`, `armeabi-v7a`, `x86_64`, and `universal`. Most modern Android phones use `arm64-v8a`. Installing an APK manually requires allowing the installer app to install unknown apps.
 
----
+## Build from source
 
-<div align="center">
-
-<img src="Banner.png" alt="Audify banner" width="100%" />
-
-<h1><a id="features"></a>Features</h1>
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-
-#### Playback
-- **Search, browse and play** anything available on YouTube Music.
-- **Hi-Res lossless audio** ‚Äî FLAC/ALAC from a configured module source, with YouTube Music as fallback.
-- **Gapless playback with true crossfade**, adjustable 0‚Äì12s.
-- **Automix [Beta]** ‚Äî DJ-style transitions with beat-matching and tempo-stretching.
-- **Offline downloads** ‚Äî save tracks with embedded metadata.
-- **Local music library** integration.
-- **Background playback** via a proper foreground media session.
-- **Apple-like lyrics animation** ‚Äî credit to [binimum](https://github.com/binimum/am-lyrics).
-
-#### Connectivity & Accounts
-- **Sign in with your Google account** for personalized content.
-- **Spotify integration** ‚Äî connect your account to play your playlists and Liked Songs.
-- **Discord Rich Presence** ‚Äî in-app login, live track/artist/album and progress.
-- **Scrobbling** to Last.fm and ListenBrainz.
-- **Pluggable sources** ‚Äî add, edit, test and health-check module sources.
-
-    </td>
-    <td width="50%" valign="top">
-
-#### Experience
-- **Animated album canvas** ‚Äî motion artwork on the now-playing screen.
-- **Word-synced lyrics** ‚Äî word/syllable-level highlighting from multiple sources.
-- **Lyrics providers** ‚Äî credit to [lrc.red](https://lrc.red), [BiniLyrics](https://github.com/binimum), [BetterLyrics](https://github.com/better-lyrics/better-lyrics), [PaxSenix](https://lyrics.paxsenix.org), [LyricsPlus](https://github.com/ibratabian17/YouLyPlus), [SimpMusic](https://github.com/maxrave-dev/SimpMusic), [Unison](https://unison.boidu.dev), [Megalobiz](https://www.megalobiz.com), [KuGou](https://www.kugou.com), [LRCLIB](https://lrclib.net), [Musixmatch](https://www.musixmatch.com) and [Genius](https://genius.com).
-- **Dynamic, artwork-driven theming** ‚Äî Material palette extracted from album art.
-- **Frosted-glass UI** ‚Äî Telegram-style translucent bars via Haze, Material 3 theming.
-
-#### Controls & Tweaks
-- **Per-network audio quality** ‚Äî separate quality ceilings for Wi-Fi and mobile data.
-- **Playback speed control** (0.5√ó‚Äì2.0√ó) and **skip silence**.
-- **Sleep timer** ‚Äî fixed presets or "stop after this track".
-- **System equalizer** integration.
-- **Stats for nerds** ‚Äî codec, bit depth, sample rate, and more on the now-playing screen.
-
-    </td>
-  </tr>
-</table>
-
-</div>
-
----
-
-<div align="center">
-
-<h1><a id="download"></a>Download</h1>
-
-<a href="https://github.com/sachit1751-art/Audify/releases" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/supported/android/cozy.svg" alt="Download for Android" height="55"/></a>
-
-Grab the latest signed APK from the [Releases](https://github.com/sachit1751-art/Audify/releases) page.
-
-Each release ships one APK per CPU architecture ‚Äî `arm64-v8a` for almost every modern phone, plus `armeabi-v7a`, `x86_64` and a `universal` build if you are unsure. Sideloading requires enabling "Install unknown apps" for whichever app you download it with.
-
-</div>
-
----
-
-<div align="center">
-
-<h1><a id="build"></a>Build from source</h1>
-
-</div>
-
-Audify builds with the bundled Gradle wrapper ‚Äî no Android Studio required.
+Audify uses the Gradle wrapper. Android Studio is optional.
 
 ```bash
-# One signed release APK for the phone
+# Build the phone release APK
 ./gradlew assembleProdRelease
 
-# Everything at once ‚Äî phone (4 ABIs), Android TV and Wear OS,
-# copied into dist/ as fresh APKs
-build-apks.bat        # Windows
+# Build phone, Android TV, and Wear OS APKs on Windows
+build-apks.bat
 ```
 
-Other useful targets: `assembleProdDebug`, `:tv:assembleProdRelease`, `:wearos:assembleProdRelease`.
+Other useful tasks:
 
-**Release signing:** copy `keystore.properties.example` to `keystore.properties` and point it at your own `.jks` ‚Äî the file is gitignored so passwords never land in the repo. CI signs automatically from repository secrets when you push to `main`.
+```bash
+./gradlew assembleProdDebug
+./gradlew :tv:assembleProdRelease
+./gradlew :wearos:assembleProdRelease
+```
 
 **Requirements:** JDK 17 and the Android SDK (AGP 8.10.1, compileSdk 37).
 
----
+**Release signing:** Copy `keystore.properties.example` to `keystore.properties` and configure your own keystore. The properties file is gitignored. CI signing requires the appropriate repository secrets.
 
-<div align="center">
+## Contributing
 
-<h1><a id="contributing"></a>Contributing</h1>
+Contributions are welcome. Read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request. Additional project documentation is available in [ADDITIONAL.md](ADDITIONAL.md).
 
-We welcome contributions to Audify! Please review our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a Pull Request.
+## Disclaimer and legal notice
 
-[**Contributing Guide**](CONTRIBUTING.md) ¬∑ [**Code of Conduct**](CODE_OF_CONDUCT.md) ¬∑ [**Additional Docs**](ADDITIONAL.md)
+Audify is an independent third-party audio client. It is not associated with Google LLC, YouTube Music, Deezer, Telegram, or their parent companies.
 
-### Thanks to all contributors ‚ù§
+- **Media hosting:** Audify does not host or upload music. It accesses local media and third-party services through their available interfaces.
+- **User responsibility:** Users are responsible for complying with applicable laws and the terms governing any services they use.
+- **Third-party services:** Availability and behavior of external services may change without notice. No continued access or ad-related behavior is guaranteed.
+- **License:** Audify is distributed under GPL-3.0. Redistribution must comply with the license, including its source-code requirements.
 
-<a href="https://github.com/sachit1751-art/Audify/graphs/contributors">
-  <img src="https://raw.githubusercontent.com/sachit1751-art/Audify/contributors/contributors.svg" />
-</a>
+## License
 
-</div>
-
----
-
-<div align="center">
-
-<h1><a id="support"></a>Support</h1>
-
-Audify is free and always will be ‚Äî if it's earned a spot in your rotation, you can chip in here:
-
-<a href="https://ko-fi.com/kushagrasinghx" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/donate/kofi-singular-alt/cozy.svg" alt="Support me on Ko-fi" height="55"/></a>
-<a href="https://paypal.me/kuxhagrasingh" target="_blank" rel="noopener noreferrer"><img src="https://cdn.jsdelivr.net/gh/JMcrafter26/badges@main/src/assets/donate/paypal-plural/cozy.svg" alt="Support us on PayPal" height="55"/></a>
-
-<br/>
-<img src="upi_support.jpg" alt="UPI Support" width="250" />
-
-</div>
-
----
-
-<div align="center">
-
-<h1><a id="disclaimer"></a>Disclaimer & Legal Notice</h1>
-
-Audify is an independent, community-driven third-party audio player and client. It is **not** associated with Google LLC, YouTube Music, Deezer, Telegram, or any of their parent companies.
-
-* **No Media Hosting:** Audify does not host, upload, or store copyrighted music files. It operates strictly as an interface to scan local device storage or stream media directly from public, public-facing, or user-authenticated APIs.
-* **Fair Use & API Usage:** This software is created solely for personal research, educational, and fair-use purposes. The user is entirely responsible for ensuring their usage aligns with their local copyright laws and YouTube Terms of Service.
-* **No Ad-Blocking Guarantee:** While Audify focuses on providing a clean listening environment, it does not guarantee permanent bypasses or modifications to commercial third-party platform conditions.
-* **Copyleft:** Audify is free software under the GPLv3. The license does not let anyone forbid others from selling or redistributing copies, but any distribution must come with the Corresponding Source under the same license.
-
-</div>
-
----
-
-<div align="center">
-
-<h1><a id="license"></a>License</h1>
-
-This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See the [LICENSE](LICENSE) file for details.
-
-<br/>
-
-> **Audify** ‚Äî made by [Sachit](https://github.com/sachit1751-art).
-
-</div>
+This project is licensed under the [GNU General Public License v3.0](LICENSE).

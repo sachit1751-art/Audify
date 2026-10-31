@@ -1,8 +1,34 @@
 # Plan 027 — Landscape fullscreen lyrics
 
-**Status: not started.** Verified at commit `9e594bde` — lyrics are shown in portrait `LyricsLine` /
-`OriginalLyrics` / `ExperimentalLyrics` components inside the player and mini-player, but there is no
-dedicated fullscreen lyrics experience for landscape.
+**Status: verified on Android emulator.** The plan's original
+reconnaissance predates a substantial player/UI restructure (current HEAD: `559b8c3e`). The
+landscape lyrics experience is already implemented in the current tree; do not recreate the old
+`ui/player/Player.kt` or `ui/component/*Lyrics*` paths named in the original audit.
+
+Current implementation:
+- `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/player/LandscapePlayer.kt` provides
+  `LandscapePlayerLayout` and `LandscapeLyricsPane`. The landscape player uses a persistent
+  artwork/actions column and a right-hand content pane; lyrics occupy the full available height.
+- `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/player/NowPlayingScreen.kt` owns the
+  shared lyrics, playhead, translation, selection and panel state used by both orientations.
+- `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/player/PlayerLyrics.kt` and the lyric
+  panel renderer provide the synced lyric presentation and current-line emphasis.
+- `LANDSCAPE_PLAYER_MIN_WIDTH` and the landscape layout's compact-height handling are present.
+
+Verification on 2026-10-31:
+- `:sharedUi:compileKotlinJvm` — passed.
+- `:app:assembleDevDebug` — passed.
+- The plan's historical `:app:assembleFossDebug` task is absent from the current Gradle project;
+  `DevDebug` is the available app variant used for build verification.
+- Android emulator `audify_shots` (`emulator-5554`, x86_64): installed the current
+  `app-dev-x86_64-debug.apk`, opened a playlist, started playback, and opened the synced-lyrics
+  player. Verified portrait -> landscape -> portrait rotation; artwork/actions and the lyrics pane
+  reflowed correctly, the current lyric remained visible, and playback stayed `PLAYING` with the
+  position advancing across both rotations. No `FATAL EXCEPTION` or app-process crash appeared in
+  the inspected logcat window.
+- Not separately exercised: translation toggling, no-lyrics fallback, and lyric scroll/history
+  interactions. These are outside the core rotation acceptance check and remain useful follow-up
+  manual coverage, not blockers to the landscape layout verification.
 
 ## Objective
 

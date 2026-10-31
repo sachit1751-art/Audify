@@ -1,7 +1,25 @@
 # Plan 025 — Local file library beside YouTube Music
 
-**Status: not started.** Verified at commit `9e594bde` — no MediaStore scanner, no "On device" tab,
-no local file list screens exist in the app.
+**Status: existing implementation found; physical-device verification pending.** The original
+reconnaissance predates the current implementation. Plan 025 is already substantially present;
+do not add a second local-media stack or change the Room schema to satisfy this stale plan.
+
+Current implementation found during the 2026-10-31 audit:
+- `app/src/main/java/com/music/audify/data/LocalMediaRepository.kt` scans local audio through
+  MediaStore and maps it into the app's local-media model.
+- `ui/screens/DetailScreen.kt` and `MainActivity.kt` expose local music browsing, folder/group
+  navigation, filtering, and sorting.
+- Local playback is integrated with the existing player/queue path, and local media is included
+  in the search/navigation flow through `local:all`.
+- Storage permission handling and the local-library empty/permission states already exist.
+- No Room schema or migration change is needed; preserve the project-wide no-schema-change rule.
+
+Verification on 2026-10-31:
+- Focused tests `LocalMediaFilterTest`, `LocalGroupsTest`, and
+  `LocalAlbumTrackNumberTest` — passed.
+- `:app:assembleDevDebug` — passed.
+- Still required: manual playback of a local file and permission-denial behavior on a physical
+  device. Do not mark the plan fully verified until that device check is completed.
 
 ## Objective
 
