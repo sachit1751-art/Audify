@@ -83,7 +83,7 @@ private const val REPAINT_TIMEOUT_MS = 700L
  * flashing a black square over it. [CanvasArtwork.fallbackUrl] gets one try if
  * the first rendition won't decode.
  */
-@OptIn(UnstableApi::class)
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 @Composable
 internal fun AndroidCanvasArtworkPlayer(
     canvas: CanvasArtwork,

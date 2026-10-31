@@ -470,6 +470,7 @@ class MainActivity : AppCompatActivity() {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 @Composable
 private fun AudifyApp(
     darkTheme: Boolean,

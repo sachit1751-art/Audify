@@ -75,6 +75,7 @@ data class PlayerState(
 )
 
 /** Binds to [PlaybackService] for the lifetime of the composition. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 @Composable
 fun rememberMediaController(): MediaController? {
     val context = LocalContext.current

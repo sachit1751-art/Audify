@@ -172,6 +172,7 @@ import java.util.Locale
  * a row of chips into the layout.
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 @Composable
 fun SettingsScreen(
     /** The window's width, for the gates that depend on it. */

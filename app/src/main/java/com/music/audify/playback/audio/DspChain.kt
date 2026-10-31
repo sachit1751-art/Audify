@@ -31,6 +31,7 @@ import com.music.audify.playback.TransitionFilterProcessor
  * which is what lets [PcmBoundary]'s power-of-two scaling round-trip 16- and
  * 24-bit integers unchanged — see `PrecisionAudioSink.publishOutputExactness`.
  */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class DspChain(
     val spatial: SpatialAudioProcessor = SpatialAudioProcessor(),
     val equalizer: EqualizerProcessor = EqualizerProcessor(),

@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class MediaWidgetActions : BroadcastReceiver() {
 
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action?.takeIf { it in ACTIONS } ?: return
         val app = context.applicationContext

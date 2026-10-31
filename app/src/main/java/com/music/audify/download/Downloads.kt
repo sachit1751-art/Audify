@@ -467,6 +467,7 @@ object Downloads {
      * it whole — a download that needs no network at all. Reads the cache's
      * index and the first bytes of one file.
      */
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     fun servableFromCache(videoId: String): Boolean =
         videoId in fromCache && AudioCache.completeCopyOf(videoId)?.let(::cachedRoute) != null
 
@@ -1175,6 +1176,7 @@ object Downloads {
      * running for a track that is still queued — or for one that gets cancelled
      * before its turn — and a preparation is not a download.
      */
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     internal suspend fun prepare(context: Context, song: Song): Prepared = withContext(Dispatchers.IO) {
         // Downloads preserve the exact item the listener picked. Catalogue
         // matching is a manual playback action and must not silently change a
@@ -1518,6 +1520,7 @@ object Downloads {
      * downloads are pinned away from WebM for the same MediaStore reason
      * [routeFor] gives.
      */
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     private fun cachedRoute(copy: AudioCache.CompleteCopy): Route? {
         if (copy.extension == "webm" && AppSettings.exportDownloads.value) return null
         return Route(

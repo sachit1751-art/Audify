@@ -373,6 +373,7 @@ object WearBridge {
      * the watch closes its channel and opens another at the new position, so
      * an early close is the normal end of most of these, not an error.
      */
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     internal fun serveStream(context: Context, channel: ChannelClient.Channel, ensureService: () -> Unit) {
         val app = context.applicationContext
         streamPool.execute {
@@ -739,6 +740,7 @@ class WearCommandService : WearableListenerService() {
         }
     }
 
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     private fun MediaController.prepareIfIdle() {
         if (playbackState == Player.STATE_IDLE) prepare()
     }
@@ -755,6 +757,7 @@ class WearCommandService : WearableListenerService() {
             future = null
         }
 
+        @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
         fun use(app: Context, onMissing: () -> Unit, block: (MediaController) -> Unit) {
             main.post {
                 main.removeCallbacks(release)

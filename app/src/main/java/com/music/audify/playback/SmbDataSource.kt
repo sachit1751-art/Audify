@@ -22,6 +22,7 @@ import java.io.IOException
  * connection that is kept looks exactly like a dead server on every retry
  * after the first.
  */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class SmbDataSource : BaseDataSource(/* isNetwork = */ true) {
 
     private var file: com.hierynomus.smbj.share.File? = null
@@ -86,9 +87,11 @@ class SmbDataSource : BaseDataSource(/* isNetwork = */ true) {
         SmbConfig.relativePath(url, com.music.audify.data.smb.SmbAuth.share)
 
     /** Routes `smb` to [SmbDataSource] and everything else to [downstream]. */
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     class RoutingFactory(private val downstream: DataSource.Factory) : DataSource.Factory {
         override fun createDataSource(): DataSource = RoutingDataSource(downstream.createDataSource())
 
+        @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
         private class RoutingDataSource(private val inner: DataSource) : DataSource {
             private val smb = SmbDataSource()
             private var active: DataSource = inner

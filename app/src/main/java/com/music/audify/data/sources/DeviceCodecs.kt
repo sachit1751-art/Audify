@@ -107,6 +107,7 @@ object DeviceCodecs {
      * restores the behaviour that shipped before any of this existed. So the
      * uncertain case keeps the old behaviour.
      */
+    @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     private fun probe(): Boolean {
         val viaMedia3 = media3Decoders()
         if (viaMedia3 != null) {
