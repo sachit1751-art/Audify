@@ -5101,22 +5101,25 @@ private fun AudifyApp(
 
         if (showWebDavEditor) {
             BackHandler { showWebDavEditor = false }
+            val webdavUrl by AppSettings.webdavUrl.collectAsStateWithLifecycle()
+            val webdavUsername by AppSettings.webdavUsername.collectAsStateWithLifecycle()
+            val webdavPassword by AppSettings.webdavPassword.collectAsStateWithLifecycle()
             ServerEditorHost(
                 hazeState = hazeState,
                 title = stringResource(R.string.webdav),
                 description = stringResource(R.string.webdav_description),
                 fields = listOf(
                     FieldConfig(
-                        initial = AppSettings.webdavUrl.value,
+                        initial = webdavUrl,
                         placeholder = stringResource(R.string.webdav_server_url_hint),
                         keyboardType = KeyboardType.Uri,
                     ),
                     FieldConfig(
-                        initial = AppSettings.webdavUsername.value,
+                        initial = webdavUsername,
                         placeholder = stringResource(R.string.username),
                     ),
                     FieldConfig(
-                        initial = AppSettings.webdavPassword.value,
+                        initial = webdavPassword,
                         placeholder = stringResource(R.string.password),
                         keyboardType = KeyboardType.Password,
                         isPassword = true,
@@ -5143,30 +5146,35 @@ private fun AudifyApp(
 
         if (showSmbEditor) {
             BackHandler { showSmbEditor = false }
+            val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
+            val smbShare by AppSettings.smbShare.collectAsStateWithLifecycle()
+            val smbBasePath by AppSettings.smbBasePath.collectAsStateWithLifecycle()
+            val smbUsername by AppSettings.smbUsername.collectAsStateWithLifecycle()
+            val smbPassword by AppSettings.smbPassword.collectAsStateWithLifecycle()
             ServerEditorHost(
                 hazeState = hazeState,
                 title = stringResource(R.string.smb),
                 description = stringResource(R.string.smb_description),
                 fields = listOf(
                     FieldConfig(
-                        initial = AppSettings.smbHost.value,
+                        initial = smbHost,
                         placeholder = stringResource(R.string.smb_server_hint),
                         keyboardType = KeyboardType.Uri,
                     ),
                     FieldConfig(
-                        initial = AppSettings.smbShare.value,
+                        initial = smbShare,
                         placeholder = stringResource(R.string.smb_share_hint),
                     ),
                     FieldConfig(
-                        initial = AppSettings.smbBasePath.value,
+                        initial = smbBasePath,
                         placeholder = stringResource(R.string.smb_folder_hint),
                     ),
                     FieldConfig(
-                        initial = AppSettings.smbUsername.value,
+                        initial = smbUsername,
                         placeholder = stringResource(R.string.username),
                     ),
                     FieldConfig(
-                        initial = AppSettings.smbPassword.value,
+                        initial = smbPassword,
                         placeholder = stringResource(R.string.password),
                         keyboardType = KeyboardType.Password,
                         isPassword = true,

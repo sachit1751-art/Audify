@@ -106,7 +106,13 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         val watch by WearBridge.watchOutput.collectAsStateWithLifecycle()
         // While a receiver is the speaker no output of this phone is the one
         // playing, so none of them is lit; the Cast or watch row is.
-        return if (cast.casting || watch.active) outputs.map { it.copy(isActive = false) } else outputs
+        return if (cast.casting || watch.active) {
+            buildList(outputs.size) {
+                outputs.forEach { add(it.copy(isActive = false)) }
+            }
+        } else {
+            outputs
+        }
     }
 
     @Composable
