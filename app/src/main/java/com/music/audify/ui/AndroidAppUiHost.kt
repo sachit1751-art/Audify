@@ -12,6 +12,8 @@ object AndroidAppUiHost : AppUiHost {
     override val swipeToPlayNext = AppSettings.swipeToPlayNext
     override val homeRecentsViewType = AppSettings.homeRecentsViewType
     override fun setHomeRecentsViewType(value: LibraryViewType) = AppSettings.setHomeRecentsViewType(value)
+    override val showWeeklyRecapCard = AppSettings.showWeeklyRecapCard
+    override fun setWeeklyRecapSeenWeek(value: Long) = AppSettings.setWeeklyRecapSeenWeek(value)
     override val pinnedPlaylists = AppSettings.pinnedPlaylists
     override val librarySort = AppSettings.librarySort
 

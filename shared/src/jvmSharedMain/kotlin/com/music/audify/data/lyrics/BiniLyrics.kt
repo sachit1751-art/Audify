@@ -5,6 +5,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import java.text.Normalizer
+import java.util.Locale
+import kotlin.math.abs
 
 /**
  * Apple Music TTML again, from a third host — and the only one here that will
@@ -76,8 +79,51 @@ object BiniLyrics {
         val body = lyricsGet(url.toString()) ?: return@withContext null
         val response = runCatching { lyricsJson.decodeFromString<Response>(body) }.getOrNull()
             ?: return@withContext null
-        response.results?.firstOrNull()
+        bestHit(response.results.orEmpty(), title, artist, durationMs)
     }
+
+    /**
+     * The API ranks candidates, but its first row is not proof that it is the
+     * requested recording. Reject contradictory title/artist/duration metadata
+     * before its ISRC is allowed to steer every other lyrics provider.
+     * Missing optional metadata is tolerated; contradictory metadata is not.
+     */
+    internal fun bestHit(
+        hits: List<Hit>,
+        title: String,
+        artist: String,
+        durationMs: Long,
+    ): Hit? {
+        val wantedTitle = identityTitle(title)
+        val wantedArtists = artistCredits(artist)
+        val wantedSeconds = durationMs / 1000.0
+
+        return hits.firstOrNull { hit ->
+            val candidateTitle = hit.trackName?.takeIf { it.isNotBlank() }?.let(::identityTitle)
+            val candidateArtists = hit.artistName?.takeIf { it.isNotBlank() }?.let(::artistCredits)
+            val titleMatches = candidateTitle == null || candidateTitle == wantedTitle
+            val artistMatches = candidateArtists.isNullOrEmpty() || wantedArtists.isEmpty() ||
+                candidateArtists.any { it in wantedArtists }
+            val durationMatches = durationMs <= 0 || hit.duration == null || hit.duration <= 0 ||
+                abs(hit.duration - wantedSeconds) <= DURATION_TOLERANCE_SECONDS
+            titleMatches && artistMatches && durationMatches
+        }
+    }
+
+    private fun identityTitle(value: String): String =
+        Normalizer.normalize(value.forLyricsSearch(), Normalizer.Form.NFD)
+            .replace(Regex("\\p{Mn}+"), "")
+            .lowercase(Locale.ROOT)
+            .filter(Char::isLetterOrDigit)
+
+    private fun artistCredits(value: String): Set<String> =
+        value.artistForLyricsSearch()
+            .split(Regex("\\s*(?:,|&|;|/|\\band\\b|\\bwith\\b|\\bfeaturing\\b|\\bfeat\\.?\\s*|\\bft\\.?\\s*)\\s*", RegexOption.IGNORE_CASE))
+            .map(::identityTitle)
+            .filter(String::isNotEmpty)
+            .toSet()
+
+    private const val DURATION_TOLERANCE_SECONDS = 3.0
 
     /**
      * The document a search already found, fetched and parsed. These are

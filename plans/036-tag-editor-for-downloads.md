@@ -1,8 +1,9 @@
 # Plan 036 — Tag editor for downloads
 
-**Status: not started.** Verified at commit `4a3bee56` — no tag editor exists. Downloads embed metadata + 
-artwork on download (the existing download flow does this), but there's no post-download editor to fix or 
-change the embedded tags/artwork on a downloaded file.
+**Status: blocked — unsafe to expose an editor with the current storage/tag APIs.** Re-audited on 2026-10-31.
+This pass adds regression tests that pin the current destructive/append-only writer behavior. No editor UI or
+song-menu action was added: the current writers cannot safely replace metadata while preserving unrelated
+comments and artwork, and there is no transactional write-back for all supported download locations.
 
 ## Objective
 
@@ -25,6 +26,49 @@ are written).
 - No post-download tag reading/writing UI.
 - Artwork embedding on download exists (the exported file gets album art) — the primitives for writing 
 artwork to a file exist.
+
+### Implementation audit (2026-10-31)
+
+- `MediaTagger.carriesTags` supports exactly `m4a`, `webm`, and `flac`. WAV is deliberately excluded.
+- `Mp4Tagger.tag`, `WebmTagger.tag`, and `FlacTagger.tag` are write-only. They accept title, artist, album,
+  lyrics and cover bytes; none accepts genre or year. `EmbeddedLyrics` is a narrow lyrics extractor, not a
+  metadata reader: it cannot prefill title, artist, album, genre, year, or artwork.
+- `FlacTagger` replaces its existing `VORBIS_COMMENT` and `PICTURE` blocks, but emits only the title,
+  artist, album and lyrics fields supplied to it. It drops arbitrary comments (including genre/date) and
+  drops an existing picture when no replacement cover is supplied.
+- `Mp4Tagger` appends a new `udta/meta/ilst` tree. It does not inspect or replace an existing metadata tree,
+  so repeated edits can leave competing values. Its current cover writer appends a cover atom.
+- `WebmTagger` appends a new `Tags` element and an attachment. It does not replace earlier tags or attachments.
+- `DownloadStore` can save to app-private files, legacy filesystem paths, or MediaStore content URIs.
+  `Downloads.saved` maps video IDs to URI strings, and `getDownloadedSongs` exposes the URI as `Song.localUri`.
+  It has no replace/transaction API. Existing `MediaTagger` write-back truncates a file or opens a content URI
+  with `wt` and copies bytes directly; a failure after truncation can leave the original download damaged.
+  A safe editor needs a staged replacement and a commit/rollback strategy for each storage type, including
+  provider behavior for MediaStore URIs.
+- The song menu is assembled in `MainActivity.kt` (`songMenuBody`, around line 4038) and calls
+  `SongActionsSheet` (around line 4198). `SongActionsSheet` already identifies offline songs through
+  `song.localUri`, but it has no tag-editor callback. This remains an integration point only; adding it now
+  would expose an unsafe writer.
+
+### Safe implementation boundary
+
+Do not expose an editor for any of the three formats yet. Genre/year are unsupported; metadata and artwork
+readers are absent; MP4 and WebM append duplicate tags/attachments instead of replacing prior values; FLAC
+discards unrelated comments and existing artwork; and direct `wt` write-back is not rollback-safe. A smaller
+title/artist/album editor would still risk stale competing values and metadata loss. The new tests below
+reproduce the MP4/WebM duplicate-title behavior and FLAC comment/artwork loss. Existing `EmbeddedLyricsTest`
+round-trips lyrics only and does not satisfy tag-editor read/write requirements.
+
+The implementation gate is: (1) format readers for every editable field and artwork, (2) replace-in-place
+writers that preserve every unedited field and attachment, with round-trip tests for existing and absent
+metadata, and (3) staged, recoverable write-back for app-private files, legacy paths, and MediaStore URIs.
+Only after all three gates pass should the menu callback and editor UI be added.
+
+The eventual UI integration point is an optional `onEditTags: (() -> Unit)?` parameter on
+`SongActionsSheet`, rendered only when `song.localUri != null` and the extension is one of `m4a`, `webm`,
+or `flac`. `MainActivity.songMenuBody` must pass a callback that opens the editor with `song.localUri` and
+closes the menu. This is the only required `MainActivity.kt` hook; shared strings should be added separately
+to `app/src/main/res/values/sachit_strings.xml` under the project’s string-resource convention.
 
 ## Scope
 
@@ -107,3 +151,8 @@ unchanged. The file tags are whatever they were on download.
 editor UI, own tag read/write for the actual storage path. Don't copy OuterTune's extractor or Musicolet's 
 editor code.
 - Single-song v1 — keep it focused; don't scope-creep into batch editing or CD ripping.
+## Implementation audit (2026-10-31)
+
+The existing `MediaTagger`, `Mp4Tagger`, `WebmTagger`, and `FlacTagger` are write-only. They do not expose a tag reader or an in-place replacement operation. Existing supported tag fields are title, artist, album, lyrics, and container-dependent cover art; genre and year are not supported. Re-appending metadata on repeated edits is not a safe substitute for replacing tags, particularly for MP4/WebM where duplicate atoms/elements can accumulate. WAV remains intentionally unsupported.
+
+A safe editor is therefore blocked until format-specific read/replace operations and round-trip tests exist. The eventual UI entry point is the downloaded-song action in `SongActionsSheet`, wired from `MainActivity.songMenuBody`; that hook must be added only when the tag-write path is safe. No database schema change is needed for a file-only editor.

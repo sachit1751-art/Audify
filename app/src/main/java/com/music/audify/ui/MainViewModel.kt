@@ -1768,6 +1768,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     homeContinuation = feed.continuation.takeIf { added.isNotEmpty() }
                     if (added.isNotEmpty()) _home.value = UiState.Success(existing + added)
                 }
+            }.onFailure {
+                // HomeScreen rechecks the tail as soon as loadingMore becomes
+                // false. Keeping a failed token would immediately retry here
+                // while the list remains at its end, creating a request loop.
+                if (identity == listenerKey()) homeContinuation = null
             }
             if (identity == listenerKey()) _homeLoadingMore.value = false
         }

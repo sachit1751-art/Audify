@@ -232,6 +232,11 @@ object ListeningStats {
             bucket.hours[at.hour] += playedMs
             val day = at.dayOfMonth
             bucket.days[day] = (bucket.days[day] ?: 0L) + playedMs
+            if (countsAsPlay) {
+                // A play belongs to the hour in which it crossed the recorder's
+                // play threshold, not every hour in which its audio was sampled.
+                bucket.dayHourPlays.getOrPut(dayKey) { MutableList(24) { 0 } }[at.hour]++
+            }
             dirty = true
         }
     }
@@ -350,6 +355,26 @@ object ListeningStats {
             cached = Cached(period, version, facts, today, it)
         }
     }
+
+    /**
+     * Completed plays per hour over the last [days] local calendar days.
+     *
+     * Older backups have no hour-of-day play breakdown; they contribute zero
+     * rather than having listening duration misrepresented as play counts.
+     */
+    suspend fun hourOfDayPlays(days: Int = 30, today: LocalDate = LocalDate.now()): List<Int> =
+        withContext(Dispatchers.IO) {
+            if (!ready || days <= 0) return@withContext List(24) { 0 }
+            flushAndAwait()
+            val firstDay = today.minusDays((days - 1).toLong())
+            val dailyCounts = LinkedHashMap<String, List<Int>>()
+            months().filter { month ->
+                !month.atEndOfMonth().isBefore(firstDay) && !month.atDay(1).isAfter(today)
+            }.forEach { month ->
+                read(month.toString())?.dayHourPlays?.let(dailyCounts::putAll)
+            }
+            aggregateHourOfDayPlays(dailyCounts, firstDay, today)
+        }
 
     /** Every month with a file, oldest first. */
     fun months(): List<YearMonth> {
@@ -482,6 +507,8 @@ object ListeningStats {
         val trackDays: MutableMap<String, DayStats> = mutableMapOf(),
         val artistDays: MutableMap<String, DayStats> = mutableMapOf(),
         val albumDays: MutableMap<String, DayStats> = mutableMapOf(),
+        /** Completed plays by local date and hour; key: "YYYY-MM-DD". */
+        val dayHourPlays: MutableMap<String, MutableList<Int>> = mutableMapOf(),
     ) {
         fun snapshot() = StoredBucket(
             month = key,
@@ -493,6 +520,7 @@ object ListeningStats {
             trackDays = trackDays.mapValues { it.value },
             artistDays = artistDays.mapValues { it.value },
             albumDays = albumDays.mapValues { it.value },
+            dayHourPlays = dayHourPlays.mapValues { it.value.toList() },
         )
 
         companion object {
@@ -511,6 +539,9 @@ object ListeningStats {
                 trackDays = stored.trackDays?.toMutableMap() ?: mutableMapOf(),
                 artistDays = stored.artistDays?.toMutableMap() ?: mutableMapOf(),
                 albumDays = stored.albumDays?.toMutableMap() ?: mutableMapOf(),
+                dayHourPlays = stored.dayHourPlays.mapValuesTo(LinkedHashMap()) { (_, counts) ->
+                    MutableList(24) { counts.getOrElse(it) { 0 }.coerceAtLeast(0) }
+                },
             )
         }
     }
@@ -547,19 +578,30 @@ object ListeningStats {
                 val date = "${bucket.month}-%02d".format(day)
                 days[date] = (days[date] ?: 0L) + ms
             }
+            addDaySubs(bucket)
             if (earliest == null || bucket.month < earliest!!) earliest = bucket.month
         }
 
-        /** Add all day-level sub-buckets for weekly queries. */
-        fun addDaySubs(bucket: StoredBucket) {
+        /** Add daily totals, optionally restricted to the weekly query window. */
+        fun addDaySubs(bucket: StoredBucket, range: Pair<LocalDate, LocalDate>? = null) {
+            fun include(dateKey: String): Boolean {
+                val date = runCatching { LocalDate.parse(dateKey) }.getOrNull() ?: return false
+                return range == null || (date >= range.first && date <= range.second)
+            }
             bucket.trackDays?.forEach { (dateStr, stats) ->
-                trackDays.merge(dateStr, stats) { a, b -> DayStats(a.ms + b.ms, a.plays + b.plays) }
+                if (include(dateStr)) {
+                    trackDays.merge(dateStr, stats) { a, b -> DayStats(a.ms + b.ms, a.plays + b.plays) }
+                }
             }
             bucket.artistDays?.forEach { (dateStr, stats) ->
-                artistDays.merge(dateStr, stats) { a, b -> DayStats(a.ms + b.ms, a.plays + b.plays) }
+                if (include(dateStr)) {
+                    artistDays.merge(dateStr, stats) { a, b -> DayStats(a.ms + b.ms, a.plays + b.plays) }
+                }
             }
             bucket.albumDays?.forEach { (dateStr, stats) ->
-                albumDays.merge(dateStr, stats) { a, b -> DayStats(a.ms + b.ms, a.plays + b.plays) }
+                if (include(dateStr)) {
+                    albumDays.merge(dateStr, stats) { a, b -> DayStats(a.ms + b.ms, a.plays + b.plays) }
+                }
             }
         }
 
@@ -578,10 +620,10 @@ object ListeningStats {
                 albums.merge(key, entry.copy()) { a, b -> a.also { it.absorb(b) } }
             }
             // Merge day-level sub-buckets for the flat days map and cross-month totals.
-            addDaySubs(bucket)
+            addDaySubs(bucket, range)
             bucket.days.forEach { (day, ms) ->
                 val candidate = "${bucket.month}-%02d".format(day)
-                val date = runCatching { LocalDate.parse(candidate.replace("-", "/")) }.getOrNull()
+                val date = runCatching { LocalDate.parse(candidate) }.getOrNull()
                     ?: return@forEach
                 if (date >= range.first && date <= range.second) {
                     days[candidate] = (days[candidate] ?: 0L) + ms
@@ -733,8 +775,15 @@ object ListeningStats {
             return ReplaySummary(
                 period = period,
                 label = period.label(today),
-                totalMs = rankedSongs.sumOf { it.ms },
-                totalPlays = rankedSongs.sumOf { it.plays },
+                // Track rows are intentionally capped when an old month is
+                // loaded. Daily totals are not capped, so deriving this from
+                // ranked rows loses minutes after a month exceeds MAX_TRACKS.
+                totalMs = days.values.sum(),
+                // The per-day track aggregate survives the per-song chart cap,
+                // so the headline keeps its play count when older buckets are
+                // pruned down to their top tracks.
+                totalPlays = trackDays.values.sumOf { it.plays }.takeIf { trackDays.isNotEmpty() }
+                    ?: rankedSongs.sumOf { it.plays },
                 songs = rankedSongs,
                 artists = rankedArtists,
                 albums = rankedAlbums,
@@ -970,6 +1019,8 @@ data class StoredBucket(
     val artistDays: Map<String, DayStats>? = null,
     /** Per-day sub-buckets for albums. Key: "YYYY-MM-DD". */
     val albumDays: Map<String, DayStats>? = null,
+    /** Completed plays by local date and hour; key: "YYYY-MM-DD". */
+    val dayHourPlays: Map<String, List<Int>> = emptyMap(),
 )
 
 /** A row on one of the four charts. */

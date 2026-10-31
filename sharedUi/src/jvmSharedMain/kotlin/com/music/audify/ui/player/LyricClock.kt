@@ -148,13 +148,20 @@ internal class LyricClock(startMs: Long) {
             // the reading; one from before the anchor is out of order, and says
             // nothing the anchor does not.
             val takenAt = if (sampledAtMs.isNaN()) nowMs else minOf(sampledAtMs, nowMs)
-            if (takenAt >= anchorAtMs || jumpPending) take(nowMs, takenAt, reportedMs)
+            if (takenAt >= anchorAtMs || jumpPending) {
+                take(nowMs, takenAt, reportedMs, hasSampleTimestamp = !sampledAtMs.isNaN())
+            }
         }
         return displayedMs.toLong()
     }
 
     /** Folds one new reading in — or holds it back, if it disagrees with the song so far. */
-    private fun take(nowMs: Double, takenAt: Double, reportedMs: Long) {
+    private fun take(
+        nowMs: Double,
+        takenAt: Double,
+        reportedMs: Long,
+        hasSampleTimestamp: Boolean,
+    ) {
         if (jumpPending) {
             // The reading the jump was announced with: where the song landed.
             jumpPending = false
@@ -177,6 +184,29 @@ internal class LyricClock(startMs: Long) {
         val sinceSuspect = takenAt - suspectAtMs
         val agrees = !suspectAtMs.isNaN() && sinceSuspect >= 0 &&
             abs(reportedMs - (suspectMs + sinceSuspect * rate)) <= tolerance(sinceSuspect)
+        // A playback-speed change is not a seek, so it arrives without a
+        // discontinuity. Two consecutive, dated readings can nevertheless
+        // agree with each other at a different rate while both disagree with
+        // the old rate. Treat that as a new clock rate rather than rejecting
+        // readings until the four-second history window eventually ages out.
+        val observedRate = if (hasSampleTimestamp && !suspectAtMs.isNaN() && sinceSuspect >= MIN_PAIR_SPAN_MS) {
+            (reportedMs - suspectMs) / sinceSuspect
+        } else {
+            Double.NaN
+        }
+        val confirmsRateChange = !agrees && observedRate in MIN_RATE..MAX_RATE &&
+            abs(observedRate - rate) >= MIN_RATE_CHANGE
+        if (confirmsRateChange) {
+            val firstAt = suspectAtMs
+            val first = suspectMs
+            clearSuspect()
+            rate = observedRate
+            rateSettled = true
+            anchor(firstAt, first)
+            anchor(takenAt, reportedMs, continues = true)
+            jumpTo(nowMs)
+            return
+        }
         rejections++
         if (agrees) {
             // The two agree with each other, so between them they are the
@@ -350,6 +380,9 @@ private const val HISTORY = 16
 /** Before then, a rough step from each pair at least this far apart. */
 private const val MIN_PAIR_SPAN_MS = 300.0
 private const val PAIR_LEARNING = 0.5
+
+/** A sustained change this large is distinct from normal position jitter. */
+private const val MIN_RATE_CHANGE = 0.12
 
 /** Playback rates the clock is allowed to conclude; a measurement outside these is noise. */
 private const val MIN_RATE = 0.25

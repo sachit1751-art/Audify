@@ -40,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -247,7 +248,7 @@ private fun LibraryLinkList(links: List<LibraryLink>, onClick: (ShelfItem) -> Un
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 54.dp)
-                    .clickable { onClick(link.item) }
+                    .clickable(role = Role.Button) { onClick(link.item) }
                     .padding(horizontal = PAGE_GUTTER),
             ) {
                 if (link.logo != null) {

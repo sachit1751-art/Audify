@@ -100,6 +100,20 @@ fun rememberReplayState(active: Boolean): Pair<ReplayState, (ReplayPeriod) -> Un
         { next: ReplayPeriod -> period = next }
 }
 
+/** Loads the small Home recap only while Home is visible; it shares Replay's on-device aggregates. */
+@Composable
+fun rememberWeeklyRecap(active: Boolean): ReplaySummary? {
+    var summary by remember { mutableStateOf<ReplaySummary?>(null) }
+    LaunchedEffect(active) {
+        if (active) summary = ListeningStats.summary(ReplayPeriod.THIS_WEEK)
+    }
+    return summary
+}
+
+/** Keep one recap available for the current Monday-based week until opened or dismissed. */
+fun shouldShowWeeklyRecap(enabled: Boolean, hasData: Boolean, seenWeek: Long, currentWeek: Long): Boolean =
+    enabled && hasData && seenWeek != currentWeek
+
 /** How long a burst of artist lookups is allowed to settle before a rebuild. */
 private const val SETTLE_MILLIS = 1_200L
 

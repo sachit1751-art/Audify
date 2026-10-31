@@ -1,8 +1,10 @@
 # Plan 037 — Stats export (CSV)
 
-**Status: not started.** Verified at commit `4a3bee56` — no stats export exists. The app has play history 
-and recap stats (monthly/yearly/weekly), but no CSV export of play counts / history. Musicolet ships CSV 
-play-count export; Audify can add the same.
+**Status: partially implemented — monthly aggregate summary CSV.** Replay can save or share a CSV with
+song ID, month, song, artist, album, minutes and play count for every retained monthly bucket. The file is
+explicitly labeled as a summary. `ListeningStats` stores aggregates and discards individual play events, so timestamped
+listen history and per-play rows cannot be exported from the available data. Date-range and export-type
+selection from the original proposal are not implemented.
 
 ## Objective
 

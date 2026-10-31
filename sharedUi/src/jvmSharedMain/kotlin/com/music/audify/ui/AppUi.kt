@@ -22,6 +22,11 @@ interface AppUiHost {
 
     fun setHomeRecentsViewType(value: LibraryViewType)
 
+    /** Whether the weekly listening recap is enabled on Home. */
+    val showWeeklyRecapCard: StateFlow<Boolean>
+
+    fun setWeeklyRecapSeenWeek(value: Long)
+
     /** Playlist browse ids pinned to the front of the Library's Playlists shelf, in pin order. */
     val pinnedPlaylists: StateFlow<List<String>>
 

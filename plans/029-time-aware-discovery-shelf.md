@@ -1,6 +1,6 @@
 # Plan 029 — Time-aware discovery shelf
 
-**Status: not started.** Verified at commit `9e594bde` — the Home screen has a time-aware greeting
+**Status: in progress — statistics and selection logic implemented; Home shelf wiring remains.** Re-audited at commit `a3dc929e` — the Home screen has a time-aware greeting
 ("Good morning/afternoon/evening") but no time-blocked discovery shelf. No hour-block play-count logic
 exists.
 
@@ -23,6 +23,24 @@ content (auto-playlists, daily discover, community playlists) into time-aware bu
 - Daily discover card exists (plan in the roadmap / shipped context).
 - Community playlists / auto-playlists exist as discovery content.
 - No hour-block play counting, no time-bucket logic.
+
+## Implementation progress
+
+- Added backward-compatible `StoredBucket.dayHourPlays`, keyed by local `YYYY-MM-DD`, with 24
+  completed-play counters per day. Older JSON backups omit this field and deserialize as empty.
+- Counters increment only when `ListeningStats.record(..., countsAsPlay = true)` fires; ordinary
+  playback-duration samples do not inflate play counts. The hour is the local hour at the play event.
+- Added `ListeningStats.hourOfDayPlays(days = 30)`, which flushes pending statistics, reads only
+  overlapping monthly files, and returns the 24-hour aggregate for the inclusive local-date window.
+  Legacy history without hourly play counts contributes zero rather than fabricated values.
+- Added `ListeningHourBlock` and `selectTimeAwareHourBlock`: current block wins if it has any history;
+  otherwise the most-played block is selected; no history returns `null`.
+- Added pure tests for all hour boundaries, current-block preference, fallback, empty history,
+  inclusive date aggregation, malformed/negative values, and inverted date windows.
+- No Room schema or migration changes.
+- Verification: `:app:testDevDebugUnitTest --tests 'com.music.audify.data.stats.TimeAwareDiscoveryTest'`
+  and `:app:compileDevDebugKotlin` passed (6 new tests, 0 failures).
+- Not yet implemented: preference toggle, discovery-pick selection, Home shelf UI, and device checks.
 
 ## Scope
 

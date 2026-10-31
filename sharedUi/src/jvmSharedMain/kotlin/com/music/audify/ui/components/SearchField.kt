@@ -36,6 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 
 /**
  * The pill-shaped search field used at the top of the search page — a
@@ -66,7 +69,7 @@ fun SearchField(
         modifier = modifier
             .fillMaxWidth()
             // Fixed height prevents the row from growing when text is entered
-            .height(46.dp)
+            .height(48.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(11.dp))
             // Asymmetric: the magnifier is a button now and wants a real touch
             // target, so it's given the room by pulling the field's own start
@@ -83,9 +86,9 @@ fun SearchField(
             contentDescription = stringResource(Res.string.search),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .size(32.dp)
+                .size(40.dp)
                 .clip(CircleShape)
-                .clickable(enabled = query.isNotBlank(), onClick = submit)
+                .clickable(enabled = query.isNotBlank(), role = Role.Button, onClick = submit)
                 .padding(6.dp),
         )
         Spacer(Modifier.width(4.dp))
@@ -113,7 +116,8 @@ fun SearchField(
                 keyboardActions = KeyboardActions(onSearch = { submit() }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(focusRequester),
+                    .focusRequester(focusRequester)
+                    .semantics { contentDescription = placeholder },
             )
         }
         // Emptying the field is also how the recent searches are got back to,
@@ -121,9 +125,9 @@ fun SearchField(
         if (query.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .clickable {
+                    .clickable(role = Role.Button) {
                         onQueryChange("")
                         // Clearing is an edit, not a dismissal: leave the user
                         // ready to immediately type their next search.

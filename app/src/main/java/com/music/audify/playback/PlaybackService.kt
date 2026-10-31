@@ -7352,7 +7352,12 @@ class PlaybackService : MediaLibraryService() {
         val exoPlayer = player ?: return
         val currentSong = exoPlayer.currentMediaItem?.toSong() ?: return
         val lines = serviceLyrics
-        val pos = exoPlayer.currentPosition
+        // Keep media-session / notification subtitles on the same user-adjusted
+        // lyric clock as the in-app player. Positive offsets delay the lyrics.
+        val pos = adjustedLyricSubtitlePosition(
+            exoPlayer.currentPosition,
+            AppSettings.lyricsOffsetMs.value,
+        )
         val subtitleText = if (lines != null && lines.isNotEmpty() && AppSettings.syncedLyrics.value) {
             val idx = lines.indexOfLast { it.timeMs <= pos }
             val currentLine = lines.getOrNull(idx)

@@ -1,7 +1,15 @@
 # Plan 039 — Offline truthfulness
 
-**Status: not started.** Verified at commit `61778ab4` — no background download verification exists. 
-Downloaded songs show a download state but there's no background verification that the file still plays.
+**Status: partially implemented — 2026-10-31.** The first implementation checks whether a saved URI exists, opens, and yields a readable byte prefix. This is a file-access check; it does **not** establish that audio decodes or plays.
+
+Implemented in this pass:
+- Added WorkManager 2.10.5, a weekly battery-not-low worker, and a manual check action in the download manager.
+- Checks at most 25 unique file URIs per run, prioritising unchecked entries and then the oldest checks.
+- Persists `unchecked` / `available` / `unavailable` plus the last-check timestamp in the existing SharedPreferences download metadata. Old records decode as `unchecked`.
+- Shows the file-check result on completed rows in the download manager and explains the limit of the check.
+- No check path deletes a file.
+
+Deferred: a persistent status chip across library/download lists, re-download/remove actions for failed checks, and actual media-decoder/playback verification. Do not describe this pass as proving playability.
 
 ## Objective
 
@@ -17,7 +25,7 @@ but never auto-delete — suggestions only.
 expects it to work offline.
 - Existing download state is "were we able to download it", not "does it still play".
 
-## What exists today
+## Baseline when this plan was drafted
 
 - Download state tracking exists (`DownloadService`, `DownloadUtil`, download state flows) — the "is 
 downloaded" state is tracked.
@@ -48,44 +56,27 @@ respectful of battery.
 
 | File | Change |
 |------|--------|
-| `playback/DownloadVerificationWorker.kt` (new) | WorkManager Worker: pick a subset of downloaded songs, verify each (file exists, can be opened/played), update verification state per song |
-| `playback/DownloadVerificationScheduler.kt` (new) | Schedule the periodic verification WorkManager task; enforce constraints (charging, network if needed) |
-| `db/entities/DownloadEntity.kt` (or download record) | Add verification state field (verified / unverified / failed) + last-verified timestamp, if not already tracked |
-| `db/MusicDatabase.kt` | Migration to add verification fields; query to list songs needing verification / failed verification |
-| `playback/DownloadUtil.kt` (or download state flow) | Expose verification state in the download state flow; update verification state after a verification run |
-| `ui/component/DownloadIcon.kt` (or the download badge) | Show verification state in the download chip when relevant (verified = normal, failed = warning, unverified = neutral) |
-| `ui/component/SongListItem.kt` / `SongGridItem.kt` | Pass verification state to the download icon; optional "Re-download" action on failed-verification songs |
-| `sachit_strings.xml` | "Verification failed", "Re-download", "Last verified", offline truthfulness labels |
+| `download/DownloadVerification.kt` (new) | WorkManager worker, scheduler, file-header check and batch selection |
+| `download/Downloads.kt` | Persist per-file check state/timestamp in existing SharedPreferences metadata and expose status flow |
+| `ui/components/DownloadManagerSheet.kt` | Manual check action, disclosure, and status on completed manager rows |
+| `app/build.gradle.kts` | Add WorkManager runtime dependency |
+| `app/src/main/res/values/sachit_strings.xml` (new) | English labels and the file-check limitation disclosure |
+| `app/src/test/.../DownloadVerificationTest.kt` (new) | Header and batch-selection tests |
+| `app/src/test/.../DownloadStoreTest.kt` | Backward-compatible metadata defaults and state/timestamp serialization |
 
 ## Technical approach
 
-1. **Verification worker** — A WorkManager `Worker` (periodic, e.g. daily) that: queries a batch of downloaded 
-songs (the executor picks the batch size and selection — e.g. unverified first, then LRU, or a simple slice), 
-for each: check the file exists on disk, optionally attempt to open/read the file header (not full play — 
-cheap integrity check), update the verification state. Failures are recorded, not acted on automatically.
-2. **Verification state** — Add to the download record: `verificationState` (verified / unverified / 
-failed-verification) + `lastVerified` timestamp. New downloads start as "unverified"; after a verification 
-run passes, "verified"; after a failure, "failed-verification".
-3. **Chip enhancement** — The download icon/badge shows the verification state when relevant. A "verified" 
-download shows the normal download state. A "failed-verification" download shows a warning indicator + a 
-"Re-download" action. An "unverified" download shows neutral (no warning, just not yet verified).
-4. **Scheduling** — WorkManager periodic task with reasonable constraints (e.g. not on battery-maintaining 
-mode, maybe Wi-Fi only for a full re-check). The executor picks the exact constraints at implementation time. 
-The task should be lightweight — verify a batch, not all downloads at once.
-5. **Failed-verification action** — On the song (in list/grid or download management screen), a "Re-download" 
-action re-downloads the song (which also resets verification state to unverified → verified on success). A 
-"Remove" action removes the download. The user decides.
+1. **File-check worker** — WorkManager runs weekly with a battery-not-low constraint. Each pass checks up to 25 unique URIs; unchecked entries come first, then the oldest check timestamps. No network is required.
+2. **File-check state** — Existing `SavedSongMetadata` carries `fileCheckState` and `fileCheckAtMillis`. New downloads start `unchecked`; readable files become `available`; failed existence/open/read checks become `unavailable`.
+3. **Manual action and display** — The download manager exposes `Check downloaded files`, explains the check's limit, and shows the result on completed rows.
+4. **Deferred work** — A persistent library chip, re-download/remove affordances, and actual media-decoder verification remain open items.
 
 ## Testing
 
-- Unit test for the verification logic (pure function): given a file that exists / doesn't exist / is 
-corrupt, assert the verification state decision. The actual file check is the impure boundary — test it with 
-test files or mock the file check.
-- Unit test for the worker logic (the batch selection, state update) — mock the DB / file check.
-- Build: `./gradlew :app:assembleFossDebug` must pass.
-- Manual: trigger a verification run (or wait for the periodic run), verify chips update: unverified → 
-verified for good files, failed for a bad file (create a bad file to test). Verify "Re-download" on a failed 
-song re-downloads and resets verification. Verify no auto-delete.
+- Passed: `:app:testDevDebugUnitTest --tests com.music.audify.DownloadVerificationTest --tests com.music.audify.DownloadStoreTest`. Covers readable/empty headers, batch limits, URI deduplication, unchecked-first ordering, and metadata compatibility/serialization.
+- Worker integration against real MediaStore/content URIs and manual UI behavior still need device testing.
+- Passed: `:app:assembleDevDebug` (the configured dev flavor; this checkout has no Foss flavor).
+- Manual: trigger the manager action on a device and confirm readable/missing URI states update. Confirm no file is deleted. The check must not be presented as proof of playback.
 - Regression: existing download state, download icon, download flow unchanged for non-verified songs.
 
 ## Performance notes

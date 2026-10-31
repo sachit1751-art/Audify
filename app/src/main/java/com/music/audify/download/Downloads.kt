@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import com.music.audify.R
 import com.music.audify.data.DebugLog as Log
 import androidx.core.content.ContextCompat
 import com.music.audify.data.innertube.StreamResolver
@@ -72,6 +73,15 @@ object Downloads {
     private const val TAG = "Audify"
     private const val KEY_SAVED_METADATA = "downloaded_tracks_metadata"
     private const val KEY_SAVED_COLLECTIONS = "downloaded_collections"
+    private const val KEY_STORAGE_BUDGET_BYTES = "download_storage_budget_bytes"
+    internal const val UNLIMITED_STORAGE_BUDGET = 0L
+    internal val STORAGE_BUDGET_OPTIONS = listOf(
+        500L * 1024 * 1024,
+        1024L * 1024 * 1024,
+        2L * 1024 * 1024 * 1024,
+        5L * 1024 * 1024 * 1024,
+        UNLIMITED_STORAGE_BUDGET,
+    )
 
     private lateinit var prefs: SharedPreferences
     private val json = Json { ignoreUnknownKeys = true }
@@ -112,7 +122,19 @@ object Downloads {
 
     private val _savedMetadata = MutableStateFlow<Map<String, SavedSongMetadata>>(emptyMap())
 
+    private val _fileChecks = MutableStateFlow<Map<String, DownloadFileCheckStatus>>(emptyMap())
+    /** Per-id file accessibility results for download management surfaces. */
+    internal val fileChecks: StateFlow<Map<String, DownloadFileCheckStatus>> = _fileChecks.asStateFlow()
+
     private val _collections = MutableStateFlow<Map<String, SavedCollection>>(emptyMap())
+
+    private val _storageBudgetBytes = MutableStateFlow(UNLIMITED_STORAGE_BUDGET)
+    val storageBudgetBytes: StateFlow<Long> = _storageBudgetBytes.asStateFlow()
+
+    private val _storagePrompt = MutableStateFlow<DownloadStoragePrompt?>(null)
+    internal val storagePrompt: StateFlow<DownloadStoragePrompt?> = _storagePrompt.asStateFlow()
+    private val storageBudgetLock = Any()
+    private val storageReservations = mutableMapOf<String, Long>()
 
     /**
      * The releases that were downloaded *as* releases, by the id they were asked
@@ -151,10 +173,220 @@ object Downloads {
         _savedMetadata.value = runCatching {
             json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
         }.getOrDefault(emptyMap())
+        _fileChecks.value = _savedMetadata.value.mapValues { (_, metadata) ->
+            DownloadFileCheckStatus(
+                state = DownloadFileCheckState.fromPersisted(metadata.fileCheckState),
+                checkedAtMillis = metadata.fileCheckAtMillis,
+            )
+        }
         _collections.value = runCatching {
             json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
         }.getOrDefault(emptyMap())
+        _storageBudgetBytes.value = prefs.getLong(KEY_STORAGE_BUDGET_BYTES, UNLIMITED_STORAGE_BUDGET)
+        DownloadVerificationScheduler.schedule(context.applicationContext)
     }
+
+    /** Change the opt-in cap. Zero means unlimited and is the compatibility default. */
+    fun setStorageBudgetBytes(bytes: Long) {
+        val safe = bytes.coerceAtLeast(0L)
+        _storageBudgetBytes.value = safe
+        if (::prefs.isInitialized) prefs.edit().putLong(KEY_STORAGE_BUDGET_BYTES, safe).apply()
+        _storagePrompt.value = null
+    }
+
+    /** Cycle the fixed, user-visible budget presets. */
+    fun cycleStorageBudget() {
+        val index = STORAGE_BUDGET_OPTIONS.indexOf(_storageBudgetBytes.value)
+        val next = STORAGE_BUDGET_OPTIONS[if (index < 0) 0 else (index + 1) % STORAGE_BUDGET_OPTIONS.size]
+        setStorageBudgetBytes(next)
+    }
+
+    /**
+     * Reserve exact projected bytes before a destination is created. Unknown
+     * source or existing-file sizes block while the cap is enabled.
+     */
+    internal fun reserveStorageBudget(context: Context, song: Song, projectedBytes: Long?): Boolean =
+        synchronized(storageBudgetLock) {
+            val budget = _storageBudgetBytes.value
+            if (budget == UNLIMITED_STORAGE_BUDGET) return@synchronized true
+            if (_storagePrompt.value != null) return@synchronized false
+
+            val grouped = _savedMetadata.value.entries.groupBy { it.value.uri }
+            val files = mutableListOf<StorageBudgetFile>()
+            for ((uri, aliases) in grouped) {
+                val actualBytes = DownloadStore.sizeBytes(context, Uri.parse(uri))
+                if (actualBytes == null) {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        songTitle = song.title,
+                        expectedBytes = projectedBytes,
+                        reason = context.getString(R.string.download_storage_actual_size_unknown),
+                        plan = null,
+                    )
+                    return@synchronized false
+                }
+                val oldest = aliases.minByOrNull { it.value.dateAddedSeconds ?: 0L } ?: aliases.first()
+                files += StorageBudgetFile(
+                    uri = uri,
+                    videoIds = aliases.map { it.key },
+                    title = oldest.value.title,
+                    artist = oldest.value.artist,
+                    sizeBytes = actualBytes,
+                    addedAtMillis = oldest.value.dateAddedSeconds?.times(1_000L)
+                        ?: DownloadStore.lastModifiedMillis(context, Uri.parse(uri))
+                        ?: 0L,
+                )
+            }
+            if (projectedBytes == null || projectedBytes <= 0L) {
+                _storagePrompt.value = DownloadStoragePrompt(
+                    songTitle = song.title,
+                    expectedBytes = null,
+                    reason = context.getString(R.string.download_storage_unknown_size),
+                    plan = null,
+                )
+                return@synchronized false
+            }
+            var reserved = 0L
+            for (size in storageReservations.values) {
+                if (Long.MAX_VALUE - reserved < size) {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        songTitle = song.title,
+                        expectedBytes = projectedBytes,
+                        reason = context.getString(R.string.download_storage_actual_size_unknown),
+                        plan = null,
+                    )
+                    return@synchronized false
+                }
+                reserved += size
+            }
+            when (val decision = evaluateStorageBudget(files, projectedBytes, budget, reserved)) {
+                StorageBudgetDecision.Allowed -> {
+                    storageReservations[song.videoId] = projectedBytes
+                    true
+                }
+                StorageBudgetDecision.SizeUnknown -> {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        songTitle = song.title,
+                        expectedBytes = projectedBytes,
+                        reason = context.getString(R.string.download_storage_total_unknown),
+                        plan = null,
+                    )
+                    false
+                }
+                is StorageBudgetDecision.CannotFit -> {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        songTitle = song.title,
+                        expectedBytes = projectedBytes,
+                        reason = context.getString(R.string.download_storage_no_evictable_space),
+                        plan = null,
+                        unknown = false,
+                        files = decision.oldestFiles,
+                    )
+                    false
+                }
+                is StorageBudgetDecision.RequiresConfirmation -> {
+                    _storagePrompt.value = DownloadStoragePrompt(song.title, projectedBytes, null, decision.plan)
+                    false
+                }
+            }
+        }
+
+    internal fun releaseStorageReservation(videoId: String) {
+        synchronized(storageBudgetLock) { storageReservations.remove(videoId) }
+    }
+
+    /** Called only from the second, explicit confirmation dialog. */
+    internal suspend fun confirmStorageDeletion(context: Context, files: List<StorageBudgetFile>): Int =
+        withContext(Dispatchers.IO) {
+            synchronized(storageBudgetLock) {
+                val prompt = _storagePrompt.value ?: return@synchronized 0
+                val projected = prompt.expectedBytes ?: return@synchronized 0
+                val currentFiles = mutableListOf<StorageBudgetFile>()
+                for ((uri, aliases) in _savedMetadata.value.entries.groupBy { it.value.uri }) {
+                    val actualBytes = DownloadStore.sizeBytes(context, Uri.parse(uri))
+                        ?: run {
+                            _storagePrompt.value = DownloadStoragePrompt(
+                                prompt.songTitle,
+                                projected,
+                                context.getString(R.string.download_storage_actual_size_unknown),
+                                null,
+                            )
+                            return@synchronized 0
+                        }
+                    val oldest = aliases.minByOrNull { it.value.dateAddedSeconds ?: 0L } ?: aliases.first()
+                    currentFiles += StorageBudgetFile(
+                        uri = uri,
+                        videoIds = aliases.map { it.key },
+                        title = oldest.value.title,
+                        artist = oldest.value.artist,
+                        sizeBytes = actualBytes,
+                        addedAtMillis = oldest.value.dateAddedSeconds?.times(1_000L)
+                            ?: DownloadStore.lastModifiedMillis(context, Uri.parse(uri)) ?: 0L,
+                    )
+                }
+                var reserved = 0L
+                for (size in storageReservations.values) {
+                    if (Long.MAX_VALUE - reserved < size) return@synchronized 0
+                    reserved += size
+                }
+                val refreshed = evaluateStorageBudget(
+                    currentFiles,
+                    projected,
+                    _storageBudgetBytes.value,
+                    reserved,
+                )
+                if (refreshed !is StorageBudgetDecision.RequiresConfirmation) {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        prompt.songTitle,
+                        projected,
+                        context.getString(R.string.download_storage_changed_review),
+                        null,
+                        unknown = false,
+                    )
+                    return@synchronized 0
+                }
+                val currentSelection = refreshed.plan.oldestFiles.map { it.uri to it.sizeBytes }
+                val confirmedSelection = files.map { it.uri to it.sizeBytes }
+                if (currentSelection != confirmedSelection) {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        prompt.songTitle,
+                        projected,
+                        context.getString(R.string.download_storage_changed_review),
+                        null,
+                        unknown = false,
+                    )
+                    return@synchronized 0
+                }
+
+                val removedIds = mutableSetOf<String>()
+                refreshed.plan.oldestFiles.forEach { file ->
+                    if (DownloadStore.delete(context, Uri.parse(file.uri))) removedIds += file.videoIds
+                }
+                if (removedIds.isNotEmpty()) {
+                    record(
+                        saved = { current -> current - removedIds },
+                        meta = { current -> current - removedIds },
+                    )
+                }
+                val selectedIds = refreshed.plan.oldestFiles.sumOf { it.videoIds.size }
+                if (removedIds.size == selectedIds) {
+                    _storagePrompt.value = null
+                } else {
+                    _storagePrompt.value = DownloadStoragePrompt(
+                        prompt.songTitle,
+                        projected,
+                        context.getString(
+                            if (removedIds.isEmpty()) R.string.download_storage_delete_failed
+                            else R.string.download_storage_partial_delete,
+                        ),
+                        null,
+                        unknown = false,
+                    )
+                }
+                removedIds.size
+            }
+        }
+
+    fun dismissStoragePrompt() { _storagePrompt.value = null }
 
     // ---- Asking -------------------------------------------------------------
 
@@ -328,10 +560,12 @@ object Downloads {
 
     /** Delete the file saved for [videoId] and forget it. */
     suspend fun delete(context: Context, videoId: String): Boolean = withContext(Dispatchers.IO) {
-        val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
-        val deleted = DownloadStore.delete(context, uri)
-        forget(videoId)
-        deleted
+        synchronized(storageBudgetLock) {
+            val uri = _saved.value[videoId]?.toUri() ?: return@synchronized false
+            val deleted = DownloadStore.delete(context, uri)
+            if (deleted) forget(videoId)
+            deleted
+        }
     }
 
     private fun forget(videoId: String) {
@@ -605,6 +839,7 @@ object Downloads {
             uri = uri.toString(),
             downloadFormat = downloadFormat,
             dateAddedSeconds = dateAddedSeconds,
+            fileCheckState = DownloadFileCheckState.UNCHECKED.persistedValue,
         )
         val metaFetched = SavedSongMetadata(
             videoId = fetched.videoId,
@@ -616,6 +851,7 @@ object Downloads {
             uri = uri.toString(),
             downloadFormat = downloadFormat,
             dateAddedSeconds = dateAddedSeconds,
+            fileCheckState = DownloadFileCheckState.UNCHECKED.persistedValue,
         )
         record(
             saved = { it + ids.associateWith { id -> uri.toString() } },
@@ -641,6 +877,12 @@ object Downloads {
     ) {
         val savedMap = _saved.updateAndGet(saved)
         val metaMap = _savedMetadata.updateAndGet(meta)
+        _fileChecks.value = metaMap.mapValues { (_, metadata) ->
+            DownloadFileCheckStatus(
+                state = DownloadFileCheckState.fromPersisted(metadata.fileCheckState),
+                checkedAtMillis = metadata.fileCheckAtMillis,
+            )
+        }
         if (!::prefs.isInitialized) return
         synchronized(recordLock) {
             prefs.edit()
@@ -651,6 +893,42 @@ object Downloads {
     }
 
     private val recordLock = Any()
+
+    /** A bounded, URI-deduplicated batch for background file checks. */
+    internal fun fileCheckCandidates(limit: Int): List<DownloadFileCheckCandidate> =
+        selectDownloadFileCheckBatch(
+            _savedMetadata.value.values
+                .groupBy { it.uri }
+                .map { (uri, aliases) ->
+                    val oldest = aliases.minByOrNull { it.fileCheckAtMillis ?: 0L } ?: aliases.first()
+                    DownloadFileCheckCandidate(
+                        uri = uri,
+                        state = if (aliases.any { it.fileCheckState == DownloadFileCheckState.UNCHECKED.persistedValue }) {
+                            DownloadFileCheckState.UNCHECKED
+                        } else {
+                            DownloadFileCheckState.fromPersisted(oldest.fileCheckState)
+                        },
+                        checkedAtMillis = aliases.mapNotNull { it.fileCheckAtMillis }.minOrNull(),
+                    )
+                },
+            limit,
+        )
+
+    /** Persist one result against every id alias for the same physical file. */
+    internal fun recordFileCheck(uri: String, available: Boolean, checkedAtMillis: Long) {
+        val state = if (available) DownloadFileCheckState.AVAILABLE else DownloadFileCheckState.UNAVAILABLE
+        record(
+            saved = { it },
+            meta = { current ->
+                current.mapValues { (_, metadata) ->
+                    if (metadata.uri == uri) metadata.copy(
+                        fileCheckState = state.persistedValue,
+                        fileCheckAtMillis = checkedAtMillis,
+                    ) else metadata
+                }
+            },
+        )
+    }
 
     /** Returns all downloaded songs whose files still exist on disk. */
     suspend fun getDownloadedSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
@@ -988,6 +1266,19 @@ object Downloads {
         }
         val route = plan.route ?: error("Nothing to download")
 
+        val name = DownloadStore.fileNameFor(track, route.extension)
+        DownloadStore.existing(context, name)?.let { alreadyThere ->
+            remember(song, track, alreadyThere)
+            DownloadSession.done(id)
+            clear(id)
+            return
+        }
+
+        if (!reserveStorageBudget(context, song, route.expectedSizeBytes)) {
+            val reason = _storagePrompt.value?.reason
+                ?: context.getString(R.string.download_storage_budget_reached)
+            error(reason)
+        }
         var pending: DownloadStore.Pending? = null
         var lyrics: Deferred<LyricsTag.Embeddable?>? = null
         var artwork: Deferred<MediaTagger.Artwork?>? = null
@@ -1013,11 +1304,13 @@ object Downloads {
                     artwork = async { MediaTagger.artworkFor(context, track) }
                 }
 
-                val name = DownloadStore.fileNameFor(track, route.extension)
                 val alreadyThere = DownloadStore.existing(context, name)
                 if (alreadyThere != null) {
                     Log.d(TAG, "$name is already in Music; adopting it")
-                    remember(song, track, alreadyThere)
+                    synchronized(storageBudgetLock) {
+                        remember(song, track, alreadyThere)
+                        storageReservations.remove(id)
+                    }
                     DownloadSession.done(id)
                     clear(id)
                     return@coroutineScope
@@ -1051,7 +1344,10 @@ object Downloads {
                             artwork = artwork?.await(),
                         )
                     }
-                    remember(song, track, savedUri, route.downloadFormat)
+                    synchronized(storageBudgetLock) {
+                        remember(song, track, savedUri, route.downloadFormat)
+                        storageReservations.remove(id)
+                    }
                     DownloadSession.done(id)
                     clear(id)
                     Log.d(TAG, "saved offline ${if (manifest.dash) "DASH" else "HLS"} package for $name")
@@ -1075,7 +1371,10 @@ object Downloads {
                 val artworkUri = MediaTagger.persistArtwork(context, track.thumbnailUrl, cover)
                 val savedUri = destination.commit()
                 pending = null
-                remember(song, track, savedUri, route.downloadFormat, artworkUri)
+                synchronized(storageBudgetLock) {
+                    remember(song, track, savedUri, route.downloadFormat, artworkUri)
+                    storageReservations.remove(id)
+                }
                 DownloadSession.done(id)
                 clear(id)
                 Log.d(TAG, "saved $name")
@@ -1091,6 +1390,7 @@ object Downloads {
             // a lyrics search per already-downloaded track.
             lyrics?.cancel()
             artwork?.cancel()
+            releaseStorageReservation(id)
         }
     }
 
@@ -1111,6 +1411,8 @@ object Downloads {
         val describe: String,
         /** Short premium-rendition badge shown only in Audify's Downloads list. */
         val downloadFormat: String? = null,
+        /** Exact projected bytes when the resolved source exposes a reliable length. */
+        val expectedSizeBytes: Long? = null,
         val taggable: Boolean = true,
         val offlineHls: Manifest? = null,
         val write: suspend (OutputStream, (written: Long, total: Long) -> Unit) -> Unit,
@@ -1183,6 +1485,9 @@ object Downloads {
                 mimeType = if (packaged) "application/vnd.apple.mpegurl" else storable.mimeType,
                 describe = stream.format.summary,
                 downloadFormat = stream.format.downloadBadge(),
+                // SourceStream has no content-length contract. Do not infer a
+                // byte count from duration, bitrate or codec; the budget gate
+                // will block this route as size-unknown when enabled.
                 taggable = true,
                 offlineHls = Manifest(stream.url, stream.headers, dash = dash).takeIf { packaged },
                 write = { sink, onProgress ->
@@ -1200,6 +1505,7 @@ object Downloads {
             mimeType = stream.downloadMimeType,
             describe = "${stream.kbps}kbps ${stream.mimeType}",
             downloadFormat = youtubeDownloadBadge(stream.downloadExtension, stream.kbps),
+            expectedSizeBytes = Downloader.measureContentLength(stream.url),
             write = { sink, onProgress ->
                 Downloader.fetch(track.videoId, stream, quality.maxKbps, requireM4a, sink, onProgress)
             },
@@ -1219,6 +1525,7 @@ object Downloads {
             mimeType = copy.mimeType,
             describe = "song cache, ${copy.length} bytes",
             downloadFormat = if (copy.extension == "flac") "FLAC" else null,
+            expectedSizeBytes = copy.length,
             write = { sink, onProgress -> AudioCache.copyOut(copy, sink, onProgress) },
         )
     }
@@ -1408,6 +1715,10 @@ internal data class SavedSongMetadata(
     val downloadFormat: String? = null,
     /** Stable creation time for downloads that MediaStore does not index. */
     val dateAddedSeconds: Long? = null,
+    /** File accessibility only; this does not establish that the audio is playable. */
+    val fileCheckState: String = DownloadFileCheckState.UNCHECKED.persistedValue,
+    /** Time of the most recent file accessibility check, including failed checks. */
+    val fileCheckAtMillis: Long? = null,
 )
 
 /**

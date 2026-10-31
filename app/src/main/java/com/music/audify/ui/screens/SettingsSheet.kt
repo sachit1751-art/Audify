@@ -278,6 +278,7 @@ fun SettingsScreen(
     val listenBrainzToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
 
     val replayGenres by AppSettings.replayGenres.collectAsStateWithLifecycle()
+    val showWeeklyRecapCard by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
 
     // Read here so the row can say "In a party · ABC123" rather than making
     // somebody open the screen to find out whether they are still in one.
@@ -1270,6 +1271,25 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setReplayGenres(!replayGenres) },
+                )
+            }
+            val weeklyRecapTitle = stringResource(R.string.weekly_recap_setting)
+            row(weeklyRecapTitle, "weekly", "recap", "replay") {
+                SettingsRow(
+                    icon = Icons.Rounded.BarChart,
+                    title = weeklyRecapTitle,
+                    subtitle = stringResource(R.string.weekly_recap_setting_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = showWeeklyRecapCard,
+                            onCheckedChange = AppSettings::setShowWeeklyRecapCard,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = { AppSettings.setShowWeeklyRecapCard(!showWeeklyRecapCard) },
                 )
             }
             val exportDataTitle = stringResource(R.string.export_data)

@@ -45,6 +45,25 @@ class DownloadStoreTest {
         )
 
         assertNull(old.dateAddedSeconds)
+        assertEquals("unchecked", old.fileCheckState)
+        assertNull(old.fileCheckAtMillis)
+    }
+
+    @Test
+    fun `file check metadata round trips without implying playability`() {
+        val checked = SavedSongMetadata(
+            videoId = "abc",
+            title = "Song",
+            artist = "Artist",
+            uri = "file:///song.flac",
+            fileCheckState = "available",
+            fileCheckAtMillis = 1_800_000_000_000L,
+        )
+
+        val decoded = Json.decodeFromString<SavedSongMetadata>(Json.encodeToString(checked))
+
+        assertEquals("available", decoded.fileCheckState)
+        assertEquals(1_800_000_000_000L, decoded.fileCheckAtMillis)
     }
 
     @Test

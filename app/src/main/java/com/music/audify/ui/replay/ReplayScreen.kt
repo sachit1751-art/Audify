@@ -1,5 +1,9 @@
 package com.music.audify.ui.replay
 
+import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -28,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +41,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -53,12 +60,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import com.music.audify.R
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.artworkAt
 import com.music.audify.data.stats.ArtistFacts
+import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.stats.ListeningSummaryCsv
 import com.music.audify.data.stats.ReplayPeriod
 import com.music.audify.data.stats.ReplaySummary
 import com.music.audify.ui.components.PAGE_GUTTER
@@ -66,6 +76,10 @@ import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.rememberArtworkColors
 import com.music.audify.ui.theme.AccentRed
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /** Whether the Replay page is being shown in dark mode (vs light). */
 @Composable
@@ -113,6 +127,29 @@ fun ReplayScreen(
     landingPage: ReplayStoryPage = ReplayStoryPage.INTRO,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pendingCsv by remember { mutableStateOf<String?>(null) }
+    val saveCsvLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri ->
+        val csv = pendingCsv
+        pendingCsv = null
+        if (uri != null && csv != null) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openOutputStream(uri)?.bufferedWriter(Charsets.UTF_8)
+                            ?.use { it.write(csv) } ?: error("Could not open destination")
+                    }.isSuccess
+                }
+                Toast.makeText(
+                    context,
+                    if (saved) R.string.sachit_listening_summary_saved else R.string.sachit_listening_summary_save_failed,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
     val summary = state.summary
     val leadArtwork = summary?.songs?.firstOrNull()?.song?.thumbnailUrl
     val palette = rememberArtworkColors(leadArtwork)
@@ -234,7 +271,10 @@ fun ReplayScreen(
                             title = topGenres,
                             rows = summary.genreRows(CHART_LENGTH),
                             dark = dark,
-                            onClick = {},
+                            // Genres are descriptive in Replay; there is no genre
+                            // destination yet, so their rows must not advertise a
+                            // button that silently does nothing.
+                            onClick = null,
                         )
                     } else if (ArtistFacts.genresAvailable) {
                         item("genres-pending") {
@@ -247,6 +287,75 @@ fun ReplayScreen(
                     }
 
                     item("habits") { Habits(summary, dark) }
+                    item("listening-summary-export") {
+                        Note(
+                            text = stringResource(R.string.sachit_listening_summary_note),
+                            dark = dark,
+                            modifier = Modifier.padding(horizontal = PAGE_GUTTER + 4.dp),
+                        )
+                        ReplayActionRow(
+                            Icons.Rounded.Download,
+                            stringResource(R.string.sachit_listening_summary_save),
+                            dark,
+                        ) {
+                            scope.launch {
+                                val csv = try {
+                                    withContext(Dispatchers.IO) {
+                                        ListeningSummaryCsv.write(ListeningStats.exportAll())
+                                    }
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, R.string.sachit_listening_summary_save_failed, Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+                                pendingCsv = csv
+                                saveCsvLauncher.launch("audify-listening-summary.csv")
+                            }
+                        }
+                        ReplayActionRow(
+                            Icons.Rounded.IosShare,
+                            stringResource(R.string.sachit_listening_summary_share),
+                            dark,
+                        ) {
+                            scope.launch {
+                                val csv = try {
+                                    withContext(Dispatchers.IO) {
+                                        ListeningSummaryCsv.write(ListeningStats.exportAll())
+                                    }
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, R.string.sachit_listening_summary_save_failed, Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+                                val uri = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val folder = File(context.cacheDir, "listening-export").apply { mkdirs() }
+                                        val file = File(folder, "listening-summary.csv")
+                                        file.writeText(csv, Charsets.UTF_8)
+                                        FileProvider.getUriForFile(
+                                            context,
+                                            "${context.packageName}.fileprovider",
+                                            file,
+                                        )
+                                    }.getOrNull()
+                                }
+                                if (uri != null) {
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/csv"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        putExtra(Intent.EXTRA_TEXT, context.getString(R.string.sachit_listening_summary_note))
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(
+                                            send,
+                                            context.getString(R.string.sachit_listening_summary_chooser),
+                                        ),
+                                    )
+                                } else {
+                                    Toast.makeText(context, R.string.sachit_listening_summary_save_failed, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
                     item("share") {
                         ReplayActionRow(
                             Icons.Rounded.IosShare,
@@ -445,13 +554,13 @@ private fun LazyListScope.chart(
     title: String,
     rows: List<ReplayRow>,
     dark: Boolean,
-    onClick: (Int) -> Unit,
+    onClick: ((Int) -> Unit)?,
     circular: Boolean = false,
 ) {
     if (rows.isEmpty()) return
     item("$key-title") { SectionTitle(title, dark) }
     items(rows, key = { "$key-${it.key}" }) { row ->
-        ReplayChartRow(row, circular, dark) { onClick(row.rank - 1) }
+        ReplayChartRow(row, circular, dark, onClick?.let { click -> { click(row.rank - 1) } })
     }
     item("$key-gap") { Spacer(Modifier.height(20.dp)) }
 }
@@ -474,14 +583,14 @@ private fun SectionTitle(text: String, dark: Boolean) {
 }
 
 @Composable
-private fun ReplayChartRow(row: ReplayRow, circular: Boolean, dark: Boolean, onClick: () -> Unit) {
+private fun ReplayChartRow(row: ReplayRow, circular: Boolean, dark: Boolean, onClick: (() -> Unit)?) {
     val textColor = if (dark) Color.White else Color.Black
     val textVariant = if (dark) Color.White.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.55f)
     val shape = if (circular) CircleShape else RoundedCornerShape(6.dp)
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = PAGE_GUTTER + 4.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

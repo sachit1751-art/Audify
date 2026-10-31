@@ -54,6 +54,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -319,6 +322,7 @@ private fun Title(text: String) {
  */
 @Composable
 private fun NameField(value: String, onValueChange: (String) -> Unit, onDone: () -> Unit) {
+    val nameHint = stringResource(R.string.onboarding_name_hint)
     val style = MaterialTheme.typography.displayLarge.copy(
         fontSize = 26.sp,
         lineHeight = 30.sp,
@@ -336,7 +340,7 @@ private fun NameField(value: String, onValueChange: (String) -> Unit, onDone: ()
     ) {
         if (value.isEmpty()) {
             Text(
-                text = stringResource(R.string.onboarding_name_hint),
+                text = nameHint,
                 style = style,
                 color = Color.White.copy(alpha = 0.38f),
                 maxLines = 1,
@@ -354,7 +358,9 @@ private fun NameField(value: String, onValueChange: (String) -> Unit, onDone: ()
                 imeAction = ImeAction.Next,
             ),
             keyboardActions = KeyboardActions(onNext = { onDone() }),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = nameHint },
         )
     }
 }
@@ -391,6 +397,7 @@ private fun PillButton(
                 interactionSource = interaction,
                 indication = null,
                 enabled = enabled,
+                role = Role.Button,
                 onClick = onClick,
             ),
         horizontalArrangement = Arrangement.Center,
@@ -416,10 +423,10 @@ private fun PillButton(
 private fun BackButton(onClick: () -> Unit) {
     Box(
         Modifier
-            .size(40.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.16f))
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

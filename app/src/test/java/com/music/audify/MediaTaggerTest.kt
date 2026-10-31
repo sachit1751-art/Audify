@@ -120,6 +120,26 @@ class MediaTaggerTest {
         assertSame(original, tagged)
     }
 
+    @Test
+    fun `mp4 repeated edits append competing title atoms instead of replacing`() {
+        val (original, _, _) = buildFakeMp4(ByteArray(4))
+        val first = Mp4Tagger.tag(original, "Old Title", "Artist", null, null, null, false)
+        val second = Mp4Tagger.tag(first, "New Title", "Artist", null, null, null, false)
+
+        assertTrue(second.indexOfBytes("Old Title".toByteArray(Charsets.UTF_8)) >= 0)
+        assertTrue(second.indexOfBytes("New Title".toByteArray(Charsets.UTF_8)) >= 0)
+        assertEquals(
+            2,
+            second.indices.count { at ->
+                at + 4 <= second.size &&
+                    second[at] == 0xA9.toByte() &&
+                    second[at + 1] == 'n'.code.toByte() &&
+                    second[at + 2] == 'a'.code.toByte() &&
+                    second[at + 3] == 'm'.code.toByte()
+            },
+        )
+    }
+
     /**
      * Lyrics on their own have to be enough to trigger a rewrite. [MediaTagger]
      * decides whether to touch the file by comparing references, so a tagger
@@ -217,6 +237,26 @@ class MediaTaggerTest {
         assertArrayEquals(original, tagged.copyOfRange(0, original.size))
         assertTrue(tagged.indexOfBytes("LYRICS".toByteArray(Charsets.US_ASCII)) >= 0)
         assertTrue(tagged.indexOfBytes(LRC.toByteArray(Charsets.UTF_8)) >= 0)
+    }
+
+    @Test
+    fun `webm repeated edits append competing title tags instead of replacing`() {
+        val unknownSize = byteArrayOf(0x01) + ByteArray(7) { 0xFF.toByte() }
+        val original = buildFakeWebm(ByteArray(10) { (it + 1).toByte() }, unknownSize)
+        val first = WebmTagger.tag(original, "Old Title", "Artist", null, null, null, "image/jpeg")
+        val second = WebmTagger.tag(first, "New Title", "Artist", null, null, null, "image/jpeg")
+
+        assertTrue(second.indexOfBytes("Old Title".toByteArray(Charsets.UTF_8)) >= 0)
+        assertTrue(second.indexOfBytes("New Title".toByteArray(Charsets.UTF_8)) >= 0)
+        assertEquals(
+            2,
+            listOf("Old Title", "New Title").sumOf { title ->
+                val needle = title.toByteArray(Charsets.UTF_8)
+                second.indices.count { at -> at + needle.size <= second.size &&
+                    needle.indices.all { second[at + it] == needle[it] }
+                }
+            },
+        )
     }
 
     // ---- FLAC ---------------------------------------------------------------
@@ -356,6 +396,32 @@ class MediaTaggerTest {
         assertTrue(tagged.indexOfBytes("TITLE=New Title".toByteArray(Charsets.UTF_8)) >= 0)
         assertEquals(-1, tagged.indexOfBytes("Old Title".toByteArray(Charsets.UTF_8)))
         assertEquals(-1, tagged.indexOfBytes("stale".toByteArray(Charsets.UTF_8)))
+    }
+
+    @Test
+    fun `flac edit drops unrelated comments and existing artwork when no replacement is supplied`() {
+        val unrelatedCover = byteArrayOf(8, 6, 7, 5, 3, 0, 9)
+        val oldComments = vorbisComment(
+            "Other encoder",
+            listOf("TITLE=Old Title", "GENRE=Jazz", "DATE=1999", "COMMENT=keep me"),
+        )
+        val original = flacMagic +
+            flacBlock(TYPE_STREAMINFO, ByteArray(34)) +
+            flacBlock(TYPE_VORBIS_COMMENT, oldComments) +
+            flacBlock(TYPE_PICTURE, unrelatedCover, last = true) +
+            ByteArray(16) { 7 }
+
+        val tagged = FlacTagger.tag(original, "New Title", "Artist", null, null, null, "image/jpeg")
+        val (blocks, _) = flacChain(tagged)
+        val comments = blocks.single { it.first == TYPE_VORBIS_COMMENT }.second
+
+        assertTrue(tagged.indexOfBytes("TITLE=New Title".toByteArray(Charsets.UTF_8)) >= 0)
+        assertEquals(-1, tagged.indexOfBytes("GENRE=Jazz".toByteArray(Charsets.UTF_8)))
+        assertEquals(-1, tagged.indexOfBytes("DATE=1999".toByteArray(Charsets.UTF_8)))
+        assertEquals(-1, tagged.indexOfBytes("COMMENT=keep me".toByteArray(Charsets.UTF_8)))
+        assertEquals(0, blocks.count { it.first == TYPE_PICTURE })
+        assertTrue(comments.isNotEmpty())
+        assertEquals(-1, tagged.indexOfBytes(unrelatedCover))
     }
 
     /**

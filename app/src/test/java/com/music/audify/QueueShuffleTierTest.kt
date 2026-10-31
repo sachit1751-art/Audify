@@ -822,15 +822,26 @@ class QueueShuffleTierTest {
             QueueShuffle.toggle(state.player)
         }
 
-        // Benchmark Shuffle ON
-        val startShuffle = System.nanoTime()
-        QueueShuffle.toggle(state.player)
-        val shuffleDurationMs = (System.nanoTime() - startShuffle) / 1_000_000.0
+        // A single wall-clock sample is sensitive to host scheduling and GC,
+        // especially when the full suite runs concurrently. Keep the same 50ms
+        // budget, but assert the median of warmed-up samples instead of one spike.
+        repeat(3) {
+            QueueShuffle.toggle(state.player)
+            QueueShuffle.toggle(state.player)
+        }
+        val shuffleSamples = mutableListOf<Double>()
+        val restoreSamples = mutableListOf<Double>()
+        repeat(9) {
+            val startShuffle = System.nanoTime()
+            QueueShuffle.toggle(state.player)
+            shuffleSamples += (System.nanoTime() - startShuffle) / 1_000_000.0
 
-        // Benchmark Restore OFF (Current Two-Segment Replace + O(1) Provenance)
-        val startRestore = System.nanoTime()
-        QueueShuffle.toggle(state.player)
-        val restoreDurationMs = (System.nanoTime() - startRestore) / 1_000_000.0
+            val startRestore = System.nanoTime()
+            QueueShuffle.toggle(state.player)
+            restoreSamples += (System.nanoTime() - startRestore) / 1_000_000.0
+        }
+        val shuffleDurationMs = shuffleSamples.sorted()[shuffleSamples.size / 2]
+        val restoreDurationMs = restoreSamples.sorted()[restoreSamples.size / 2]
 
         // Benchmark Baseline (83fa092 linear scan indexOfFirst + full list rebuild)
         val startBaseline = System.nanoTime()

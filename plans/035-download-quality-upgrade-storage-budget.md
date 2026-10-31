@@ -1,7 +1,9 @@
 # Plan 035 — Download quality upgrade + storage budget
 
-**Status: not started.** Verified at commit `4a3bee56` — downloads exist with a quality setting, but there's
-no "re-download at higher quality when it improved" logic and no storage budget cap with LRU eviction prompt.
+**Status: partial — storage budget implemented; quality upgrade not started.** The storage-budget portion now
+uses exact file sizes, a configurable SharedPreferences cap, and a two-step LRU deletion confirmation. The
+quality-upgrade portion remains blocked on per-download selected-format metadata; no codec-based quality
+inference or re-download flow was added.
 
 ## Objective
 
@@ -42,6 +44,26 @@ about managing downloads smarter, not just downloading.
   space is freed.
 - LRU tracking: track per-download the last-played or last-added time (whichever the executor picks as the
   LRU metric). Use it for eviction ordering.
+
+## Current implementation status
+
+- **Storage budget:** implemented in the download queue. The cap is stored in the existing `audify_settings`
+  SharedPreferences file; zero is Unlimited, with 500 MB / 1 GB / 2 GB / 5 GB presets. Current saved-file sizes
+  are read from the file or content provider, including recursive byte totals for private HLS/DASH packages.
+- **Projected size:** progressive YouTube downloads use the resolved URL's exact source length (`clen` or a
+  one-byte Content-Range probe); cache copies use their known byte length. This is labelled as an estimate of
+  final storage because embedded tags/artwork can increase the saved file size. Source-module streams and
+  manifests do not expose a reliable total, so they are blocked with an explicit size-unknown message while a
+  finite budget is enabled. No bitrate/duration/codec estimate is presented as an actual size.
+- **LRU:** last-added timestamp, deduplicated by physical URI. The prompt lists the oldest exact files and their
+  measured byte sizes. A separate second confirmation is required before deletion. No automatic deletion or
+  automatic retry occurs.
+- **Quality upgrade:** not implemented. `SavedSongMetadata` records `downloadFormat` for display, but it does
+  not persist the exact selected source itag / format identity and the quality rung that produced the saved
+  bytes. Current `DownloadQuality` is a preference for the next download, not evidence of the format of an
+  existing file. A reliable upgrade detector therefore still needs selected-format metadata captured at
+  resolution and persisted at completion, plus a comparable current-best format identity. Codec names or
+  badges alone are not a safe substitute.
 
 **Out of scope:**
 - Automatic eviction without user prompt — defer; v1 is a prompt, not silent eviction.

@@ -311,6 +311,7 @@ import com.music.audify.data.LocalGroups
 import com.music.audify.data.settings.LibraryViewType
 import com.music.audify.data.settings.LocalMusicSort
 import com.music.audify.ui.screens.HomeScreen
+import com.music.audify.ui.screens.WeeklyRecapCardData
 import com.music.audify.ui.screens.LibraryGridPage
 import com.music.audify.ui.screens.LibraryScreen
 import com.music.audify.ui.screens.MoodGenrePlaylistsScreen
@@ -323,6 +324,11 @@ import com.music.audify.ui.replay.ReplayShareSheet
 import com.music.audify.ui.replay.ReplayStories
 import com.music.audify.ui.replay.ReplayStoryPage
 import com.music.audify.ui.replay.rememberReplayState
+import com.music.audify.ui.replay.rememberWeeklyRecap
+import com.music.audify.ui.replay.shouldShowWeeklyRecap
+import com.music.audify.data.stats.ReplayPeriod
+import com.music.audify.ui.replay.formatListening
+import com.music.audify.ui.replay.replayCount
 import com.music.audify.ui.theme.AudifyTheme
 import com.music.audify.ui.theme.rememberArtworkPalette
 import com.music.audify.data.canvas.AppleArtistArtRepository
@@ -2225,6 +2231,24 @@ private fun AudifyApp(
     val replayCards = remember(replay.summary) {
         replay.summary?.takeUnless { it.isEmpty }?.cards(context).orEmpty()
     }
+    val weeklyRecapEnabled by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
+    val weeklyRecapSeenWeek by AppSettings.weeklyRecapSeenWeek.collectAsStateWithLifecycle()
+    val currentWeekStart = remember { java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY).toEpochDay() }
+    val weeklyRecapSummary = rememberWeeklyRecap(
+        active = selectedTab == TAB_HOME && route == null && detail == null && weeklyRecapEnabled,
+    )
+    val weeklyRecapCard = remember(weeklyRecapSummary, weeklyRecapEnabled, weeklyRecapSeenWeek, currentWeekStart) {
+        weeklyRecapSummary?.takeIf {
+            shouldShowWeeklyRecap(weeklyRecapEnabled, !it.isEmpty, weeklyRecapSeenWeek, currentWeekStart)
+        }?.let {
+            WeeklyRecapCardData(
+                minutes = formatListening(context, it.totalMs),
+                plays = context.replayCount(it.totalPlays, R.plurals.replay_play_count),
+                topSong = it.songs.firstOrNull()?.song?.title,
+                topArtist = it.artists.firstOrNull()?.title,
+            )
+        }
+    }
 
     // ---- The track in the player ----
     // Whatever started this track knew its title and its artwork, but rarely
@@ -3087,6 +3111,15 @@ private fun AudifyApp(
                                 onLoadMore = viewModel::loadMoreHome,
                                 loadingMore = homeLoadingMore,
                                 recentlyPlayedLoading = homeRecentlyPlayedLoading,
+                                weeklyRecap = weeklyRecapCard,
+                                onWeeklyRecapClick = {
+                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekStart)
+                                    setReplayPeriod(ReplayPeriod.THIS_WEEK)
+                                    navigator.push(AppRoute.Replay)
+                                },
+                                onWeeklyRecapDismiss = {
+                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekStart)
+                                },
                             )
                             TAB_EXPLORE -> selectedMoodGenre?.let { category ->
                                 MoodGenrePlaylistsScreen(

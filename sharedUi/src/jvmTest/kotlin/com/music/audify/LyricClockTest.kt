@@ -118,6 +118,32 @@ class LyricClockTest {
         assertNeverBack(run)
     }
 
+    @Test fun followsPlaybackSpeedChangesWithoutASeek() {
+        val clock = LyricClock(10_000)
+        var now = 0.0
+        var sampleAt = 0.0
+        var report = 10_000L
+        var maxErrorAfterChange = 0.0
+
+        fun positionAt(timeMs: Double): Double =
+            10_000.0 + if (timeMs <= 5_000.0) timeMs else 5_000.0 + (timeMs - 5_000.0) * 2.0
+
+        while (now <= 10_000.0) {
+            val nextSample = (now / 500.0).toLong() * 500.0
+            if (nextSample > sampleAt) {
+                sampleAt = nextSample
+                report = positionAt(sampleAt).toLong()
+            }
+            val shown = clock.frame(now, report, sampleAt, discontinuity = 0)
+            if (now >= 6_500.0) {
+                maxErrorAfterChange = maxOf(maxErrorAfterChange, abs(shown - positionAt(now)))
+            }
+            now += frameMs
+        }
+
+        assertTrue("speed change left lyrics drifting by $maxErrorAfterChange ms", maxErrorAfterChange < 80.0)
+    }
+
     /** Drives a clock on a song at 1x from 10 s, with [readingAt] deciding what each 500 ms reading says. */
     private fun steady(
         until: Double,

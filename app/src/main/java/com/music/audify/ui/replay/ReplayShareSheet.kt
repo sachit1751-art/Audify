@@ -91,9 +91,12 @@ fun ReplayShareSheet(
     var saved by remember { mutableStateOf(false) }
 
     LaunchedEffect(summary, page) {
-        poster = runCatching { renderReplayPoster(context, summary, holder, memberSince, page) }
-            .onFailure { failed = true }
-            .getOrNull()
+        poster = null
+        failed = false
+        saved = false
+        val rendered = runCatching { renderReplayPoster(context, summary, holder, memberSince, page) }
+        poster = rendered.getOrNull()
+        failed = rendered.isFailure
     }
 
     Column(

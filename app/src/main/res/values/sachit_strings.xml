@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="weekly_recap_setting">Weekly Home recap</string>
+    <string name="weekly_recap_setting_subtitle">Show a private summary of this weekâ€™s listening on Home</string>
+    <string name="download_file_check_action">Check downloaded files</string>
+    <string name="download_file_check_note">Checks file access and a readable header. This does not test whether audio plays.</string>
+    <string name="download_file_check_unchecked">Saved Â· file check not run</string>
+    <string name="download_file_check_available">File check passed Â· file is readable</string>
+    <string name="download_file_check_unavailable">File check failed Â· file could not be read</string>
+    <string name="sachit_listening_summary_save">Save listening summary (CSV)</string>
+    <string name="sachit_listening_summary_share">Share listening summary (CSV)</string>
+    <string name="sachit_listening_summary_note">All retained monthly totals for each song. Individual play timestamps are not stored.</string>
+    <string name="sachit_listening_summary_chooser">Share listening summary</string>
+    <string name="sachit_listening_summary_saved">Listening summary saved.</string>
+    <string name="sachit_listening_summary_save_failed">Could not save the listening summary.</string>
+    <string name="sachit_spotify_import_file_button">Choose Spotify CSV/TSV file</string>
+    <string name="sachit_spotify_import_file_note">You can also import a Spotify CSV or TSV export with Track Name and Artist columns.</string>
+    <string name="sachit_spotify_import_file_read_failed">Could not read the selected file.</string>
+    <string name="sachit_spotify_import_json_unsupported">Spotify JSON exports are not supported yet.</string>
+    <string name="sachit_spotify_import_file_unsupported">Unsupported file. Choose a Spotify CSV or TSV export.</string>
+    <string name="sachit_spotify_import_file_default_title">Imported Spotify Playlist</string>
+    <!-- Plan 035 storage-budget strings -->
+    <string name="local_music_folder_access_failed">Audify could not keep access to that folder. Choose a folder again.</string>
+    <string name="download_storage_budget">Download storage budget</string>
+    <string name="download_storage_unknown_title">Download blocked Â· size unknown</string>
+    <string name="download_storage_budget_title">Download storage budget reached</string>
+    <string name="download_storage_review_delete">Review deletion</string>
+    <string name="download_storage_confirm_title">Confirm download deletion</string>
+    <string name="download_storage_delete_files">Delete these files</string>
+    <string name="download_storage_delete_warning">These exact files will be permanently deleted. Nothing is removed until you confirm here.</string>
+    <string name="download_storage_budget_detail">Used %1$s Â· estimated source bytes %2$s Â· budget %3$s</string>
+    <string name="download_storage_estimate_note">Estimate uses the source length. Embedded tags and artwork can make the final saved file larger.</string>
+    <string name="download_storage_free_detail">Free at least %1$s by removing the oldest downloads:</string>
+    <string name="download_storage_unknown_size">The source did not provide a reliable file size. This download is blocked while a storage budget is enabled.</string>
+    <string name="download_storage_actual_size_unknown">The saved file size could not be read. This download is blocked rather than using an estimate.</string>
+    <string name="download_storage_no_evictable_space">This download cannot fit within the current budget, even after removing every saved download. Increase the budget to continue.</string>
+    <string name="download_storage_changed_review">Storage changed since this list was prepared. No files were deleted. Retry the download to refresh the exact oldest-file list.</string>
+    <string name="download_storage_total_unknown">The total storage requirement could not be measured safely. This download is blocked.</string>
+    <string name="download_storage_budget_reached">The download storage budget has been reached. Review the oldest files before retrying.</string>
+    <string name="download_storage_delete_failed">The selected files could not be deleted. No files were removed; retry after checking file access.</string>
+    <string name="download_storage_partial_delete">Some selected files were deleted, but others could not be removed. Retry the download to refresh storage usage.</string>
+</resources>

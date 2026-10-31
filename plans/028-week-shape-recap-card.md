@@ -1,8 +1,9 @@
 # Plan 028 — Week-shape recap card
 
-**Status: not started.** Verified at commit `9e594bde` — the app has a monthly/yearly recap (plan 015,
-shipped) but no week-shaped recap card. `ShowWrappedCardKey` and `WrappedSeenKey` exist for the
-existing recap.
+**Status: implemented; emulator/device verification pending.** The original reconnaissance is stale:
+Audify already has private, on-device listening aggregates and a Monday-based `THIS_WEEK` Replay
+period. The implementation reuses that summary instead of adding a Room query or a second history
+store.
 
 ## Objective
 
@@ -99,3 +100,28 @@ with a lighter, more frequent cadence.
 - Private and offline — no social feed, no leaderboard across users. This is "your week", not "your
   week vs the world". That's the Audify identity.
 - Reuse the existing recap visual language — don't invent a new card style.
+
+## Implementation (2026-10-31)
+
+- `ListeningStats.summary(ReplayPeriod.THIS_WEEK)` supplies minutes, play count, top song, and top
+  artist from the existing private monthly JSON aggregates. No database or schema change was made.
+- `rememberWeeklyRecap` loads the summary only while Home is active; it flushes/reads through the
+  existing summary path and does not add a worker or network request.
+- `HomeScreen.kt` renders a compact "Your week in music" card when the current week has listening
+  data. It shows listening duration, play count, top song, and top artist where available.
+- Tapping opens the existing Replay screen with `THIS_WEEK` selected. Dismissing or opening the card
+  marks the current Monday-based week as seen; the card becomes eligible again after the next week
+  starts.
+- `AppSettings` persists the enabled toggle (default on) and the last-seen week. The toggle is
+  exposed in Settings → Your data → Weekly Home recap.
+- Empty weeks do not show an empty/negative card. The monthly/yearly Replay behavior is unchanged.
+- Added `WeeklyRecapVisibilityTest` for disabled, no-data, seen-this-week, and week-rollover cases.
+
+Verification:
+- `:sharedUi:compileKotlinJvm` and `:app:compileDevDebugKotlin` — passed.
+- `:app:testDevDebugUnitTest --tests 'com.music.audify.WeeklyRecapVisibilityTest'` — passed.
+- `:app:assembleDevDebug` — passed.
+- The `audify_shots` x86_64 emulator was booted, but installing the updated debug APK was blocked
+  because `/data` had only 421 MB free and Package Manager reported insufficient internal space.
+  Existing emulator apps/data were not uninstalled or cleared. Manual visual check of a populated
+  weekly card, dismissal, and opening Replay remains outstanding.

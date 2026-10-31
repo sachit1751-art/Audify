@@ -37,6 +37,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
@@ -47,6 +49,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cached
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
@@ -95,6 +99,13 @@ private val HOME_TITLE_LIFT = 28.dp
 
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
+
+data class WeeklyRecapCardData(
+    val minutes: String,
+    val plays: String,
+    val topSong: String?,
+    val topArtist: String?,
+)
 
 private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Boolean {
     song ?: return { false }
@@ -142,6 +153,9 @@ fun HomeScreen(
     leadHero: Boolean = true,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
+    weeklyRecap: WeeklyRecapCardData? = null,
+    onWeeklyRecapClick: (() -> Unit)? = null,
+    onWeeklyRecapDismiss: (() -> Unit)? = null,
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
 
@@ -171,6 +185,15 @@ fun HomeScreen(
             if (!signedIn && onSignIn != null) {
                 item {
                     SignInBanner(onSignIn = onSignIn, modifier = Modifier.padding(bottom = 8.dp))
+                }
+            }
+            if (weeklyRecap != null && onWeeklyRecapClick != null) {
+                item(key = "weekly-listening-recap") {
+                    WeeklyRecapCard(
+                        recap = weeklyRecap,
+                        onClick = onWeeklyRecapClick,
+                        onDismiss = onWeeklyRecapDismiss,
+                    )
                 }
             }
             when (state) {
@@ -234,6 +257,59 @@ fun HomeScreen(
                 (layout.visibleItemsInfo.lastOrNull()?.index ?: -1) to layout.totalItemsCount
             }.collect { (lastVisible, total) ->
                 if (!loadingMore && total > 0 && lastVisible >= total - 3) loadMore()
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeeklyRecapCard(
+    recap: WeeklyRecapCardData,
+    onClick: () -> Unit,
+    onDismiss: (() -> Unit)?,
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, top = 16.dp, end = 8.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(Res.string.weekly_recap_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(Res.string.weekly_recap_summary, recap.minutes, recap.plays),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                recap.topSong?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(stringResource(Res.string.weekly_recap_top_song, it), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                recap.topArtist?.let {
+                    Text(stringResource(Res.string.weekly_recap_top_artist, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(Res.string.weekly_recap_open),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (onDismiss != null) {
+                Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(Res.string.weekly_recap_dismiss), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
             }
         }
     }
@@ -385,9 +461,9 @@ private fun RecentSectionHeader(
         Spacer(Modifier.width(8.dp))
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(40.dp)
                 .clip(CircleShape)
-                .clickable(onClick = onViewTypeToggle),
+                .clickable(role = Role.Button, onClick = onViewTypeToggle),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -891,7 +967,7 @@ internal fun NewShelfCard(
     logo: DrawableResource? = null,
 ) {
     Column(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
     ) {
         Box(
             modifier = Modifier

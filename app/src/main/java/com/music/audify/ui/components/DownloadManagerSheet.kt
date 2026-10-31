@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,7 +41,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +64,12 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.download.DownloadProgress
 import com.music.audify.download.DownloadSession
 import com.music.audify.download.Downloads
+import com.music.audify.download.DownloadFileCheckState
+import com.music.audify.download.DownloadFileCheckStatus
+import com.music.audify.download.DownloadVerificationScheduler
+import com.music.audify.download.formatStorageBudget
+import com.music.audify.download.formatStorageBytes
+import kotlinx.coroutines.launch
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 
@@ -194,6 +204,11 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val session by DownloadSession.state.collectAsStateWithLifecycle()
+    val fileChecks by Downloads.fileChecks.collectAsStateWithLifecycle()
+    val storageBudget by Downloads.storageBudgetBytes.collectAsStateWithLifecycle()
+    val storagePrompt by Downloads.storagePrompt.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var confirmStorageDeletion by remember { mutableStateOf(false) }
     // Newest ask last, the order the queue will actually reach them in.
     val items = remember(session.items) { session.items.sortedBy { it.sequence } }
 
@@ -244,6 +259,40 @@ fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
             }
         }
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.download_storage_budget),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = Downloads::cycleStorageBudget, enabled = !session.busy) {
+                Text(formatStorageBudget(storageBudget))
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.download_file_check_note),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = { DownloadVerificationScheduler.checkNow(context) }) {
+                Text(stringResource(R.string.download_file_check_action))
+            }
+        }
+
         // The batch's own bar, under the heading it belongs to. The per-row bars
         // below are about one track each; this is the one that answers "how much
         // longer", which is what someone opening this sheet mid-album wants.
@@ -272,6 +321,7 @@ fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
             items(items, key = { it.videoId }) { item ->
                 DownloadManagerRow(
                     item = item,
+                    fileCheckStatus = fileChecks[item.videoId],
                     onCancel = { Downloads.cancel(item.videoId) },
                     onRetry = { Downloads.enqueue(context, item.song, item.from) },
                 )
@@ -279,12 +329,112 @@ fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(24.dp))
     }
+
+    storagePrompt?.let { prompt ->
+        val plan = prompt.plan
+        AlertDialog(
+            onDismissRequest = {
+                confirmStorageDeletion = false
+                Downloads.dismissStoragePrompt()
+            },
+            title = {
+                Text(
+                    stringResource(
+                        if (plan == null && prompt.unknown) R.string.download_storage_unknown_title
+                        else R.string.download_storage_budget_title,
+                    ),
+                )
+            },
+            text = {
+                Column {
+                    if (plan == null) {
+                        Text(prompt.reason.orEmpty())
+                        prompt.files.forEach { file ->
+                            Text(
+                                text = "${file.artist} · ${file.title} — ${formatStorageBytes(file.sizeBytes)}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(
+                                R.string.download_storage_budget_detail,
+                                formatStorageBytes(plan.usedBytes),
+                                formatStorageBytes(plan.projectedBytes),
+                                formatStorageBudget(plan.budgetBytes),
+                            ),
+                        )
+                        Text(
+                            text = stringResource(R.string.download_storage_estimate_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(stringResource(R.string.download_storage_free_detail, formatStorageBytes(plan.requiredFreeBytes)))
+                        plan.oldestFiles.forEach { file ->
+                            Text(
+                                text = "${file.artist} · ${file.title} — ${formatStorageBytes(file.sizeBytes)}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (plan != null) {
+                    TextButton(onClick = { confirmStorageDeletion = true }) {
+                        Text(stringResource(R.string.download_storage_review_delete))
+                    }
+                } else {
+                    TextButton(onClick = Downloads::dismissStoragePrompt) { Text(stringResource(R.string.close)) }
+                }
+            },
+            dismissButton = {
+                if (plan != null) {
+                    TextButton(onClick = Downloads::dismissStoragePrompt) { Text(stringResource(R.string.cancel)) }
+                }
+            },
+        )
+
+        if (confirmStorageDeletion && plan != null) {
+            AlertDialog(
+                onDismissRequest = { confirmStorageDeletion = false },
+                title = { Text(stringResource(R.string.download_storage_confirm_title)) },
+                text = {
+                    Column {
+                        Text(stringResource(R.string.download_storage_delete_warning))
+                        Spacer(Modifier.height(8.dp))
+                        plan.oldestFiles.forEach { file ->
+                            Text(
+                                text = "${file.artist} · ${file.title} — ${formatStorageBytes(file.sizeBytes)}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            confirmStorageDeletion = false
+                            scope.launch { Downloads.confirmStorageDeletion(context, plan.oldestFiles) }
+                        },
+                    ) { Text(stringResource(R.string.download_storage_delete_files)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmStorageDeletion = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
+        }
+    }
 }
 
 /** One track: its cover, what it is, and where it has got to. */
 @Composable
 private fun DownloadManagerRow(
     item: DownloadSession.Item,
+    fileCheckStatus: DownloadFileCheckStatus?,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -381,7 +531,18 @@ private fun DownloadManagerRow(
                         },
                     )
                 }
-                is DownloadProgress.Done -> RowStatus(stringResource(R.string.saved_to_audify_folder))
+                is DownloadProgress.Done -> RowStatus(
+                    when (fileCheckStatus?.state ?: DownloadFileCheckState.UNCHECKED) {
+                        DownloadFileCheckState.UNCHECKED -> stringResource(R.string.download_file_check_unchecked)
+                        DownloadFileCheckState.AVAILABLE -> stringResource(R.string.download_file_check_available)
+                        DownloadFileCheckState.UNAVAILABLE -> stringResource(R.string.download_file_check_unavailable)
+                    },
+                    color = if (fileCheckStatus?.state == DownloadFileCheckState.UNAVAILABLE) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
                 is DownloadProgress.Failed ->
                     RowStatus(progress.reason, MaterialTheme.colorScheme.error)
             }

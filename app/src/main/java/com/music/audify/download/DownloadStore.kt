@@ -188,6 +188,52 @@ object DownloadStore {
         context.contentResolver.openFileDescriptor(uri, "r")?.use { true } == true
     }.getOrDefault(false)
 
+    /** Exact bytes currently occupied by [uri], or null when the provider won't say. */
+    fun sizeBytes(context: Context, uri: Uri): Long? = runCatching {
+        if (uri.scheme == "file") {
+            val path = uri.path ?: return null
+            val file = File(path)
+            if (!file.exists()) return null
+            // Offline HLS/DASH records point at the playlist; their storage cost
+            // is the whole package (segments and sidecars), not the tiny index.
+            if (file.name == "playlist.m3u8" && file.parentFile?.parentFile?.name == "offline-hls") {
+                return file.parentFile?.walkTopDown()?.filter(File::isFile)?.fold(0L) { total, child ->
+                    if (Long.MAX_VALUE - total < child.length()) return null
+                    total + child.length()
+                }
+            }
+            return file.takeIf(File::isFile)?.length()
+        }
+        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+            descriptor.length.takeIf { it >= 0L }
+        } ?: context.contentResolver.query(
+            uri,
+            arrayOf(MediaStore.MediaColumns.SIZE),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) null
+            else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)).takeIf { it >= 0L }
+        }
+    }.getOrNull()
+
+    /** Best available added/modified time for legacy metadata without a timestamp. */
+    fun lastModifiedMillis(context: Context, uri: Uri): Long? = runCatching {
+        if (uri.scheme == "file") return uri.path?.let(::File)?.lastModified()?.takeIf { it > 0L }
+        context.contentResolver.query(
+            uri,
+            arrayOf(MediaStore.MediaColumns.DATE_ADDED),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) null
+            else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED))
+                .takeIf { it > 0L }?.times(1_000L)
+        }
+    }.getOrNull()
+
     fun delete(context: Context, uri: Uri): Boolean = runCatching {
         if (uri.scheme == "file") {
             uri.path?.let { path ->

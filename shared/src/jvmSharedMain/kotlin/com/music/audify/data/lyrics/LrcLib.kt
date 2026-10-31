@@ -32,7 +32,7 @@ object LrcLib {
     /** Synced lyrics for a track, or null when nothing usable is published. */
     suspend fun lyrics(title: String, artist: String, durationMs: Long): List<LyricLine>? =
         withContext(Dispatchers.IO) {
-            val cleanTitle = title.clean()
+            val cleanTitle = cleanTitleForSearch(title)
             val cleanArtist = artist.clean()
             val seconds = (durationMs / 1000).toInt()
 
@@ -159,6 +159,21 @@ object LrcLib {
         .ifBlank { this }
 
     /**
+     * Clean upload packaging without erasing the part that names the recording.
+     * LRCLIB's search is a fallback for an exact miss, so turning "Song (Live)"
+     * into "Song" here can make that fallback return the studio recording's
+     * words for a live performance. Keep this aligned with the shared title
+     * policy used before the other providers are called.
+     */
+    internal fun cleanTitleForSearch(title: String): String = title
+        .replace(FROM_CREDIT, " ")
+        .replace(PIPE_UPLOAD_LABEL, " ")
+        .forLyricsSearch()
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .ifBlank { title.trim() }
+
+    /**
      * The `<mm:ss.xx>` runs of an "enhanced" A2 line, as words.
      *
      * Each run ends where the next one starts, which is why a line written by
@@ -204,6 +219,11 @@ object LrcLib {
     private val NOISE = Regex(
         """\((?:from|feat\.?|official|lyrical|video|audio|remix)[^)]*\)|\[[^]]*]|""" +
             """\b(?:official (?:video|audio|music video)|lyrical|full song|4k video)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val FROM_CREDIT = Regex("""\s*[(\[]\s*from\b[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
+    private val PIPE_UPLOAD_LABEL = Regex(
+        """\s+\|\s*(?:official(?:\s+(?:music\s+)?video|\s+audio)?|lyrics?(?:\s+video)?|visuali[sz]er|full\s+song|4k(?:\s+video)?)\s*$""",
         RegexOption.IGNORE_CASE,
     )
 }

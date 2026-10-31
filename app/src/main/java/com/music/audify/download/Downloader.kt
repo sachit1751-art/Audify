@@ -277,5 +277,9 @@ object Downloader {
         }.onFailure { Log.w(TAG, "could not measure the track: ${it.message}") }.getOrNull()
     }
 
+    /** Resolve the exact progressive source length before a budget decision. */
+    internal suspend fun measureContentLength(url: String): Long? =
+        withContext(Dispatchers.IO) { contentLength(url) }
+
     private val REFUSAL_CODES = setOf(403, 404, 410)
 }

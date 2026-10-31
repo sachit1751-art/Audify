@@ -1,10 +1,10 @@
 # Plan 038 — Playlist import expansion
 
-**Status: not started.** Verified at commit `4a3bee56` — the app has CSV and M3U playlist import. The plan 
-is to expand import beyond CSV/M3U to handle Spotify-converted lists (a common request — users export from 
-Spotify to CSV and want to import into Audify). The core import engine (parse a file → list of song 
-identifiers → match to Audify songs → create a playlist) already exists; the plan is to add new source 
-parsers.
+**Status: partially implemented — Spotify CSV/TSV file import now runs end-to-end from the Spotify import sheet.**
+The SAF file picker reads a Spotify CSV/TSV export, detects the header signature, parses Track Name and Artist,
+reuses the existing match engine, creates the playlist, and reports unmatched tracks. JSON, M3U, generic CSV,
+and manual column mapping remain unsupported; JSON is deliberately rejected until a concrete export schema is
+specified. Emulator verification of selecting a real exported file is still pending.
 
 ## Objective
 

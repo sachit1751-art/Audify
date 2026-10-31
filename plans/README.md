@@ -59,8 +59,8 @@ Plans written, not started:
 | 025 | Local file library beside YTM | Library | H | none | none | **planned — not started** |
 | 026 | Tablet / two-pane player | UI | M | none | none | **planned — not started** |
 | 027 | Landscape fullscreen lyrics | Lyrics/UI | M | none | none | **verified on Android emulator** |
-| 028 | Week-shape recap card | Discovery | M | none | none | **planned — not started** |
-| 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **planned — not started** |
+| 028 | Week-shape recap card | Discovery | M | none | none | **implemented; emulator/device verification pending** |
+| 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **in progress ? hour aggregates and fallback logic implemented; Home wiring pending** |
 | 030 | Lyrics share-as-image | Social/UI | L | none | none | **planned — not started** |
 
 ### Phase 3 — Power user (plans written, not started)
@@ -71,16 +71,16 @@ Plans written, not started:
 | 032 | 10-band EQ + AutoEq profiles | Audio/EQ | M | none | none | **planned — not started** |
 | 033 | ListenBrainz scrobbling | Social/Integrations | M | none | none | **planned — not started** |
 | 034 | SponsorBlock integration | Video/Skip | M | none | **category list + API check at impl time** | **planned — not started** |
-| 035 | Download quality upgrade + storage budget | Downloads | M | none | none | **planned — not started** |
-| 036 | Tag editor for downloads | Downloads/UI | M | none | none | **planned — not started** |
-| 037 | Stats export (CSV) | Stats/Portability | L | none | none | **planned — not started** |
-| 038 | Playlist import expansion (Spotify-converted) | Import | M | none | none | **planned — not started** |
+| 035 | Download quality upgrade + storage budget | Downloads | M | none | none | **partial ? storage budget done; quality upgrade pending** |
+| 036 | Tag editor for downloads | Downloads/UI | M | none | none | **blocked ? safe tag replacement/read support required** |
+| 037 | Stats export (CSV) | Stats/Portability | L | none | none | **partially implemented ? monthly aggregate summary CSV; no per-play history** |
+| 038 | Playlist import expansion (Spotify-converted) | Import | M | none | none | **partial ? Spotify CSV/TSV SAF import wired to matching + playlist creation; mapping, JSON and M3U remain unsupported** |
 
 ### Phase 4 — Trust, privacy, ecosystem (plans written, not started)
 
 | # | Plan | Category | Effort | Depends on | Requires human gate | Status |
 |---|------|----------|--------|------------|---------------------|--------|
-| 039 | Offline truthfulness badges | UX/Honesty | M | none | none | **planned — not started** |
+| 039 | Offline truthfulness badges | UX/Honesty | M | none | none | **partially implemented ? scheduled file-access checks; not playback verification** |
 | 040 | Library hygiene tools | Library/UX | M | none | none | **planned — not started** |
 | 041 | Queue handoff (SharePlay / nearby) | Social/Queue | H | 031 (queue slots) | none | **planned — not started** |
 | 042 | "Ask Audify" conversational queue | UX/AI-lite | L | none | none | **planned — not started** |
