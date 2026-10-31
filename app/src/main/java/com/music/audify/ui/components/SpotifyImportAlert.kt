@@ -52,6 +52,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 private val IMPORT_LANGUAGES = listOf(
     "Tamil",
@@ -84,6 +85,15 @@ fun SpotifyImportAlert(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val fetchingMessage = stringResource(R.string.spotify_import_fetching)
+    val fileReadFailedMessage = stringResource(R.string.sachit_spotify_import_file_read_failed)
+    val jsonUnsupportedMessage = stringResource(R.string.sachit_spotify_import_json_unsupported)
+    val fileUnsupportedMessage = stringResource(R.string.sachit_spotify_import_file_unsupported)
+    val defaultFileTitle = stringResource(R.string.sachit_spotify_import_file_default_title)
+    val matchingFormat = stringResource(R.string.spotify_import_matching)
+    val noSongsMatchedMessage = stringResource(R.string.spotify_import_none)
+    val importFailedFormat = stringResource(R.string.spotify_import_failed)
+    val invalidLinkMessage = stringResource(R.string.spotify_import_invalid)
     val scope = rememberCoroutineScope()
     var link by remember { mutableStateOf("") }
     var privacy by remember { mutableStateOf(PlaylistPrivacy.PRIVATE) }
@@ -102,7 +112,7 @@ fun SpotifyImportAlert(
             }
             working = true
             failed = false
-            status = context.getString(R.string.spotify_import_fetching)
+            status = fetchingMessage
             scope.launch {
                 try {
                     val (name, tracks) = withContext(Dispatchers.IO) {
@@ -118,35 +128,35 @@ fun SpotifyImportAlert(
                         val content = context.contentResolver.openInputStream(uri)
                             ?.bufferedReader(Charsets.UTF_8)
                             ?.use { it.readText() }
-                            ?: error(context.getString(R.string.sachit_spotify_import_file_read_failed))
+                            ?: error(fileReadFailedMessage)
                         val format = SpotifyPlaylistFileParser.detect(content, displayName)
                         val parsed = when (format) {
                             SpotifyPlaylistFileFormat.SPOTIFY_CSV,
                             SpotifyPlaylistFileFormat.SPOTIFY_TSV -> SpotifyPlaylistFileParser.parse(content, format)
                             SpotifyPlaylistFileFormat.JSON_UNSUPPORTED ->
-                                error(context.getString(R.string.sachit_spotify_import_json_unsupported))
+                                error(jsonUnsupportedMessage)
                             SpotifyPlaylistFileFormat.M3U_UNSUPPORTED,
                             SpotifyPlaylistFileFormat.UNKNOWN ->
-                                error(context.getString(R.string.sachit_spotify_import_file_unsupported))
+                                error(fileUnsupportedMessage)
                         }
                         val title = displayName
                             ?.substringAfterLast('/')
                             ?.substringBeforeLast('.', missingDelimiterValue = "")
                             ?.trim()
                             ?.takeIf { it.isNotBlank() }
-                            ?: context.getString(R.string.sachit_spotify_import_file_default_title)
+                            ?: defaultFileTitle
                         title to parsed
                     }
                     val (songs, missed) = SpotifyImporter.resolveToSongs(tracks, effectiveLanguage) { done, total ->
-                        status = context.getString(R.string.spotify_import_matching, done, total)
+                        status = String.format(Locale.getDefault(), matchingFormat, done, total)
                     }
-                    if (songs.isEmpty()) error(context.getString(R.string.spotify_import_none))
+                    if (songs.isEmpty()) error(noSongsMatchedMessage)
                     onImported(name, privacy, songs)
                     if (missed.isEmpty()) onDismiss() else unmatched = missed
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    status = context.getString(R.string.spotify_import_failed, e.message.orEmpty())
+                    status = String.format(Locale.getDefault(), importFailedFormat, e.message.orEmpty())
                     failed = true
                 } finally {
                     working = false
@@ -157,9 +167,9 @@ fun SpotifyImportAlert(
 
     suspend fun resolveTracks(name: String, tracks: List<SpotifyImportTrack>, language: String?) {
         val (songs, missed) = SpotifyImporter.resolveToSongs(tracks, language) { done, total ->
-            status = context.getString(R.string.spotify_import_matching, done, total)
+            status = String.format(Locale.getDefault(), matchingFormat, done, total)
         }
-        if (songs.isEmpty()) error(context.getString(R.string.spotify_import_none))
+        if (songs.isEmpty()) error(noSongsMatchedMessage)
         onImported(name, privacy, songs)
         if (missed.isEmpty()) onDismiss() else unmatched = missed
     }
@@ -167,7 +177,7 @@ fun SpotifyImportAlert(
     fun start() {
         val id = SpotifyImporter.extractPlaylistId(link)
         if (id == null) {
-            status = context.getString(R.string.spotify_import_invalid)
+            status = invalidLinkMessage
             failed = true
             return
         }
@@ -178,7 +188,7 @@ fun SpotifyImportAlert(
         }
         working = true
         failed = false
-        status = context.getString(R.string.spotify_import_fetching)
+        status = fetchingMessage
         scope.launch {
             try {
                 val (name, tracks) = SpotifyImporter.fetchPlaylistTracks(id)
@@ -186,7 +196,7 @@ fun SpotifyImportAlert(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                status = context.getString(R.string.spotify_import_failed, e.message.orEmpty())
+                status = String.format(Locale.getDefault(), importFailedFormat, e.message.orEmpty())
                 failed = true
             }
             working = false

@@ -127,6 +127,8 @@ fun ReplayScreen(
     landingPage: ReplayStoryPage = ReplayStoryPage.INTRO,
 ) {
     val context = LocalContext.current
+    val listeningSummaryNote = stringResource(R.string.sachit_listening_summary_note)
+    val listeningSummaryChooser = stringResource(R.string.sachit_listening_summary_chooser)
     val scope = rememberCoroutineScope()
     var pendingCsv by remember { mutableStateOf<String?>(null) }
     val saveCsvLauncher = rememberLauncherForActivityResult(
@@ -341,13 +343,13 @@ fun ReplayScreen(
                                     val send = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/csv"
                                         putExtra(Intent.EXTRA_STREAM, uri)
-                                        putExtra(Intent.EXTRA_TEXT, context.getString(R.string.sachit_listening_summary_note))
+                                        putExtra(Intent.EXTRA_TEXT, listeningSummaryNote)
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
                                     context.startActivity(
                                         Intent.createChooser(
                                             send,
-                                            context.getString(R.string.sachit_listening_summary_chooser),
+                                            listeningSummaryChooser,
                                         ),
                                     )
                                 } else {

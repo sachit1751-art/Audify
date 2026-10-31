@@ -897,4 +897,4 @@ fun DiscordDialogHost(
 /** The app's own label, minus the dev flavor's suffix. Matches [DiscordRPC]. */
 @Composable
 private fun appName(): String =
-    LocalContext.current.getString(R.string.app_name).removeSuffix(" Dev")
+    stringResource(R.string.app_name).removeSuffix(" Dev")

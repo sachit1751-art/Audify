@@ -1197,6 +1197,33 @@ private fun AudifyApp(
     }
 
     val scope = rememberCoroutineScope()
+    val webDavUploadSummaryFormat = stringResource(R.string.webdav_upload_summary)
+    val radioStartedFormat = stringResource(R.string.radio_started)
+    val partyQueueFullFormat = stringResource(R.string.party_queue_full)
+    val songAddedToQueueMessage = stringResource(R.string.song_added_to_queue)
+    val songWillPlayNextMessage = stringResource(R.string.song_will_play_next)
+    val artistLabel = stringResource(R.string.artist)
+    val albumLabel = stringResource(R.string.album)
+    val couldntFindFormat = stringResource(R.string.couldnt_find)
+    val couldntOpenLinkMessage = stringResource(R.string.couldnt_open_link)
+    val noTracksHereMessage = stringResource(R.string.no_tracks_here)
+    val couldntLoadTracksMessage = stringResource(R.string.couldnt_load_tracks)
+    val storageRequiredSaveMessage = stringResource(R.string.storage_required_save)
+    val storageRequiredReadMessage = stringResource(R.string.storage_required_read)
+    val wifiOnlyDownloadRefusalMessage = stringResource(R.string.wifi_only_download_refusal)
+    val alreadyDownloadedMessage = stringResource(R.string.already_downloaded)
+    val spotifyLabel = stringResource(R.string.spotify)
+    val searchSourceAddonsLabel = stringResource(R.string.search_source_addons)
+    val localMusicLabel = stringResource(R.string.local_music)
+    val songAddedToPlaylistMessage = stringResource(R.string.song_added_to_playlist)
+    val songAlreadyInPlaylistMessage = stringResource(R.string.song_already_in_playlist)
+    val failedMessage = stringResource(R.string.failed)
+    val spotifyImportLocalFallbackFormat = stringResource(R.string.spotify_import_local_fallback)
+    val spotifyImportDoneFormat = stringResource(R.string.spotify_import_done)
+    val pinnedPlaylistLimitFormat = stringResource(R.string.pinned_playlist_limit)
+    val loginFailedMessage = stringResource(R.string.login_failed)
+    val playlistReorderedMessage = stringResource(R.string.playlist_reordered)
+    val reorderFailedMessage = stringResource(R.string.reorder_failed)
 
     // Copies tracks to the WebDAV server, leaving the local files alone.
     // A clash suspends the batch on WebDavUploads.conflict until the dialog
@@ -1206,8 +1233,9 @@ private fun AudifyApp(
             val summary = com.music.audify.data.webdav.WebDavUploads.upload(context, songs)
             if (summary.total > 0) {
                 showQueueNotice(
-                    context.getString(
-                        R.string.webdav_upload_summary,
+                    String.format(
+                        Locale.getDefault(),
+                        webDavUploadSummaryFormat,
                         summary.uploaded,
                         summary.skipped,
                         summary.failed,
@@ -1600,7 +1628,7 @@ private fun AudifyApp(
                 activeController.commitRadioQueue()
                 Toast.makeText(
                     context,
-                    context.getString(R.string.radio_started, song.title),
+                    String.format(Locale.getDefault(), radioStartedFormat, song.title),
                     Toast.LENGTH_SHORT,
                 ).show()
             }
@@ -1615,7 +1643,7 @@ private fun AudifyApp(
                 if (ListenTogether.state.value.inParty) {
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
-                        showQueueNotice(context.getString(R.string.party_queue_full, 25))
+                        showQueueNotice(String.format(Locale.getDefault(), partyQueueFullFormat, 25))
                         return@launch
                     }
                 }
@@ -1634,7 +1662,7 @@ private fun AudifyApp(
                     playbackSourceId = current?.playbackSourceId,
                 ).asQueueEntry(QueueTier.USER_QUEUE)
                 it.addMediaItem(at, queued.toMediaItem())
-                showQueueNotice(context.getString(R.string.song_added_to_queue))
+                showQueueNotice(songAddedToQueueMessage)
             }
         }
     }
@@ -1645,7 +1673,7 @@ private fun AudifyApp(
                 if (ListenTogether.state.value.inParty) {
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
-                        showQueueNotice(context.getString(R.string.party_queue_full, 25))
+                        showQueueNotice(String.format(Locale.getDefault(), partyQueueFullFormat, 25))
                         return@launch
                     }
                 }
@@ -1664,7 +1692,7 @@ private fun AudifyApp(
                     playbackSourceId = current?.playbackSourceId,
                 ).asQueueEntry(QueueTier.USER_QUEUE)
                 it.addMediaItem(at, queued.toMediaItem())
-                showQueueNotice(context.getString(R.string.song_will_play_next))
+                showQueueNotice(songWillPlayNextMessage)
             }
         }
     }
@@ -1697,9 +1725,7 @@ private fun AudifyApp(
         artwork: String? = null,
     ) {
         if (browseId != null) {
-            val credit = subtitle ?: context.getString(
-                if (type == BrowseType.ARTIST) R.string.artist else R.string.album,
-            )
+            val credit = subtitle ?: if (type == BrowseType.ARTIST) artistLabel else albumLabel
             viewModel.openDetail(browseId, name, credit, artwork, type)
             return
         }
@@ -1717,7 +1743,7 @@ private fun AudifyApp(
             if (hit == null) {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.couldnt_find, name),
+                    String.format(Locale.getDefault(), couldntFindFormat, name),
                     Toast.LENGTH_SHORT,
                 ).show()
             } else {
@@ -1761,7 +1787,7 @@ private fun AudifyApp(
                         val upcoming = (c.mediaItemCount - (c.currentMediaItemIndex + 1)).coerceAtLeast(0)
                         val slotsLeft = (25 - upcoming).coerceAtLeast(0)
                         if (slotsLeft <= 0) {
-                            showQueueNotice(context.getString(R.string.party_queue_full, 25))
+                            showQueueNotice(String.format(Locale.getDefault(), partyQueueFullFormat, 25))
                             return@launch
                         }
                         songs.take(slotsLeft)
@@ -1825,7 +1851,7 @@ private fun AudifyApp(
                 if (song == null) {
                     Toast.makeText(
                         context,
-                        context.getString(R.string.couldnt_open_link),
+                        couldntOpenLinkMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                 } else {
@@ -1962,12 +1988,12 @@ private fun AudifyApp(
         when {
             target.songs.isNotEmpty() -> stamp(target.songs)
             target.browseId == null ->
-                Toast.makeText(context, context.getString(R.string.no_tracks_here), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, noTracksHereMessage, Toast.LENGTH_SHORT).show()
             else -> viewModel.collectSongs(target.browseId, target.thumbnailUrl) { result ->
                 result.fold(
                     onSuccess = stamp,
                     onFailure = {
-                        val message = it.message ?: context.getString(R.string.couldnt_load_tracks)
+                        val message = it.message ?: couldntLoadTracksMessage
                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                     },
                 )
@@ -2008,7 +2034,7 @@ private fun AudifyApp(
             // The one case where refusing is fatal: below API 29 there is no
             // other way to reach the Music folder.
             else -> Toast
-                .makeText(context, context.getString(R.string.storage_required_save), Toast.LENGTH_SHORT)
+                .makeText(context, storageRequiredSaveMessage, Toast.LENGTH_SHORT)
                 .show()
         }
     }
@@ -2020,7 +2046,7 @@ private fun AudifyApp(
             viewModel.reloadLocalDetail("local:downloads")
             viewModel.loadLibrarySongs()
         } else {
-            Toast.makeText(context, context.getString(R.string.storage_required_read), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, storageRequiredReadMessage, Toast.LENGTH_SHORT).show()
         }
     }
     val mediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -2162,12 +2188,12 @@ private fun AudifyApp(
             // long message. So this one is said whatever the count.
             blocked -> Toast.makeText(
                 context,
-                context.getString(R.string.wifi_only_download_refusal),
+                wifiOnlyDownloadRefusalMessage,
                 Toast.LENGTH_LONG,
             ).show()
             requested.size > 1 -> {
                 val message = if (songs.isEmpty()) {
-                    context.getString(R.string.already_downloaded)
+                    alreadyDownloadedMessage
                 } else {
                     context.resources.getQuantityString(
                         R.plurals.downloading_song_count,
@@ -2487,7 +2513,7 @@ private fun AudifyApp(
                     viewModel.openDetail(
                         id,
                         name,
-                        context.getString(R.string.artist),
+                        artistLabel,
                         null,
                         BrowseType.ARTIST,
                     )
@@ -2498,14 +2524,14 @@ private fun AudifyApp(
                             viewModel.openDetail(
                                 found,
                                 name,
-                                context.getString(R.string.artist),
+                                artistLabel,
                                 null,
                                 BrowseType.ARTIST,
                             )
                         } else {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.couldnt_find, name),
+                                String.format(Locale.getDefault(), couldntFindFormat, name),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -2793,7 +2819,7 @@ private fun AudifyApp(
                                     viewModel.openDetail(
                                         browseId = SPOTIFY_PAGE_PREFIX + playlist.id,
                                         title = playlist.name,
-                                        subtitle = playlist.owner ?: context.getString(R.string.spotify),
+                                        subtitle = playlist.owner ?: spotifyLabel,
                                         thumbnailUrl = playlist.imageUrl,
                                         type = BrowseType.PLAYLIST,
                                     )
@@ -3089,11 +3115,7 @@ private fun AudifyApp(
                                                 reorderSaving = true
                                                 viewModel.reorderPlaylist(reordering, original, reordered) { saved ->
                                                     reorderSaving = false
-                                                    showQueueNotice(
-                                                        context.getString(
-                                                            if (saved) R.string.playlist_reordered else R.string.reorder_failed,
-                                                        ),
-                                                    )
+                                                    showQueueNotice(if (saved) playlistReorderedMessage else reorderFailedMessage)
                                                     if (saved && reorderTarget == reordering) reorderTarget = null
                                                 }
                                             },
@@ -3353,13 +3375,13 @@ private fun AudifyApp(
                                         index,
                                         if (searchSource == SearchSource.ADDONS) {
                                             QueueSource(
-                                                context.getString(R.string.search_source_addons),
+                                                searchSourceAddonsLabel,
                                                 PlaybackSourceType.BROWSE,
                                                 "addons:search",
                                             )
                                         } else {
                                             QueueSource(
-                                                context.getString(R.string.local_music),
+                                                localMusicLabel,
                                                 PlaybackSourceType.BROWSE,
                                                 "local:all",
                                             )
@@ -4335,7 +4357,7 @@ private fun AudifyApp(
                     )
                 },
                 onOpenArtist = { id ->
-                    openPage(id, song.artist, context.getString(R.string.artist), BrowseType.ARTIST)
+                    openPage(id, song.artist, artistLabel, BrowseType.ARTIST)
                 },
                 // The player backfills its own track; any other row is
                 // looked up as the menu opens — see `needsLinks` above.
@@ -4522,10 +4544,10 @@ private fun AudifyApp(
                                         added > 1 -> context.resources.getQuantityString(
                                             R.plurals.added_to_playlists_notice, added, added,
                                         )
-                                        added == 1 -> context.getString(R.string.song_added_to_playlist)
+                                        added == 1 -> songAddedToPlaylistMessage
                                         alreadyThere > 0 && failed == 0 ->
-                                            context.getString(R.string.song_already_in_playlist)
-                                        else -> context.getString(R.string.failed)
+                                            songAlreadyInPlaylistMessage
+                                        else -> failedMessage
                                     },
                                 )
                             }
@@ -4553,9 +4575,9 @@ private fun AudifyApp(
                         songs,
                     ) { browseId, pTitle, savedLocally ->
                         showQueueNotice(
-                            context.getString(
-                                if (savedLocally && signedIn) R.string.spotify_import_local_fallback
-                                else R.string.spotify_import_done,
+                            String.format(
+                                Locale.getDefault(),
+                                if (savedLocally && signedIn) spotifyImportLocalFallbackFormat else spotifyImportDoneFormat,
                                 pTitle,
                             ),
                         )
@@ -4701,10 +4723,7 @@ private fun AudifyApp(
                         if (!nowPinned && id !in pinnedPlaylists) {
                             Toast.makeText(
                                 context,
-                                context.getString(
-                                    R.string.pinned_playlist_limit,
-                                    AppSettings.MAX_PINNED_PLAYLISTS,
-                                ),
+                                String.format(Locale.getDefault(), pinnedPlaylistLimitFormat, AppSettings.MAX_PINNED_PLAYLISTS),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -4739,7 +4758,7 @@ private fun AudifyApp(
                             if (reorderTarget != p) return@loadPlaylistEntries
                             reorderEntries = result.fold(
                                 onSuccess = { UiState.Success(it) },
-                                onFailure = { UiState.Error(context.getString(R.string.failed)) },
+                                onFailure = { UiState.Error(failedMessage) },
                             )
                         }
                     }
@@ -5086,10 +5105,10 @@ private fun AudifyApp(
                                     showLastfmLogin = false
                                 }
                                 .onFailure { e ->
-                                    lastfmError = e.message ?: context.getString(R.string.login_failed)
+                                    lastfmError = e.message ?: loginFailedMessage
                                 }
                         } catch (e: Exception) {
-                            lastfmError = e.message ?: context.getString(R.string.login_failed)
+                            lastfmError = e.message ?: loginFailedMessage
                         } finally {
                             lastfmLoading = false
                         }

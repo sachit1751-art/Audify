@@ -857,7 +857,7 @@
     <string name="loudness_gain_db">%1$s dB</string>
     <string name="loudness_lufs">%1$s LUFS</string>
 
-    <string name="shelf_100_on_repeat">100% en bucle</string>
+    <string name="shelf_100_on_repeat">100%% en bucle</string>
 
     <string name="shelf_artists_on_the_rise">Artistas en ascenso</string>
 
@@ -1343,4 +1343,42 @@
     <string name="song_info_unavailable">No disponible</string>
     <string name="song_info_error">No se pudo cargar parte de la información.</string>
     <string name="song_info_retry">Reintentar</string>
+    <string name="weekly_recap_setting">Resumen semanal de Inicio</string>
+    <string name="weekly_recap_setting_subtitle">Mostrar en Inicio un resumen privado de la actividad de escucha de esta semana</string>
+    <string name="download_file_check_action">Comprobar archivos descargados</string>
+    <string name="download_file_check_note">Comprueba el acceso al archivo y que se pueda leer su encabezado. No comprueba si el audio se reproduce.</string>
+    <string name="download_file_check_unchecked">Guardado · comprobación del archivo no realizada</string>
+    <string name="download_file_check_available">Comprobación correcta · el archivo se puede leer</string>
+    <string name="download_file_check_unavailable">Error en la comprobación · no se pudo leer el archivo</string>
+    <string name="sachit_listening_summary_save">Guardar resumen de escucha (CSV)</string>
+    <string name="sachit_listening_summary_share">Compartir resumen de escucha (CSV)</string>
+    <string name="sachit_listening_summary_note">Todos los totales mensuales conservados de cada canción. No se guardan las horas de reproducción individuales.</string>
+    <string name="sachit_listening_summary_chooser">Compartir resumen de escucha</string>
+    <string name="sachit_listening_summary_saved">Resumen de escucha guardado.</string>
+    <string name="sachit_listening_summary_save_failed">No se pudo guardar el resumen de escucha.</string>
+    <string name="sachit_spotify_import_file_button">Elegir archivo CSV/TSV de Spotify</string>
+    <string name="sachit_spotify_import_file_note">También puedes importar una exportación CSV o TSV de Spotify con las columnas Track Name y Artist.</string>
+    <string name="sachit_spotify_import_file_read_failed">No se pudo leer el archivo seleccionado.</string>
+    <string name="sachit_spotify_import_json_unsupported">Las exportaciones JSON de Spotify todavía no son compatibles.</string>
+    <string name="sachit_spotify_import_file_unsupported">Archivo no compatible. Elige una exportación CSV o TSV de Spotify.</string>
+    <string name="sachit_spotify_import_file_default_title">Lista de reproducción de Spotify importada</string>
+    <string name="local_music_folder_access_failed">Audify no pudo conservar el acceso a esa carpeta. Vuelve a seleccionarla.</string>
+    <string name="download_storage_budget">Límite de almacenamiento de descargas</string>
+    <string name="download_storage_unknown_title">Descarga bloqueada · tamaño desconocido</string>
+    <string name="download_storage_budget_title">Se alcanzó el límite de almacenamiento de descargas</string>
+    <string name="download_storage_review_delete">Revisar eliminación</string>
+    <string name="download_storage_confirm_title">Confirmar eliminación de descargas</string>
+    <string name="download_storage_delete_files">Eliminar estos archivos</string>
+    <string name="download_storage_delete_warning">Estos archivos exactos se eliminarán permanentemente. No se quitará nada hasta que lo confirmes aquí.</string>
+    <string name="download_storage_budget_detail">Usado %1$s · bytes estimados del origen %2$s · límite %3$s</string>
+    <string name="download_storage_estimate_note">La estimación usa la duración del origen. Las etiquetas y las imágenes incrustadas pueden aumentar el tamaño del archivo guardado.</string>
+    <string name="download_storage_free_detail">Libera al menos %1$s eliminando las descargas más antiguas:</string>
+    <string name="download_storage_unknown_size">El origen no proporcionó un tamaño de archivo fiable. Esta descarga está bloqueada mientras haya un límite de almacenamiento activado.</string>
+    <string name="download_storage_actual_size_unknown">No se pudo leer el tamaño del archivo guardado. La descarga se bloquea en lugar de usar una estimación.</string>
+    <string name="download_storage_no_evictable_space">Esta descarga no cabe en el límite actual, ni siquiera después de eliminar todas las descargas guardadas. Aumenta el límite para continuar.</string>
+    <string name="download_storage_changed_review">El almacenamiento cambió desde que se preparó esta lista. No se eliminó ningún archivo. Reintenta la descarga para actualizar la lista exacta de archivos más antiguos.</string>
+    <string name="download_storage_total_unknown">No se pudo medir de forma segura el requisito total de almacenamiento. Esta descarga está bloqueada.</string>
+    <string name="download_storage_budget_reached">Se alcanzó el límite de almacenamiento de descargas. Revisa los archivos más antiguos antes de volver a intentarlo.</string>
+    <string name="download_storage_delete_failed">No se pudieron eliminar los archivos seleccionados. No se quitó ningún archivo; comprueba el acceso a los archivos y vuelve a intentarlo.</string>
+    <string name="download_storage_partial_delete">Se eliminaron algunos archivos seleccionados, pero no se pudieron quitar los demás. Reintenta la descarga para actualizar el uso del almacenamiento.</string>
 </resources>

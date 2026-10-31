@@ -52,15 +52,18 @@
     <string name="song_count">%1$d שיר</string>
     <plurals name="song_count_plural">
         <item quantity="one">%1$d שיר</item>
-        <item quantity="other">%1$d שירים</item>
+                <item quantity="two">%1$d שירים</item>
+<item quantity="other">%1$d שירים</item>
     </plurals>
     <plurals name="artist_count">
         <item quantity="one">%1$d אמן</item>
-        <item quantity="other">%1$d אמנים</item>
+                <item quantity="two">%1$d אמנים</item>
+<item quantity="other">%1$d אמנים</item>
     </plurals>
     <plurals name="album_count">
         <item quantity="one">%1$d אלבום</item>
-        <item quantity="other">%1$d אלבומים</item>
+                <item quantity="two">%1$d אלבומים</item>
+<item quantity="other">%1$d אלבומים</item>
     </plurals>
     <string name="songs">שירים</string>
     <string name="artists">אמנים</string>
@@ -78,7 +81,8 @@
     <string name="already_downloaded">כבר הורד</string>
     <plurals name="downloading_song_count">
         <item quantity="one">מוריד %1$d שיר</item>
-        <item quantity="other">מוריד %1$d שירים</item>
+                <item quantity="two">מוריד %1$d שירים</item>
+<item quantity="other">מוריד %1$d שירים</item>
     </plurals>
     <string name="source">מקורות</string>
     <string name="lossless_audio">אודיו Lossless</string>
@@ -506,7 +510,8 @@
     <string name="replay_minutes_value">%1$s</string>
     <plurals name="replay_minutes_unit">
         <item quantity="one">%1$s דקה</item>
-        <item quantity="other">%1$s דקות</item>
+                <item quantity="two">%1$s דקות</item>
+<item quantity="other">%1$s דקות</item>
     </plurals>
     <string name="replay_mostly_around">, רובם סביב %1$s.</string>
     <string name="replay_private_counting">נבנה באופן פרטי מההיסטוריה המקומית שלך</string>
@@ -613,59 +618,73 @@
     <string name="all_time">כל הזמן</string>
     <plurals name="downloads_failed_count">
         <item quantity="one">הורדות · %1$d נכשלה</item>
-        <item quantity="other">הורדות · %1$d נכשלו</item>
+                <item quantity="two">הורדות · %1$d נכשלו</item>
+<item quantity="other">הורדות · %1$d נכשלו</item>
     </plurals>
     <plurals name="download_waiting_count">
         <item quantity="one">%1$d ממתינה</item>
-        <item quantity="other">%1$d ממתינות</item>
+                <item quantity="two">%1$d ממתינות</item>
+<item quantity="other">%1$d ממתינות</item>
     </plurals>
     <plurals name="download_done_count">
         <item quantity="one">%1$d הסתיימה</item>
-        <item quantity="other">%1$d הסתיימו</item>
+                <item quantity="two">%1$d הסתיימו</item>
+<item quantity="other">%1$d הסתיימו</item>
     </plurals>
     <plurals name="download_failed_count">
         <item quantity="one">%1$d נכשלה</item>
-        <item quantity="other">%1$d נכשלו</item>
+                <item quantity="two">%1$d נכשלו</item>
+<item quantity="other">%1$d נכשלו</item>
     </plurals>
     <plurals name="all_songs_downloaded">
         <item quantity="one">כל השיר ה-%1$d ירד</item>
-        <item quantity="other">כל %1$d השירים ירדו</item>
+                <item quantity="two">כל %1$d השירים ירדו</item>
+<item quantity="other">כל %1$d השירים ירדו</item>
     </plurals>
     <plurals name="hour_count">
         <item quantity="one">שעה %1$d</item>
-        <item quantity="other">%1$d שעות</item>
+                <item quantity="two">%1$d שעות</item>
+<item quantity="other">%1$d שעות</item>
     </plurals>
     <plurals name="songs_will_play_next">
         <item quantity="one">שיר %1$d יתנגן בהמשך</item>
-        <item quantity="other">%1$d שירים יתנגנו בהמשך</item>
+                <item quantity="two">%1$d שירים יתנגנו בהמשך</item>
+<item quantity="other">%1$d שירים יתנגנו בהמשך</item>
     </plurals>
     <plurals name="songs_added_to_queue">
         <item quantity="one">שיר %1$d נוסף לתור</item>
-        <item quantity="other">%1$d שירים נוספו לתור</item>
+                <item quantity="two">%1$d שירים נוספו לתור</item>
+<item quantity="other">%1$d שירים נוספו לתור</item>
     </plurals>
     <plurals name="log_copied_line_count">
         <item quantity="one">יומן הועתק · שורה %1$d</item>
-        <item quantity="other">יומן הועתק · %1$d שורות</item>
+                <item quantity="two">יומן הועתק · %1$d שורות</item>
+<item quantity="other">יומן הועתק · %1$d שורות</item>
     </plurals>
     <plurals name="minute_count">
         <item quantity="one">דקה %1$d</item>
-        <item quantity="other">%1$d דקות</item>
+                <item quantity="two">%1$d דקות</item>
+<item quantity="other">%1$d דקות</item>
     </plurals>
     <plurals name="replay_artist_count">
         <item quantity="one">אמן %1$s</item>
-        <item quantity="other">%1$s אמנים</item>
+                <item quantity="two">%1$s אמנים</item>
+<item quantity="other">%1$s אמנים</item>
     </plurals>
     <plurals name="replay_play_count">
         <item quantity="one">הפעלה %1$s</item>
-        <item quantity="other">%1$s הפעלות</item>
+                <item quantity="two">%1$s הפעלות</item>
+<item quantity="other">%1$s הפעלות</item>
     </plurals>
     <plurals name="replay_song_count">
         <item quantity="one">שיר %1$s</item>
-        <item quantity="other">%1$s שירים</item>
+                <item quantity="two">%1$s שירים</item>
+<item quantity="other">%1$s שירים</item>
     </plurals>
     <plurals name="listening_month_count">
         <item quantity="one">חודש %1$d של האזנה</item>
-        <item quantity="other">%1$d חודשי האזנה</item>
+                <item quantity="two">%1$d חודשי האזנה</item>
+<item quantity="other">%1$d חודשי האזנה</item>
     </plurals>
     <string name="hebrew">עברית</string>
 
@@ -778,7 +797,8 @@
 
     <plurals name="track_count_plural">
         <item quantity="one">רצועה %1$d</item>
-        <item quantity="other">%1$d רצועות</item>
+                <item quantity="two">%1$d רצועות</item>
+<item quantity="other">%1$d רצועות</item>
     </plurals>
 
     <string name="account_profiles_help">לחשבון Google יכולים להיות פרופילים אישיים ועסקיים, לכל אחד ספרייה והיסטוריה משלו.</string>
@@ -1228,11 +1248,13 @@
     <string name="song_already_in_playlist">כבר ברשימת ההשמעה</string>
     <plurals name="add_to_playlists_count">
         <item quantity="one">הוסף לרשימת השמעה %1$d</item>
-        <item quantity="other">הוסף ל-%1$d רשימות השמעה</item>
+                <item quantity="two">הוסף ל-%1$d רשימות השמעה</item>
+<item quantity="other">הוסף ל-%1$d רשימות השמעה</item>
     </plurals>
     <plurals name="added_to_playlists_notice">
         <item quantity="one">נוסף לרשימת השמעה %1$d</item>
-        <item quantity="other">נוסף ל-%1$d רשימות השמעה</item>
+                <item quantity="two">נוסף ל-%1$d רשימות השמעה</item>
+<item quantity="other">נוסף ל-%1$d רשימות השמעה</item>
     </plurals>
     <string name="party_queue_full">התור מלא (עד %d שירים במסיבה)</string>
 
@@ -1376,4 +1398,42 @@
     <string name="song_info_unavailable">לא זמין</string>
     <string name="song_info_error">לא ניתן לטעון חלק מהמידע.</string>
     <string name="song_info_retry">ניסיון חוזר</string>
+    <string name="weekly_recap_setting">סיכום שבועי במסך הבית</string>
+    <string name="weekly_recap_setting_subtitle">הצגת סיכום פרטי של ההאזנה השבועית במסך הבית</string>
+    <string name="download_file_check_action">בדיקת קבצים שהורדו</string>
+    <string name="download_file_check_note">בודק גישה לקובץ ואת האפשרות לקרוא את הכותרת שלו. הבדיקה אינה מוודאת שניתן לנגן את השמע.</string>
+    <string name="download_file_check_unchecked">נשמר · בדיקת הקובץ לא הופעלה</string>
+    <string name="download_file_check_available">הבדיקה הצליחה · ניתן לקרוא את הקובץ</string>
+    <string name="download_file_check_unavailable">הבדיקה נכשלה · לא ניתן לקרוא את הקובץ</string>
+    <string name="sachit_listening_summary_save">שמירת סיכום האזנה (CSV)</string>
+    <string name="sachit_listening_summary_share">שיתוף סיכום האזנה (CSV)</string>
+    <string name="sachit_listening_summary_note">כל הסיכומים החודשיים שנשמרו עבור כל שיר. זמני ההפעלה הבודדים אינם נשמרים.</string>
+    <string name="sachit_listening_summary_chooser">שיתוף סיכום האזנה</string>
+    <string name="sachit_listening_summary_saved">סיכום ההאזנה נשמר.</string>
+    <string name="sachit_listening_summary_save_failed">לא ניתן לשמור את סיכום ההאזנה.</string>
+    <string name="sachit_spotify_import_file_button">בחירת קובץ Spotify מסוג CSV/TSV</string>
+    <string name="sachit_spotify_import_file_note">אפשר גם לייבא ייצוא של Spotify מסוג CSV או TSV עם העמודות Track Name ו-Artist.</string>
+    <string name="sachit_spotify_import_file_read_failed">לא ניתן לקרוא את הקובץ שנבחר.</string>
+    <string name="sachit_spotify_import_json_unsupported">ייצואי Spotify בפורמט JSON עדיין אינם נתמכים.</string>
+    <string name="sachit_spotify_import_file_unsupported">קובץ לא נתמך. יש לבחור ייצוא של Spotify מסוג CSV או TSV.</string>
+    <string name="sachit_spotify_import_file_default_title">רשימת השמעה שיובאה מ-Spotify</string>
+    <string name="local_music_folder_access_failed">Audify לא הצליחה לשמור על הגישה לתיקייה הזו. יש לבחור את התיקייה שוב.</string>
+    <string name="download_storage_budget">מכסת אחסון להורדות</string>
+    <string name="download_storage_unknown_title">ההורדה נחסמה · הגודל לא ידוע</string>
+    <string name="download_storage_budget_title">מכסת אחסון ההורדות הושגה</string>
+    <string name="download_storage_review_delete">בדיקת מחיקה</string>
+    <string name="download_storage_confirm_title">אישור מחיקת הורדות</string>
+    <string name="download_storage_delete_files">מחיקת הקבצים האלה</string>
+    <string name="download_storage_delete_warning">הקבצים המסוימים האלה יימחקו לצמיתות. שום דבר לא יוסר עד לאישור כאן.</string>
+    <string name="download_storage_budget_detail">בשימוש %1$s · בתים משוערים של המקור %2$s · מכסה %3$s</string>
+    <string name="download_storage_estimate_note">ההערכה מבוססת על אורך המקור. תגיות ועטיפות מוטמעות עשויות להגדיל את גודל הקובץ הסופי.</string>
+    <string name="download_storage_free_detail">יש לפנות לפחות %1$s על ידי הסרת ההורדות הישנות ביותר:</string>
+    <string name="download_storage_unknown_size">המקור לא סיפק גודל קובץ אמין. ההורדה חסומה כל עוד מכסת האחסון מופעלת.</string>
+    <string name="download_storage_actual_size_unknown">לא ניתן לקרוא את גודל הקובץ שנשמר. ההורדה נחסמת במקום להשתמש בהערכה.</string>
+    <string name="download_storage_no_evictable_space">ההורדה הזו אינה יכולה להיכנס למכסה הנוכחית, גם לאחר הסרת כל ההורדות השמורות. יש להגדיל את המכסה כדי להמשיך.</string>
+    <string name="download_storage_changed_review">האחסון השתנה מאז הכנת הרשימה הזו. לא נמחקו קבצים. יש לנסות להוריד שוב כדי לרענן את הרשימה המדויקת של הקבצים הישנים ביותר.</string>
+    <string name="download_storage_total_unknown">לא ניתן למדוד בבטחה את דרישת האחסון הכוללת. ההורדה הזו חסומה.</string>
+    <string name="download_storage_budget_reached">מכסת אחסון ההורדות הושגה. יש לבדוק את הקבצים הישנים ביותר לפני ניסיון נוסף.</string>
+    <string name="download_storage_delete_failed">לא ניתן למחוק את הקבצים שנבחרו. לא הוסרו קבצים; יש לבדוק את הגישה לקבצים ולנסות שוב.</string>
+    <string name="download_storage_partial_delete">חלק מהקבצים שנבחרו נמחקו, אך לא ניתן היה להסיר את האחרים. יש לנסות להוריד שוב כדי לרענן את השימוש באחסון.</string>
 </resources>

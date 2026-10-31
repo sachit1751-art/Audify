@@ -53,14 +53,20 @@
     <string name="song_count">%1$d piosenka</string>
     <plurals name="song_count_plural">
         <item quantity="one">%1$d piosenka</item>
+        <item quantity="few">%1$d piosenki</item>
+        <item quantity="many">%1$d piosenek</item>
         <item quantity="other">%1$d piosenki</item>
     </plurals>
     <plurals name="artist_count">
         <item quantity="one">%1$d artysta</item>
+        <item quantity="few">%1$d artyst?w</item>
+        <item quantity="many">%1$d artyst?w</item>
         <item quantity="other">%1$d artystów</item>
     </plurals>
     <plurals name="album_count">
         <item quantity="one">%1$d album</item>
+        <item quantity="few">%1$d albumy</item>
+        <item quantity="many">%1$d album?w</item>
         <item quantity="other">%1$d albumów</item>
     </plurals>
     <string name="songs">Piosenki</string>
@@ -79,6 +85,8 @@
     <string name="already_downloaded">Już pobrane</string>
     <plurals name="downloading_song_count">
         <item quantity="one">Pobieranie %1$d piosenki</item>
+        <item quantity="few">Pobieranie %1$d piosenek</item>
+        <item quantity="many">Pobieranie %1$d piosenek</item>
         <item quantity="other">Pobieranie %1$d piosenek</item>
     </plurals>
     <string name="source">Źródła</string>
@@ -1263,10 +1271,14 @@
     <string name="song_already_in_playlist">Już jest na playliście</string>
     <plurals name="add_to_playlists_count">
         <item quantity="one">Dodaj do %1$d playlisty</item>
+        <item quantity="few">Dodaj do %1$d playlist</item>
+        <item quantity="many">Dodaj do %1$d playlist</item>
         <item quantity="other">Dodaj do %1$d playlist</item>
     </plurals>
     <plurals name="added_to_playlists_notice">
         <item quantity="one">Dodano do %1$d playlisty</item>
+        <item quantity="few">Dodano do %1$d playlist</item>
+        <item quantity="many">Dodano do %1$d playlist</item>
         <item quantity="other">Dodano do %1$d playlist</item>
     </plurals>
     <string name="party_queue_full">Kolejka jest pełna (maksymalnie %d utworów na imprezie)</string>
@@ -1411,4 +1423,42 @@
     <string name="song_info_unavailable">Niedostępne</string>
     <string name="song_info_error">Nie udało się wczytać części informacji.</string>
     <string name="song_info_retry">Spróbuj ponownie</string>
+    <string name="weekly_recap_setting">Tygodniowe podsumowanie na ekranie głównym</string>
+    <string name="weekly_recap_setting_subtitle">Pokazuj na ekranie głównym prywatne podsumowanie słuchania z tego tygodnia</string>
+    <string name="download_file_check_action">Sprawdź pobrane pliki</string>
+    <string name="download_file_check_note">Sprawdza dostęp do pliku i możliwość odczytu nagłówka. Nie sprawdza, czy dźwięk można odtworzyć.</string>
+    <string name="download_file_check_unchecked">Zapisano · nie sprawdzono pliku</string>
+    <string name="download_file_check_available">Sprawdzanie zakończone · plik można odczytać</string>
+    <string name="download_file_check_unavailable">Sprawdzanie nie powiodło się · nie można odczytać pliku</string>
+    <string name="sachit_listening_summary_save">Zapisz podsumowanie słuchania (CSV)</string>
+    <string name="sachit_listening_summary_share">Udostępnij podsumowanie słuchania (CSV)</string>
+    <string name="sachit_listening_summary_note">Wszystkie zachowane miesięczne sumy dla każdego utworu. Poszczególne godziny odtworzeń nie są zapisywane.</string>
+    <string name="sachit_listening_summary_chooser">Udostępnij podsumowanie słuchania</string>
+    <string name="sachit_listening_summary_saved">Podsumowanie słuchania zapisano.</string>
+    <string name="sachit_listening_summary_save_failed">Nie udało się zapisać podsumowania słuchania.</string>
+    <string name="sachit_spotify_import_file_button">Wybierz plik Spotify CSV/TSV</string>
+    <string name="sachit_spotify_import_file_note">Możesz też zaimportować eksport Spotify CSV lub TSV z kolumnami Track Name i Artist.</string>
+    <string name="sachit_spotify_import_file_read_failed">Nie udało się odczytać wybranego pliku.</string>
+    <string name="sachit_spotify_import_json_unsupported">Eksporty Spotify JSON nie są jeszcze obsługiwane.</string>
+    <string name="sachit_spotify_import_file_unsupported">Nieobsługiwany plik. Wybierz eksport Spotify CSV lub TSV.</string>
+    <string name="sachit_spotify_import_file_default_title">Zaimportowana playlista Spotify</string>
+    <string name="local_music_folder_access_failed">Audify nie może zachować dostępu do tego folderu. Wybierz folder ponownie.</string>
+    <string name="download_storage_budget">Limit miejsca na pobrane pliki</string>
+    <string name="download_storage_unknown_title">Pobieranie zablokowane · nieznany rozmiar</string>
+    <string name="download_storage_budget_title">Osiągnięto limit miejsca na pobrane pliki</string>
+    <string name="download_storage_review_delete">Sprawdź usuwanie</string>
+    <string name="download_storage_confirm_title">Potwierdź usunięcie pobranych plików</string>
+    <string name="download_storage_delete_files">Usuń te pliki</string>
+    <string name="download_storage_delete_warning">Te konkretne pliki zostaną trwale usunięte. Nic nie zostanie usunięte, dopóki nie potwierdzisz tego tutaj.</string>
+    <string name="download_storage_budget_detail">Wykorzystano %1$s · szacowany rozmiar źródła w bajtach %2$s · limit %3$s</string>
+    <string name="download_storage_estimate_note">Szacunek opiera się na długości źródła. Osadzone tagi i grafika mogą zwiększyć rozmiar zapisanego pliku.</string>
+    <string name="download_storage_free_detail">Zwolnij co najmniej %1$s, usuwając najstarsze pobrane pliki:</string>
+    <string name="download_storage_unknown_size">Źródło nie podało wiarygodnego rozmiaru pliku. Pobieranie jest zablokowane, gdy limit miejsca jest włączony.</string>
+    <string name="download_storage_actual_size_unknown">Nie można odczytać rozmiaru zapisanego pliku. Pobieranie jest blokowane zamiast używania szacunku.</string>
+    <string name="download_storage_no_evictable_space">To pobranie nie mieści się w obecnym limicie nawet po usunięciu wszystkich zapisanych pobrań. Zwiększ limit, aby kontynuować.</string>
+    <string name="download_storage_changed_review">Stan pamięci zmienił się od przygotowania tej listy. Nie usunięto żadnych plików. Ponów pobieranie, aby odświeżyć dokładną listę najstarszych plików.</string>
+    <string name="download_storage_total_unknown">Nie można bezpiecznie zmierzyć całkowitego wymaganego miejsca. Pobieranie jest zablokowane.</string>
+    <string name="download_storage_budget_reached">Osiągnięto limit miejsca na pobrane pliki. Przed ponowną próbą sprawdź najstarsze pliki.</string>
+    <string name="download_storage_delete_failed">Nie udało się usunąć wybranych plików. Niczego nie usunięto; sprawdź dostęp do plików i spróbuj ponownie.</string>
+    <string name="download_storage_partial_delete">Niektóre wybrane pliki zostały usunięte, ale pozostałych nie udało się usunąć. Ponów pobieranie, aby odświeżyć wykorzystanie miejsca.</string>
 </resources>

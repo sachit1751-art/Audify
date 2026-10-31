@@ -196,6 +196,14 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val exportSucceededFormat = stringResource(R.string.export_succeeded)
+    val exportFailedFormat = stringResource(R.string.export_failed)
+    val importSucceededFormat = stringResource(R.string.import_succeeded)
+    val importFailedFormat = stringResource(R.string.import_failed)
+    val unknownErrorMessage = stringResource(R.string.unknown_error)
+    val loginFailedMessage = stringResource(R.string.login_failed)
+    val imageCacheClearedMessage = stringResource(R.string.image_cache_cleared)
+    val songCacheClearedMessage = stringResource(R.string.song_cache_cleared)
 
     val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
@@ -336,10 +344,10 @@ fun SettingsScreen(
         backupScope.launch {
             exportStatus = Backup.exportTo(context, target).fold(
                 onSuccess = { months ->
-                    context.getString(R.string.export_succeeded, context.countOfMonths(months))
+                    String.format(java.util.Locale.getDefault(), exportSucceededFormat, context.countOfMonths(months))
                 },
                 onFailure = {
-                    context.getString(R.string.export_failed, it.message ?: context.getString(R.string.unknown_error))
+                    String.format(java.util.Locale.getDefault(), exportFailedFormat, it.message ?: unknownErrorMessage)
                 },
             )
         }
@@ -351,10 +359,15 @@ fun SettingsScreen(
         backupScope.launch {
             importStatus = Backup.importFrom(context, source).fold(
                 onSuccess = {
-                    context.getString(R.string.import_succeeded, context.countOfMonths(it.months), it.from)
+                    String.format(
+                        java.util.Locale.getDefault(),
+                        importSucceededFormat,
+                        context.countOfMonths(it.months),
+                        it.from,
+                    )
                 },
                 onFailure = {
-                    context.getString(R.string.import_failed, it.message ?: context.getString(R.string.unknown_error))
+                    String.format(java.util.Locale.getDefault(), importFailedFormat, it.message ?: unknownErrorMessage)
                 },
             )
         }
@@ -1226,7 +1239,7 @@ fun SettingsScreen(
                         val loader = SingletonImageLoader.get(context)
                         loader.memoryCache?.clear()
                         loader.diskCache?.clear()
-                        Toast.makeText(context, context.getString(R.string.image_cache_cleared), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, imageCacheClearedMessage, Toast.LENGTH_SHORT).show()
                     },
                 )
             }
@@ -1686,7 +1699,7 @@ fun SettingsScreen(
                 TextButton(onClick = {
                     confirmClearSongCache = false
                     AudioCache.clear {
-                        Toast.makeText(context, context.getString(R.string.song_cache_cleared), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, songCacheClearedMessage, Toast.LENGTH_SHORT).show()
                     }
                 }) {
                     Text(stringResource(R.string.clear))
@@ -1863,10 +1876,10 @@ fun SettingsScreen(
                                         showLastfmLoginDialog = false
                                     }
                                     .onFailure { e ->
-                                        lastfmError = e.message ?: context.getString(R.string.login_failed)
+                                        lastfmError = e.message ?: loginFailedMessage
                                     }
                             } catch (e: Exception) {
-                                lastfmError = e.message ?: context.getString(R.string.login_failed)
+                                lastfmError = e.message ?: loginFailedMessage
                             } finally {
                                 lastfmLoading = false
                             }
