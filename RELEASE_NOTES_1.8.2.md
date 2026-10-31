@@ -1,6 +1,6 @@
 # Audify 1.8.2 — release notes draft
 
-> **Status: validation build / not a final release sign-off.** This note documents the current uncommitted implementation being prepared for the `main` branch. The remaining limitations below are material and must not be represented as completed features.
+> **Status: validation build / not a final release sign-off.** This note documents the implementation committed on `main` plus the follow-up validation fixes in this working change set. The remaining limitations below are material and must not be represented as completed features.
 
 ## Fixes and improvements
 
@@ -14,11 +14,21 @@
 - Added a weekly Home listening recap with a visibility preference and dismissal behavior.
 - Improved onboarding, search, Replay and settings interactions, and corrected the DevDebug instrumentation package assertion.
 - Added the WorkManager dependency required by the TV module's shared download worker source.
+- Added narrowly scoped AndroidX Media3 `UnstableApi` opt-ins, eliminating the 112 Media3 opt-in lint errors without project-wide suppression.
+- Deferred InnerTubeX/EJS warm-up until after the first rendered frame, with a one-shot gate and a 2-second delay; the resolver work runs on its IO scope.
+- Annotated the backdrop runtime-shader API boundary for Android 13, removing the corresponding API-level lint error.
+- Replaced 10 StateFlow reads performed during Compose composition with lifecycle-aware collection and removed one Flow transformation from composition.
+- Replaced 12 additional Compose-time resource lookups in account alerts, source settings and party-server editing with composition-safe resource resolution.
 
 ## Validation evidence
 
 - DevDebug Kotlin compilation and APK assembly succeeded with the installed JDK 21.
-- The latest full `:app:testDevDebugUnitTest` run succeeded.
+- Latest `:app:testDevDebugUnitTest`: 1,130 tests, 0 failures, 1 skipped.
+- Latest `:sharedUi:jvmTest`: 43 tests, 0 failures.
+- Clean `:shared:jvmTest --rerun-tasks`: 98 tests, 0 failures.
+- `:app:assembleDevDebug` succeeded after the Media3 and first-draw changes.
+- Fresh Android 16 emulator run of `:app:connectedDevDebugAndroidTest`: 6 tests, 0 failures.
+- Three cold app launches on the Android 16 emulator completed without ANR or fatal exception. `am start -W` reported 6.1–7.2 seconds to activity launch; ActivityTaskManager reported 8.4–9.4 seconds to fully drawn. `dumpsys activity lastanr` reported no ANR since emulator boot.
 - Earlier targeted lyric, download-store, storage-budget, offline-verification, CSV and instrumentation tests passed in their respective runs.
 - Emulator smoke testing exercised onboarding, Home, Explore, Library, Search, Settings/Sources, download-quality selection, Adele search, playback and the lyrics panel. Media3 reached `PLAYING` at 1× speed.
 - `git diff --check` passed after the latest source edits.
@@ -32,9 +42,10 @@
 - Plan 037 exports retained monthly per-track aggregates only. It is not per-play or complete lifetime history; older months and lower-ranked tracks may have been pruned.
 - Plan 038 supports Spotify CSV/TSV imports with Track Name and Artist columns. JSON, M3U and richer column mapping remain unsupported.
 - Plan 039 checks file access/readable headers; it does not prove that audio playback succeeds.
-- Lint still has unresolved errors after the isolated Media3 opt-in remediation. Remaining known categories include Compose resource-context calls, missing plural quantities, StateFlow reads in composition, and API/flow/string-format issues. No blanket suppression was added.
-- The latest connected instrumentation invocation could not run because no emulator/device was connected at that time. Earlier instrumentation passed, but a fresh post-integration device run is still required.
-- The previously observed startup ANR has not been conclusively attributed or closed. Full button-by-button coverage, accessibility-node review, rotation, keyboard and smaller-screen testing remain incomplete.
+- Latest `:app:lintDevDebug` still fails with 131 errors, 628 warnings and 5 hints. Fixed: 112 Media3 opt-in errors, 10 StateFlow-in-composition errors, one Flow-operator-in-composition error, one backdrop runtime-shader API error, and 12 Compose resource-context lookups. Remaining: 64 Compose resource-context calls, 38 missing translations, 28 missing plural quantities, and one malformed format string in a translated Spanish resource. No translated resource files, blanket suppressions or lint baseline were added.
+- Latest post-integration connected instrumentation on the Android 16 `audify_shots` emulator: 6 tests, 0 failures. A limited manual smoke also opened Home, Explore, Library, Search, Settings and Sources; the full button-by-button matrix is not complete.
+- The Android 16 tombstone shows ART class verification/class loading while InnerTubeX QuickJS warm-up was active, but it does not establish the ANR's initiating cause or identify a WorkManager `onStartJob` owner. Warm-up is now deferred until after first draw. Three cold launches did not reproduce an ANR, but this is not enough to prove the historical ANR fixed; repeat on a physical device and capture a new trace if it recurs.
+- Full button-by-button coverage, accessibility-node review, rotation, keyboard and smaller-screen testing remain incomplete. Emulator System UI briefly showed an unresponsive dialog during manual navigation; ActivityManager recorded no ANR and the app resumed after waiting. Treat emulator responsiveness as a QA limitation, not an Audify ANR finding.
 
 ## Compatibility and release integrity
 
