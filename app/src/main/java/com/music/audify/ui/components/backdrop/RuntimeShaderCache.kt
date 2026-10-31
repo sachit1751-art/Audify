@@ -15,6 +15,7 @@ import org.intellij.lang.annotations.Language
 
 sealed interface RuntimeShaderCache {
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     fun obtainRuntimeShader(key: String, @Language("AGSL") string: String): RuntimeShader
 }
 
