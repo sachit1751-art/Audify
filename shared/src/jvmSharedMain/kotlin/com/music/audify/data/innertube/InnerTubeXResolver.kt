@@ -26,6 +26,7 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** YouTube stream extraction through InnerTubeX's live-benchmarked client catalog and cipher tiers. */
 object InnerTubeXResolver {
@@ -73,6 +75,8 @@ object InnerTubeXResolver {
     private var poTokens: TokenProvider? = null
     private var playerDir: File? = null
     private var warmup: Job? = null
+    private val playerCacheReady = CompletableDeferred<Unit>()
+    private val firstFrameDrawn = AtomicBoolean(false)
 
     /**
      * @param filesDir where the preprocessed EJS players are kept.
@@ -86,8 +90,13 @@ object InnerTubeXResolver {
         playerDir = File(filesDir, "innertubex_players").apply { mkdirs() }
         scope.launch {
             cipherService.setPreprocessedPlayerCache(::readPlayer, ::writePlayer)
-            warm(WARM_DELAY_MS)
+            playerCacheReady.complete(Unit)
         }
+    }
+
+    /** Called after MainActivity has completed its first rendered frame. */
+    fun onFirstFrameDrawn() {
+        if (firstFrameDrawn.compareAndSet(false, true)) scheduleWarm(WARM_DELAY_MS)
     }
 
     /**
@@ -96,9 +105,11 @@ object InnerTubeXResolver {
      * BotGuard WebView behind WEB_REMIX's PoToken. Measured cold, those put an
      * age-restricted track 15-20s from first audio when paid on the play path.
      */
-    private fun warm(delayMs: Long) {
+    private fun scheduleWarm(delayMs: Long) {
         warmup?.cancel()
         warmup = scope.launch {
+            // Do not race the asynchronous cache installation performed by init().
+            playerCacheReady.await()
             delay(delayMs)
             val start = MonotonicClock.nowMs()
             runCatching {
@@ -283,7 +294,7 @@ object InnerTubeXResolver {
         excluded.clear()
         minted.clear()
         // A new cookie or visitor means a new player config and PoToken binding.
-        if (prefs != null) warm(0)
+        if (prefs != null && firstFrameDrawn.get()) scheduleWarm(0)
     }
 
     private fun excludedFor(videoId: String): Set<String> {

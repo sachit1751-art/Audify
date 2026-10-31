@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -127,6 +128,7 @@ import com.music.audify.auth.SpotifyLoginScreen
 import com.music.audify.auth.WebSessionMode
 import com.music.audify.auth.YtMusicLoginScreen
 import com.music.audify.data.AppUpdateChecker
+import com.music.audify.data.innertube.InnerTubeXResolver
 import com.music.audify.data.LocalMediaRepository
 import com.music.audify.data.listentogether.JamInviteLink
 import com.music.audify.data.listentogether.ListenTogether
@@ -344,6 +346,7 @@ import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** A full first screen of a native YouTube Music radio before AutoPlay tops it up. */
 /** How much of an artist page's header scrolls away before the top fade begins. */
@@ -362,6 +365,10 @@ internal fun shouldSkipAfterDislike(
 
 
 class MainActivity : AppCompatActivity() {
+    private val firstDrawWarmupGate = StartupFirstDrawGate {
+        InnerTubeXResolver.onFirstFrameDrawn()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -371,6 +378,7 @@ class MainActivity : AppCompatActivity() {
         JamInviteLink.consume(intent)
         // Likewise for a link tapped or shared from another app — see [MusicLink].
         MusicLink.consume(intent)
+        installFirstDrawWarmupGate()
         setContent {
             val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
             val highPerformance by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
@@ -431,6 +439,26 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /** Start the resolver's delayed warm-up only after the first UI frame was drawn. */
+    private fun installFirstDrawWarmupGate() {
+        val decorView = window.decorView
+        val viewTreeObserver = decorView.viewTreeObserver
+        val callbackPosted = AtomicBoolean(false)
+        val listener = object : ViewTreeObserver.OnDrawListener {
+            override fun onDraw() {
+                if (!callbackPosted.compareAndSet(false, true)) return
+                decorView.post {
+                    if (viewTreeObserver.isAlive) {
+                        viewTreeObserver.removeOnDrawListener(this)
+                    }
+                    reportFullyDrawn()
+                    firstDrawWarmupGate.onFirstDrawn()
+                }
+            }
+        }
+        decorView.viewTreeObserver.addOnDrawListener(listener)
     }
 
     /**

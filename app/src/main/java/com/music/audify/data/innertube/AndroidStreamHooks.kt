@@ -44,12 +44,15 @@ object AndroidStreamHooks {
             )
         }
         StreamResolver.maxKbps = { AppSettings.effectiveAudioQuality.maxKbps }
-        InnerTubeXResolver.debugLogging = BuildConfig.DEBUG
     }
 
     /** What `InnerTubeXResolver.init(context)` did when it lived in the app. */
     fun initInnerTubeX(context: Context) {
         val app = context.applicationContext
+        // First access to this Kotlin object constructs its Ktor client and
+        // InnerTubeX graph. Keep that class initialization on startup-init,
+        // never on the main thread through installEarly().
+        InnerTubeXResolver.debugLogging = BuildConfig.DEBUG
         val prefs = app.getSharedPreferences("innertubex_player_config", Context.MODE_PRIVATE)
         // BotGuard PoTokens minted in a hidden WebView; what WEB_REMIX needs for age-restricted tracks.
         val webViewSupported by lazy { runCatching { CookieManager.getInstance() }.isSuccess }
