@@ -400,6 +400,9 @@ private fun RemoteLibrarySection(
     onDisconnect: () -> Unit,
 ) {
     val context = LocalContext.current
+    val connectedMessage = stringResource(R.string.connected)
+    val failedMessage = stringResource(R.string.failed)
+    val testFailedFormat = stringResource(testFailedRes)
     val scope = rememberCoroutineScope()
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -422,12 +425,13 @@ private fun RemoteLibrarySection(
                     scope.launch {
                         onTest().fold(
                             onSuccess = {
-                                testResult = context.getString(R.string.connected)
+                                testResult = connectedMessage
                             },
                             onFailure = {
-                                testResult = context.getString(
-                                    testFailedRes,
-                                    it.message ?: context.getString(R.string.failed),
+                                testResult = String.format(
+                                    java.util.Locale.getDefault(),
+                                    testFailedFormat,
+                                    it.message ?: failedMessage,
                                 )
                             },
                         )

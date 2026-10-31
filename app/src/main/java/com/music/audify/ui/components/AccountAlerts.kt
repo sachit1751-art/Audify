@@ -457,6 +457,9 @@ fun ServerEditorHost(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val connectedMessage = stringResource(R.string.connected)
+    val failedMessage = stringResource(R.string.failed)
+    val testFailedFormat = stringResource(testFailedRes)
     val scope = rememberCoroutineScope()
     val states = remember { fields.map { mutableStateOf(it.initial) } }
     var status by remember { mutableStateOf<String?>(null) }
@@ -486,13 +489,14 @@ fun ServerEditorHost(
             scope.launch {
                 onTest(values).fold(
                     onSuccess = {
-                        status = context.getString(R.string.connected)
+                        status = connectedMessage
                         statusIsGood = true
                     },
                     onFailure = {
-                        status = context.getString(
-                            testFailedRes,
-                            it.message ?: context.getString(R.string.failed),
+                        status = String.format(
+                            java.util.Locale.getDefault(),
+                            testFailedFormat,
+                            it.message ?: failedMessage,
                         )
                         statusIsGood = false
                     },

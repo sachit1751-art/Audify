@@ -17,6 +17,7 @@ import com.music.audify.data.listentogether.ServerUrlValidationResult
 import com.music.audify.ui.components.AddonEditorAlert
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * The party server's address, on the card an addon is added with.
@@ -37,6 +38,29 @@ import kotlinx.coroutines.launch
 @Composable
 fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val errorMessages = mapOf(
+        R.string.listen_together_err_whitespace to stringResource(R.string.listen_together_err_whitespace),
+        R.string.listen_together_invalid_server_url to stringResource(R.string.listen_together_invalid_server_url),
+        R.string.listen_together_err_invalid_port to stringResource(R.string.listen_together_err_invalid_port),
+        R.string.listen_together_err_invalid_path to stringResource(R.string.listen_together_err_invalid_path),
+        R.string.listen_together_err_no_path to stringResource(R.string.listen_together_err_no_path),
+        R.string.listen_together_err_no_query to stringResource(R.string.listen_together_err_no_query),
+        R.string.listen_together_err_no_fragment to stringResource(R.string.listen_together_err_no_fragment),
+    )
+    val switchedToDefaultMessage = stringResource(R.string.listen_together_switched_to_default)
+    val connectionMessages = mapOf(
+        R.string.listen_together_custom_server_connected to
+            stringResource(R.string.listen_together_custom_server_connected),
+        R.string.listen_together_custom_server_unreachable_fallback to
+            stringResource(R.string.listen_together_custom_server_unreachable_fallback),
+        R.string.listen_together_switched_to_default to switchedToDefaultMessage,
+        R.string.listen_together_status_all_offline to
+            stringResource(R.string.listen_together_status_all_offline),
+        R.string.listen_together_server_offline to
+            stringResource(R.string.listen_together_server_offline),
+    )
+    val serverOnlineFormat = stringResource(R.string.listen_together_server_online)
+    val serverOfflineMessage = stringResource(R.string.listen_together_server_offline)
     val scope = rememberCoroutineScope()
     val customServer by ListenTogether.customServerUrl.collectAsStateWithLifecycle()
     val party by ListenTogether.state.collectAsStateWithLifecycle()
@@ -55,7 +79,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
             // In the card, where the address being complained about still is. A
             // toast over a dialog is a sentence about a field it is covering.
             is ServerUrlValidationResult.Invalid ->
-                status = context.getString(validation.error.toMessageRes()) to false
+                status = errorMessages.getValue(validation.error.toMessageRes()) to false
 
             is ServerUrlValidationResult.Valid -> {
                 busy = true
@@ -79,7 +103,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
                         ServerConnectionState.Checking -> null
                     }
                     if (messageRes != null) {
-                        Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, connectionMessages.getValue(messageRes), Toast.LENGTH_SHORT).show()
                     }
                     onDismiss()
                 }
@@ -95,7 +119,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
             busy = false
             Toast.makeText(
                 context,
-                context.getString(R.string.listen_together_switched_to_default),
+                switchedToDefaultMessage,
                 Toast.LENGTH_SHORT,
             ).show()
             onDismiss()
@@ -125,7 +149,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
         onTest = {
             when (val validation = ListenTogether.parseAndNormalizeServerUrl(input)) {
                 is ServerUrlValidationResult.Invalid ->
-                    status = context.getString(validation.error.toMessageRes()) to false
+                    status = errorMessages.getValue(validation.error.toMessageRes()) to false
 
                 is ServerUrlValidationResult.Valid -> {
                     busy = true
@@ -136,9 +160,9 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
                             SERVER_PROBE_TIMEOUT_MS,
                         )
                         status = if (probe.isOnline) {
-                            context.getString(R.string.listen_together_server_online, probe.latencyMs) to true
+                            String.format(Locale.getDefault(), serverOnlineFormat, probe.latencyMs) to true
                         } else {
-                            context.getString(R.string.listen_together_server_offline) to false
+                            serverOfflineMessage to false
                         }
                         busy = false
                     }
