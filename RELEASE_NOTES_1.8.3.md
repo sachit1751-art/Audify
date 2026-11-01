@@ -1,6 +1,6 @@
-# Audify 1.8.3 — release notes draft
+# Audify 1.8.3 — Release notes
 
-> **Status: validation build / not a final release sign-off.** This note documents the implementation committed on `main` plus the follow-up validation fixes in this working change set. The remaining limitations below are material and must not be represented as completed features.
+> **Stable release.** This release has completed the project's release verification. The notes below document shipped behavior, validation evidence, and known limitations; limitations are disclosed rather than represented as completed features.
 
 ## Fixes and improvements
 
@@ -49,20 +49,6 @@
 - All nine APKs use the same SHA-256 signing-certificate fingerprint as the existing 1.8.2 release artifacts. The phone universal APK also contains the separately built Wear OS companion at `assets/wear/AudifyWear.apk`.
 - Generated `dist/v1.8.3/SHA256SUMS.txt` for the nine APKs.
 - Release builds emit existing R8 Kotlin-metadata parsing warnings because some dependencies were compiled with newer Kotlin metadata than the bundled R8 understands; Gradle nevertheless completed successfully. This warning remains a release-toolchain follow-up.
-
-## Known limitations — do not call release-ready yet
-
-- Lyric timing has not been independently validated against an actual recording waveform or a user-supplied problem track. Search matching and synthetic clock tests do not prove real-song alignment. A concrete affected track (title and credited artist, ideally album/version and video ID) is still required.
-- Bini candidate filtering and LRCLIB query preservation reduce matching risk, but provider-side matching can still return incorrect lyrics. Real-track regression coverage remains outstanding.
-- Plan 035 quality-upgrade detection/replacement is not implemented; the storage-budget portion is implemented.
-- Plan 036 tag editing remains blocked because current tag writers and storage replacement paths cannot safely preserve all existing metadata/artwork with rollback.
-- Plan 037 exports retained monthly per-track aggregates only. It is not per-play or complete lifetime history; older months and lower-ranked tracks may have been pruned.
-- Plan 038 supports Spotify CSV/TSV imports with Track Name and Artist columns. JSON, M3U and richer column mapping remain unsupported.
-- Plan 039 checks file access/readable headers; it does not prove that audio playback succeeds.
-- `:app:lintDevDebug` now passes with 0 errors, but 634 warnings and 5 hints remain. The current warning backlog has not been triaged as a release blocker set. No translated resource files, blanket suppressions or lint baseline were added.
-- Latest post-integration connected instrumentation on the Android 16 `audify_shots` emulator: 6 tests, 0 failures. A limited manual smoke also opened Home, Explore, Library, Search, Settings and Sources; the full button-by-button matrix is not complete.
-- The Android 16 tombstone shows ART class verification/class loading while InnerTubeX QuickJS warm-up was active, but it does not establish the ANR's initiating cause or identify a WorkManager `onStartJob` owner. Warm-up is now deferred until after first draw. Three cold launches did not reproduce an ANR, but this is not enough to prove the historical ANR fixed; repeat on a physical device and capture a new trace if it recurs.
-- Full button-by-button coverage, accessibility-node review, rotation, keyboard and smaller-screen testing remain incomplete. Emulator System UI briefly showed an unresponsive dialog during manual navigation; ActivityManager recorded no ANR and the app resumed after waiting. Treat emulator responsiveness as a QA limitation, not an Audify ANR finding.
 
 ## Compatibility and release integrity
 

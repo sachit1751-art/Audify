@@ -1,0 +1,81 @@
+name: Tester feedback
+description: Share feedback from trying an Audify release
+title: "[Tester feedback]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying Audify. Please do not include passwords, account details, private listening history, or unredacted logs. The fields below are enough to help reproduce most problems.
+  - type: input
+    id: app-version
+    attributes:
+      label: Audify version
+      description: Include the release tag (for example, 1.8.2) and whether it was stable or prerelease.
+      placeholder: 1.8.2 stable
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model
+      placeholder: Pixel 8a
+    validations:
+      required: false
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      placeholder: Android 15
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: What were you trying?
+      options:
+        - Install or onboarding
+        - Search or discovery
+        - Library or playlists
+        - Local music
+        - Playback or queue
+        - Lyrics
+        - Downloads or offline playback
+        - Settings or audio controls
+        - Android TV
+        - Wear OS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do?
+      description: Give the shortest steps that reproduce the issue, or describe the task you completed.
+      placeholder: 1. Open Audify...\n2. Search for...\n3. Tap...
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What happened, and what did you expect?
+      placeholder: Describe the actual result and the expected result.
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Sometimes
+        - Happened once
+        - Not a bug — general feedback
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context (optional)
+      description: Attach screenshots only after checking that they contain no private information. Redact personal data from logs.
+    validations:
+      required: false

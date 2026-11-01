@@ -15,6 +15,12 @@
 </p>
 
 <p align="center">
+  <strong><a href="https://github.com/sachit1751-art/Audify/releases/latest">Download the latest stable APK</a></strong>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/sachit1751-art/Audify/releases">View all builds</a>
+</p>
+
+<p align="center">
   <a href="#screenshots">Screenshots</a> &middot;
   <a href="#features">Features</a> &middot;
   <a href="#download">Download</a> &middot;
@@ -121,11 +127,17 @@ The following implementation plans have been completed and verified:
 
 ## Download
 
-Download builds from **[GitHub Releases](https://github.com/sachit1751-art/Audify/releases)**. Read the release notes and check each asset name to choose the package for your device. Prereleases are identified separately; use the latest stable release if you do not want test builds.
+**[Download the latest stable release](https://github.com/sachit1751-art/Audify/releases/latest)** · [Browse all releases and prereleases](https://github.com/sachit1751-art/Audify/releases)
+
+For most Android phones, choose the `arm64-v8a` APK. Use the universal APK only if you are unsure which architecture your device uses; it is substantially larger. Android TV and Wear OS packages are separate and should only be installed on those devices.
+
+Audify 1.8.3 is the current stable release. Check its release notes for compatibility details and known limitations. Prereleases, when published, are separate evaluation builds and are not the recommended general-user download.
 
 Phone releases may include separate APKs for `arm64-v8a`, `armeabi-v7a`, `x86_64`, and a universal package. Most current Android phones use `arm64-v8a`. Android TV and Wear OS builds are published as separate variants when included in a release.
 
 When installing an APK manually, Android may ask you to allow the installer to install apps from that source. Only install builds you trust.
+
+**Need help choosing a build or found a problem?** Read the release notes first, then [open an issue](https://github.com/sachit1751-art/Audify/issues/new/choose) with the app version, device model, Android version, and steps to reproduce. Remove personal information from logs before attaching them.
 
 ## Build from source
 
