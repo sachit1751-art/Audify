@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -39,9 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
-import java.util.Locale
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /** Language tag paired with its display-name string.
  *
@@ -89,7 +88,6 @@ private val LANGUAGE_LIST_MAX_HEIGHT = 340.dp
  * just one active language, so tapping a row applies it and closes the sheet
  * immediately rather than waiting on a separate Done action.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AppLanguageDialog(
     hazeState: HazeState,
@@ -101,7 +99,7 @@ fun AppLanguageDialog(
     // Full script tag (zh-Hant / zh-Hans preserved); legacy bare "zh" reads as Simplified.
     val currentLanguage = com.music.audify.data.LocaleTags.normalizeAppTag(
         AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
-            ?: Locale.getDefault().toLanguageTag(),
+            ?: LocalLocale.current.platformLocale.toLanguageTag(),
     )
 
     Box(

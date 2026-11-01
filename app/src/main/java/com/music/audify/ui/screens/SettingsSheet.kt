@@ -1,5 +1,7 @@
 package com.music.audify.ui.screens
 
+import androidx.core.graphics.scale
+
 import com.music.audify.wear.WatchInstaller
 import com.music.audify.ui.motion.MotionTokens
 import android.content.Context
@@ -117,6 +119,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -198,6 +201,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val locale = LocalLocale.current.platformLocale
     val exportSucceededFormat = stringResource(R.string.export_succeeded)
     val exportFailedFormat = stringResource(R.string.export_failed)
     val importSucceededFormat = stringResource(R.string.import_succeeded)
@@ -1104,7 +1108,7 @@ fun SettingsScreen(
                         } else {
                             translationLanguageName(
                                 translationLanguage,
-                                AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault(),
+                                locale,
                             )
                         },
                         trailing = { Chevron() },
@@ -1534,7 +1538,7 @@ fun SettingsScreen(
             val appLanguageTitle = stringResource(R.string.app_language)
             row(appLanguageTitle, "locale", "translate") {
                 val selectedLanguage = AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
-                    ?: Locale.getDefault().toLanguageTag()
+                    ?: locale.toLanguageTag()
                 SettingsRow(
                     icon = Icons.Rounded.Language,
                     title = appLanguageTitle,
@@ -2142,6 +2146,7 @@ private fun QualitySheet(
     onSelect: (AudioQuality) -> Unit,
 ) {
     val haptics = LocalHapticFeedback.current
+    val locale = LocalLocale.current.platformLocale
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         Row(
             modifier = Modifier.padding(start = 22.dp, end = 22.dp, bottom = 14.dp),
@@ -2163,7 +2168,7 @@ private fun QualitySheet(
                 Text(
                     text = stringResource(
                         R.string.audio_quality_connection,
-                        target.localizedTitle().lowercase(Locale.getDefault()),
+                        target.localizedTitle().lowercase(locale),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2201,7 +2206,7 @@ private fun QualitySheet(
                     Spacer(Modifier.width(12.dp))
                     Icon(
                         Icons.Rounded.Check,
-                        contentDescription = stringResource(R.string.selected),
+                        contentDescription = stringResource(R.string.audify_selected),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),
                     )
@@ -2278,7 +2283,7 @@ private fun AutomixPerformanceSheet(
                     Spacer(Modifier.width(12.dp))
                     Icon(
                         Icons.Rounded.Check,
-                        contentDescription = stringResource(R.string.selected),
+                        contentDescription = stringResource(R.string.audify_selected),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),
                     )
@@ -2360,7 +2365,7 @@ private fun DownloadQualitySheet(
                     Spacer(Modifier.width(12.dp))
                     Icon(
                         Icons.Rounded.Check,
-                        contentDescription = stringResource(R.string.selected),
+                        contentDescription = stringResource(R.string.audify_selected),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp),
                     )

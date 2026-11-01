@@ -1,5 +1,6 @@
 package com.music.audify.playback.audio
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -63,6 +64,8 @@ object LosslessOutput {
     val capable: Boolean get() = _state.value.capable
 
     private var audioManager: AudioManager? = null
+    // Created with context.applicationContext in init(); it cannot retain an Activity.
+    @SuppressLint("StaticFieldLeak")
     private var tracker: BluetoothAudioTracker? = null
 
     private val callback = object : AudioDeviceCallback() {

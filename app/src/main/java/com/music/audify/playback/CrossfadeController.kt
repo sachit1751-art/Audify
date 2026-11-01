@@ -633,6 +633,8 @@ class CrossfadeController(
                 // harmless and shouldn't cost the listener the blend.
                 Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED -> bail()
                 Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> bail()
+                Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> Unit
+                Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> Unit
             }
         }
 

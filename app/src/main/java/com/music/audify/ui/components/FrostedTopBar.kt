@@ -76,8 +76,7 @@ import com.music.audify.R
 import com.music.audify.data.model.Account
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import kotlin.math.roundToInt
 
 /**
@@ -336,7 +335,6 @@ fun FrostedTopBar(
 }
 
 /** Circular floating back affordance, material-matched to the navbar. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun ArtworkPageBackButton(
     onClick: () -> Unit,
@@ -356,7 +354,7 @@ private fun ArtworkPageBackButton(
         onClick = onClick,
         modifier = modifier
             .size(44.dp)
-            .then(artworkPageSurface(shape = shape, hazeState = hazeState)),
+            .artworkPageSurface(shape = shape, hazeState = hazeState),
     ) {
         Icon(
             Icons.AutoMirrored.Rounded.ArrowBack,
@@ -375,7 +373,7 @@ private fun ArtworkPageActions(
 ) {
     Row(
         modifier = modifier
-            .then(artworkPageSurface(shape = CircleShape, hazeState = hazeState))
+            .artworkPageSurface(shape = CircleShape, hazeState = hazeState)
             // Keep the right edge fixed while a new action opens room to its
             // left. The surface itself therefore grows instead of jumping to
             // its new width in a single frame.
@@ -418,9 +416,8 @@ private fun Modifier.artworkActionEdgePadding(): Modifier = layout { measurable,
 }
 
 /** The navbar's exact material choice, reusable by every floating top control. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
-private fun artworkPageSurface(
+private fun Modifier.artworkPageSurface(
     shape: CornerBasedShape,
     hazeState: HazeState?,
 ): Modifier {
@@ -428,7 +425,7 @@ private fun artworkPageSurface(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val useLiquidGlass = LocalLiquidGlassEnabled.current && isGlassSupported()
 
-    return Modifier
+    return this
         .clip(shape)
         .then(
             when {
@@ -461,8 +458,8 @@ private fun artworkPageSurface(
 fun TopBarAccountButton(
     account: Account?,
     onClick: () -> Unit,
-    onSwipeProfile: ((forward: Boolean) -> Boolean)? = null,
     modifier: Modifier = Modifier,
+    onSwipeProfile: ((forward: Boolean) -> Boolean)? = null,
 ) {
     val translation = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()

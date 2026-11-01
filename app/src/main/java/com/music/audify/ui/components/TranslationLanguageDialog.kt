@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -49,9 +50,7 @@ import com.music.audify.data.lyrics.TRANSLATION_LANGUAGES
 import com.music.audify.data.lyrics.translationLanguageName
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
-import java.util.Locale
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /** How much of the screen the list may take before it scrolls inside the card. */
 private val LIST_MAX_HEIGHT = 340.dp
@@ -70,7 +69,6 @@ private val LIST_MAX_HEIGHT = 340.dp
  * "follow the app", which is a different answer from naming today's app
  * language and having it stick when the app changes.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TranslationLanguageDialog(
     hazeState: HazeState,
@@ -80,7 +78,7 @@ fun TranslationLanguageDialog(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val selected by AppSettings.translationLanguage.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
-    val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault()
+    val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: LocalLocale.current.platformLocale
     var query by remember { mutableStateOf("") }
 
     // Names are resolved once per locale rather than per row per frame: the

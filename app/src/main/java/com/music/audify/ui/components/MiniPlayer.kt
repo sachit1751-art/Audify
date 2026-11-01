@@ -64,8 +64,7 @@ import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import com.music.audify.ui.player.PlayerDock
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
@@ -339,7 +338,6 @@ internal fun Modifier.playerDockArt(dock: PlayerDock?, corner: Dp): Modifier {
 }
 
 /** Frosted mini player that rides just above the floating tab bar. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun MiniPlayer(
     song: Song,
@@ -350,6 +348,7 @@ fun MiniPlayer(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onExpand: () -> Unit,
+    modifier: Modifier = Modifier,
     /** @see com.music.audify.data.listentogether.ListenTogether.State.controlsLocked */
     controlsLocked: Boolean = false,
     onBlockedControl: () -> Unit = {},
@@ -357,7 +356,6 @@ fun MiniPlayer(
     dock: PlayerDock? = null,
     /** Dragging the bar up into the player. */
     pull: MiniPlayerPull? = null,
-    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()

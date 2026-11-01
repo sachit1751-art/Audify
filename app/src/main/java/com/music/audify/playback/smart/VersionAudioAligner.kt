@@ -1,5 +1,7 @@
 package com.music.audify.playback.smart
 
+import androidx.core.net.toUri
+
 import android.content.Context
 import android.media.MediaDataSource
 import android.net.Uri
@@ -269,12 +271,12 @@ object VersionAudioAligner {
      */
     private fun openDataSource(context: Context, song: Song): MediaDataSource? {
         song.localUri?.let { local ->
-            val uri = Uri.parse(local)
+            val uri = local.toUri()
             if (LocalAudioSource.isLocal(uri)) {
                 return LocalAudioSource.open(context.contentResolver, uri)
             }
         }
-        val watch = Uri.parse("audify://watch?v=${song.videoId}")
+        val watch = "audify://watch?v=${song.videoId}".toUri()
         val onDisk = AudioCache.renditionsOf(watch)
         val sameSource = onDisk
             .filter { !it.key.endsWith("#alt") }

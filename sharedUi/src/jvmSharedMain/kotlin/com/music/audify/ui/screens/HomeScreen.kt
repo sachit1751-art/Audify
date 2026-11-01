@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -70,6 +71,7 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Bluetooth
 import com.music.audify.ui.icons.AudifyIcons
 import coil3.compose.AsyncImage
 import com.music.audify.data.model.CARD_ART_PX
@@ -100,6 +102,9 @@ import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.components.trackColumnWidth
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.MeshPalette
+import com.music.audify.ui.player.AudioOutputSheet
+import com.music.audify.ui.player.rememberOutputPicker
+import dev.chrisbanes.haze.HazeState
 
 /** How far the Listen now heading and feed sit above the shared top inset. */
 private val HOME_TITLE_LIFT = 64.dp
@@ -170,8 +175,14 @@ fun HomeScreen(
     onMoodClick: ((String) -> Unit)? = null,
     onPlayAllQuickPicks: ((HomeShelf) -> Unit)? = null,
     userName: String? = null,
+    greetingMorning: String = "Good morning",
+    greetingAfternoon: String = "Good afternoon",
+    greetingEvening: String = "Good evening",
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
+    var showAudioOutput by remember { mutableStateOf(false) }
+    val outputHaze = remember { HazeState() }
+    val openAudioOutput = rememberOutputPicker { showAudioOutput = true }
 
     PullToRefresh(
         refreshing = refreshing,
@@ -197,8 +208,12 @@ fun HomeScreen(
                 item(key = "home-compact-header") {
                     HomeTitle(
                         onSearchClick = onSearchClick,
+                        onBluetoothClick = openAudioOutput,
                         onProfileClick = onProfileClick,
                         userName = userName,
+                        greetingMorning = greetingMorning,
+                        greetingAfternoon = greetingAfternoon,
+                        greetingEvening = greetingEvening,
                     )
                 }
                 item(key = "home-mood-shortcuts") {
@@ -294,6 +309,16 @@ fun HomeScreen(
                 if (!loadingMore && total > 0 && lastVisible >= total - 3) loadMore()
             }
         }
+    }
+
+    if (showAudioOutput) {
+        AudioOutputSheet(
+            hazeState = outputHaze,
+            accountName = userName,
+            onDismiss = { showAudioOutput = false },
+            onOpenPipeline = null,
+            onOpenCast = { onCastClick?.invoke() },
+        )
     }
 }
 
@@ -612,13 +637,17 @@ fun CompactTrackRow(
 @Composable
 private fun HomeTitle(
     onSearchClick: (() -> Unit)?,
+    onBluetoothClick: (() -> Unit)?,
     onProfileClick: (() -> Unit)?,
     userName: String?,
+    greetingMorning: String,
+    greetingAfternoon: String,
+    greetingEvening: String,
     modifier: Modifier = Modifier,
 ) {
-    val greeting by produceState(initialValue = homeGreeting()) {
+    val greeting by produceState(initialValue = homeGreeting(greetingMorning, greetingAfternoon, greetingEvening)) {
         while (true) {
-            value = homeGreeting()
+            value = homeGreeting(greetingMorning, greetingAfternoon, greetingEvening)
             delay(60_000L)
         }
     }
@@ -653,15 +682,17 @@ private fun HomeTitle(
             }
         }
         HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick)
+        HomeHeaderAction(Icons.Rounded.Bluetooth, "Bluetooth audio output", onBluetoothClick)
         HomeHeaderAction(Icons.Rounded.AccountCircle, "Profile", onProfileClick)
     }
 }
 
-private fun homeGreeting(): String = when (LocalTime.now().hour) {
-    in 5..11 -> "Good morning"
-    in 12..16 -> "Good afternoon"
-    else -> "Good evening"
-}
+private fun homeGreeting(morning: String, afternoon: String, evening: String): String =
+    when (LocalTime.now().hour) {
+        in 5..11 -> morning
+        in 12..16 -> afternoon
+        else -> evening
+    }
 
 @Composable
 private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: (() -> Unit)?) {

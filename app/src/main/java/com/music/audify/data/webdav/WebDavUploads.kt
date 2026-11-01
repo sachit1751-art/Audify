@@ -1,5 +1,7 @@
 package com.music.audify.data.webdav
 
+import androidx.core.net.toUri
+
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -70,7 +72,7 @@ object WebDavUploads {
      */
     fun isUploadable(song: Song): Boolean {
         if (WebDavConfig.isWebDavId(song.videoId)) return false
-        val uri = song.localUri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return false
+        val uri = song.localUri?.let { runCatching { it.toUri() }.getOrNull() } ?: return false
         return uri.scheme == "content" || uri.scheme == "file"
     }
 
@@ -211,7 +213,7 @@ object WebDavUploads {
     }
 
     private fun hasEmbeddedPicture(context: Context, song: Song): Boolean {
-        val uri = song.localUri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return false
+        val uri = song.localUri?.let { runCatching { it.toUri() }.getOrNull() } ?: return false
         val retriever = android.media.MediaMetadataRetriever()
         return runCatching {
             if (uri.scheme == "file") {
@@ -301,7 +303,7 @@ object WebDavUploads {
     private data class UploadSource(val stream: InputStream, val length: Long)
 
     private fun openSource(context: Context, song: Song): UploadSource? {
-        val uri = song.localUri?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return null
+        val uri = song.localUri?.let { runCatching { it.toUri() }.getOrNull() } ?: return null
         return runCatching {
             when (uri.scheme) {
                 "file" -> {
@@ -320,11 +322,14 @@ object WebDavUploads {
     }
 
     private fun querySize(resolver: android.content.ContentResolver, uri: Uri): Long {
-        resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+        val cursor = resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null) ?: return -1
+        try {
             if (cursor.moveToFirst()) {
                 val size = cursor.getLong(0)
                 if (size > 0) return size
             }
+        } finally {
+            cursor.close()
         }
         return -1
     }
@@ -336,7 +341,7 @@ object WebDavUploads {
             ?.takeIf { it in WebDavConfig.audioExtensions }
         if (fromPath != null) return fromPath
         val displayName = song.localUri
-            ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+            ?.let { runCatching { it.toUri() }.getOrNull() }
             ?.takeIf { it.scheme == "content" }
             ?.let { uri ->
                 context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)

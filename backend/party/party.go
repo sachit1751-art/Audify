@@ -8,9 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/kushagrasinghx/Audify/backend/clock"
-	"github.com/kushagrasinghx/Audify/backend/codes"
-	"github.com/kushagrasinghx/Audify/backend/config"
+	"github.com/sachit1751-art/Audify/backend/clock"
+	"github.com/sachit1751-art/Audify/backend/codes"
+	"github.com/sachit1751-art/Audify/backend/config"
 )
 
 // PartyError represents an error with an HTTP status code and wire error code.

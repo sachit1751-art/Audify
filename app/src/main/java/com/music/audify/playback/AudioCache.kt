@@ -1,5 +1,8 @@
 package com.music.audify.playback
 
+import androidx.core.net.toUri
+import androidx.core.content.edit
+
 import android.content.Context
 import android.media.MediaDataSource
 import android.net.ConnectivityManager
@@ -244,11 +247,11 @@ object AudioCache {
             cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
             TrackLog.d(TAG, "cleared the song cache for cache format $CACHE_FORMAT")
         }
-        if (format != CACHE_FORMAT) state.edit().putInt(KEY_CACHE_FORMAT, CACHE_FORMAT).apply()
+        if (format != CACHE_FORMAT) state.edit {putInt(KEY_CACHE_FORMAT, CACHE_FORMAT)}
         if (state.getInt(KEY_MATCHING_SCHEMA, 0) < MATCHING_SCHEMA) {
             val stale = cache.keys.filter { it.endsWith(ALT_SUFFIX) }
             stale.forEach { runCatching { cache.removeResource(it) } }
-            state.edit().putInt(KEY_MATCHING_SCHEMA, MATCHING_SCHEMA).apply()
+            state.edit {putInt(KEY_MATCHING_SCHEMA, MATCHING_SCHEMA)}
             TrackLog.d(TAG, "invalidated ${stale.size} source cache entries after matcher upgrade")
         }
         // Nothing is playing yet, so nothing an addon served is worth keeping —
@@ -767,7 +770,7 @@ object AudioCache {
      * serving the track. Anything not positively one of the two is [Origin.OTHER].
      */
     private fun originOf(uri: Uri, mediaId: String, servedUrl: String): Origin {
-        val host = runCatching { Uri.parse(servedUrl).host }.getOrNull()?.lowercase(Locale.ROOT).orEmpty()
+        val host = runCatching { servedUrl.toUri().host }.getOrNull()?.lowercase(Locale.ROOT).orEmpty()
         if (host.endsWith("googlevideo.com") || host.endsWith("youtube.com")) return Origin.YOUTUBE
         if (host.endsWith("saavncdn.com") || host.endsWith("jiosaavn.com")) return Origin.JIOSAAVN
         val upgrade = QualityUpgrade.forcedStream(uri)
@@ -987,7 +990,7 @@ object AudioCache {
         // No upstream factory, so anything not on disk fails rather than streams.
         val source = CacheDataSource.Factory().setCache(cache).createDataSource()
         val spec = DataSpec.Builder()
-            .setUri(Uri.parse("audify://cache"))
+            .setUri("audify://cache".toUri())
             .setKey(copy.key)
             .setPosition(0)
             .setLength(copy.length)
@@ -1549,7 +1552,7 @@ object AudioCache {
         if (!::cache.isInitialized) return false
         val videoId = uri.getQueryParameter("v") ?: return false
         if (alignmentHeadComplete(videoId)) return true
-        val opus = Uri.parse(AutomixAnalysisSource.opusUri(videoId))
+        val opus = AutomixAnalysisSource.opusUri(videoId).toUri()
         // A previous round that wrote nothing would otherwise block retries
         // for the rest of the session.
         if (videoId !in analysisHeadsInFlight) {
@@ -1615,8 +1618,8 @@ object AudioCache {
      * "openable with exactly these bytes".
      */
     private fun alignmentPrefixBytes(videoId: String): Long {
-        val watch = Uri.parse("audify://watch?v=$videoId")
-        val opus = Uri.parse(AutomixAnalysisSource.opusUri(videoId))
+        val watch = "audify://watch?v=$videoId".toUri()
+        val opus = AutomixAnalysisSource.opusUri(videoId).toUri()
         val renditions = renditionsOf(watch)
         val sameSource = renditions
             .filter { !it.key.endsWith("#alt") }
@@ -1674,7 +1677,7 @@ object AudioCache {
                     // Do not inherit a JioSaavn/lossless StreamChoice from
                     // playback. The base key is reserved for the lightweight
                     // YouTube Opus copy used by Automix analysis.
-                    uri = Uri.parse(AutomixAnalysisSource.opusUri(videoId)),
+                    uri = AutomixAnalysisSource.opusUri(videoId).toUri(),
                     position = 0,
                     length = want,
                     pinKey = true,
@@ -1692,7 +1695,7 @@ object AudioCache {
                     // regardless.
                     pull(
                         videoId,
-                        Uri.parse("audify://watch?v=$videoId"),
+                        "audify://watch?v=$videoId".toUri(),
                         0,
                         want,
                         /* pinKey = */ false,
@@ -2092,7 +2095,7 @@ object AudioCache {
      * from a track played earlier, or skipped back to — costs only the rest.
      */
     private suspend fun fetch(videoId: String, position: Long, length: Long) =
-        fetch(videoId, Uri.parse("audify://watch?v=$videoId"), position, length)
+        fetch(videoId, "audify://watch?v=$videoId".toUri(), position, length)
 
     /**
      * [pinKey] forces the write to land under [cacheKey] instead of wherever

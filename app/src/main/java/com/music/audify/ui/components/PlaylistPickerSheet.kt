@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,7 +65,6 @@ import com.music.audify.data.model.UserPlaylist
 import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.icons.AudifyIcons
-import java.util.Locale
 
 /**
  * Where a track goes: one of the account's playlists, or a new one.
@@ -116,7 +116,7 @@ fun PlaylistPickerSheet(
         }
         SheetHeading(
             stringResource(if (song != null) R.string.add_to_playlist else R.string.your_playlists)
-                .uppercase(Locale.getDefault()),
+                .uppercase(LocalLocale.current.platformLocale),
         )
 
         ActionRow(
@@ -348,7 +348,7 @@ private fun NewPlaylistForm(
             }
         }
 
-        SheetHeading(stringResource(R.string.who_can_see_it).uppercase(Locale.getDefault()))
+        SheetHeading(stringResource(R.string.who_can_see_it).uppercase(LocalLocale.current.platformLocale))
         Row(
             modifier = Modifier
                 .fillMaxWidth()

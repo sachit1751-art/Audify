@@ -1,5 +1,7 @@
 package com.music.audify.wear
 
+import androidx.core.net.toUri
+
 import android.content.Context
 import android.net.Uri
 import android.net.nsd.NsdManager
@@ -218,7 +220,7 @@ object WatchInstaller {
     private fun openOnWatch(app: Context, nodeId: String) {
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW)
             .addCategory(android.content.Intent.CATEGORY_BROWSABLE)
-            .setData(Uri.parse("audify-wear://${app.packageName}/update"))
+            .setData("audify-wear://${app.packageName}/update".toUri())
         runCatching { RemoteActivityHelper(app).startRemoteActivity(intent, nodeId).get(15, TimeUnit.SECONDS) }
             .onFailure { Log.w(TAG, "couldn't open the watch app: ${it.message}") }
     }

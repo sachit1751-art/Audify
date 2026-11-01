@@ -86,7 +86,7 @@ object SpotifyImporter {
                 .build()
 
             val html = Http.client.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
+                val body = response.body.string()
                 if (!response.isSuccessful || body.isBlank()) {
                     error("Failed to load Spotify playlist (HTTP ${response.code})")
                 }
@@ -208,7 +208,7 @@ object SpotifyImporter {
                 .build()
             val body = Http.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("HTTP ${response.code}")
-                response.body?.string().orEmpty()
+                response.body.string()
             }
             val content = json.parseToJsonElement(body).jsonObject["data"]?.jsonObject
                 ?.get("playlistV2")?.jsonObject?.get("content")?.jsonObject

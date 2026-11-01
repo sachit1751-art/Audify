@@ -25,11 +25,15 @@
 - Annotated the backdrop runtime-shader API boundary for Android 13, removing the corresponding API-level lint error.
 - Replaced 10 StateFlow reads performed during Compose composition with lifecycle-aware collection and removed one Flow transformation from composition.
 - Replaced 12 additional Compose-time resource lookups in account alerts, source settings and party-server editing with composition-safe resource resolution.
+- Fixed the remaining time-aware Home shelf Compose resource lookups by resolving its labels with `stringResource` in composition before the producer coroutine uses them.
+- Marked eleven strings with no definitions in any localized resource directory as explicitly non-translatable in the default resource files; no translated resource files were edited.
 
 ## Validation evidence
 
 - DevDebug Kotlin compilation and APK assembly succeeded with the installed JDK 21.
-- Latest recorded `:app:testDevDebugUnitTest`: 1,132 tests, 0 failures, 0 errors, 1 skipped.
+- Fresh `:app:lintDevDebug` passed: 0 errors, 634 warnings and 5 hints.
+- Fresh `:app:testDevDebugUnitTest`: 1,132 tests, 0 failures, 0 errors, 1 skipped.
+- Fresh `:app:assembleDevDebug` succeeded after the remaining lint fixes.
 - Latest `:sharedUi:jvmTest`: 43 tests, 0 failures.
 - Clean `:shared:jvmTest --rerun-tasks`: 98 tests, 0 failures.
 - `:app:assembleDevDebug` succeeded after the Media3 and first-draw changes.
@@ -55,7 +59,7 @@
 - Plan 037 exports retained monthly per-track aggregates only. It is not per-play or complete lifetime history; older months and lower-ranked tracks may have been pruned.
 - Plan 038 supports Spotify CSV/TSV imports with Track Name and Artist columns. JSON, M3U and richer column mapping remain unsupported.
 - Plan 039 checks file access/readable headers; it does not prove that audio playback succeeds.
-- Latest `:app:lintDevDebug` still fails with 131 errors, 628 warnings and 5 hints. Fixed: 112 Media3 opt-in errors, 10 StateFlow-in-composition errors, one Flow-operator-in-composition error, one backdrop runtime-shader API error, and 12 Compose resource-context lookups. Remaining: 64 Compose resource-context calls, 38 missing translations, 28 missing plural quantities, and one malformed format string in a translated Spanish resource. No translated resource files, blanket suppressions or lint baseline were added.
+- `:app:lintDevDebug` now passes with 0 errors, but 634 warnings and 5 hints remain. The current warning backlog has not been triaged as a release blocker set. No translated resource files, blanket suppressions or lint baseline were added.
 - Latest post-integration connected instrumentation on the Android 16 `audify_shots` emulator: 6 tests, 0 failures. A limited manual smoke also opened Home, Explore, Library, Search, Settings and Sources; the full button-by-button matrix is not complete.
 - The Android 16 tombstone shows ART class verification/class loading while InnerTubeX QuickJS warm-up was active, but it does not establish the ANR's initiating cause or identify a WorkManager `onStartJob` owner. Warm-up is now deferred until after first draw. Three cold launches did not reproduce an ANR, but this is not enough to prove the historical ANR fixed; repeat on a physical device and capture a new trace if it recurs.
 - Full button-by-button coverage, accessibility-node review, rotation, keyboard and smaller-screen testing remain incomplete. Emulator System UI briefly showed an unresponsive dialog during manual navigation; ActivityManager recorded no ANR and the app resumed after waiting. Treat emulator responsiveness as a QA limitation, not an Audify ANR finding.

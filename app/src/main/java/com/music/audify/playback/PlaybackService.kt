@@ -1441,7 +1441,7 @@ class PlaybackService : MediaLibraryService() {
                 }
                 NerdStats.recordSource(trackParam, sourceName)
                 return@Resolver dataSpec.buildUpon()
-                    .setUri(Uri.parse(stream.url))
+                    .setUri(stream.url.toUri())
                     .setHttpRequestHeaders(
                         if (directYouTube) StreamResolver.mediaHeadersFor(stream.url)
                         else stream.headers,
@@ -1469,7 +1469,7 @@ class PlaybackService : MediaLibraryService() {
                 val headers = StreamResolver.mediaHeadersFor(streamUrl)
                 TrackLog.d("Audify", "serving original YouTube version for $videoId", about = videoId)
                 return@Resolver dataSpec.buildUpon()
-                    .setUri(Uri.parse(streamUrl))
+                    .setUri(streamUrl.toUri())
                     .setHttpRequestHeaders(headers)
                     .build()
             }
@@ -1490,7 +1490,7 @@ class PlaybackService : MediaLibraryService() {
                 }
                 val headers = StreamResolver.mediaHeadersFor(streamUrl)
                 return@Resolver dataSpec.buildUpon()
-                    .setUri(Uri.parse(streamUrl))
+                    .setUri(streamUrl.toUri())
                     .setHttpRequestHeaders(headers)
                     .build()
             }
@@ -1519,12 +1519,12 @@ class PlaybackService : MediaLibraryService() {
                 TrackLog.d(
                     "Audify",
                     "${if (proving) "auditioning" else "serving"} upgraded $videoId " +
-                        "from ${Uri.parse(upgraded.url).host} " +
+                        "from ${upgraded.url.toUri().host} " +
                         "at ${dataSpec.position} (${upgraded.format.summary})",
                     about = videoId,
                 )
                 return@Resolver dataSpec.buildUpon()
-                    .setUri(Uri.parse(upgraded.url))
+                    .setUri(upgraded.url.toUri())
                     .setHttpRequestHeaders(upgraded.headers)
                     .build()
             }
@@ -1590,7 +1590,7 @@ class PlaybackService : MediaLibraryService() {
                     if (!pending) NerdStats.onLosslessRaceEnd(videoId)
                 }
                 return@Resolver dataSpec.buildUpon()
-                    .setUri(Uri.parse(serving.url))
+                    .setUri(serving.url.toUri())
                     .setHttpRequestHeaders(serving.headers)
                     .build()
             }
@@ -1620,7 +1620,7 @@ class PlaybackService : MediaLibraryService() {
                 NerdStats.recordSource(videoId, "YouTube")
                 StreamChoice.remember(videoId, SourceStream(streamUrl, headers = headers), substituted = false)
                 return@Resolver dataSpec.buildUpon()
-                    .setUri(Uri.parse(streamUrl))
+                    .setUri(streamUrl.toUri())
                     .setHttpRequestHeaders(headers)
                     .build()
             }
@@ -1638,7 +1638,7 @@ class PlaybackService : MediaLibraryService() {
                     NerdStats.recordSource(videoId, sourceName)
                     StreamChoice.remember(videoId, won.stream, substituted = true)
                     dataSpec.buildUpon()
-                        .setUri(Uri.parse(won.stream.url))
+                        .setUri(won.stream.url.toUri())
                         .setHttpRequestHeaders(won.stream.headers)
                         .build()
                 }
@@ -1655,7 +1655,7 @@ class PlaybackService : MediaLibraryService() {
                     val headers = StreamResolver.mediaHeadersFor(won.url)
                     StreamChoice.remember(videoId, SourceStream(won.url, headers = headers), substituted = false)
                     dataSpec.buildUpon()
-                        .setUri(Uri.parse(won.url))
+                        .setUri(won.url.toUri())
                         .setHttpRequestHeaders(headers)
                         .build()
                 }
@@ -2344,8 +2344,8 @@ class PlaybackService : MediaLibraryService() {
         versionAlignmentMeasurements[key]?.let { return it }
         val deferred = scope.async(Dispatchers.Main) {
             try {
-                val sourceUri = Uri.parse(sourceSong.localUri ?: AutomixAnalysisSource.opusUri(sourceId))
-                val targetUri = Uri.parse(targetSong.localUri ?: AutomixAnalysisSource.opusUri(targetId))
+                val sourceUri = (sourceSong.localUri ?: AutomixAnalysisSource.opusUri(sourceId)).toUri()
+                val targetUri = (targetSong.localUri ?: AutomixAnalysisSource.opusUri(targetId)).toUri()
                 withContext(Dispatchers.IO) {
                     // Together rather than one after the other: two independent
                     // range reads that the sequential version made the listener pay
@@ -4590,7 +4590,7 @@ class PlaybackService : MediaLibraryService() {
         // away would mean paying for the same megabytes twice — and where
         // keeping it is safe for the one reason the discard exists: the file
         // under that key came from this very URL.
-        val alreadyFilled = QualityUpgrade.forcedStream(Uri.parse(upgradedUri))?.url == stream.url
+        val alreadyFilled = QualityUpgrade.forcedStream(upgradedUri.toUri())?.url == stream.url
         // Parked before the audition rather than at the swap: the silent player
         // reaches its bytes through the same resolving data source the real one
         // does, and that is where a marked URI is turned back into a stream.
@@ -4605,7 +4605,7 @@ class PlaybackService : MediaLibraryService() {
             // [QualityUpgrade.forcedStream] serving a URL that has just failed
             // to prove itself.
             QualityUpgrade.forget(mediaId)
-            withContext(Dispatchers.IO) { AudioCache.discardRendition(Uri.parse(upgradedUri)) }
+            withContext(Dispatchers.IO) { AudioCache.discardRendition(upgradedUri.toUri()) }
             return
         }
 
@@ -4711,7 +4711,7 @@ class PlaybackService : MediaLibraryService() {
             // send the resolver off to find a stream of its own and write it
             // into the rendition entry the audition just filled — two files,
             // one key, which is the corruption the audition exists to avoid.
-            if (QualityUpgrade.forcedStream(Uri.parse(upgradedUri)) == null) {
+            if (QualityUpgrade.forcedStream(upgradedUri.toUri()) == null) {
                 TrackLog.d("Audify", "upgrade abandoned: its stream was dropped while it was being proved")
                 return@withContext
             }
@@ -4790,7 +4790,7 @@ class PlaybackService : MediaLibraryService() {
             // taken off the connection the party is syncing over.
             if (!ListenTogether.state.value.inParty) {
                 launch(Dispatchers.IO) {
-                    AudioCache.warmRange(Uri.parse(upgradedUri), 0, ANALYSIS_HEAD_BYTES)
+                    AudioCache.warmRange(upgradedUri.toUri(), 0, ANALYSIS_HEAD_BYTES)
                 }
             }
         }
@@ -4892,7 +4892,7 @@ class PlaybackService : MediaLibraryService() {
             // re-download of a track being upgraded twice in a session, which
             // is why a re-offered upgrade is exempt: there the bytes under the
             // key are known to have come from the URL about to be used again.
-            if (!renditionAlreadyFilled) AudioCache.discardRendition(Uri.parse(upgradedUri))
+            if (!renditionAlreadyFilled) AudioCache.discardRendition(upgradedUri.toUri())
             // Then the opening, on its own, because the audition will not cache
             // it: a progressive source parses the container from byte zero and
             // then *seeks away*, leaving behind only the handful of bytes it
@@ -4901,7 +4901,7 @@ class PlaybackService : MediaLibraryService() {
             // it — the one read nothing can start without. Ahead of the audition
             // rather than beside it, since Media3 locks a cache entry to a
             // single writer.
-            AudioCache.warmRange(Uri.parse(upgradedUri), 0, UPGRADE_HEADER_BYTES)
+            AudioCache.warmRange(upgradedUri.toUri(), 0, UPGRADE_HEADER_BYTES)
         }
         val audition = withContext(Dispatchers.Main) {
             buildAuditionPlayer(meter).apply {
@@ -4956,7 +4956,7 @@ class PlaybackService : MediaLibraryService() {
         // the stall [AudioCache]'s key factory documents. Free to wait for: the
         // old stream is still playing.
         delay(AUDITION_RELEASE_MS)
-        TrackLog.d("Audify", AudioCache.cachedSummary(Uri.parse(upgradedUri)))
+        TrackLog.d("Audify", AudioCache.cachedSummary(upgradedUri.toUri()))
         return warmedThrough
     }
 
@@ -5603,7 +5603,7 @@ class PlaybackService : MediaLibraryService() {
             mediaId.startsWith("/") -> "file://$mediaId"
             else -> null
         }
-        if (directUriStr != null) return Uri.parse(directUriStr)
+        if (directUriStr != null) return directUriStr.toUri()
 
         val localConfigUri = mediaItem?.localConfiguration?.uri
         if (localConfigUri != null && (localConfigUri.scheme == "file" || localConfigUri.scheme == "content")) {
@@ -5618,7 +5618,7 @@ class PlaybackService : MediaLibraryService() {
         val extras = mediaItem?.mediaMetadata?.extras
         val localUriStr = extras?.getString(EXTRA_LOCAL_URI)
         if (!localUriStr.isNullOrBlank()) {
-            return Uri.parse(localUriStr)
+            return localUriStr.toUri()
         }
 
         val localPath = extras?.getString(EXTRA_LOCAL_PATH)
@@ -5628,7 +5628,7 @@ class PlaybackService : MediaLibraryService() {
 
         val downloadedUri = Downloads.verifiedSavedUri(mediaId)
         if (downloadedUri != null) {
-            return Uri.parse(downloadedUri)
+            return downloadedUri.toUri()
         }
 
         return null
@@ -8726,7 +8726,7 @@ class PlaybackService : MediaLibraryService() {
                     MediaMetadata.Builder()
                         .setTitle(title)
                         .setSubtitle(subtitle)
-                        .setArtworkUri(thumbnailUrl.artworkAt(NOTIFICATION_ART_PX)?.let { Uri.parse(it) })
+                        .setArtworkUri(thumbnailUrl.artworkAt(NOTIFICATION_ART_PX)?.let { it.toUri() })
                         .setIsBrowsable(true)
                         .setIsPlayable(false)
                         .setFolderType(MediaMetadata.FOLDER_TYPE_ALBUMS)

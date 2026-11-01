@@ -1,5 +1,7 @@
 package com.music.audify.playback
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.content.SharedPreferences
 import com.music.audify.data.model.Song
@@ -45,10 +47,10 @@ object LastPlayed {
         val encoded = runCatching {
             json.encodeToString(StoredQueue.serializer(), stored)
         }.getOrNull() ?: return
-        prefs.edit()
-            .putString(KEY_QUEUE, encoded)
-            .putInt(KEY_INDEX, safeIndex - bounds.first)
-            .apply()
+        prefs.edit {
+                putString(KEY_QUEUE, encoded)
+                .putInt(KEY_INDEX, safeIndex - bounds.first)
+            }
     }
 
     /**
@@ -69,20 +71,20 @@ object LastPlayed {
         val encoded = runCatching {
             json.encodeToString(StoredQueue.serializer(), stored)
         }.getOrNull() ?: return
-        prefs.edit()
-            .putString(KEY_QUEUE, encoded)
-            .putInt(KEY_INDEX, safeIndex - bounds.first)
-            .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
-            .commit()
+        prefs.edit(commit = true) {
+                putString(KEY_QUEUE, encoded)
+                .putInt(KEY_INDEX, safeIndex - bounds.first)
+                .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
+            }
     }
 
     /** Update only cheap scalar state; this performs no queue conversion or JSON work. */
     fun savePlaybackState(index: Int, positionMs: Long) {
         if (!prefs.contains(KEY_QUEUE)) return
-        prefs.edit()
-            .putInt(KEY_INDEX, index.coerceAtLeast(0))
-            .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
-            .apply()
+        prefs.edit {
+                putInt(KEY_INDEX, index.coerceAtLeast(0))
+                .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
+            }
     }
 
     fun load(): Snapshot? {
@@ -109,12 +111,12 @@ object LastPlayed {
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit {clear()}
     }
 
     /** Remove a stale queue before another one is installed. */
     fun clearImmediately() {
-        prefs.edit().clear().commit()
+        prefs.edit(commit = true) {clear()}
     }
 
     @Serializable

@@ -1,5 +1,7 @@
 package com.music.audify.auth
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.content.SharedPreferences
 
@@ -25,7 +27,7 @@ class AuthStore(context: Context) {
 
     var cookie: String?
         get() = prefs.getString(KEY_COOKIE, null)
-        set(value) = prefs.edit().putString(KEY_COOKIE, value).apply()
+        set(value) = prefs.edit {putString(KEY_COOKIE, value)}
 
     /**
      * The durable account registry. Credentials remain in this encrypted store;
@@ -54,18 +56,18 @@ class AuthStore(context: Context) {
 
     var activeAccountId: String?
         get() = prefs.getString(KEY_ACTIVE_ACCOUNT, null)
-        set(value) = prefs.edit().putString(KEY_ACTIVE_ACCOUNT, value).apply()
+        set(value) = prefs.edit {putString(KEY_ACTIVE_ACCOUNT, value)}
 
     var activeProfileId: String?
         get() = prefs.getString(KEY_ACTIVE_PROFILE, null)
-        set(value) = prefs.edit().putString(KEY_ACTIVE_PROFILE, value).apply()
+        set(value) = prefs.edit {putString(KEY_ACTIVE_PROFILE, value)}
 
     val activeSession: GoogleAccountSession?
         get() = sessions.firstOrNull { it.accountId == activeAccountId }
             ?: sessions.firstOrNull()
 
     fun replaceSessions(value: List<GoogleAccountSession>) {
-        prefs.edit().putString(KEY_SESSIONS, value.toJson()).apply()
+        prefs.edit {putString(KEY_SESSIONS, value.toJson())}
     }
 
     fun upsertSession(session: GoogleAccountSession, activate: Boolean = true) {
@@ -90,7 +92,7 @@ class AuthStore(context: Context) {
         replaceSessions(remaining)
         val fallback = remaining.firstOrNull()
         select(fallback?.accountId.orEmpty(), fallback?.activeProfileId)
-        prefs.edit().putString(KEY_COOKIE, fallback?.cookie).apply()
+        prefs.edit {putString(KEY_COOKIE, fallback?.cookie)}
         BrowserSession.clearGoogleCookies()
         return fallback
     }
@@ -101,7 +103,7 @@ class AuthStore(context: Context) {
     /** The Discord account's bearer token. See DiscordRPC for why a user token. */
     var discordToken: String?
         get() = prefs.getString(KEY_DISCORD_TOKEN, null)
-        set(value) = prefs.edit().putString(KEY_DISCORD_TOKEN, value).apply()
+        set(value) = prefs.edit {putString(KEY_DISCORD_TOKEN, value)}
 
     /**
      * The WebDAV server password. Encrypted like every other credential here:
@@ -110,7 +112,7 @@ class AuthStore(context: Context) {
      */
     var webdavPassword: String?
         get() = prefs.getString(KEY_WEBDAV_PASSWORD, null)
-        set(value) = prefs.edit().putString(KEY_WEBDAV_PASSWORD, value).apply()
+        set(value) = prefs.edit {putString(KEY_WEBDAV_PASSWORD, value)}
 
     /**
      * The SMB share password. Encrypted like every other credential here:
@@ -119,7 +121,7 @@ class AuthStore(context: Context) {
      */
     var smbPassword: String?
         get() = prefs.getString(KEY_SMB_PASSWORD, null)
-        set(value) = prefs.edit().putString(KEY_SMB_PASSWORD, value).apply()
+        set(value) = prefs.edit {putString(KEY_SMB_PASSWORD, value)}
 
     /**
      * The channel the listener chose to act as, if they chose one.
@@ -147,12 +149,12 @@ class AuthStore(context: Context) {
         dataSyncId: String?,
         name: String?,
         authUser: String? = null,
-    ) = prefs.edit()
-        .putString(KEY_CHANNEL_PAGE_ID, pageId)
-        .putString(KEY_CHANNEL_DATASYNC_ID, dataSyncId)
-        .putString(KEY_CHANNEL_NAME, name)
-        .putString(KEY_CHANNEL_AUTH_USER, authUser)
-        .apply()
+    ) = prefs.edit {
+            putString(KEY_CHANNEL_PAGE_ID, pageId)
+            .putString(KEY_CHANNEL_DATASYNC_ID, dataSyncId)
+            .putString(KEY_CHANNEL_NAME, name)
+            .putString(KEY_CHANNEL_AUTH_USER, authUser)
+        }
 
     /**
      * The chosen channel's name, once something knows it.
@@ -163,15 +165,15 @@ class AuthStore(context: Context) {
      * back to say what it is called.
      */
     fun setChannelName(name: String?) =
-        prefs.edit().putString(KEY_CHANNEL_NAME, name).apply()
+        prefs.edit {putString(KEY_CHANNEL_NAME, name)}
 
     /** Back to whichever channel YouTube Music serves by default. */
-    fun clearChannel() = prefs.edit()
-        .remove(KEY_CHANNEL_PAGE_ID)
-        .remove(KEY_CHANNEL_DATASYNC_ID)
-        .remove(KEY_CHANNEL_NAME)
-        .remove(KEY_CHANNEL_AUTH_USER)
-        .apply()
+    fun clearChannel() = prefs.edit {
+            remove(KEY_CHANNEL_PAGE_ID)
+            .remove(KEY_CHANNEL_DATASYNC_ID)
+            .remove(KEY_CHANNEL_NAME)
+            .remove(KEY_CHANNEL_AUTH_USER)
+        }
 
     /**
      * A fresh login lands here. The cookie is new, so any channel chosen under
@@ -186,8 +188,8 @@ class AuthStore(context: Context) {
      * Signs out of YouTube Music only — the Discord login is a separate account.
      */
     fun signOut() {
-        prefs.edit().remove(KEY_COOKIE).remove(KEY_SESSIONS)
-            .remove(KEY_ACTIVE_ACCOUNT).remove(KEY_ACTIVE_PROFILE).apply()
+        prefs.edit {remove(KEY_COOKIE).remove(KEY_SESSIONS)
+            .remove(KEY_ACTIVE_ACCOUNT).remove(KEY_ACTIVE_PROFILE)}
         clearChannel()
         // The in-app browser keeps its own copy of the Google login, and a
         // sign-out that leaves it in place is not one: the next sign-in is

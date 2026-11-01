@@ -44,11 +44,9 @@ import com.music.audify.auth.YouTubeProfile
 import com.music.audify.data.settings.AppSettings
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /** Shared compact selector for every visible YouTube account avatar. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AccountProfileSelector(
     accounts: List<GoogleAccountSession>,
@@ -117,7 +115,7 @@ fun AccountProfileSelector(
 
 @Composable private fun ProfileRow(profile: YouTubeProfile, selected: Boolean, managing: Boolean,
     onClick: () -> Unit, onRemove: () -> Unit) {
-    val description = stringResource(if (selected) R.string.selected_account else R.string.switch_account)
+    val description = stringResource(if (selected) R.string.audify_selected else R.string.switch_account)
     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.RadioButton, onClick = if (managing) onRemove else onClick)
         .semantics { contentDescription = description }
         .padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -128,7 +126,7 @@ fun AccountProfileSelector(
             Text(profile.handle.ifBlank { stringResource(if (profile.isBrandAccount) R.string.brand_account else R.string.personal) },
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (selected && !managing) Icon(Icons.Rounded.Check, stringResource(R.string.selected_account), tint = MaterialTheme.colorScheme.primary)
+        if (selected && !managing) Icon(Icons.Rounded.Check, stringResource(R.string.audify_selected), tint = MaterialTheme.colorScheme.primary)
         if (managing) Text(stringResource(R.string.sign_out), color = MaterialTheme.colorScheme.error)
     }
 }

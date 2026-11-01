@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
@@ -32,7 +31,7 @@ val betaSuffix = rootProject.extra["audifyBetaSuffix"] as String
 
 android {
     namespace = "com.music.audify.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.music.audify"
@@ -46,7 +45,7 @@ android {
 
     sourceSets {
         // The phone <-> watch protocol, shared with :app. See WearProtocol.
-        getByName("main") { java.srcDir("protocol") }
+        getByName("main") { kotlin.directories += "protocol" }
     }
 
     flavorDimensions += "env"
@@ -142,11 +141,11 @@ kotlin {
 base.archivesName.set("AudifyWear")
 
 dependencies {
-    implementation("androidx.wear.compose:compose-material3:1.6.2")
-    implementation("androidx.wear.compose:compose-foundation:1.6.2")
-    implementation("androidx.wear.compose:compose-navigation:1.6.2")
+    implementation("androidx.wear.compose:compose-material3:1.7.1")
+    implementation("androidx.wear.compose:compose-foundation:1.7.1")
+    implementation("androidx.wear.compose:compose-navigation:1.7.1")
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     // AmbientLifecycleObserver: the always-on player.
     implementation("androidx.wear:wear:1.4.0")
     // NowPlayingListener: our icon on the watch face, opening our player.
@@ -154,12 +153,12 @@ dependencies {
 
     // The watch as the speaker: a player reading from the phone, in a session
     // so it plays on with the screen off. Same Media3 as the phone app.
-    implementation("androidx.media3:media3-exoplayer:1.11.0")
-    implementation("androidx.media3:media3-session:1.11.0")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-session:1.11.1")
 
     // The Data Layer: state from the phone, commands to it.
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 
     // Lets a sideloaded install use the baseline profiles Compose ships with,
     // instead of starting every screen interpreted.

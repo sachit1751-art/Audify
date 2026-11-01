@@ -23,6 +23,8 @@
 
 package com.music.audify.playback.smart
 
+import androidx.core.net.toUri
+
 import android.content.Context
 import android.media.MediaDataSource
 import android.net.Uri
@@ -831,7 +833,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
             try {
                 val match = findYouTubeMatch(target)
                 if (match != null) {
-                    sourceAnalysisUris[trackId] = Uri.parse(AutomixAnalysisSource.opusUri(match.videoId))
+                    sourceAnalysisUris[trackId] = AutomixAnalysisSource.opusUri(match.videoId).toUri()
                     Log.d(TAG, "Automix analysis for $trackId will use YouTube Opus ${match.videoId}")
                 } else {
                     Log.d(TAG, "No YouTube match for Automix analysis of $trackId")

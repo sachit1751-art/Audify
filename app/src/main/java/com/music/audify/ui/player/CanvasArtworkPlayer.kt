@@ -1,5 +1,7 @@
 package com.music.audify.ui.player
 
+import androidx.core.graphics.createBitmap
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BlendMode

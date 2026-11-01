@@ -59,8 +59,7 @@ import com.music.audify.ui.components.optimizedHazeEffect
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -72,7 +71,6 @@ private const val StepMs = 100
 private const val DismissDragFraction = 0.25f
 
 /** A player drawer for shifting all synced lyrics against the playback clock. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 internal fun LyricsOffsetSheet(
     hazeState: HazeState,

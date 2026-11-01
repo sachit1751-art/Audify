@@ -10,6 +10,7 @@
 
 package com.music.audify.playback.audio
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import com.music.audify.data.settings.OutputPcmMode
 import com.music.audify.playback.AudioOutputPolicy
@@ -182,6 +183,9 @@ object OutputNegotiator {
         )
     }
 
+    // AudioFormat.ENCODING_PCM_24BIT_PACKED is an inlined integer constant;
+    // the active route's advertised encodings are the capability source of truth.
+    @SuppressLint("InlinedApi")
     private fun selectBestOutput(
         source: SourceDescriptor,
         sampleRateHz: Int,

@@ -50,8 +50,7 @@ import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import kotlin.math.roundToInt
 
 /**
@@ -76,7 +75,6 @@ import kotlin.math.roundToInt
  * with nothing moving, and "Reduce dynamic blur" swaps the blurred page for a
  * plain dimming scrim, which is also the cost that setting exists to remove.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun <T : Any> HeldContextMenu(
     item: T?,
@@ -172,10 +170,10 @@ fun <T : Any> HeldContextMenu(
                         } else {
                             Modifier.optimizedHazeEffect(
                                 state = hazeState,
-                                style = HazeMaterials.ultraThin(MaterialTheme.colorScheme.background),
-                            ) {
-                                alpha = backdropAlpha()
-                            }
+                                style = HazeMaterials.ultraThin(MaterialTheme.colorScheme.background).then {
+                                    alpha(backdropAlpha())
+                                },
+                            )
                         },
                     )
                     .graphicsLayer { alpha = backdropAlpha() }

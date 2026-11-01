@@ -62,6 +62,10 @@ class LocaleStringsTest(private val tag: String) {
         internal fun tagToQualifier(tag: String): String = when (tag) {
             "zh-CN" -> "zh"
             "zh-TW" -> "zh-rTW"
+            // Android still requires the legacy resource qualifiers for these
+            // two language codes even though the app exposes modern BCP-47 tags.
+            "id" -> "in"
+            "he" -> "iw"
             else -> tag
         }
     }

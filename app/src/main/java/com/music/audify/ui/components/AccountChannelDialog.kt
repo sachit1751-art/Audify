@@ -40,9 +40,9 @@ import coil3.compose.AsyncImage
 import com.music.audify.data.model.AccountChannel
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /**
  * Which channel to listen as — the Google account's own, or one of its brand
@@ -57,7 +57,6 @@ import dev.chrisbanes.haze.materials.HazeMaterials
  * tick answers "which one is this app acting as", and before a choice is made
  * that is decided by the shell rather than by the listener.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AccountChannelDialog(
     channels: List<AccountChannel>,
@@ -91,8 +90,8 @@ fun AccountChannelDialog(
                     if (reduceDynamicBlur) {
                         Modifier.background(MaterialTheme.colorScheme.surface)
                     } else {
-                        Modifier.hazeEffect(
-                            state = hazeState,
+                        Modifier.hazeBlur(
+                            input = HazeInput.Sources(hazeState),
                             style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
                         )
                     },

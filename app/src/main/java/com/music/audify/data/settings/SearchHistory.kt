@@ -1,5 +1,7 @@
 package com.music.audify.data.settings
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +59,7 @@ object SearchHistory {
 
     private fun saveAddon(value: List<String>) {
         _addonRecent.value = value
-        prefs.edit().putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, value)).apply()
+        prefs.edit {putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, value))}
     }
 
     fun init(context: Context) {
@@ -99,7 +101,7 @@ object SearchHistory {
 
     private fun save(value: List<SearchHistoryEntity>) {
         _recent.value = value
-        prefs.edit().putString(KEY_HISTORY, json.encodeToString(serializer, value)).apply()
+        prefs.edit {putString(KEY_HISTORY, json.encodeToString(serializer, value))}
     }
 
     private const val KEY_HISTORY = "search_history"

@@ -42,9 +42,9 @@ fun HistoryScreen(
     onSongSwipe: (Song) -> Unit,
     onRetry: () -> Unit,
     contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         state = listState,

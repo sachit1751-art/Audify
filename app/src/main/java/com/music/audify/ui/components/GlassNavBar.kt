@@ -94,6 +94,7 @@ fun GlassNavBar(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onExpand: () -> Unit,
+    modifier: Modifier = Modifier,
     /** @see com.music.audify.data.listentogether.ListenTogether.State.controlsLocked */
     controlsLocked: Boolean = false,
     onBlockedControl: () -> Unit = {},
@@ -101,7 +102,6 @@ fun GlassNavBar(
     dock: PlayerDock? = null,
     /** Dragging the bar's player up into the full player. */
     pull: MiniPlayerPull? = null,
-    modifier: Modifier = Modifier,
 ) {
     // Held for the same reason [tabs] is. The glass factory below closes over
     // this shape, and a fresh RoundedCornerShape each pass means a fresh factory

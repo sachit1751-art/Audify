@@ -1,5 +1,7 @@
 package com.music.audify.data.presence
 
+import androidx.core.content.edit
+
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -31,7 +33,7 @@ object AndroidPresence {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.getString(KEY_INSTALL_ID, null)?.let { return it }
         val id = UUID.randomUUID().toString()
-        prefs.edit().putString(KEY_INSTALL_ID, id).apply()
+        prefs.edit {putString(KEY_INSTALL_ID, id)}
         return id
     }
 }

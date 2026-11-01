@@ -16,10 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - uses: gradle/actions/setup-gradle@v4
@@ -42,17 +42,32 @@ jobs:
 
       - run: chmod +x gradlew
 
-      - name: Tests
-        run: ./gradlew testDevDebugUnitTest
+      - name: Android and shared tests
+        run: ./gradlew :app:testDevDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
 
-      - name: Build the dev APK
-        run: ./gradlew assembleDevDebug
+      - name: Android lint
+        run: ./gradlew :app:lintDevDebug
+
+      - name: Build phone, TV and Wear OS dev variants
+        run: ./gradlew :app:assembleDevDebug :tv:assembleDevDebug :wearos:assembleDevDebug
 
       - name: Upload the dev APK
         uses: actions/upload-artifact@v4
         with:
           name: audify-dev-debug
           path: app/build/outputs/apk/dev/debug/*.apk
+
+      - name: Upload TV dev APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: audify-tv-dev-debug
+          path: tv/build/outputs/apk/dev/debug/*.apk
+
+      - name: Upload Wear OS dev APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: audify-wear-dev-debug
+          path: wearos/build/outputs/apk/dev/debug/*.apk
 
       - name: Upload test reports
         if: failure()

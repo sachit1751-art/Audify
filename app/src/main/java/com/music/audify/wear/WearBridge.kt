@@ -1,5 +1,11 @@
 package com.music.audify.wear
 
+import android.annotation.SuppressLint
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
+
+import androidx.core.net.toUri
+
 import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
@@ -296,6 +302,8 @@ object WearBridge {
         _watchOutput.update { it.copy(active = speaker.active, volume = volume) }
     }
 
+    // createSpeaker always passes context.applicationContext to WatchSpeaker.
+    @SuppressLint("StaticFieldLeak")
     @Volatile internal var speaker: WatchSpeaker? = null
         private set
 
@@ -412,7 +420,7 @@ object WearBridge {
                                     // capped ceiling already keys it apart. And
                                     // only those: the tag is in the address, so
                                     // it also misses the resolver's own cache.
-                                    Uri.parse(uri).let { parsed ->
+                                    uri.toUri().let { parsed ->
                                         if (parsed.scheme != "audify" || parsed.authority != "source") parsed else parsed.buildUpon()
                                             .appendQueryParameter(AudioCache.WATCH_READ_PARAM, "1")
                                             .build()
@@ -548,7 +556,7 @@ object WearBridge {
         val square = if (bitmap.width == bitmap.height) bitmap else Bitmap.createBitmap(
             bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side,
         )
-        return if (side > px) Bitmap.createScaledBitmap(square, px, px, true) else square
+        return if (side > px) square.scale(px, px) else square
     }
 
     private fun Bitmap.jpeg(quality: Int): ByteArray =

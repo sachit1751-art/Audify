@@ -1,5 +1,7 @@
 package com.music.audify.ui.replay
 
+import androidx.core.graphics.createBitmap
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -85,7 +87,7 @@ suspend fun renderReplayPoster(
     withContext(Dispatchers.Default) {
         val lit = page?.let { summary.storyArtwork(it) }
             ?: songs.firstOrNull()?.artworkUrl
-        val bitmap = Bitmap.createBitmap(POSTER_W, POSTER_H, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(POSTER_W, POSTER_H)
         val canvas = Canvas(bitmap)
         val type = Fonts(context)
 

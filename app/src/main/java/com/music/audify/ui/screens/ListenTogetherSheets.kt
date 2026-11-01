@@ -1,5 +1,7 @@
 package com.music.audify.ui.screens
 
+import androidx.core.graphics.scale
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat

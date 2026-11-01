@@ -209,6 +209,7 @@ internal fun ShareAction(
     /** The one that sends it, which is the one that should be reached for. */
     accent: Boolean,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     /**
      * The picture has been written out: the button turns into a check and says
      * so, rather than sitting there offering to do it again.
@@ -216,7 +217,6 @@ internal fun ShareAction(
     saved: Boolean = false,
     /** What it says once [saved]; falls back to [label] when null. */
     savedLabel: String? = null,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val background = when {

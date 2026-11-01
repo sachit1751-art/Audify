@@ -9,6 +9,8 @@
  */
 package com.music.audify.ui.components.backdrop
 
+import androidx.core.graphics.scale
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf

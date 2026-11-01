@@ -1,5 +1,7 @@
 package com.music.audify.data.innertube
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.os.Build
 import android.os.SystemClock
@@ -65,8 +67,8 @@ object AndroidStreamHooks {
             store = object : InnerTubeXResolver.ConfigStore {
                 override fun getString(key: String): String? = prefs.getString(key, null)
                 override fun getLong(key: String): Long? = if (prefs.contains(key)) prefs.getLong(key, 0L) else null
-                override fun putString(key: String, value: String) = prefs.edit().putString(key, value).apply()
-                override fun putLong(key: String, value: Long) = prefs.edit().putLong(key, value).apply()
+                override fun putString(key: String, value: String) = prefs.edit {putString(key, value)}
+                override fun putLong(key: String, value: Long) = prefs.edit {putLong(key, value)}
             },
             poTokenProvider = poTokens.asTokenProvider(),
         )

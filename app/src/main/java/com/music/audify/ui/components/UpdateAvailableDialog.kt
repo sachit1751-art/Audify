@@ -39,8 +39,7 @@ import com.music.audify.R
 import com.music.audify.data.AppUpdateChecker
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /** UIAlertController's own metrics: fixed narrow width, 14pt corner, 44pt rows. */
 internal val ALERT_WIDTH = 270.dp
@@ -78,7 +77,6 @@ private val NOTES_MAX_HEIGHT = 220.dp
  * so its glass can sample the same [HazeState] the rest of the app's frosted
  * surfaces use, the way [FrostedTopBar] and [MiniPlayer] already do.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun UpdateAvailableDialog(
     version: String,

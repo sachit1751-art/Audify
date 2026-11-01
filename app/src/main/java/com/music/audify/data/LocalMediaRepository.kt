@@ -1,5 +1,7 @@
 package com.music.audify.data
 
+import androidx.core.net.toUri
+
 import android.Manifest
 import android.content.ContentUris
 import android.content.Context
@@ -95,20 +97,21 @@ object LocalMediaRepository {
                 val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
                 val selectionArgs = arrayOf("%${DownloadStore.FOLDER}%")
 
-                context.contentResolver.query(
+                val cursor = context.contentResolver.query(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     projection,
                     selection,
                     selectionArgs,
                     null,
-                )?.use { cursor ->
+                )
+                if (cursor != null) try {
                     val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                     val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                     val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                     val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                     val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
                     val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
-                    val albumArtBaseUri = Uri.parse("content://media/external/audio/albumart")
+                    val albumArtBaseUri = "content://media/external/audio/albumart".toUri()
 
                     while (cursor.moveToNext()) {
                         val id = cursor.getLong(idCol)
@@ -130,6 +133,8 @@ object LocalMediaRepository {
                             extraSongs.add(buildSongFromUri(context, contentUri, name, tags))
                         }
                     }
+                } finally {
+                    cursor.close()
                 }
             } else {
                 val folder = File(
@@ -261,13 +266,14 @@ object LocalMediaRepository {
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
         runCatching {
-            context.contentResolver.query(
+            val cursor = context.contentResolver.query(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 projection,
                 selection,
                 selectionArgs,
                 sortOrder,
-            )?.use { cursor ->
+            ) ?: return@runCatching
+            try {
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                 val displayNameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                 val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -280,7 +286,7 @@ object LocalMediaRepository {
                 val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
                 val trackCol = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
 
-                val albumArtBaseUri = Uri.parse("content://media/external/audio/albumart")
+                val albumArtBaseUri = "content://media/external/audio/albumart".toUri()
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
@@ -325,6 +331,8 @@ object LocalMediaRepository {
                         )
                     )
                 }
+            } finally {
+                cursor.close()
             }
         }.onFailure { Log.w(TAG, "Failed scanning device local music: ${it.message}") }
 
@@ -344,7 +352,7 @@ object LocalMediaRepository {
     private data class SelectedFolder(val absolutePath: String, val label: String)
 
     private fun selectedFolder(treeUri: String): SelectedFolder? = runCatching {
-        val documentId = DocumentsContract.getTreeDocumentId(Uri.parse(treeUri))
+        val documentId = DocumentsContract.getTreeDocumentId(treeUri.toUri())
         if (documentId.startsWith("raw:")) {
             val path = documentId.removePrefix("raw:").normalizedPath()
             return@runCatching SelectedFolder(path, path.substringAfterLast('/'))
@@ -425,7 +433,7 @@ object LocalMediaRepository {
         runCatching {
             val retriever = MediaMetadataRetriever()
             try {
-                retriever.setDataSource(context, Uri.parse(uriStr))
+                retriever.setDataSource(context, uriStr.toUri())
                 val metaTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                 val metaArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
                 val metaAlbum = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)

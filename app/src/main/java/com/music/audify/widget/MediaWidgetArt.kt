@@ -1,5 +1,8 @@
 package com.music.audify.widget
 
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -106,7 +109,7 @@ internal object MediaWidgetArt {
         // `put` at the end.
         val failed = cover == null && !artworkUrl.isNullOrBlank()
         if (failed && key != null) failures[key] = SystemClock.elapsedRealtime()
-        val composed = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val composed = createBitmap(widthPx, heightPx)
         val canvas = Canvas(composed)
         if (cover != null) canvas.fillCentreCropped(cover) else canvas.fillPlaceholder()
 
@@ -154,7 +157,7 @@ internal object MediaWidgetArt {
             if (!artworkUrl.isNullOrBlank()) failures[key] = SystemClock.elapsedRealtime()
             return null
         }
-        val square = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val square = createBitmap(sizePx, sizePx)
         Canvas(square).fillCentreCropped(cover)
         val round = square.withRoundedCorners(sizePx / 2f)
         square.recycle()
@@ -187,7 +190,7 @@ internal object MediaWidgetArt {
         val failed = cover == null && !artworkUrl.isNullOrBlank()
         if (failed && key != null) failures[key] = SystemClock.elapsedRealtime()
 
-        val composed = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val composed = createBitmap(widthPx, heightPx)
         val canvas = Canvas(composed)
         if (cover == null) {
             canvas.fillPlaceholder()
@@ -196,7 +199,7 @@ internal object MediaWidgetArt {
             val workH = (workW * heightPx / widthPx.coerceAtLeast(1)).coerceAtLeast(4)
             // Cropped at 4× the working size and halved down, so the reduction
             // averages the whole cover rather than sampling a sparse grid of it.
-            val crop = Bitmap.createBitmap(workW * 4, workH * 4, Bitmap.Config.ARGB_8888)
+            val crop = createBitmap(workW * 4, workH * 4)
             Canvas(crop).fillCentreCropped(cover)
             val small = crop.halvedTo(workH.toFloat())
             if (small !== crop) crop.recycle()
@@ -434,7 +437,7 @@ internal object MediaWidgetArt {
         // because a canvas over a bitmap rasterises on the calling thread: the
         // draw below has finished reading these pixels before the next level
         // overwrites them.
-        val level = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val level = createBitmap(w, h)
         val paint = Paint().apply { isFilterBitmap = true }
 
         var applied = 0f
@@ -494,12 +497,7 @@ internal object MediaWidgetArt {
     private fun Bitmap.halvedTo(target: Float): Bitmap {
         var current = this
         while (current.height / 2 >= target && current.width / 2 >= 2) {
-            val next = Bitmap.createScaledBitmap(
-                current,
-                current.width / 2,
-                current.height / 2,
-                true,
-            )
+            val next = current.scale(current.width / 2, current.height / 2, )
             if (current !== this) current.recycle()
             current = next
         }
@@ -616,7 +614,7 @@ internal object MediaWidgetArt {
      */
     private fun Bitmap.withRoundedCorners(radiusPx: Float, alpha: Int = 255): Bitmap {
         if (radiusPx <= 0f && alpha == 255) return this
-        val out = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val out = createBitmap(width, height)
         Canvas(out).drawRoundRect(
             RectF(0f, 0f, width.toFloat(), height.toFloat()),
             radiusPx,

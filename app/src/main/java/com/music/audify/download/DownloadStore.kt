@@ -159,18 +159,21 @@ object DownloadStore {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun mediaStoreEntry(context: Context, name: String): Uri? = runCatching {
-        context.contentResolver.query(
+        val cursor = context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.MediaColumns._ID),
             "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND " +
                 "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
             arrayOf(name, "%$FOLDER%"),
             null,
-        )?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.buildUpon()
-                .appendPath(cursor.getLong(0).toString())
-                .build()
+        ) ?: return@runCatching null
+        try {
+            if (!cursor.moveToFirst()) null
+            else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.buildUpon()
+                    .appendPath(cursor.getLong(0).toString())
+                    .build()
+        } finally {
+            cursor.close()
         }
     }.onFailure { Log.w(TAG, "media store lookup failed for $name: ${it.message}") }.getOrNull()
 
@@ -206,31 +209,39 @@ object DownloadStore {
         }
         context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
             descriptor.length.takeIf { it >= 0L }
-        } ?: context.contentResolver.query(
-            uri,
-            arrayOf(MediaStore.MediaColumns.SIZE),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            if (!cursor.moveToFirst()) null
-            else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)).takeIf { it >= 0L }
+        } ?: run {
+            val cursor = context.contentResolver.query(
+                uri,
+                arrayOf(MediaStore.MediaColumns.SIZE),
+                null,
+                null,
+                null,
+            ) ?: return@runCatching null
+            try {
+                if (!cursor.moveToFirst()) null
+                else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)).takeIf { it >= 0L }
+            } finally {
+                cursor.close()
+            }
         }
     }.getOrNull()
 
     /** Best available added/modified time for legacy metadata without a timestamp. */
     fun lastModifiedMillis(context: Context, uri: Uri): Long? = runCatching {
         if (uri.scheme == "file") return uri.path?.let(::File)?.lastModified()?.takeIf { it > 0L }
-        context.contentResolver.query(
+        val cursor = context.contentResolver.query(
             uri,
             arrayOf(MediaStore.MediaColumns.DATE_ADDED),
             null,
             null,
             null,
-        )?.use { cursor ->
+        ) ?: return@runCatching null
+        try {
             if (!cursor.moveToFirst()) null
             else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED))
                 .takeIf { it > 0L }?.times(1_000L)
+        } finally {
+            cursor.close()
         }
     }.getOrNull()
 

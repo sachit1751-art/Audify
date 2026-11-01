@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,7 +48,6 @@ import com.music.audify.data.spotify.SpotifyImporter
 import com.music.audify.data.spotify.SpotifyPlaylistFileFormat
 import com.music.audify.data.spotify.SpotifyPlaylistFileParser
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -75,7 +75,6 @@ private val IMPORT_LANGUAGES = listOf(
  * Songs that matched nothing are listed once the playlist is made, instead of
  * being dropped without a word.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun SpotifyImportAlert(
     hazeState: HazeState,
@@ -221,7 +220,11 @@ fun SpotifyImportAlert(
             val missed = unmatched
             if (missed != null) {
                 Text(
-                    text = stringResource(R.string.spotify_import_unmatched, missed.size),
+                    text = pluralStringResource(
+                        R.plurals.spotify_import_unmatched,
+                        missed.size,
+                        missed.size,
+                    ),
                     modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                     color = MaterialTheme.colorScheme.onSurface,

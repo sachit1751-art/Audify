@@ -691,7 +691,7 @@ private fun GroupLabels(title: String, subtitle: String, palette: ArtworkPalette
 private fun TrailingGlyph(selected: Boolean, palette: ArtworkPalette) {
     Icon(
         imageVector = if (selected) Icons.Rounded.CheckCircle else AudifyIcons.ChevronRight,
-        contentDescription = if (selected) stringResource(R.string.selected) else null,
+        contentDescription = if (selected) stringResource(R.string.audify_selected) else null,
         tint = if (selected) MaterialTheme.colorScheme.primary else palette.onBackgroundVariant,
         modifier = Modifier.size(if (selected) 22.dp else 16.dp),
     )
@@ -733,7 +733,7 @@ internal fun LocalFolderSelectionBar(
             )
         }
         Text(
-            text = "$count ${stringResource(R.string.selected)}",
+            text = "$count ${stringResource(R.string.audify_selected)}",
             style = MaterialTheme.typography.titleSmall,
             color = if (dark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),

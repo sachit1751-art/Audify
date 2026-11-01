@@ -15,13 +15,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
-import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /**
  * The run the fade needs below the bar to get from full blur to none without
@@ -82,7 +81,6 @@ private const val SCRIM_STOPS = 12
  * Fading out instead leaves the title and back arrow something to be legible
  * against and the page nothing to be interrupted by.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class, ExperimentalHazeApi::class)
 @Composable
 fun TopFadeBlur(
     hazeState: HazeState,
@@ -118,47 +116,23 @@ fun TopFadeBlur(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
-            .hazeEffect(
-                    state = hazeState,
+            .hazeBlur(
+                input = HazeInput.Sources(hazeState),
                 // Keyed to the colour of the page underneath, not the theme's.
-                //
-                // Both halves of this material are flat colour: the style's
-                // background is painted as an opaque rect under the sampled
-                // content, and its tint is a film over that. The progressive
-                // gradient reaches neither — it ramps only the blur radius and
-                // the tint's alpha — so wherever the blur has least to say,
-                // that flat colour is most of what is left. A blur has nothing
-                // to sample past the top
-                // of its own layer, so the first blur-radius of this strip is
-                // barely covered by blurred content and shows mostly the flat
-                // colour of the material instead. Given the theme's near-black
-                // background, that is a black bar spreading unevenly down into
-                // the artwork: the exact artefact this was added to remove.
-                style = HazeMaterials.ultraThin(pageColor),
-            ) {
-                // Sampled at a third, and upscaled back. This strip is
-                // 1080x501 on a 1080p phone and was the single most expensive
-                // thing drawn on a feed: a full-resolution progressive blur,
-                // re-run every frame of every scroll, measured at ~5ms of GPU
-                // time per frame against a 8.3ms budget at 120Hz. A blur is
-                // low-frequency by definition — a third of the pixels carries
-                // the same result once the ramp has been applied, and it is
-                // the same trade the liquid glass surfaces already make.
-                inputScale = HazeInputScale.Fixed(0.33f)
-                // This is intentionally the progressive Haze effect used by the
-                // original top treatment. The mask-based optimization changes
-                // the visual result on device and loses the soft blur shown in
-                // the header reference. Reduce dynamic blur still exits before
-                // this layer is composed.
-                progressive = HazeProgressive.verticalGradient(
-                    easing = EaseOutCubic,
-                    startIntensity = PEAK,
-                    endIntensity = 0f,
-                )
-                // Uniform across the layer, so it would show as texture over
-                // the untouched foot of the ramp — the edge being hidden.
-                noiseFactor = 0f
-            },
+                // The progressive ramp is kept in the immutable Blur style.
+                style = HazeMaterials.ultraThin(pageColor).then {
+                    progressive(
+                        HazeProgressive.verticalGradient(
+                            easing = EaseOutCubic,
+                            startIntensity = PEAK,
+                            endIntensity = 0f,
+                        ),
+                    )
+                    // Uniform noise would show over the untouched foot of the ramp.
+                    noiseFactor(0f)
+                },
+                performanceMode = HazePerformanceMode.Performance,
+            ),
     )
 
     val scrim = remember(scrimColor) {
@@ -193,7 +167,6 @@ fun TopFadeBlur(
  * Replay and artwork detail pages draw neither component and let their own
  * full-bleed background show through unchanged.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TopBarBlur(
     hazeState: HazeState,

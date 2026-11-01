@@ -4,9 +4,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.wear.ongoing.OngoingActivity
 import androidx.wear.ongoing.Status
 import com.google.android.gms.wearable.DataEvent
@@ -35,7 +38,7 @@ class NowPlayingListener : WearableListenerService() {
 
     /** The phone driving this watch as its speaker — see [Speaker]. */
     override fun onMessageReceived(event: MessageEvent) {
-        val path = event.path ?: return
+        val path = event.path
         when {
             path == P.PATH_WATCH_INFO_REQUEST -> SelfUpdate.publishInfo(this)
             path.startsWith(P.PATH_SPEAKER + "/") -> Speaker.handle(this, path.substringAfterLast('/'), event.data)
@@ -73,6 +76,9 @@ class NowPlayingListener : WearableListenerService() {
         private const val NOTIFICATION_ID = 1
 
         fun show(context: Context, title: String, artist: String) {
+            if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) return
             val manager = NotificationManagerCompat.from(context)
             if (!manager.areNotificationsEnabled()) return
             context.getSystemService(NotificationManager::class.java)?.createNotificationChannel(

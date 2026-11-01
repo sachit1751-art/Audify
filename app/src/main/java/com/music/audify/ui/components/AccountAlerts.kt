@@ -48,15 +48,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /**
  * Same UIAlertController shape as [UpdateAvailableDialog] — frosted card,
  * hairline rules, full-width stacked actions — but with a text field for the
  * one bit of input this alert needs.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ListenBrainzTokenAlert(
     hazeState: HazeState,
@@ -100,7 +98,6 @@ fun ListenBrainzTokenAlert(
     }
 }
 
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun LastfmLoginAlert(
     hazeState: HazeState,
@@ -178,7 +175,6 @@ fun LastfmLoginAlert(
  * was mistyped or has expired is indistinguishable from one that works until
  * Discord is asked about it.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun DiscordTokenAlert(
     hazeState: HazeState,
@@ -242,7 +238,6 @@ fun DiscordTokenAlert(
  * [message] is where the caller explains the field, including which `{...}`
  * variables it accepts, since that is the only place a user would find out.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TextValueAlert(
     hazeState: HazeState,
@@ -322,7 +317,6 @@ data class EditorField(
  * Save above Cancel — plus an optional destructive row between Save and
  * Cancel for an entry that can also be removed.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ServerEditorAlert(
     hazeState: HazeState,
@@ -443,7 +437,6 @@ data class FieldConfig(
  * sound; the host leaves composition on dismiss, which is when the next
  * opening starts over from the saved values.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ServerEditorHost(
     hazeState: HazeState,
@@ -530,7 +523,6 @@ fun ServerEditorHost(
  * — so a result replaces the description in place, coloured by [statusIsGood],
  * the way [LastfmLoginAlert] surfaces a failed sign-in.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AddonEditorAlert(
     hazeState: HazeState,
@@ -592,7 +584,6 @@ fun AddonEditorAlert(
  * [showApplyToAll] is only true mid-batch, where one answer can carry every
  * clash still queued behind this one.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun WebDavConflictAlert(
     hazeState: HazeState,
@@ -661,7 +652,6 @@ fun WebDavConflictAlert(
  * the addon editor. Kept here so warnings opened from settings do not fall back
  * to a visually unrelated Material dialog.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ConfirmationAlert(
     hazeState: HazeState,
@@ -707,7 +697,6 @@ fun ConfirmationAlert(
  * Picking commits immediately and closes, so there is no Save action to reach
  * for; Cancel is the only one, and it's the dismiss.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun <T> ChoiceAlert(
     hazeState: HazeState,
@@ -800,7 +789,7 @@ private fun ChoiceRow(
         if (checked) {
             Icon(
                 imageVector = Icons.Rounded.Check,
-                contentDescription = stringResource(R.string.selected),
+                contentDescription = stringResource(R.string.audify_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(19.dp),
             )
@@ -809,7 +798,6 @@ private fun ChoiceRow(
 }
 
 /** The scrim + frosted card frame shared by every UIAlertController-style dialog. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 internal fun AlertScaffold(
     hazeState: HazeState,

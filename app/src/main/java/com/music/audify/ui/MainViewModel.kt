@@ -2602,7 +2602,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             if (localPlaylist != null) {
                 name = localPlaylist.title
-                credit = getApplication<Application>().getString(R.string.local_playlist_subtitle, localPlaylist.songs.size)
+                credit = getApplication<Application>().resources.getQuantityString(
+                    R.plurals.local_playlist_subtitle,
+                    localPlaylist.songs.size,
+                    localPlaylist.songs.size,
+                )
                 artwork = localPlaylist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl
             }
             val local = localPageState(browseId)

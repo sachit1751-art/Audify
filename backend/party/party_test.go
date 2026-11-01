@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kushagrasinghx/Audify/backend/codes"
-	"github.com/kushagrasinghx/Audify/backend/config"
+	"github.com/sachit1751-art/Audify/backend/codes"
+	"github.com/sachit1751-art/Audify/backend/config"
 )
 
 func TestCodeNormalisation(t *testing.T) {

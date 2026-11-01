@@ -1,5 +1,7 @@
 package com.music.audify.download
 
+import androidx.core.graphics.scale
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -350,14 +352,21 @@ object MediaTagger {
             // within one filesystem and the file is never half-replaced.
             if (temp.renameTo(target)) return
         }
-        temp.inputStream().use { source ->
+        val source = temp.inputStream()
+        try {
             val sink = if (uri.scheme == "file") {
                 File(requireNotNull(uri.path)).outputStream()
             } else {
                 context.contentResolver.openOutputStream(uri, "wt")
                     ?: error("could not open $uri for writing")
             }
-            sink.use { source.copyTo(it, COPY_BUFFER) }
+            try {
+                source.copyTo(sink, COPY_BUFFER)
+            } finally {
+                sink.close()
+            }
+        } finally {
+            source.close()
         }
         temp.delete()
     }
@@ -428,19 +437,19 @@ object MediaTagger {
         val longest = max(bitmap.width, bitmap.height)
         if (longest <= maxSide) return bitmap
         val scale = maxSide.toFloat() / longest
-        return Bitmap.createScaledBitmap(
-            bitmap,
-            (bitmap.width * scale).toInt().coerceAtLeast(1),
-            (bitmap.height * scale).toInt().coerceAtLeast(1),
-            true,
-        )
+        return bitmap.scale((bitmap.width * scale).toInt().coerceAtLeast(1), (bitmap.height * scale).toInt().coerceAtLeast(1), )
     }
 
     private fun readAll(context: Context, uri: Uri): ByteArray? = runCatching {
         if (uri.scheme == "file") {
             File(requireNotNull(uri.path)).readBytes()
         } else {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            val input = context.contentResolver.openInputStream(uri) ?: return@runCatching null
+            try {
+                input.readBytes()
+            } finally {
+                input.close()
+            }
         }
     }.onFailure { Log.w(TAG, "could not read $uri for tagging: ${it.message}") }.getOrNull()
 
@@ -449,7 +458,13 @@ object MediaTagger {
             if (uri.scheme == "file") {
                 File(requireNotNull(uri.path)).writeBytes(bytes)
             } else {
-                context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes) }
+                val output = context.contentResolver.openOutputStream(uri, "wt")
+                    ?: return@runCatching
+                try {
+                    output.write(bytes)
+                } finally {
+                    output.close()
+                }
             }
         }.onFailure { Log.w(TAG, "could not write tags to $uri: ${it.message}") }
     }

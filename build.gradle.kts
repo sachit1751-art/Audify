@@ -1,13 +1,26 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        // AGP 9 provides built-in Kotlin; pin its compiler toolchain to the
+        // same fully supported Kotlin version used by the KMP modules.
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
+    }
+}
+
 plugins {
-    id("com.android.application") version "8.10.1" apply false
-    id("com.android.library") version "8.10.1" apply false
-    id("org.jetbrains.kotlin.android") version "2.3.20" apply false
-    id("org.jetbrains.kotlin.multiplatform") version "2.3.20" apply false
-    id("org.jetbrains.kotlin.jvm") version "2.3.20" apply false
-    id("org.jetbrains.kotlin.plugin.compose") version "2.3.20" apply false
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.3.20" apply false
-    id("org.jetbrains.compose") version "1.10.3" apply false
+    id("com.android.application") version "9.3.1" apply false
+    id("com.android.library") version "9.3.1" apply false
+    id("com.android.kotlin.multiplatform.library") version "9.3.1" apply false
+    id("org.jetbrains.kotlin.multiplatform") version "2.4.21" apply false
+    id("org.jetbrains.kotlin.jvm") version "2.4.21" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.21" apply false
+    id("org.jetbrains.compose") version "1.12.2" apply false
 }
 
 /*
@@ -42,13 +55,3 @@ extra["audifyVersionName"] = "1.8.3"
  * beta watch app shows "Update available" as soon as the phone has the release.
  */
 extra["audifyBetaSuffix"] = ""
-
-buildscript {
-    repositories {
-        google()
-    }
-    dependencies {
-        classpath("com.android.tools:r8:8.13.23")
-    }
-}
-

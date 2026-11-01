@@ -2,13 +2,13 @@
 <resources>
     <string name="weekly_recap_setting">Weekly Home recap</string>
     <string name="weekly_recap_setting_subtitle">Show a private summary of this weekâ€™s listening on Home</string>
-    <string name="time_aware_shelf_setting">Time-aware discovery shelf</string>
-    <string name="time_aware_shelf_setting_subtitle">Show discovery picks shaped by your listening hours. This stays on this device.</string>
-    <string name="time_aware_morning_picks">Morning picks</string>
-    <string name="time_aware_afternoon_picks">Afternoon picks</string>
-    <string name="time_aware_evening_picks">Evening picks</string>
-    <string name="time_aware_late_night_picks">Late-night picks</string>
-    <string name="time_aware_shelf_subtitle">A few picks shaped by your listening hours</string>
+    <string name="time_aware_shelf_setting" translatable="false">Time-aware discovery shelf</string>
+    <string name="time_aware_shelf_setting_subtitle" translatable="false">Show discovery picks shaped by your listening hours. This stays on this device.</string>
+    <string name="time_aware_morning_picks" translatable="false">Morning picks</string>
+    <string name="time_aware_afternoon_picks" translatable="false">Afternoon picks</string>
+    <string name="time_aware_evening_picks" translatable="false">Evening picks</string>
+    <string name="time_aware_late_night_picks" translatable="false">Late-night picks</string>
+    <string name="time_aware_shelf_subtitle" translatable="false">A few picks shaped by your listening hours</string>
     <string name="download_file_check_action">Check downloaded files</string>
     <string name="download_file_check_note">Checks file access and a readable header. This does not test whether audio plays.</string>
     <string name="download_file_check_unchecked">Saved Â· file check not run</string>
@@ -27,7 +27,6 @@
     <string name="sachit_spotify_import_file_unsupported">Unsupported file. Choose a Spotify CSV or TSV export.</string>
     <string name="sachit_spotify_import_file_default_title">Imported Spotify Playlist</string>
     <!-- Plan 035 storage-budget strings -->
-    <string name="local_music_folder_access_failed">Audify could not keep access to that folder. Choose a folder again.</string>
     <string name="download_storage_budget">Download storage budget</string>
     <string name="download_storage_unknown_title">Download blocked Â· size unknown</string>
     <string name="download_storage_budget_title">Download storage budget reached</string>

@@ -1,6 +1,7 @@
 package com.music.audify.widget
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * Everything a home-screen widget needs to know about playback.
@@ -61,18 +62,18 @@ internal data class MediaWidgetSnapshot(
         )
 
         fun save(context: Context, snapshot: MediaWidgetSnapshot) {
-            prefs(context).edit()
-                .putString(KEY_MEDIA_ID, snapshot.mediaId)
-                .putString(KEY_TITLE, snapshot.title)
-                .putString(KEY_ARTIST, snapshot.artist)
-                .putString(KEY_ARTWORK, snapshot.artworkUrl)
-                .putBoolean(KEY_PLAYING, snapshot.isPlaying)
-                .putBoolean(KEY_HAS_PREVIOUS, snapshot.hasPrevious)
-                .putBoolean(KEY_HAS_NEXT, snapshot.hasNext)
-                .putBoolean(KEY_LIKED, snapshot.isLiked)
-                .putBoolean(KEY_CAN_LIKE, snapshot.canLike)
-                .putBoolean(KEY_SHUFFLE, snapshot.shuffleEnabled)
-                .apply()
+            prefs(context).edit {
+                    putString(KEY_MEDIA_ID, snapshot.mediaId)
+                    .putString(KEY_TITLE, snapshot.title)
+                    .putString(KEY_ARTIST, snapshot.artist)
+                    .putString(KEY_ARTWORK, snapshot.artworkUrl)
+                    .putBoolean(KEY_PLAYING, snapshot.isPlaying)
+                    .putBoolean(KEY_HAS_PREVIOUS, snapshot.hasPrevious)
+                    .putBoolean(KEY_HAS_NEXT, snapshot.hasNext)
+                    .putBoolean(KEY_LIKED, snapshot.isLiked)
+                    .putBoolean(KEY_CAN_LIKE, snapshot.canLike)
+                    .putBoolean(KEY_SHUFFLE, snapshot.shuffleEnabled)
+                }
         }
 
         /** The last state published by the live playback service. */

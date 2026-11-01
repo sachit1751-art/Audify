@@ -491,13 +491,13 @@ object LyricsTranslation {
     private suspend fun Call.awaitBody(): String = suspendCancellableCoroutine { continuation ->
         continuation.invokeOnCancellation { cancel() }
         enqueue(object : Callback {
-            override fun onFailure(call: Call, error: IOException) {
-                if (continuation.isActive) continuation.resumeWithException(error)
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isActive) continuation.resumeWithException(e)
             }
 
             override fun onResponse(call: Call, response: Response) {
                 response.use {
-                    val body = if (it.isSuccessful) it.body?.string() else null
+                    val body = if (it.isSuccessful) it.body.string() else null
                     if (!continuation.isActive) return
                     if (body != null) continuation.resume(body)
                     else continuation.resumeWithException(IOException("Translation HTTP ${it.code}"))

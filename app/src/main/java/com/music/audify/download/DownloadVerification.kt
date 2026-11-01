@@ -1,5 +1,7 @@
 package com.music.audify.download
 
+import androidx.core.net.toUri
+
 import android.content.Context
 import android.net.Uri
 import androidx.work.Constraints
@@ -104,7 +106,7 @@ class DownloadFileCheckWorker(
         for (candidate in candidates) {
             if (isStopped) return@withContext Result.retry()
             val available = try {
-                val uri = Uri.parse(candidate.uri)
+                val uri = candidate.uri.toUri()
                 DownloadStore.exists(applicationContext, uri) &&
                     applicationContext.contentResolver.openInputStream(uri)?.let(::hasReadableFileHeader) == true
             } catch (cancelled: CancellationException) {

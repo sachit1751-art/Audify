@@ -1,5 +1,7 @@
 package com.music.audify
 
+import androidx.core.net.toUri
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -113,10 +115,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -349,8 +353,7 @@ import com.music.audify.ui.performance.resolvePerformanceRefreshRate
 import dev.chrisbanes.haze.HazeState
 import com.music.audify.ui.player.PlayerPlatform
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.util.Locale
@@ -525,6 +528,7 @@ private fun AudifyApp(
     viewModel: MainViewModel = viewModel(),
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboard = LocalClipboardManager.current
     val hazeState = remember { HazeState() }
     // Recording the backdrop layer costs a draw pass, so it only runs when a
@@ -915,7 +919,11 @@ private fun AudifyApp(
     val localPlaylistItems = localPlaylists.map { playlist ->
         ShelfItem(
             title = playlist.title,
-            subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
+            subtitle = pluralStringResource(
+                R.plurals.local_playlist_subtitle,
+                playlist.songs.size,
+                playlist.songs.size,
+            ),
             thumbnailUrl = playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
             videoId = null,
             browseId = playlist.browseId,
@@ -1207,9 +1215,12 @@ private fun AudifyApp(
     }
 
     val scope = rememberCoroutineScope()
-    val webDavUploadSummaryFormat = stringResource(R.string.webdav_upload_summary)
     val radioStartedFormat = stringResource(R.string.radio_started)
-    val partyQueueFullFormat = stringResource(R.string.party_queue_full)
+    val partyQueueFullMessage = resources.getQuantityString(
+        R.plurals.party_queue_full,
+        25,
+        25,
+    )
     val songAddedToQueueMessage = stringResource(R.string.song_added_to_queue)
     val songWillPlayNextMessage = stringResource(R.string.song_will_play_next)
     val artistLabel = stringResource(R.string.artist)
@@ -1230,7 +1241,11 @@ private fun AudifyApp(
     val failedMessage = stringResource(R.string.failed)
     val spotifyImportLocalFallbackFormat = stringResource(R.string.spotify_import_local_fallback)
     val spotifyImportDoneFormat = stringResource(R.string.spotify_import_done)
-    val pinnedPlaylistLimitFormat = stringResource(R.string.pinned_playlist_limit)
+    val pinnedPlaylistLimitMessage = resources.getQuantityString(
+        R.plurals.pinned_playlist_limit,
+        AppSettings.MAX_PINNED_PLAYLISTS,
+        AppSettings.MAX_PINNED_PLAYLISTS,
+    )
     val loginFailedMessage = stringResource(R.string.login_failed)
     val playlistReorderedMessage = stringResource(R.string.playlist_reordered)
     val reorderFailedMessage = stringResource(R.string.reorder_failed)
@@ -1245,10 +1260,13 @@ private fun AudifyApp(
                 showQueueNotice(
                     String.format(
                         Locale.getDefault(),
-                        webDavUploadSummaryFormat,
-                        summary.uploaded,
-                        summary.skipped,
-                        summary.failed,
+                        resources.getQuantityString(
+                            R.plurals.webdav_upload_summary,
+                            summary.uploaded,
+                            summary.uploaded,
+                            summary.skipped,
+                            summary.failed,
+                        ),
                     ),
                 )
             }
@@ -1653,7 +1671,7 @@ private fun AudifyApp(
                 if (ListenTogether.state.value.inParty) {
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
-                        showQueueNotice(String.format(Locale.getDefault(), partyQueueFullFormat, 25))
+                        showQueueNotice(partyQueueFullMessage)
                         return@launch
                     }
                 }
@@ -1683,7 +1701,7 @@ private fun AudifyApp(
                 if (ListenTogether.state.value.inParty) {
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
-                        showQueueNotice(String.format(Locale.getDefault(), partyQueueFullFormat, 25))
+                        showQueueNotice(partyQueueFullMessage)
                         return@launch
                     }
                 }
@@ -1797,7 +1815,7 @@ private fun AudifyApp(
                         val upcoming = (c.mediaItemCount - (c.currentMediaItemIndex + 1)).coerceAtLeast(0)
                         val slotsLeft = (25 - upcoming).coerceAtLeast(0)
                         if (slotsLeft <= 0) {
-                            showQueueNotice(String.format(Locale.getDefault(), partyQueueFullFormat, 25))
+                            showQueueNotice(partyQueueFullMessage)
                             return@launch
                         }
                         songs.take(slotsLeft)
@@ -1824,7 +1842,7 @@ private fun AudifyApp(
                             ).asQueueEntry(QueueTier.USER_QUEUE).toMediaItem()
                         },
                     )
-                    val message = context.resources.getQuantityString(
+                    val message = resources.getQuantityString(
                         if (next) R.plurals.songs_will_play_next else R.plurals.songs_added_to_queue,
                         toAdd.size,
                         toAdd.size,
@@ -2205,7 +2223,7 @@ private fun AudifyApp(
                 val message = if (songs.isEmpty()) {
                     alreadyDownloadedMessage
                 } else {
-                    context.resources.getQuantityString(
+                    resources.getQuantityString(
                         R.plurals.downloading_song_count,
                         songs.size,
                         songs.size,
@@ -2315,6 +2333,13 @@ private fun AudifyApp(
         }
     }
     val timeAwareShelfEnabled by AppSettings.showTimeAwareShelf.collectAsStateWithLifecycle()
+    val timeAwareShelfTitles = mapOf(
+        ListeningHourBlock.MORNING to stringResource(R.string.time_aware_morning_picks),
+        ListeningHourBlock.AFTERNOON to stringResource(R.string.time_aware_afternoon_picks),
+        ListeningHourBlock.EVENING to stringResource(R.string.time_aware_evening_picks),
+        ListeningHourBlock.LATE_NIGHT to stringResource(R.string.time_aware_late_night_picks),
+    )
+    val timeAwareShelfSubtitle = stringResource(R.string.time_aware_shelf_subtitle)
     val timeAwareShelf by produceState<HomeShelf?>(
         initialValue = null,
         selectedTab,
@@ -2336,23 +2361,16 @@ private fun AudifyApp(
                 now = now,
                 hourlyPlays = ListeningStats.hourOfDayPlays(),
             )
-            val titleRes = when (block) {
-                ListeningHourBlock.MORNING -> R.string.time_aware_morning_picks
-                ListeningHourBlock.AFTERNOON -> R.string.time_aware_afternoon_picks
-                ListeningHourBlock.EVENING -> R.string.time_aware_evening_picks
-                ListeningHourBlock.LATE_NIGHT -> R.string.time_aware_late_night_picks
-                null -> null
-            }
             val sourceShelf = block?.let { selectTimeAwareDiscoveryShelf(availableShelves, it) }
             val picks = sourceShelf?.items.orEmpty()
                 .filter { it.videoId != null || it.browseId != null }
                 .distinctBy { it.videoId ?: it.browseId ?: it.title }
                 .take(3)
-            value = titleRes?.takeIf { picks.isNotEmpty() }?.let {
+            value = block?.takeIf { picks.isNotEmpty() }?.let { selectedBlock ->
                 HomeShelf(
-                    title = context.getString(it),
+                    title = timeAwareShelfTitles.getValue(selectedBlock),
                     items = picks,
-                    subtitle = context.getString(R.string.time_aware_shelf_subtitle),
+                    subtitle = timeAwareShelfSubtitle,
                 )
             }
             val millisToNextHour = (
@@ -2635,7 +2653,7 @@ private fun AudifyApp(
                         context.startActivity(
                             Intent(
                                 Intent.ACTION_VIEW,
-                                Uri.parse("https://music.youtube.com/watch?v=$id"),
+                                "https://music.youtube.com/watch?v=$id".toUri(),
                             ),
                         )
                     }
@@ -3203,6 +3221,9 @@ private fun AudifyApp(
                                 title = stringResource(R.string.listen_now),
                                 signedIn = signedIn,
                                 userName = ListenTogether.nickname().ifBlank { account?.name.orEmpty() },
+                                greetingMorning = stringResource(R.string.good_morning),
+                                greetingAfternoon = stringResource(R.string.good_afternoon),
+                                greetingEvening = stringResource(R.string.good_evening),
                                 onSignIn = { webSession = WebSessionMode.SIGN_IN },
                                 onItemClick = { item, shelfTitle ->
                                     val song = shelfSong(item)
@@ -4071,6 +4092,10 @@ private fun AudifyApp(
             // carried out there, on a curve slow enough to watch the artwork
             // fly home on, rather than on the sheet's own.
             val sheetDensity = LocalDensity.current
+            // Material 3's default modal-sheet thresholds, expressed as pixels
+            // using the current density for the current SheetState API.
+            val sheetPositionalThreshold = { with(sheetDensity) { 56.dp.toPx() } }
+            val sheetVelocityThreshold = { with(sheetDensity) { 125.dp.toPx() } }
             val confirmSheetValue: (SheetValue) -> Boolean = { value ->
                 // Read when asked, not when the sheet was made: the setting
                 // can change while the player is up.
@@ -4084,18 +4109,21 @@ private fun AudifyApp(
             val nowPlayingSheetState = rememberSaveable(
                 saver = SheetState.Saver(
                     skipPartiallyExpanded = true,
+                    positionalThreshold = sheetPositionalThreshold,
+                    velocityThreshold = sheetVelocityThreshold,
                     confirmValueChange = confirmSheetValue,
-                    density = sheetDensity,
                     skipHiddenState = false,
                 ),
             ) {
                 SheetState(
                     skipPartiallyExpanded = true,
-                    density = sheetDensity,
+                    positionalThreshold = sheetPositionalThreshold,
+                    velocityThreshold = sheetVelocityThreshold,
                     // Already open when the app is the one raising it: its
                     // content is held down, and slid up, by the motion.
                     initialValue = if (playerSheetMotion.holding) SheetValue.Expanded else SheetValue.Hidden,
                     confirmValueChange = confirmSheetValue,
+                    skipHiddenState = false,
                 )
             }
             DisposableEffect(nowPlayingSheetState) {
@@ -4555,7 +4583,7 @@ private fun AudifyApp(
                             // outcome worth seeing rather than a silent one.
                             Toast.makeText(
                                 context,
-                                context.resources.getQuantityString(
+                                resources.getQuantityString(
                                     R.plurals.log_copied_line_count,
                                     text.lineSequence().count(),
                                     text.lineSequence().count(),
@@ -4658,7 +4686,7 @@ private fun AudifyApp(
                                 // didn't work.
                                 showQueueNotice(
                                     when {
-                                        added > 1 -> context.resources.getQuantityString(
+                                        added > 1 -> resources.getQuantityString(
                                             R.plurals.added_to_playlists_notice, added, added,
                                         )
                                         added == 1 -> songAddedToPlaylistMessage
@@ -4840,7 +4868,7 @@ private fun AudifyApp(
                         if (!nowPinned && id !in pinnedPlaylists) {
                             Toast.makeText(
                                 context,
-                                String.format(Locale.getDefault(), pinnedPlaylistLimitFormat, AppSettings.MAX_PINNED_PLAYLISTS),
+                                pinnedPlaylistLimitMessage,
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -5059,7 +5087,7 @@ private fun AudifyApp(
                         if (update.apkUrl != null) {
                             scope.launch { AppUpdateChecker.downloadApk(context) }
                         } else {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
                             showUpdateDialog = false
                         }
                     },
@@ -5072,7 +5100,7 @@ private fun AudifyApp(
                     },
                     onOpenReleasePage = {
                         AppUpdateChecker.resetDownload()
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
                         showUpdateDialog = false
                     },
                 )
@@ -5623,7 +5651,6 @@ private fun FrostedFolderMenu(
 }
 
 /** The scrim and frosted panel both top-bar menus are drawn on. */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun FrostedMenuPanel(
     hazeState: HazeState,

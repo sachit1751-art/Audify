@@ -53,6 +53,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -504,7 +505,7 @@ private fun ChoiceRow(
         if (selected) {
             Icon(
                 imageVector = Icons.Rounded.Check,
-                contentDescription = stringResource(R.string.selected),
+                contentDescription = stringResource(R.string.audify_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )
@@ -718,6 +719,7 @@ private fun BalanceControl(
     onChange: (Float) -> Unit,
 ) {
     val haptics = rememberHaptics()
+    val locale = LocalLocale.current.platformLocale
     val trackColor = MaterialTheme.colorScheme.outline
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
@@ -733,7 +735,7 @@ private fun BalanceControl(
                 color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                text = String.format(Locale.getDefault(), "%.2f", balance),
+                text = String.format(locale, "%.2f", balance),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -867,7 +869,7 @@ private fun PresetSheet(selected: EqualizerPreset, onSelect: (EqualizerPreset) -
                     if (chosen) {
                         Icon(
                             Icons.Rounded.Check,
-                            contentDescription = stringResource(R.string.selected),
+                            contentDescription = stringResource(R.string.audify_selected),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp),
                         )

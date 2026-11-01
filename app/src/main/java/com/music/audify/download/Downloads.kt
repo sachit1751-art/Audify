@@ -1,5 +1,7 @@
 package com.music.audify.download
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -190,7 +192,7 @@ object Downloads {
     fun setStorageBudgetBytes(bytes: Long) {
         val safe = bytes.coerceAtLeast(0L)
         _storageBudgetBytes.value = safe
-        if (::prefs.isInitialized) prefs.edit().putLong(KEY_STORAGE_BUDGET_BYTES, safe).apply()
+        if (::prefs.isInitialized) prefs.edit {putLong(KEY_STORAGE_BUDGET_BYTES, safe)}
         _storagePrompt.value = null
     }
 
@@ -778,9 +780,9 @@ object Downloads {
             val map = update(_collections.value)
             _collections.value = map
             if (::prefs.isInitialized) {
-                prefs.edit()
-                    .putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, map))
-                    .apply()
+                prefs.edit {
+                        putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, map))
+                    }
             }
         }
     }
@@ -886,10 +888,10 @@ object Downloads {
         }
         if (!::prefs.isInitialized) return
         synchronized(recordLock) {
-            prefs.edit()
-                .putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
-                .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
-                .apply()
+            prefs.edit {
+                    putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
+                    .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
+                }
         }
     }
 

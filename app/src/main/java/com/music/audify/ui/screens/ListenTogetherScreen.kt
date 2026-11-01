@@ -74,6 +74,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -130,6 +131,7 @@ internal fun ServerUrlError.toMessageRes(): Int = when (this) {
 @Composable
 fun ListenTogetherScreen(
     signedIn: Boolean,
+    modifier: Modifier = Modifier,
     inviteCode: String? = null,
     inviteServer: String? = null,
     onInviteHandled: () -> Unit = {},
@@ -141,7 +143,6 @@ fun ListenTogetherScreen(
      * @see PartyServerEditor for why it cannot live on this screen.
      */
     onEditServer: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val shareTextFormat = stringResource(R.string.listen_together_share_text)
@@ -887,7 +888,11 @@ private fun InAParty(
             state.members.size,
             state.maxMembers,
         ),
-        footer = stringResource(R.string.listen_together_members_footer, state.maxMembers),
+        footer = pluralStringResource(
+            R.plurals.listen_together_members_footer,
+            state.maxMembers,
+            state.maxMembers,
+        ),
     ) {
         if (state.you?.isHost == true) {
             Row(
@@ -1125,7 +1130,7 @@ private fun PartyActivityList(entries: List<PartyActivity>) {
 }
 
 @Composable
-private fun Spinner(modifier: Modifier = Modifier.size(18.dp)) {
+private fun Spinner(modifier: Modifier = Modifier) {
     CircularProgressIndicator(
         strokeWidth = 2.dp,
         color = MaterialTheme.colorScheme.primary,

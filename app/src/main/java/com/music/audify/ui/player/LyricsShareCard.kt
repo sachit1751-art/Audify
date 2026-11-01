@@ -1,5 +1,7 @@
 package com.music.audify.ui.player
 
+import androidx.core.graphics.createBitmap
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -79,7 +81,7 @@ internal suspend fun renderLyricsShareCard(
     val bodyBottom = bodyTop + plan.content
     val cardH = bodyBottom + spare / 2 + GAP_BELOW_BODY + FOOTER_THUMB + FOOTER_PAD
 
-    val bitmap = Bitmap.createBitmap(CARD_W, cardH.roundToInt(), Bitmap.Config.ARGB_8888)
+    val bitmap = createBitmap(CARD_W, cardH.roundToInt())
     val canvas = Canvas(bitmap)
     drawBackdrop(canvas, cover, 0f, cardH)
 

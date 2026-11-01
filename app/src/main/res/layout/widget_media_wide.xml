@@ -28,8 +28,8 @@
         android:layout_gravity="bottom"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingLeft="14dp"
-        android:paddingRight="4dp">
+        android:paddingStart="14dp"
+        android:paddingEnd="4dp">
 
         <LinearLayout
             android:id="@+id/widget_text"
@@ -37,7 +37,8 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical"
-            android:paddingRight="8dp">
+            android:paddingStart="0dp"
+            android:paddingEnd="8dp">
 
             <TextView
                 android:id="@+id/widget_title"

@@ -3,7 +3,6 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
@@ -123,12 +122,14 @@ android {
      */
     sourceSets {
         getByName("main") {
-            java.srcDir("../app/src/main/java")
-            res.srcDir("../app/src/main/res")
-            assets.srcDir("../app/src/main/assets")
-            jniLibs.srcDir("../app/src/main/jniLibs")
+            // The shared source tree contains both Kotlin and Java sources.
+            kotlin.directories += "../app/src/main/java"
+            java.directories += "../app/src/main/java"
+            res.directories += "../app/src/main/res"
+            assets.directories += "../app/src/main/assets"
+            jniLibs.directories += "../app/src/main/jniLibs"
         }
-        getByName("debug") { java.srcDir("../app/src/debug/java") }
+        getByName("debug") { kotlin.directories += "../app/src/debug/java" }
         // Created later by the "dev" flavor below, so picked up when it appears.
         configureEach { if (name == "dev") manifest.srcFile("src/dev/AndroidManifest.xml") }
     }
@@ -234,6 +235,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
     testOptions {
         unitTests {
@@ -268,7 +270,7 @@ kotlin {
  * the transitive dependencies it would otherwise have carried are declared by
  * hand in the dependencies block below, since dropping the module drops them too.
  */
-val newPipeExtractorRaw: Configuration by configurations.creating {
+val newPipeExtractorRaw = configurations.create("newPipeExtractorRaw") {
     isTransitive = false
     isCanBeConsumed = false
 }
@@ -280,7 +282,7 @@ val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>
 ) {
     archiveFileName.set("NewPipeExtractor-v0.26.3-noutils.jar")
     destinationDirectory.set(layout.buildDirectory.dir("stripped-libs"))
-    from(provider { newPipeExtractorRaw.map { zipTree(it) } }) {
+    from(newPipeExtractorRaw.elements.map { files -> files.map { zipTree(it.asFile) } }) {
         // The class itself, plus any nested or synthetic siblings the upstream
         // compiler emitted alongside it, so nothing from the jar's Utils survives.
         exclude("org/schabi/newpipe/extractor/utils/Utils.class")
@@ -293,45 +295,39 @@ dependencies {
     implementation(project(":sharedUi"))
 
     // ---- Compose (Material 3) ----
-    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
-    // Pinned above the BOM's 1.7.6: [IosOverscroll] uses OverscrollFactory,
-    // which that version doesn't have. Newer foundation alongside the BOM's
-    // older ui/material3 is a combination Compose supports deliberately —
-    // foundation depends on ui, not the reverse — and this exact pairing was
-    // already in effect (foundation was reaching 1.10.0 transitively through
-    // the liquid-glass library before that dependency was removed).
-    implementation("androidx.compose.foundation:foundation:1.10.0")
+    implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.activity:activity-compose:1.9.3")
-    implementation("androidx.navigation:navigation-compose:2.8.5")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
     // ProcessLifecycleOwner: whether the app is on screen, for the open-app count.
-    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.11.0")
+    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.appcompat:appcompat:1.8.0")
     // Phone-source downloads include the shared offline file-verification worker.
-    implementation("androidx.work:work-runtime-ktx:2.10.5")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // ---- Android TV (Compose for TV) ----
-    implementation("androidx.tv:tv-material:1.0.0")
-    implementation("androidx.tv:tv-foundation:1.0.0-alpha12")
+    implementation("androidx.tv:tv-material:1.1.0")
+    implementation("androidx.tv:tv-foundation:1.0.0")
     implementation("androidx.startup:startup-runtime:1.2.0")
 
     // ---- Media playback: Media3 / ExoPlayer ----
-    implementation("androidx.media3:media3-exoplayer:1.11.0")
-    implementation("androidx.media3:media3-session:1.11.0")
-    implementation("androidx.media3:media3-common:1.11.0")
-    implementation("androidx.media3:media3-datasource-okhttp:1.11.0")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-session:1.11.1")
+    implementation("androidx.media3:media3-common:1.11.1")
+    implementation("androidx.media3:media3-datasource-okhttp:1.11.1")
     // Audio is progressive, but Apple serves its motion artwork as HLS — this
     // is what lets the animated sleeve play it. See CanvasArtworkPlayer.
-    implementation("androidx.media3:media3-exoplayer-hls:1.11.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     // Source modules hand back manifests rather than files, and which kind is
     // the backend's choice, not ours: the Tidal one served `.m3u8` until
     // September 2026 and `.mpd` after it, for the same track and the same
@@ -339,7 +335,7 @@ dependencies {
     // DefaultMediaSourceFactory cannot build a source for it, falls back to
     // progressive, and the extractors try to sniff XML as audio
     // (ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED). See withResolvedStreamType.
-    implementation("androidx.media3:media3-exoplayer-dash:1.11.0")
+    implementation("androidx.media3:media3-exoplayer-dash:1.11.1")
     // FFmpeg audio decoding for what the phone has no decoder of its own for:
     // ALAC on every phone, and AC-4, E-AC-3 / AC-3 (Dolby Atmos music),
     // TrueHD and DTS on phones without Dolby or DTS licensed in. Added as the
@@ -349,18 +345,19 @@ dependencies {
     // libffmpegJNI.so under src/main/jniLibs is built from librempeg (the only
     // FFmpeg line with an AC-4 decoder) by native/ffmpeg/build.sh. It needs
     // media3-decoder, which media3-exoplayer already brings.
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.11.0")
 
     // ---- Images: Coil 3 + Palette (dominant colors for the mesh gradient) ----
-    implementation("io.coil-kt.coil3:coil-compose:3.0.4")
-    implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
+    implementation("io.coil-kt.coil3:coil-compose:3.6.3")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")
     // The shared app sources register SvgDecoder (artist signatures).
-    implementation("io.coil-kt.coil3:coil-svg:3.0.4")
-    implementation("androidx.palette:palette-ktx:1.0.0")
+    implementation("io.coil-kt.coil3:coil-svg:3.6.3")
+    implementation("androidx.palette:palette-ktx:1.1.0")
 
     // ---- Frosted glass / progressive blur (Telegram-style bars) ----
-    implementation("dev.chrisbanes.haze:haze:1.3.1")
-    implementation("dev.chrisbanes.haze:haze-materials:1.3.1")
+    implementation("dev.chrisbanes.haze:haze:2.0.1")
+    implementation("dev.chrisbanes.haze:haze-blur:2.0.1")
+    implementation("dev.chrisbanes.haze:haze-blur-materials:2.0.1")
 
     // ---- QR encoding, for the party invite ----
     // `core` only: the `android-core`/`zxing-android-embedded` artifacts bring
@@ -369,7 +366,7 @@ dependencies {
     // characters. This produces the bit matrix; the drawing is ours, in
     // [com.music.audify.ui.components.QrCode], so the result is styled like
     // the rest of the app rather than a stock black-and-white bitmap.
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:core:3.5.4")
 
     // ---- Markdown rendering (release notes in the update dialog) ----
     // Pure Compose, not an AndroidView wrapper — needed so the text composes
@@ -380,17 +377,17 @@ dependencies {
     // ---- Innertube (YouTube Music) client: Ktor + kotlinx.serialization ----
     // Ktor and serialization are held at InnerTubeX's versions (below) so the
     // upgrade it forces is explicit rather than resolved behind our backs.
-    implementation("io.ktor:ktor-client-core:3.5.2")
-    implementation("io.ktor:ktor-client-okhttp:3.5.2")
-    implementation("io.ktor:ktor-client-content-negotiation:3.5.2")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("io.ktor:ktor-client-core:3.6.1")
+    implementation("io.ktor:ktor-client-okhttp:3.6.1")
+    implementation("io.ktor:ktor-client-content-negotiation:3.6.1")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
 
     // ---- Discord Rich Presence: the gateway is a WebSocket, so Ktor needs the plugin ----
-    implementation("io.ktor:ktor-client-websockets:3.5.2")
+    implementation("io.ktor:ktor-client-websockets:3.6.1")
 
     // ---- YouTube stream extraction: live-benchmarked client catalog + cipher tiers ----
-    implementation("com.github.MetrolistGroup.innertubex:innertubex-android:v0.7.0")
+    implementation("com.github.MetrolistGroup.innertubex:innertubex-android:v0.11.2")
 
     // ---- Stream resolution: NewPipe solves YouTube's signature + `n` throttling ----
     // Pinned to v0.26.3, not the newer v0.26.4: v0.26.4's player-JS parser fails with
@@ -406,19 +403,19 @@ dependencies {
     // re-derive this list with
     //   ./gradlew :app:dependencies --configuration prodReleaseRuntimeClasspath
     implementation(files(newPipeExtractorStripped))
-    implementation("com.github.TeamNewPipe:nanojson:e9d656ddb49a412a5a0a5d5ef20ca7ef09549996")
-    implementation("org.jsoup:jsoup:1.22.2")
+    implementation("com.github.TeamNewPipe:nanojson:1.7-np")
+    implementation("org.jsoup:jsoup:1.23.2")
     implementation("com.google.code.findbugs:jsr305:3.0.2")
-    implementation("com.google.protobuf:protobuf-javalite:4.35.0")
-    implementation("org.mozilla:rhino:1.8.1")
-    implementation("org.mozilla:rhino-engine:1.8.1")
+    implementation("com.google.protobuf:protobuf-javalite:4.36.2")
+    implementation("org.mozilla:rhino:1.9.2")
+    implementation("org.mozilla:rhino-engine:1.9.2")
 
     // ---- Auth/session storage ----
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.security:security-crypto:1.1.0")
 
     // ---- JS module execution: QuickJS VM for style source plugins ----
     // Held at InnerTubeX's version; the same VM runs QuickJsExecutor's module sources.
-    implementation("io.github.dokar3:quickjs-kt-android:1.0.14")
+    implementation("io.github.dokar3:quickjs-kt-android:1.0.15")
 
     // ---- SMB file shares: pure-Java SMB2/3 client (listing + streaming) ----
     implementation("com.hierynomus:smbj:0.15.0")
@@ -427,14 +424,14 @@ dependencies {
     // The full android artifact, not onnxruntime-mobile: mobile only loads .ort
     // files, which would put an offline conversion step between the model and
     // the app for a saving that does not matter in a self-distributed APK.
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.28.0")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
 
     // ---- Casting: Google Cast sender + the route discovery it sits on ----
     // The framework and the router only. media3-cast is left out on purpose:
     // its CastPlayer hands the receiver whatever URI a MediaItem carries, and
     // ours are `audify://` addresses that only the service's resolver can
     // turn into a real stream — see [com.music.audify.playback.cast.CastPlayback].
-    implementation("com.google.android.gms:play-services-cast-framework:22.2.0")
+    implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
     implementation("androidx.mediarouter:mediarouter:1.8.1")
 
     testImplementation("junit:junit:4.13.2")
@@ -442,8 +439,8 @@ dependencies {
     // "what does this app send, and what does it do with what comes back", and
     // a hand-rolled fake of the client would be a test of the fake. Pinned to
     // the OkHttp version already on the runtime classpath.
-    testImplementation("com.squareup.okhttp3:mockwebserver:5.3.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }

@@ -1,5 +1,6 @@
 package com.music.audify.data.jiosaavn
 
+import android.annotation.SuppressLint
 import android.util.Base64
 import com.music.audify.data.TrackLog
 import io.ktor.client.HttpClient
@@ -149,6 +150,9 @@ object JioSaavnService {
         }
     }
 
+    // The provider's stream URLs are encrypted with this exact legacy transform;
+    // changing the mode would make every returned CDN URL undecryptable.
+    @SuppressLint("GetInstance")
     private fun decryptUrl(encryptedUrl: String): String {
         if (encryptedUrl.isBlank()) return ""
         return try {

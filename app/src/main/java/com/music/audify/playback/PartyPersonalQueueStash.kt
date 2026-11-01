@@ -2,6 +2,7 @@ package com.music.audify.playback
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.media3.common.Player
 import com.music.audify.data.model.Song
 import kotlinx.serialization.Serializable
@@ -77,7 +78,7 @@ object PartyPersonalQueueStash {
         val encoded = runCatching {
             json.encodeToString(StoredQueue.serializer(), stored)
         }.getOrNull() ?: return
-        prefs.edit().putString(KEY_STASH, encoded).commit()
+        prefs.edit(commit = true) {putString(KEY_STASH, encoded)}
     }
 
     fun hasStash(): Boolean {
@@ -102,7 +103,7 @@ object PartyPersonalQueueStash {
 
     fun clear() {
         if (!::prefs.isInitialized) return
-        prefs.edit().remove(KEY_STASH).commit()
+        prefs.edit(commit = true) {remove(KEY_STASH)}
     }
 
     @Serializable

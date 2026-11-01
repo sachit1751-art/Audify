@@ -31,8 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.utils.containSheetGestures
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 private val POPUP_CARD_SHAPE = RoundedCornerShape(ALERT_CORNER)
 private val POPUP_SCRIM_COLOR = Color.Black.copy(alpha = 0.4f)
@@ -53,7 +52,6 @@ private val POPUP_CONTENT_MAX_HEIGHT = 420.dp
  * [content] is the scrolling body, handed a [BoxScope] so a body can lay
  * something behind its rows — the pipeline draws its signal line there.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 internal fun AudioPopupCard(
     hazeState: HazeState,

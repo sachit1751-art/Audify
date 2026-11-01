@@ -1,5 +1,7 @@
 package com.music.audify.playback
 
+import androidx.core.content.edit
+
 import android.content.Context
 import android.content.SharedPreferences
 import com.music.audify.data.model.ArtistRef
@@ -122,9 +124,9 @@ object BoundedContextPersistence {
     fun savePlaybackState(currentEntryId: String?, positionMs: Long) {
         if (currentEntryId.isNullOrBlank() || !prefs.contains(KEY_STATE)) return
         if (runCatching { prefs.getString(KEY_CURRENT_ENTRY_ID, null) }.getOrNull() != currentEntryId) return
-        prefs.edit()
-            .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
-            .apply()
+        prefs.edit {
+                putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
+            }
     }
 
     /** A malformed snapshot is treated as absent by design. */
@@ -144,14 +146,14 @@ object BoundedContextPersistence {
     fun clear() {
         generation += 1
         pending = null
-        prefs.edit().clear().apply()
+        prefs.edit {clear()}
     }
 
     @Synchronized
     fun clearImmediately() {
         generation += 1
         pending = null
-        prefs.edit().clear().commit()
+        prefs.edit(commit = true) {clear()}
     }
 
     /** Visible to JVM tests; the Android wrapper above remains the only writer. */

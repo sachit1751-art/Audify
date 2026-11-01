@@ -55,8 +55,7 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -148,7 +147,6 @@ internal const val STRETCH = 0.16f
  */
 internal const val SQUASH = 0.5f
 
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun FloatingBottomBar(
     tabs: List<BottomTab>,

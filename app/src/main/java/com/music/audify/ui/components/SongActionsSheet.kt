@@ -72,7 +72,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -131,6 +132,7 @@ fun SongActionsSheet(
     onAddToQueue: () -> Unit,
     onStartRadio: () -> Unit,
     onDownload: () -> Unit,
+    modifier: Modifier = Modifier,
     /**
      * Copies this track to the WebDAV server. Null hides the row — the caller
      * passes one only for a readable device file while a server is
@@ -143,7 +145,6 @@ fun SongActionsSheet(
     onAddToPlaylist: () -> Unit,
     onOpenAlbum: (String) -> Unit,
     onOpenArtist: (String) -> Unit,
-    modifier: Modifier = Modifier,
     onRemoveFromPlaylist: (() -> Unit)? = null,
     /**
      * Takes this track out of the song cache. Null hides the row — the caller
@@ -486,7 +487,9 @@ private fun TintedSheet(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.85f
+    val maxHeight = with(LocalDensity.current) {
+        LocalWindowInfo.current.containerSize.height.toDp() * 0.85f
+    }
     Box(
         modifier
             .fillMaxWidth()

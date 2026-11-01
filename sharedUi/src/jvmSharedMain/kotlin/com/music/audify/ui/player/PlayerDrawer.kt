@@ -57,8 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.ui.components.optimizedHazeEffect
 import com.music.audify.ui.utils.containSheetGestures
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import kotlin.math.roundToInt
 
 internal val DRAWER_SHAPE = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
@@ -97,7 +96,6 @@ private const val DISMISS_DRAG_FRACTION = 0.25f
  * lyrics card goes up in this same shell rather than in a second one that would
  * have to re-learn the drag gesture, the scrim fade and the frosted material.
  */
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun PlayerDrawer(
     hazeState: HazeState,

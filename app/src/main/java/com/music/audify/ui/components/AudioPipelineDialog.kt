@@ -874,7 +874,7 @@ private fun PipelineRow(label: String, value: String) {
 
 /** Hairline separator between stages, indented to align with the text column and clear the signal lane. */
 @Composable
-internal fun PipelineRule(modifier: Modifier = Modifier.padding(start = 52.dp, end = 16.dp)) {
+internal fun PipelineRule(modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxWidth()

@@ -134,8 +134,7 @@ import com.music.audify.data.canvas.ArtistSignature
 import com.music.audify.data.canvas.ArtistSignatureRepository
 import com.music.audify.data.canvas.SignatureInkTransformation
 import com.music.audify.data.canvas.keyColors
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import dev.chrisbanes.haze.materials.HazeMaterials
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import com.music.audify.data.canvas.CanvasArtwork
 import com.music.audify.data.canvas.CanvasRepository
 import com.music.audify.data.model.BrowseType
@@ -1378,8 +1377,8 @@ private fun PageBackground(
     canvas: CanvasArtwork?,
     artHeight: Dp,
     listState: LazyListState,
-    heroUrl: String? = null,
     modifier: Modifier = Modifier,
+    heroUrl: String? = null,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     // Not under a canvas: a still blurred over the foot of a moving clip would
@@ -2214,7 +2213,7 @@ private fun SectionCard(
     item: ShelfItem,
     palette: ArtworkPalette,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.width(SHELF_CARD_WIDTH),
+    modifier: Modifier = Modifier,
     onLongPress: (() -> Unit)? = null,
 ) {
     Column(

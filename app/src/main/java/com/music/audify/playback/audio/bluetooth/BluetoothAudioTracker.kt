@@ -243,7 +243,7 @@ class BluetoothAudioTracker(private val context: Context) {
 
             val deviceName = try {
                 @SuppressLint("MissingPermission")
-                activeDevice.name ?: activeDevice.alias ?: "Bluetooth Device"
+                activeDevice.displayName() ?: "Bluetooth Device"
             } catch (_: Throwable) {
                 "Bluetooth Device"
             }
@@ -287,7 +287,7 @@ class BluetoothAudioTracker(private val context: Context) {
             }
             try {
                 @SuppressLint("MissingPermission")
-                device?.name ?: device?.alias ?: _telemetry.value.deviceName ?: "Bluetooth Device"
+                device?.displayName() ?: _telemetry.value.deviceName ?: "Bluetooth Device"
             } catch (_: Throwable) {
                 _telemetry.value.deviceName ?: "Bluetooth Device"
             }
@@ -359,9 +359,8 @@ class BluetoothAudioTracker(private val context: Context) {
 
         val sampleRateHz = mapSampleRate(sampleRateMask)
         val bitDepth = mapBitDepth(bitsMask)
-        val mode = when (codecType) {
-            SOURCE_CODEC_TYPE_LDAC -> parseLdacQualityMode(codecSpecific1)
-            else -> null
+        val mode = parseLdacQualityMode(codecSpecific1).takeIf {
+            codecType == SOURCE_CODEC_TYPE_LDAC
         }
 
         return BluetoothTelemetry(
@@ -509,3 +508,7 @@ class BluetoothAudioTracker(private val context: Context) {
         }
     }
 }
+
+@SuppressLint("MissingPermission")
+private fun BluetoothDevice.displayName(): String? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) alias ?: name else name

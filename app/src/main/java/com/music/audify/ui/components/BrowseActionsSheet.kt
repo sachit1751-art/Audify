@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -49,7 +50,6 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.download.DownloadState
 import com.music.audify.download.Downloads
 import com.music.audify.ui.icons.AudifyIcons
-import java.util.Locale
 
 /**
  * The album or playlist a long-press is acting on.
@@ -328,6 +328,7 @@ fun BrowseActionsSheet(
 /** Which release the sheet is about: the same row the shelf card was. */
 @Composable
 private fun BrowseSheetHeader(target: BrowseTarget) {
+    val locale = LocalLocale.current.platformLocale
     val shape = if (target.type == BrowseType.ARTIST) CircleShape else RoundedCornerShape(8.dp)
     Row(
         modifier = Modifier
@@ -359,7 +360,7 @@ private fun BrowseSheetHeader(target: BrowseTarget) {
                 // unknown kind has neither, and gets the track count instead —
                 // which by then is the one thing actually known about it.
                 text = target.subtitle.ifBlank {
-                    target.type.localizedNoun().replaceFirstChar { it.uppercase(Locale.getDefault()) }.ifBlank {
+                    target.type.localizedNoun().replaceFirstChar { it.uppercase(locale) }.ifBlank {
                         target.songs.size.takeIf { it > 0 }
                             ?.let { pluralStringResource(R.plurals.song_count_plural, it, it) }
                             .orEmpty()

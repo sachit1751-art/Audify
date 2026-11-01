@@ -1,5 +1,7 @@
 package com.music.audify.data.lyrics
 
+import androidx.core.net.toUri
+
 import android.content.Context
 import android.net.Uri
 import com.music.audify.data.DebugLog as Log
@@ -67,7 +69,7 @@ object EmbeddedLyrics {
      */
     suspend fun forUri(context: Context, uriString: String): List<LyricLine>? =
         withContext(Dispatchers.IO) {
-            val raw = runCatching { read(context, Uri.parse(uriString)) }
+            val raw = runCatching { read(context, uriString.toUri()) }
                 .onFailure { Log.d(TAG, "no embedded lyrics in $uriString: ${it.message}") }
                 .getOrNull()
                 ?: return@withContext null

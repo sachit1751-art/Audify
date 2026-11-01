@@ -46,6 +46,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -552,6 +554,8 @@ private fun ColumnScope.Intro(summary: ReplaySummary, headline: List<HeadlineRun
 @Composable
 private fun ColumnScope.Minutes(summary: ReplaySummary, headline: List<HeadlineRun>) {
     val context = LocalContext.current
+    val resources = LocalResources.current
+    val locale = LocalLocale.current.platformLocale
     val replayHoursAcrossFormat = stringResource(R.string.replay_hours_across)
     val replayAcrossMessage = stringResource(R.string.replay_across)
     Headline(headline)
@@ -565,7 +569,7 @@ private fun ColumnScope.Minutes(summary: ReplaySummary, headline: List<HeadlineR
         // only figure worth restating.
         text = buildString {
             if (summary.hours >= 1) {
-                append(String.format(java.util.Locale.getDefault(), replayHoursAcrossFormat, grouped(summary.hours)))
+                append(String.format(locale, replayHoursAcrossFormat, grouped(summary.hours)))
             } else {
                 append(replayAcrossMessage)
                 append(" ")
@@ -574,7 +578,7 @@ private fun ColumnScope.Minutes(summary: ReplaySummary, headline: List<HeadlineR
             if (summary.hours >= 1) {
                 append(", ")
             }
-            append(context.resources.getQuantityString(
+            append(resources.getQuantityString(
                 R.plurals.replay_play_count,
                 summary.totalPlays,
                 grouped(summary.totalPlays.toLong()),
@@ -608,6 +612,7 @@ private fun ColumnScope.Leaderboard(
     circular: Boolean,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val lead = rows.firstOrNull() ?: return
     val shape = if (circular) CircleShape else RoundedCornerShape(10.dp)
     Headline(headline)
@@ -637,7 +642,7 @@ private fun ColumnScope.Leaderboard(
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "${formatListening(context, lead.ms)} · " + context.resources.getQuantityString(
+                text = "${formatListening(context, lead.ms)} · " + resources.getQuantityString(
                     R.plurals.replay_play_count,
                     lead.plays,
                     grouped(lead.plays.toLong()),

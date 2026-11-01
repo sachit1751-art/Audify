@@ -85,7 +85,7 @@ internal fun AudioOutputSheet(
     hazeState: HazeState,
     accountName: String?,
     onDismiss: () -> Unit,
-    onOpenPipeline: () -> Unit,
+    onOpenPipeline: (() -> Unit)?,
     onOpenCast: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -130,8 +130,10 @@ internal fun AudioOutputSheet(
         Spacer(Modifier.height(10.dp))
         VolumeRow(routeKey = outputs)
 
-        Spacer(Modifier.height(6.dp))
-        AudioPipelineRow(onClick = onOpenPipeline)
+        if (onOpenPipeline != null) {
+            Spacer(Modifier.height(6.dp))
+            AudioPipelineRow(onClick = onOpenPipeline)
+        }
     }
 }
 

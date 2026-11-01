@@ -13,6 +13,7 @@ package com.music.audify.playback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
+import android.os.Build
 import com.music.audify.data.settings.OutputPcmMode
 import com.music.audify.playback.audio.DirectAudioProbe
 import com.music.audify.playback.audio.FallbackReason
@@ -450,8 +451,16 @@ object AudioOutputStatus {
         val encoding = snapshot.actualEncoding
             ?: when (snapshot.negotiationResult?.output?.encoding) {
                 PcmEncoding.PCM_FLOAT -> AudioFormat.ENCODING_PCM_FLOAT
-                PcmEncoding.PCM_24BIT_PACKED -> AudioFormat.ENCODING_PCM_24BIT_PACKED
-                PcmEncoding.PCM_32BIT -> AudioFormat.ENCODING_PCM_32BIT
+                PcmEncoding.PCM_24BIT_PACKED -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    AudioFormat.ENCODING_PCM_24BIT_PACKED
+                } else {
+                    null
+                }
+                PcmEncoding.PCM_32BIT -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    AudioFormat.ENCODING_PCM_32BIT
+                } else {
+                    null
+                }
                 PcmEncoding.PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
                 null -> null
             }
