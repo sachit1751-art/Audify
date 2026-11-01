@@ -1,5 +1,7 @@
 package com.music.audify.ui.components
 
+import com.music.audify.ui.motion.MotionTokens
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
@@ -108,7 +110,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             failed -> MaterialTheme.colorScheme.error
             else -> MaterialTheme.colorScheme.primary
         },
-        animationSpec = tween(220),
+        animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
         label = "downloadRingTint",
     )
 
@@ -119,7 +121,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         // new width. Siblings move with the expanding slot and make room rather
         // than jumping directly to their final positions.
         enter = expandHorizontally(
-            animationSpec = tween(260),
+            animationSpec = tween(MotionTokens.SHEET_ENTER_MS),
             expandFrom = Alignment.End,
         ) + fadeIn(
             animationSpec = tween(durationMillis = 160, delayMillis = 100),

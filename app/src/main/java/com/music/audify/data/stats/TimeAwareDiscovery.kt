@@ -1,5 +1,6 @@
 package com.music.audify.data.stats
 
+import com.music.audify.data.model.HomeShelf
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -58,4 +59,29 @@ fun selectTimeAwareHourBlock(
         .filter { (_, plays) -> plays > 0 }
         .maxByOrNull { (_, plays) -> plays }
         ?.first
+}
+
+/**
+ * Reuse an existing discovery shelf whose title/subtitle best fits the selected
+ * time block. If the feed has no explicitly themed shelf, fall back to its
+ * first non-Recents shelf rather than inventing or fetching new content.
+ */
+internal fun selectTimeAwareDiscoveryShelf(
+    shelves: List<HomeShelf>,
+    block: ListeningHourBlock,
+): HomeShelf? {
+    val eligible = shelves.filter { shelf ->
+        !shelf.title.equals("Recents", ignoreCase = true) &&
+            shelf.items.any { it.videoId != null || it.browseId != null }
+    }
+    val preferredTerms = when (block) {
+        ListeningHourBlock.MORNING -> listOf("morning", "commute", "daily discover", "quick picks", "energy")
+        ListeningHourBlock.AFTERNOON -> listOf("afternoon", "hits", "charts", "new releases", "for you")
+        ListeningHourBlock.EVENING -> listOf("evening", "relax", "chill", "mix", "radio")
+        ListeningHourBlock.LATE_NIGHT -> listOf("late night", "night", "relax", "chill", "sleep", "ambient")
+    }
+    return eligible.firstOrNull { shelf ->
+        val searchable = "${shelf.title} ${shelf.subtitle}".lowercase()
+        preferredTerms.any(searchable::contains)
+    } ?: eligible.firstOrNull()
 }

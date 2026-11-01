@@ -1,6 +1,7 @@
 package com.music.audify.ui.screens
 
 import com.music.audify.wear.WatchInstaller
+import com.music.audify.ui.motion.MotionTokens
 import android.content.Context
 import android.content.Intent
 import android.media.AudioFormat
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOff
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Brightness4
+import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -212,6 +214,8 @@ fun SettingsScreen(
     val smartFade by AppSettings.smartFadeEnabled.collectAsStateWithLifecycle()
     val automixPerformance by AppSettings.automixPerformanceMode.collectAsStateWithLifecycle()
     val skipSilence by AppSettings.skipSilence.collectAsStateWithLifecycle()
+    val pauseOnMute by AppSettings.pauseOnMute.collectAsStateWithLifecycle()
+    val resumeOnBluetooth by AppSettings.resumeOnBluetooth.collectAsStateWithLifecycle()
     val dolbyAtmos by AppSettings.dolbyAtmos.collectAsStateWithLifecycle()
     // A property of the hardware, so it is read once rather than remembered
     // against a key that can never change — see [DeviceCodecs.playsDolbyAtmos],
@@ -288,6 +292,7 @@ fun SettingsScreen(
 
     val replayGenres by AppSettings.replayGenres.collectAsStateWithLifecycle()
     val showWeeklyRecapCard by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
+    val showTimeAwareShelf by AppSettings.showTimeAwareShelf.collectAsStateWithLifecycle()
 
     // Read here so the row can say "In a party · ABC123" rather than making
     // somebody open the screen to find out whether they are still in one.
@@ -726,6 +731,44 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setSkipSilence(!skipSilence) },
+                )
+            }
+            val pauseOnMuteTitle = stringResource(R.string.pause_on_mute)
+            row(pauseOnMuteTitle, "mute", "volume") {
+                SettingsRow(
+                    icon = Icons.Rounded.VolumeOff,
+                    title = pauseOnMuteTitle,
+                    subtitle = stringResource(R.string.pause_on_mute_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = pauseOnMute,
+                            onCheckedChange = AppSettings::setPauseOnMute,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = { AppSettings.setPauseOnMute(!pauseOnMute) },
+                )
+            }
+            val resumeOnBluetoothTitle = stringResource(R.string.resume_on_bluetooth)
+            row(resumeOnBluetoothTitle, "bluetooth", "headphones", "earbuds") {
+                SettingsRow(
+                    icon = Icons.Rounded.Bluetooth,
+                    title = resumeOnBluetoothTitle,
+                    subtitle = stringResource(R.string.resume_on_bluetooth_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = resumeOnBluetooth,
+                            onCheckedChange = AppSettings::setResumeOnBluetooth,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = { AppSettings.setResumeOnBluetooth(!resumeOnBluetooth) },
                 )
             }
             val spatialAudioTitle = stringResource(R.string.spatial_audio)
@@ -1304,6 +1347,25 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setShowWeeklyRecapCard(!showWeeklyRecapCard) },
+                )
+            }
+            val timeAwareShelfTitle = stringResource(R.string.time_aware_shelf_setting)
+            row(timeAwareShelfTitle, "discovery", "listening", "time of day") {
+                SettingsRow(
+                    icon = Icons.Rounded.AutoAwesome,
+                    title = timeAwareShelfTitle,
+                    subtitle = stringResource(R.string.time_aware_shelf_setting_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = showTimeAwareShelf,
+                            onCheckedChange = AppSettings::setShowTimeAwareShelf,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = { AppSettings.setShowTimeAwareShelf(!showTimeAwareShelf) },
                 )
             }
             val exportDataTitle = stringResource(R.string.export_data)
@@ -2755,7 +2817,7 @@ internal fun SegmentedControl(
                 } else {
                     Color.Transparent
                 },
-                animationSpec = tween(160),
+                animationSpec = tween(MotionTokens.CONTROL_STATE_MS),
                 label = "segmentPill",
             )
             val labelColor by animateColorAsState(
@@ -2764,7 +2826,7 @@ internal fun SegmentedControl(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                animationSpec = tween(160),
+                animationSpec = tween(MotionTokens.CONTROL_STATE_MS),
                 label = "segmentLabel",
             )
             Box(

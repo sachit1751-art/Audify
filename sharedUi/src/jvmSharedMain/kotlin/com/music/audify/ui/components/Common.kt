@@ -875,11 +875,12 @@ fun MessageState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    verticalPadding: androidx.compose.ui.unit.Dp = 48.dp,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = PAGE_GUTTER + 6.dp, vertical = 48.dp),
+            .padding(horizontal = PAGE_GUTTER + 6.dp, vertical = verticalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {

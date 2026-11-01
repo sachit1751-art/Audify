@@ -14,6 +14,7 @@ import com.music.audify.data.model.HomeShelf
  * one — see [RouteEntry.detailDepth].
  */
 sealed interface AppRoute {
+    data object Profile : AppRoute
     data object Settings : AppRoute
     data object AccountScrobbling : AppRoute
     data object Sources : AppRoute

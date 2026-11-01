@@ -7,12 +7,15 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
+import android.database.ContentObserver
+import android.provider.Settings
 import android.media.MediaMetadataRetriever
 import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.widget.Toast
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import com.music.audify.data.TelemetryProvenance
 import kotlinx.coroutines.sync.Mutex
@@ -531,6 +534,19 @@ class PlaybackService : MediaLibraryService() {
     private val audioManager by lazy { getSystemService(AudioManager::class.java) }
     private val bluetoothTracker by lazy { BluetoothAudioTracker(this) }
     private var currentAudioInputFormat: Format? = null
+    private var resumeOnBluetoothPending = false
+    private var hadBluetoothOutputBeforeNoisyPause = false
+    private var lastObservedMusicVolume = -1
+    private val musicVolumeObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            val current = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: return
+            val previous = lastObservedMusicVolume
+            lastObservedMusicVolume = current
+            if (previous > 0 && current == 0 && AppSettings.pauseOnMute.value) {
+                player?.takeIf { it.isPlaying }?.pause()
+            }
+        }
+    }
     private val outputDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
             // Plugging something in moves the music to it. Always — a choice
@@ -540,6 +556,22 @@ class PlaybackService : MediaLibraryService() {
             // would be a picker that had quietly broken the obvious behaviour.
             AudioRouting.forget()
             requestOutputReconfiguration()
+            if (AppSettings.resumeOnBluetooth.value && resumeOnBluetoothPending &&
+                addedDevices.any(::isBluetoothAudioOutput)
+            ) {
+                // Let Android finish routing the newly-added endpoint before
+                // asking Media3 to resume. A manual pause/play clears the flag.
+                scope.launch {
+                    delay(BLUETOOTH_RESUME_SETTLE_MS)
+                    val active = player
+                    if (resumeOnBluetoothPending && active != null &&
+                        hasBluetoothAudioOutput() && !active.playWhenReady
+                    ) {
+                        resumeOnBluetoothPending = false
+                        active.play()
+                    }
+                }
+            }
         }
         override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
             // A chosen output that has been unplugged is no longer a choice.
@@ -940,6 +972,16 @@ class PlaybackService : MediaLibraryService() {
          * on the audio, which is what the media notification shows too.
          */
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (playWhenReady) {
+                resumeOnBluetoothPending = false
+            } else if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY) {
+                hadBluetoothOutputBeforeNoisyPause = hasBluetoothAudioOutput()
+                resumeOnBluetoothPending = AppSettings.resumeOnBluetooth.value &&
+                    hadBluetoothOutputBeforeNoisyPause
+            } else {
+                // An explicit pause must never be undone by a later reconnect.
+                resumeOnBluetoothPending = false
+            }
             // Something started the phone's own player while a receiver is the
             // speaker — an internal path, since the session player's door
             // already sends a listener's play to the receiver. The phone goes
@@ -1689,6 +1731,12 @@ class PlaybackService : MediaLibraryService() {
         // through, and again at every handoff.
         sparePlayer.audioSessionId = exoPlayer.audioSessionId
         audioManager?.registerAudioDeviceCallback(outputDeviceCallback, null)
+        lastObservedMusicVolume = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: -1
+        contentResolver.registerContentObserver(
+            Settings.System.CONTENT_URI,
+            true,
+            musicVolumeObserver,
+        )
         applyOutputRoute()
 
         AppSettings.audioSessionId.value = exoPlayer.audioSessionId
@@ -7190,6 +7238,8 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
+        contentResolver.unregisterContentObserver(musicVolumeObserver)
+        resumeOnBluetoothPending = false
         WearBridge.attachStreams(null)
         WearBridge.releaseSpeaker()
         // Let go of the receiver's player but leave its session alone: a
@@ -7287,6 +7337,18 @@ class PlaybackService : MediaLibraryService() {
         measuredBitrateCache.clear()
         super.onDestroy()
     }
+
+    private fun isBluetoothAudioOutput(device: AudioDeviceInfo): Boolean = when (device.type) {
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_BLE_HEADSET,
+        AudioDeviceInfo.TYPE_BLE_SPEAKER -> true
+        else -> false
+    }
+
+    private fun hasBluetoothAudioOutput(): Boolean = audioManager
+        ?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        ?.any(::isBluetoothAudioOutput) == true
 
     private fun loadLyricsForCurrentTrack() {
         val currentSong = player?.currentMediaItem?.toSong() ?: run {
@@ -8713,6 +8775,7 @@ class PlaybackService : MediaLibraryService() {
             .build()
 
     private companion object {
+        const val BLUETOOTH_RESUME_SETTLE_MS = 700L
         const val MEDIA_ROOT_ID = "root"
         const val MEDIA_RECENTS_ID = "recents"
         const val MEDIA_QUICK_PICKS_ID = "quick_picks"

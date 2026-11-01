@@ -237,6 +237,12 @@ object AppSettings {
     val automixPerformanceMode = MutableStateFlow(AutomixPerformanceMode.BALANCED)
     val skipSilence = MutableStateFlow(false)
 
+    /** Pause active playback when the device music stream is muted (volume reaches zero). */
+    val pauseOnMute = MutableStateFlow(false)
+
+    /** Resume playback after a Bluetooth audio output reconnects following a noisy disconnect pause. */
+    val resumeOnBluetooth = MutableStateFlow(false)
+
     /** Requested PCM representation at the Android AudioTrack boundary. */
     val outputPcmMode = MutableStateFlow(OutputPcmMode.PCM_16)
 
@@ -561,6 +567,9 @@ object AppSettings {
     /** Whether the private weekly listening recap is shown on Home. */
     val showWeeklyRecapCard = MutableStateFlow(true)
 
+    /** Whether the private, listening-hour-shaped discovery shelf is shown on Home. */
+    val showTimeAwareShelf = MutableStateFlow(true)
+
     /** Monday epoch-day of the last week recap the user opened or dismissed. */
     val weeklyRecapSeenWeek = MutableStateFlow(0L)
 
@@ -830,6 +839,8 @@ object AppSettings {
             )
         }.getOrDefault(AutomixPerformanceMode.BALANCED)
         skipSilence.value = prefs.getBoolean(KEY_SKIP_SILENCE, false)
+        pauseOnMute.value = prefs.getBoolean(KEY_PAUSE_ON_MUTE, false)
+        resumeOnBluetooth.value = prefs.getBoolean(KEY_RESUME_ON_BLUETOOTH, false)
         outputPcmMode.value = runCatching {
             OutputPcmMode.valueOf(
                 prefs.getString(KEY_OUTPUT_PCM_MODE, OutputPcmMode.PCM_16.name)
@@ -923,6 +934,7 @@ object AppSettings {
         spotifySpdcToken.value = prefs.getString(KEY_SPOTIFY_SPDC_TOKEN, "").orEmpty()
         replayGenres.value = prefs.getBoolean(KEY_REPLAY_GENRES, true)
         showWeeklyRecapCard.value = prefs.getBoolean(KEY_SHOW_WEEKLY_RECAP_CARD, true)
+        showTimeAwareShelf.value = prefs.getBoolean(KEY_SHOW_TIME_AWARE_SHELF, true)
         weeklyRecapSeenWeek.value = prefs.getLong(KEY_WEEKLY_RECAP_SEEN_WEEK, 0L)
         filterNonMusicAudio.value = prefs.getBoolean(KEY_FILTER_NON_MUSIC_AUDIO, true)
         localMusicSort.value = readLocalMusicSort(KEY_LOCAL_MUSIC_SORT)
@@ -1132,6 +1144,16 @@ object AppSettings {
     fun setSkipSilence(value: Boolean) {
         skipSilence.value = value
         prefs.edit().putBoolean(KEY_SKIP_SILENCE, value).apply()
+    }
+
+    fun setPauseOnMute(value: Boolean) {
+        pauseOnMute.value = value
+        prefs.edit().putBoolean(KEY_PAUSE_ON_MUTE, value).apply()
+    }
+
+    fun setResumeOnBluetooth(value: Boolean) {
+        resumeOnBluetooth.value = value
+        prefs.edit().putBoolean(KEY_RESUME_ON_BLUETOOTH, value).apply()
     }
 
     fun setDolbyAtmos(value: Boolean) {
@@ -1700,6 +1722,11 @@ object AppSettings {
         prefs.edit().putBoolean(KEY_SHOW_WEEKLY_RECAP_CARD, value).apply()
     }
 
+    fun setShowTimeAwareShelf(value: Boolean) {
+        showTimeAwareShelf.value = value
+        prefs.edit().putBoolean(KEY_SHOW_TIME_AWARE_SHELF, value).apply()
+    }
+
     fun setWeeklyRecapSeenWeek(value: Long) {
         weeklyRecapSeenWeek.value = value
         prefs.edit().putLong(KEY_WEEKLY_RECAP_SEEN_WEEK, value).apply()
@@ -2015,6 +2042,8 @@ object AppSettings {
     private const val KEY_SMART_FADE = "smart_fade_enabled"
     private const val KEY_AUTOMIX_PERFORMANCE_MODE = "automix_performance_mode"
     private const val KEY_SKIP_SILENCE = "skip_silence"
+    private const val KEY_PAUSE_ON_MUTE = "pause_on_mute"
+    private const val KEY_RESUME_ON_BLUETOOTH = "resume_on_bluetooth"
     private const val KEY_OUTPUT_PCM_MODE = "output_pcm_mode"
     private const val KEY_PREFER_USB_DAC = "prefer_usb_dac"
     private const val KEY_LOUDNESS_NORMALIZATION = "loudness_normalization"
@@ -2070,6 +2099,7 @@ object AppSettings {
     private const val KEY_PAXSENIX_API_KEY = "paxsenix_api_key"
     private const val KEY_REPLAY_GENRES = "replay_genres"
     private const val KEY_SHOW_WEEKLY_RECAP_CARD = "show_weekly_recap_card"
+    private const val KEY_SHOW_TIME_AWARE_SHELF = "show_time_aware_shelf"
     private const val KEY_WEEKLY_RECAP_SEEN_WEEK = "weekly_recap_seen_week"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
     private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"

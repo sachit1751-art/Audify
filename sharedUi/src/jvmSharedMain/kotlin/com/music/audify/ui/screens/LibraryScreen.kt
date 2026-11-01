@@ -173,6 +173,7 @@ fun LibraryScreen(
                         message = stringResource(Res.string.library_sign_in_description),
                         actionLabel = stringResource(Res.string.sign_in),
                         onAction = onSignIn,
+                        verticalPadding = 16.dp,
                     )
                 }
                 return@LazyColumn

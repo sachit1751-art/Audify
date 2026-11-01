@@ -5,6 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalTime
+import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.ShelfItem
 
 class TimeAwareDiscoveryTest {
     @Test
@@ -50,6 +52,37 @@ class TimeAwareDiscoveryTest {
     fun returnsNoBlockWhenThereIsNoHistory() {
         assertNull(selectTimeAwareHourBlock(LocalTime.NOON, List(24) { 0 }))
     }
+
+    @Test
+    fun choosesDiscoveryShelfMatchingTheSelectedTimeBlock() {
+        val generic = HomeShelf("Listen again", listOf(shelfItem("again")))
+        val commute = HomeShelf("Commute mix", listOf(shelfItem("commute")))
+
+        assertEquals(
+            commute,
+            selectTimeAwareDiscoveryShelf(listOf(generic, commute), ListeningHourBlock.MORNING),
+        )
+    }
+
+    @Test
+    fun discoveryShelfFallsBackWithoutUsingRecents() {
+        val recents = HomeShelf("Recents", listOf(shelfItem("recent")))
+        val fallback = HomeShelf("Listen again", listOf(shelfItem("again")))
+
+        assertEquals(
+            fallback,
+            selectTimeAwareDiscoveryShelf(listOf(recents, fallback), ListeningHourBlock.LATE_NIGHT),
+        )
+        assertNull(selectTimeAwareDiscoveryShelf(listOf(recents), ListeningHourBlock.MORNING))
+    }
+
+    private fun shelfItem(id: String) = ShelfItem(
+        title = id,
+        subtitle = "",
+        thumbnailUrl = null,
+        videoId = id,
+        browseId = null,
+    )
 
     @Test
     fun aggregatesOnlyTheInclusiveDateWindowAndIgnoresMalformedValues() {

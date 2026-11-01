@@ -2,6 +2,7 @@ package com.music.audify.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -110,8 +111,8 @@ internal fun LyricsOffsetSheet(
     ) {
         AnimatedVisibility(
             visible = shown,
-            enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it },
-            exit = slideOutVertically(tween(180)) { it },
+            enter = slideInVertically(tween(MotionTokens.SHEET_ENTER_MS, easing = MotionTokens.STANDARD_EASING)) { it },
+            exit = slideOutVertically(tween(MotionTokens.SHORT_FADE_MS)) { it },
         ) {
             Column(
                 modifier = Modifier

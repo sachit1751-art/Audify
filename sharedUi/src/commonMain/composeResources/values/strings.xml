@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="home_greeting">Good to see you</string>
     <string name="analysis_complete">analysed</string>
     <string name="analysis_in_progress">analysing…</string>
     <string name="analysis_refining">analysed, refining…</string>
@@ -195,6 +196,7 @@
     <string name="shelf_trending_community_playlists">Trending community playlists</string>
     <string name="shelf_youtube_charts">YouTube Charts</string>
     <string name="show_all">Show all</string>
+    <string name="play_all">Play all</string>
     <string name="sign_in">Sign in</string>
     <string name="sign_in_youtube_music">Sign in to YouTube Music</string>
     <string name="subscriptions">Subscriptions</string>

@@ -1,6 +1,6 @@
 # Plan 029 — Time-aware discovery shelf
 
-**Status: in progress — statistics and selection logic implemented; Home shelf wiring remains.** Re-audited at commit `a3dc929e` — the Home screen has a time-aware greeting
+**Status: in progress — statistics, Home shelf, and setting implemented; emulator verification pending.** Re-audited at commit `a3dc929e` — the Home screen has a time-aware greeting
 ("Good morning/afternoon/evening") but no time-blocked discovery shelf. No hour-block play-count logic
 exists.
 
@@ -37,10 +37,19 @@ content (auto-playlists, daily discover, community playlists) into time-aware bu
   otherwise the most-played block is selected; no history returns `null`.
 - Added pure tests for all hour boundaries, current-block preference, fallback, empty history,
   inclusive date aggregation, malformed/negative values, and inverted date windows.
+- Added a Home discovery shelf that prefers existing non-Recents feed shelves with titles/subtitles matching
+  the selected listening-hour block, falls back to the first eligible discovery shelf, and reuses up to three
+  existing items. It refreshes only at the next local hour.
+- Added the default-on `Time-aware discovery shelf` setting under Settings → Your data. The hour
+  aggregates and selected block remain local; no listening-time data is uploaded.
 - No Room schema or migration changes.
 - Verification: `:app:testDevDebugUnitTest --tests 'com.music.audify.data.stats.TimeAwareDiscoveryTest'`
-  and `:app:compileDevDebugKotlin` passed (6 new tests, 0 failures).
-- Not yet implemented: preference toggle, discovery-pick selection, Home shelf UI, and device checks.
+  and `:app:compileDevDebugKotlin` passed (8 focused tests, 0 failures).
+- Follow-up verification after Home wiring: full `:app:testDevDebugUnitTest` passed (1,130 tests,
+  0 failures, 0 errors; 1 skipped). After adding time-block shelf matching, the full suite passed again
+  (1,132 tests, 0 failures, 0 errors; 1 skipped).
+- Still required: verify the shelf on an emulator with listening-hour history, verify the empty-history
+  state, and verify the Settings toggle persists across relaunch.
 
 ## Scope
 
@@ -86,7 +95,8 @@ content (auto-playlists, daily discover, community playlists) into time-aware bu
    content" and the implementation chooses which ones and how many.
 3. **Shelf UI** — A small horizontal or vertical list of 1-3 cards, with a time-of-day label
    ("Morning picks"). Reuses existing card/pick components. Not a full discovery section — a shelf.
-4. **Toggle** — `ShowTimeAwareShelfKey` controls visibility. Defaults on.
+4. **Toggle** — `AppSettings.showTimeAwareShelf` controls visibility. Defaults on and persists in
+   app preferences.
 
 ## Testing
 

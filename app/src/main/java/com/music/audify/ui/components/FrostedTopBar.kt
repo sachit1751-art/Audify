@@ -1,5 +1,7 @@
 package com.music.audify.ui.components
 
+import com.music.audify.ui.motion.MotionTokens
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -177,7 +179,7 @@ fun FrostedTopBar(
         (LocalLiquidGlassEnabled.current && isGlassSupported())
     val titleAlpha by animateFloatAsState(
         targetValue = if (scrolled || trailingTitle != null) 1f else 0f,
-        animationSpec = tween(220),
+        animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
         label = "topBarTitleAlpha",
     )
     // Every bounded bar uses the same hairline, whether its pane is blurred or
@@ -189,7 +191,7 @@ fun FrostedTopBar(
                 else -> 0.6f
             },
         ),
-        animationSpec = tween(220),
+        animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
         label = "topBarDivider",
     )
 
@@ -217,7 +219,7 @@ fun FrostedTopBar(
                 AnimatedContent(
                     targetState = trailingTitle,
                     transitionSpec = {
-                        (fadeIn(animationSpec = tween(260)) + slideInHorizontally(animationSpec = tween(260)) { it / 3 }) togetherWith
+                        (fadeIn(animationSpec = tween(MotionTokens.SHEET_ENTER_MS)) + slideInHorizontally(animationSpec = tween(MotionTokens.SHEET_ENTER_MS)) { it / 3 }) togetherWith
                             (fadeOut(animationSpec = tween(200)) + slideOutHorizontally(animationSpec = tween(200)) { -it / 3 })
                     },
                     label = "topBarTitleAnimation",

@@ -1,6 +1,6 @@
 # Plan 046 — MotionTokens cleanup
 
-**Status: not started.** Verified at commit `61778ab4` — no centralized motion token system exists. Durations 
+**Status: in progress — shared Compose tokens and representative replacements implemented; broader audit pending.** Verified at commit `61778ab4` — no centralized motion token system exists. Durations
 and easings are scattered as literals across composables and GSAP timelines. The plan is to centralize them 
 into a single source of truth (a `MotionTokens` object / design-tokens file) and replace literals with named 
 tokens, per the design system's motion section.
@@ -25,6 +25,15 @@ consistent and changeable in one place.
 (`power2.out`, `power1.inOut`, `linear`, etc.) as literals.
 - No single `MotionTokens` object / design-tokens file for motion (the executor checks at implementation time 
 whether a partial one exists).
+- Current implementation adds `sharedUi/.../ui/motion/MotionTokens.kt` with shared Compose duration and easing
+  values, then replaces repeated transition literals in app navigation, artist shelf transitions, settings
+  controls, equalizer, bottom scrim, download sheet, frosted top bar, player drawer, lyrics offset sheet, player
+  controls, and shimmer without changing their values. No GSAP usage was found in the current `web/`, `app/`,
+  `sharedUi/`, or `shared/` source trees, so there is no GSAP timeline to update.
+- Verification: `:app:compileDevDebugKotlin` passed and the full `:app:testDevDebugUnitTest` suite passed
+  (1,132 tests, 0 failures, 0 errors; 1 skipped).
+- Still required: visual confirmation that the touched transitions look unchanged on an emulator/device, then
+  a final scan for additional high-value duplicated literals before marking this plan complete.
 - The design system's motion section (in `plans/AUDIFY_DESIGN_SYSTEM.md` or wherever the design system lives) is 
 the spec — the executor reads it and maps tokens to values.
 

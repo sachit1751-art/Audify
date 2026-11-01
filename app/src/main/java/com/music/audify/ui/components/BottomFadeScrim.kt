@@ -1,5 +1,7 @@
 package com.music.audify.ui.components
 
+import com.music.audify.ui.motion.MotionTokens
+
 import androidx.compose.animation.core.EaseInCubic
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -82,7 +84,7 @@ fun BottomFadeScrim(
         targetValue = inset + if (withMiniPlayer) FADE_HEIGHT_WITH_MINI_PLAYER else FADE_HEIGHT,
         // Matches the beat the mini player takes to appear, so the floor grows
         // with it instead of snapping ahead of it.
-        animationSpec = tween(220),
+        animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
         label = "bottomScrimHeight",
     )
 

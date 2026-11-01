@@ -1,6 +1,6 @@
 package com.music.audify.ui.components
 
-import androidx.compose.animation.core.LinearEasing
+import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -66,7 +66,7 @@ fun ShimmerBox(modifier: Modifier = Modifier, shape: Shape = BlockShape) {
     val sweep = rememberInfiniteTransition(label = "skeleton").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = MotionTokens.LINEAR_EASING)),
         label = "sweep",
     )
     Box(

@@ -1,8 +1,8 @@
 # Plan 047 — Performance pass
 
-**Status: not started.** Verified at commit `61778ab4` — no systematic performance pass has been done. The app 
-has some perf tuning (DevicePerformance.kt with heap-aware Coil cache, crossfade gating, decode caps) but no 
-comprehensive startup trace, recomposition audit, or APK size review. This plan is a structured perf pass.
+**Status: in progress — APK-size and image-cache baselines recorded; device profiling pending.** The current
+tree has no `DevicePerformance.kt`; the Coil configuration lives in `AudifyApplication.kt`. A systematic
+startup trace and Home/Queue recomposition audit are still outstanding.
 
 ## Objective
 
@@ -17,18 +17,35 @@ rewrite.
 - Design system §5.3 lists the perf pass. It's a polish/quality feature — not user-facing new capability, but 
 a measurable improvement in startup speed, scroll smoothness, and APK size.
 - The app has grown a lot (118k lines, many screens) — a perf pass catches the regressions that accumulate.
-- Some perf tuning exists (DevicePerformance.kt) but it's partial — a full pass revisits it.
+- Some image-cache tuning exists, but its current policy needs to be evaluated against real device data.
 
 ## What exists today
 
-- `utils/DevicePerformance.kt` — heap-aware Coil memory cache (10% vs 15% of heap), crossfade disabled when 
-heap < 128 MB, density-aware image decode cap on the Home "Daily Discover" card. Unit tests in 
-`DevicePerformanceTest.kt`.
+- `AudifyApplication.kt` configures Coil memory cache to 20% of available memory, a 100 MB disk cache,
+  and a 200 ms crossfade. No device-specific heap gate or `DevicePerformanceTest.kt` exists in the current tree.
 - No startup trace (the executor checks at implementation time whether AndroidX Startup or a custom trace is 
 used; the plan assumes the app measures startup at implementation time).
 - No systematic recomposition audit (the executor uses the Compose compiler metrics / recomposition counts at 
 implementation time to find hot recompositions on Home and Queue).
 - APK size is whatever it is today — the plan measures it and flags bloat.
+
+## Implementation progress (2026-11-01)
+
+- Fresh `:app:assembleDevDebug` outputs: arm64 97.40 MB, armeabi-v7a 88.01 MB, x86_64 103.70 MB,
+  universal 196.53 MB. These are debug APKs, so they are not release-size comparisons.
+- Existing production release APKs from 2026-10-31: arm64 64.52 MB, armeabi-v7a 55.16 MB,
+  x86_64 70.83 MB, universal 163.50 MB. They were not rebuilt in this pass and are recorded as a baseline only.
+- Largest entries in the existing arm64 release: `libonnxruntime.so` 27.31 MB, `classes.dex` 10.54 MB,
+  `classes2.dex` 10.51 MB, `vocals_umxhq_int8.onnx` 8.63 MB, `beat_this_int8.onnx` 4.32 MB,
+  and the bundled Wear APK 4.34 MB. Several font assets are about 2.2 MB each. These are identifiable
+  contributors, not automatically removable bloat; model/runtime and bundled Wear functionality may be required.
+- Current Coil policy is 20% memory cache, 100 MB disk cache, and 200 ms crossfade in
+  `app/src/main/java/com/music/audify/AudifyApplication.kt`. No adjustment is justified without profiling
+  representative devices and observing image-cache pressure.
+- ADB had no connected device during this pass. Cold/warm startup timing and Home/Queue recomposition
+  measurements remain pending; no performance improvement is claimed.
+- The full `:app:testDevDebugUnitTest` suite passed after the current code changes (1,132 tests,
+  0 failures, 0 errors; 1 skipped).
 
 ## Scope
 

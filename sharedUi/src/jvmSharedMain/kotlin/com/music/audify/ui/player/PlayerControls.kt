@@ -1,6 +1,7 @@
 package com.music.audify.ui.player
 
 import androidx.compose.animation.core.FastOutSlowInEasing
+import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
@@ -595,7 +596,7 @@ internal fun PlayerActionRow(
             // the queue glyph, lit, is how you get back.
             AnimatedVisibility(
                 visible = !queueOpen,
-                enter = fadeIn(tween(180, delayMillis = 120)),
+                enter = fadeIn(tween(MotionTokens.SHORT_FADE_MS, delayMillis = 120)),
                 exit = fadeOut(tween(120)),
                 modifier = Modifier.align(Alignment.CenterStart),
             ) {
@@ -624,11 +625,11 @@ internal fun PlayerActionRow(
                 },
                 targetState = queueOpen,
                 transitionSpec = {
-                    (fadeIn(tween(180, delayMillis = 140)) togetherWith fadeOut(tween(140)))
+                    (fadeIn(tween(MotionTokens.SHORT_FADE_MS, delayMillis = 140)) togetherWith fadeOut(tween(140)))
                         // Unclipped: the capsule's own rounded ends are what
                         // the eye follows through the width change, and the
                         // default clip cuts them square while it happens.
-                        .using(SizeTransform(clip = false) { _, _ -> tween(220) })
+                        .using(SizeTransform(clip = false) { _, _ -> tween(MotionTokens.CONTENT_TRANSITION_MS) })
                 },
                 label = "playerBottomPill",
             ) { showQueueModes ->

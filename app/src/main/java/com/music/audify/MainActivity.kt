@@ -73,6 +73,7 @@ import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Upgrade
 import com.music.audify.data.listentogether.ServerConnectionState
 import androidx.compose.material3.DropdownMenu
@@ -153,12 +154,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.music.audify.data.model.durationMillis
 import com.music.audify.data.scrobbling.LastFM
+import com.music.audify.data.stats.ListeningHourBlock
+import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.stats.selectTimeAwareDiscoveryShelf
+import com.music.audify.data.stats.selectTimeAwareHourBlock
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.LibrarySort
 import com.music.audify.data.settings.ThemeMode
 import com.music.audify.ui.components.AccountProfileSelector
 import com.music.audify.ui.navigation.AppDestination
 import com.music.audify.ui.navigation.AppRoute
+import com.music.audify.ui.motion.MotionTokens
 import com.music.audify.ui.components.SpotifyImportAlert
 import com.music.audify.ui.screens.WearOsScreen
 import com.music.audify.ui.screens.AccountAndScrobblingScreen
@@ -176,6 +182,7 @@ import com.music.audify.ui.screens.ListenTogetherScreen
 import com.music.audify.ui.screens.PartyServerEditor
 import com.music.audify.ui.screens.SignatureApiEditor
 import com.music.audify.ui.screens.SettingsScreen
+import com.music.audify.ui.screens.ProfileScreen
 import com.music.audify.ui.screens.SourceEditorAlert
 import com.music.audify.ui.screens.SourcesScreen
 import com.music.audify.data.sources.TrackMatcher
@@ -340,6 +347,7 @@ import com.music.audify.ui.utils.guardSheetFromContentTouches
 import com.music.audify.ui.utils.rememberIosOverscrollFactory
 import com.music.audify.ui.performance.resolvePerformanceRefreshRate
 import dev.chrisbanes.haze.HazeState
+import com.music.audify.ui.player.PlayerPlatform
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
@@ -542,6 +550,7 @@ private fun AudifyApp(
      * permanent pane.
      */
     var showNowPlaying by remember { mutableStateOf(false) }
+    var showHomeCastDialog by remember { mutableStateOf(false) }
     // Where the two ends of opening and closing the player meet: the mini
     // player's cover reports itself here, the sheet its offset, and the player
     // flies its artwork between them — see [PlayerDock].
@@ -1183,16 +1192,17 @@ private fun AudifyApp(
     val exploreLabel = stringResource(R.string.explore)
     val libraryLabel = stringResource(R.string.library)
     val searchLabel = stringResource(R.string.search)
+    val settingsLabel = stringResource(R.string.settings)
     val historyLabel = stringResource(R.string.history)
     val replayLabel = stringResource(R.string.replay)
     val queueLabel = stringResource(R.string.queue)
     val sharedLinkLabel = stringResource(R.string.shared_link)
-    val tabs = remember(homeLabel, exploreLabel, libraryLabel, searchLabel) {
+    val tabs = remember(homeLabel, exploreLabel, libraryLabel, settingsLabel) {
         listOf(
             BottomTab(homeLabel, AudifyIcons.Home),
             BottomTab(exploreLabel, AudifyIcons.TabExplore),
             BottomTab(libraryLabel, AudifyIcons.TabLibrary),
-            BottomTab(searchLabel, AudifyIcons.TabSearch),
+            BottomTab(settingsLabel, Icons.Rounded.Settings),
         )
     }
 
@@ -2304,6 +2314,53 @@ private fun AudifyApp(
             )
         }
     }
+    val timeAwareShelfEnabled by AppSettings.showTimeAwareShelf.collectAsStateWithLifecycle()
+    val timeAwareShelf by produceState<HomeShelf?>(
+        initialValue = null,
+        selectedTab,
+        route,
+        detail,
+        timeAwareShelfEnabled,
+        homeState,
+    ) {
+        value = null
+        if (!timeAwareShelfEnabled || selectedTab != TAB_HOME || route != null || detail != null) {
+            return@produceState
+        }
+        val availableShelves = (homeState as? UiState.Success)?.data.orEmpty()
+        if (availableShelves.isEmpty()) return@produceState
+
+        while (true) {
+            val now = java.time.LocalTime.now()
+            val block = selectTimeAwareHourBlock(
+                now = now,
+                hourlyPlays = ListeningStats.hourOfDayPlays(),
+            )
+            val titleRes = when (block) {
+                ListeningHourBlock.MORNING -> R.string.time_aware_morning_picks
+                ListeningHourBlock.AFTERNOON -> R.string.time_aware_afternoon_picks
+                ListeningHourBlock.EVENING -> R.string.time_aware_evening_picks
+                ListeningHourBlock.LATE_NIGHT -> R.string.time_aware_late_night_picks
+                null -> null
+            }
+            val sourceShelf = block?.let { selectTimeAwareDiscoveryShelf(availableShelves, it) }
+            val picks = sourceShelf?.items.orEmpty()
+                .filter { it.videoId != null || it.browseId != null }
+                .distinctBy { it.videoId ?: it.browseId ?: it.title }
+                .take(3)
+            value = titleRes?.takeIf { picks.isNotEmpty() }?.let {
+                HomeShelf(
+                    title = context.getString(it),
+                    items = picks,
+                    subtitle = context.getString(R.string.time_aware_shelf_subtitle),
+                )
+            }
+            val millisToNextHour = (
+                (60 - now.minute) * 60_000L - now.second * 1_000L - now.nano / 1_000_000L
+                ).coerceAtLeast(1_000L)
+            delay(millisToNextHour)
+        }
+    }
 
     // ---- The track in the player ----
     // Whatever started this track knew its title and its artwork, but rarely
@@ -2699,7 +2756,8 @@ private fun AudifyApp(
                         if (tabSwap || libraryShowAllSwap) {
                             EnterTransition.None togetherWith ExitTransition.None
                         } else {
-                            fadeIn(tween(180)) togetherWith fadeOut(tween(180))
+                            fadeIn(tween(MotionTokens.SHORT_FADE_MS)) togetherWith
+                                fadeOut(tween(MotionTokens.SHORT_FADE_MS))
                         }
                     },
                     modifier = Modifier
@@ -2885,6 +2943,17 @@ private fun AudifyApp(
                             )
                         } else if (pageRoute == AppRoute.Equalizer) {
                             EqualizerScreen(contentPadding = listPadding)
+                        } else if (pageRoute == AppRoute.Profile) {
+                            val activeProfile = googleAccounts.firstOrNull { it.accountId == activeAccountId }
+                                ?.profiles?.firstOrNull { it.profileId == activeProfileId }
+                                ?: googleAccounts.firstOrNull { it.accountId == activeAccountId }?.profiles?.firstOrNull()
+                            ProfileScreen(
+                                name = activeProfile?.name?.takeIf { it.isNotBlank() }
+                                    ?: account?.name?.takeIf { it.isNotBlank() }
+                                    ?: ListenTogether.nickname().ifBlank { "Your profile" },
+                                avatarUrl = activeProfile?.avatar,
+                                contentPadding = listPadding,
+                            )
                         } else if (pageRoute == AppRoute.Settings) {
                             SettingsScreen(
                                 windowWidth = windowWidth,
@@ -3133,6 +3202,7 @@ private fun AudifyApp(
                                 isPlaying = player.isPlaying,
                                 title = stringResource(R.string.listen_now),
                                 signedIn = signedIn,
+                                userName = ListenTogether.nickname().ifBlank { account?.name.orEmpty() },
                                 onSignIn = { webSession = WebSessionMode.SIGN_IN },
                                 onItemClick = { item, shelfTitle ->
                                     val song = shelfSong(item)
@@ -3163,6 +3233,7 @@ private fun AudifyApp(
                                 loadingMore = homeLoadingMore,
                                 recentlyPlayedLoading = homeRecentlyPlayedLoading,
                                 weeklyRecap = weeklyRecapCard,
+                                timeAwareShelf = timeAwareShelf,
                                 onWeeklyRecapClick = {
                                     AppSettings.setWeeklyRecapSeenWeek(currentWeekStart)
                                     setReplayPeriod(ReplayPeriod.THIS_WEEK)
@@ -3170,6 +3241,52 @@ private fun AudifyApp(
                                 },
                                 onWeeklyRecapDismiss = {
                                     AppSettings.setWeeklyRecapSeenWeek(currentWeekStart)
+                                },
+                                onSearchClick = {
+                                    navigator.clear()
+                                    viewModel.closeMoodGenre()
+                                    viewModel.onQueryChange("")
+                                    selectedTab = TAB_SEARCH
+                                    searchFocusRequested = true
+                                },
+                                onCastClick = {
+                                    showHomeCastDialog = true
+                                },
+                                onProfileClick = {
+                                    navigator.push(AppRoute.Profile)
+                                },
+                                onMoodClick = { mood ->
+                                    val categories = (exploreState as? UiState.Success)?.data.orEmpty()
+                                        .flatMap { it.items }
+                                    val terms = when (mood) {
+                                        "Energize" -> listOf("energy", "energ", "feel good")
+                                        "Workout" -> listOf("workout", "fitness", "exercise")
+                                        "Relax" -> listOf("relax", "chill", "calm")
+                                        "Focus" -> listOf("focus", "concentration", "study")
+                                        else -> listOf("commute", "driving", "road trip")
+                                    }
+                                    val category = categories.firstOrNull { item ->
+                                        terms.any { term -> item.title.contains(term, ignoreCase = true) }
+                                    }
+                                    navigator.clear()
+                                    if (category != null) {
+                                        selectedTab = TAB_EXPLORE
+                                        viewModel.openMoodGenre(category)
+                                    } else {
+                                        viewModel.closeMoodGenre()
+                                        viewModel.onQueryChange("")
+                                        selectedTab = TAB_SEARCH
+                                        viewModel.searchFor("$mood music")
+                                    }
+                                },
+                                onPlayAllQuickPicks = { shelf ->
+                                    val songs = shelf.items.mapNotNull(shelfSong).map { song ->
+                                        song.copy(
+                                            playbackSource = shelf.title,
+                                            playbackSourceType = PlaybackSourceType.HOME,
+                                        )
+                                    }
+                                    if (songs.isNotEmpty()) play(songs, 0)
                                 },
                             )
                             TAB_EXPLORE -> selectedMoodGenre?.let { category ->
@@ -3491,6 +3608,7 @@ private fun AudifyApp(
 
                 FrostedTopBar(
                     title = when (route) {
+                        AppRoute.Profile -> "Profile"
                         AppRoute.Spotify -> stringResource(R.string.spotify)
                         AppRoute.Discord -> "Discord"
                         AppRoute.History -> stringResource(R.string.history)
@@ -3652,7 +3770,9 @@ private fun AudifyApp(
                         }
                         // None on Settings or the pages opened from it: those are
                         // about the account, and the photo would only reopen them.
-                        if (!(route != null && AppRoute.Settings in navigator)) {
+                        if (!(route != null && AppRoute.Settings in navigator) &&
+                            !(route == null && detail == null && selectedTab == TAB_HOME)
+                        ) {
                             // Left of the account photo, and only on Library itself:
                             // a history is a record of what was played, which reads
                             // as that tab's business rather than every tab's.
@@ -3810,7 +3930,7 @@ private fun AudifyApp(
                             // Not on a release page, whose pill already carries
                             // three of its own controls — Apple Music leaves the
                             // profile off its album pages too.
-                            if (!isReleaseDetail) TopBarAccountButton(
+                            if (!isReleaseDetail && route != AppRoute.Profile) TopBarAccountButton(
                                 account = account,
                                 onClick = {
                                     if (signedIn) {
@@ -3848,13 +3968,10 @@ private fun AudifyApp(
                 val onTabSelected: (Int) -> Unit = { index ->
                     navigator.clear()
                     viewModel.closeMoodGenre()
-                    selectedTab = index
-
-                    // Every search tab tap resets the field, focuses it, and opens
-                    // the keyboard through SearchScreen's focus request.
-                    if (index == TAB_SEARCH) {
-                        viewModel.onQueryChange("")
-                        searchFocusRequested = true
+                    if (index == 3) {
+                        navigator.push(AppRoute.Settings)
+                    } else {
+                        selectedTab = index
                     }
                 }
 
@@ -3872,7 +3989,7 @@ private fun AudifyApp(
                     // and the pair folds together on scroll. See [GlassNavBar].
                     GlassNavBar(
                         tabs = tabs,
-                        selectedIndex = selectedTab,
+                        selectedIndex = if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2),
                         onTabSelected = onTabSelected,
                         scrollConnection = navBarScroll,
                         song = player.song,
@@ -3935,7 +4052,7 @@ private fun AudifyApp(
                     }
                     FloatingBottomBar(
                         tabs = tabs,
-                        selectedIndex = selectedTab,
+                        selectedIndex = if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2),
                         hazeState = hazeState,
                         onTabSelected = onTabSelected,
                     )
@@ -4960,6 +5077,14 @@ private fun AudifyApp(
                     },
                 )
             }
+        }
+
+        if (showHomeCastDialog) {
+            BackHandler { showHomeCastDialog = false }
+            PlayerPlatform.host.CastDialog(
+                hazeState = hazeState,
+                onDismiss = { showHomeCastDialog = false },
+            )
         }
 
         if (showLyricsSources) {

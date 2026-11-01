@@ -60,7 +60,7 @@ Plans written, not started:
 | 026 | Tablet / two-pane player | UI | M | none | none | **planned — not started** |
 | 027 | Landscape fullscreen lyrics | Lyrics/UI | M | none | none | **verified on Android emulator** |
 | 028 | Week-shape recap card | Discovery | M | none | none | **implemented; emulator/device verification pending** |
-| 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **in progress ? hour aggregates and fallback logic implemented; Home wiring pending** |
+| 029 | Time-aware discovery shelf | Discovery/UI | M | none | none | **in progress — Home shelf + setting implemented; emulator verification pending** |
 | 030 | Lyrics share-as-image | Social/UI | L | none | none | **planned — not started** |
 
 ### Phase 3 — Power user (plans written, not started)
@@ -92,8 +92,8 @@ Plans written, not started:
 | # | Plan | Category | Effort | Depends on | Requires human gate | Status |
 |---|------|----------|--------|------------|---------------------|--------|
 | 045 | Accessibility-first lyrics | Accessibility/Lyrics | H | none | none | **planned — not started** |
-| 046 | MotionTokens cleanup | Animation/Behind-the-scenes | M | none | none | **planned — not started** |
-| 047 | Performance pass | Performance/General | M | none | none | **planned — not started** |
+| 046 | MotionTokens cleanup | Animation/Behind-the-scenes | M | none | none | **in progress — shared Compose tokens + representative replacements; audit pending** |
+| 047 | Performance pass | Performance/General | M | none | none | **in progress — APK/cache baseline recorded; device profiling pending** |
 | 048 | Preferred audio language | Audio/UX | L | none | none | **planned — not started** |
 | 049 | TV intents + WebDAV source | Reach/Import | M | none | none | **planned — not started** |
 | 050 | Backup auto-schedule + integrity | Backup/Portability | M | none | none | **planned — not started** |

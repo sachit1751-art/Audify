@@ -2,6 +2,7 @@ package com.music.audify.ui.screens
 
 import android.os.Build
 import com.music.audify.R
+import com.music.audify.ui.motion.MotionTokens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -502,7 +503,8 @@ fun DetailScreen(
     AnimatedContent(
         targetState = activeShelf,
         transitionSpec = {
-            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+            fadeIn(animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS)) togetherWith
+                fadeOut(animationSpec = tween(MotionTokens.SHORT_FADE_MS))
         },
         label = "artist_shelf_transition",
         modifier = modifier.fillMaxSize(),

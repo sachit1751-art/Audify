@@ -3,6 +3,7 @@ package com.music.audify.ui.screens
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -148,7 +149,7 @@ fun EqualizerScreen(
         // Initial pass to force it took the page's own scrolling down too.
         val settingsAlpha by animateFloatAsState(
             targetValue = if (enabled) 1f else 0.38f,
-            animationSpec = tween(220),
+            animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
             label = "equalizerEnabled",
         )
         Column(modifier = Modifier.graphicsLayer { alpha = settingsAlpha }) {

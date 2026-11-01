@@ -115,5 +115,5 @@ fun AmbientPlayer(np: NowPlaying, ambient: Ambient) {
     }
 }
 
-/** ic_logo's viewport, 730 x 484 — as the phone's Home draws it. */
-private const val LOGO_ASPECT = 730f / 484f
+/** The square seven-bar Frequency Mark. */
+private const val LOGO_ASPECT = 1f
