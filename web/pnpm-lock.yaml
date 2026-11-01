@@ -1,6 +1,6 @@
+---
 # Copyright (c) 2026 Sachit. All rights reserved.
 # Project: AUDIFY
----
 lockfileVersion: '9.0'
 
 importers:
@@ -158,6 +158,8 @@ snapshots:
       '@pnpm/exe.win32-x64': 12.11.2
 
 ---
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 lockfileVersion: '9.0'
 
 settings:

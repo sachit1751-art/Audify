@@ -1,5 +1,5 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 """
 Drives a real party over the wire, the way two phones would.
 
