@@ -18,13 +18,13 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/kushagrasinghx/Audify/backend/clock"
-	"github.com/kushagrasinghx/Audify/backend/codes"
-	"github.com/kushagrasinghx/Audify/backend/config"
-	"github.com/kushagrasinghx/Audify/backend/hub"
-	"github.com/kushagrasinghx/Audify/backend/party"
-	"github.com/kushagrasinghx/Audify/backend/presence"
-	"github.com/kushagrasinghx/Audify/backend/protocol"
+	"github.com/sachit1751-art/Audify/backend/clock"
+	"github.com/sachit1751-art/Audify/backend/codes"
+	"github.com/sachit1751-art/Audify/backend/config"
+	"github.com/sachit1751-art/Audify/backend/hub"
+	"github.com/sachit1751-art/Audify/backend/party"
+	"github.com/sachit1751-art/Audify/backend/presence"
+	"github.com/sachit1751-art/Audify/backend/protocol"
 )
 
 var (
