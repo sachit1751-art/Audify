@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import java.util.Properties
 import java.security.MessageDigest
 import java.io.FileInputStream

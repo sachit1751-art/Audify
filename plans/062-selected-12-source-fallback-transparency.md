@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 062 — Selected feature 12: Improved source fallback
 
 **Status: planned — builds on plan 021, which already added stream-source health and fresh-resolution fallback.**

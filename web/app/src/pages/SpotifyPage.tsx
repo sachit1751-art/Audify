@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { PageHeader } from '@/components/PageHeader';
 import { SquareLockup } from '@/components/music/Lockups';
 import { EmptyState, LoadError, NeedsExtension, stateStyles } from '@/components/music/States';

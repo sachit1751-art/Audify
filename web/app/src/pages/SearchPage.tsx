@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useSearchParams } from 'react-router';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { Artwork } from '@/components/music/Artwork';

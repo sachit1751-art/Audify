@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Adapted from AutoMix's src/lib/analysis/analyzer.ts (https://github.com/heydavidf/automix),
 // Copyright (C) 2026 David Finnegan. AGPL-3.0-only: see ../LICENSE and ../NOTICE.md.
 // Audify: the audio comes from YouTube (fetchTrackAudio) instead of a local

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * Lyric providers the page can't reach itself (prompt §10.1): hosts that send
  * no CORS headers (KuGou, Musixmatch, Genius, Apple's catalogue search), and

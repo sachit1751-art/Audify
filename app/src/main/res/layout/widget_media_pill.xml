@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   The 4×1 widget: a capsule with the cover in a circle at its left, and the
   track over Like, previous, play, next and Shuffle beside it.
 

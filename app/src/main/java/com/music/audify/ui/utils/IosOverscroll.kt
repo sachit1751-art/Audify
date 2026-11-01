@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Adapted from Convx's IosOverscroll.kt (GPL-3.0):
  * https://github.com/cosmictaserdev-creator/Convx

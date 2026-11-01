@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 
 const row = 'grid items-center border-t-[0.5px] border-t-divider last:border-b-[0.5px] last:border-b-divider';

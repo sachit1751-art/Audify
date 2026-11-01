@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify Web
 
 The web player and its companion browser extension. The plan, and the decisions behind it, are in [`docs/web-app-build-prompt.md`](../docs/web-app-build-prompt.md).

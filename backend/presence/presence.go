@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Package presence counts how many app installs are open right now.
 //
 // Each open app sends a small heartbeat every few minutes. The tracker keeps one

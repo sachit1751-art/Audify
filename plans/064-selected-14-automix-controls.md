@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 064 — Selected feature 14: Better Automix controls
 
 **Status: planned — extend existing Automix planner and analysis; do not rebuild the engine.**

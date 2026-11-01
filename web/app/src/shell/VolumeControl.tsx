@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect, useRef } from 'react';
 import { VolumeIcon } from '@/components/icons/Transport';
 import { usePlayer } from '@/state/player';

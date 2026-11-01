@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Vendored verbatim from NewPipeExtractor v0.26.3 (GPL-3.0-or-later), the version
  * pinned in app/build.gradle.kts, and then changed in exactly two places:

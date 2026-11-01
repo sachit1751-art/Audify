@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { AutoDJ, type AutomixHost, type AutoDJSnapshot } from './engine/autodj';
 import { Deck } from './engine/deck';
 import { LoopDeck } from './engine/loopDeck';

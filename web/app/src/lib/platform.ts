@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * Mobile browsers can't install the extension, so they get the Android app
  * banner instead of the install prompt (prompt §1).

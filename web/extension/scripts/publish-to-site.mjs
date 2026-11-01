@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Zips the built extension for the site's Extension page and writes the
 // manifest the page checks for updates:
 //

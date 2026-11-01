@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Automix
 
 Settings → Playback → Crossfade → **Automix** (also in Up Next's ⋯ menu).

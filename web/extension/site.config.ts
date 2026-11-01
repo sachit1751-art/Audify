@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /** The web player's production origin. */
 export const PRODUCTION_ORIGIN = 'https://audify.in';
 

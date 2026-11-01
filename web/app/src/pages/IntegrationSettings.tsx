@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { DiscordPresenceOptions } from '@audify/shared/bridge';
 import { APPLE_ORIGINS, useAppleAccess } from '@/data/apple/artistArt';
 import { useAppleSettings } from '@/data/apple/motionArt';

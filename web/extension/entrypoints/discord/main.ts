@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import '../popup/style.css';
 import '../grant/style.css';
 import { connectFromTab, DISCORD_ORIGINS } from '../../lib/discord';

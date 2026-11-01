@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Code of Conduct
 
 ## Expected Behavior

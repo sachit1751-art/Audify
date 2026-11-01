@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { describe, expect, it } from 'vitest';
 import { ServerClock } from './clock';
 import { cleanCode, inviteUrl, parseInvite } from './invite';

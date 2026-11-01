@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect, useRef, useState } from 'react';
 import type { AppleMotion } from '@/data/apple/motionArt';
 

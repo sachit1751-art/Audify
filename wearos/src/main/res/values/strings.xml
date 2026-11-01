@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <resources>
     <string name="connecting">Connecting…</string>
     <string name="no_phone_title">Phone not connected</string>

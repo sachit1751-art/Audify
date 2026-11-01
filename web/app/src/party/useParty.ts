@@ -1,1 +1,3 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 export { controlsLocked, useParty } from './listenTogether';

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 068 — Selected feature 18: Contextual player actions
 
 **Status: planned — audit existing player/song menus before adding actions; avoid duplicate shortcuts.**

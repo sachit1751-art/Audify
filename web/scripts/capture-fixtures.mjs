@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Captures real responses into web/fixtures/ so parsers are written against
 // what the services actually send (build prompt §0: probe before parsing).
 //

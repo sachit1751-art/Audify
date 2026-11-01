@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Ported from Orchard (https://github.com/SFG5453/Orchard), whose native mel
  * front end this file is adapted from almost unchanged.

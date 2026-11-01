@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Contributing to Audify
 
 Thank you for contributing to Audify. Follow these guidelines to ensure an efficient development and review process.

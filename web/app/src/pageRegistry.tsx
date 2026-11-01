@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 import { matchPath } from 'react-router';
 import { prefetchPageData } from '@/data/music/queries';

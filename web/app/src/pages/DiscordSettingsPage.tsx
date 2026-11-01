@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { PageHeader } from '@/components/PageHeader';
 import { useDiscord } from '@/extension/useDiscord';
 import { DiscordIntegration, DiscordSettings } from './IntegrationSettings';

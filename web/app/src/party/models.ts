@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The party server's wire format, one-for-one (PartyModels.kt). The server
  * speaks camelCase and `backend/README.md` is the contract: rename a field on

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 045 — Accessibility-first lyrics
 
 **Status: not started.** Verified at commit `61778ab4` — lyrics exist (portrait `LyricsLine`, 

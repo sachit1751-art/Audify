@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { BrowseLink, MusicItem } from '@/data/music/types';
 
 /** Where tapping an item goes; null for songs and videos, which play instead. */

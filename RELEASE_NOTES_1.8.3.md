@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify 1.8.3 — Release notes
 
 > **Stable release.** This release has completed the project's release verification. The notes below document shipped behavior, validation evidence, and known limitations; limitations are disclosed rather than represented as completed features.

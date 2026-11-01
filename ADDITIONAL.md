@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Additional Documentation
 
 Additional Audify project and development information will be maintained here.

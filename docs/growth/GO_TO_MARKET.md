@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify user acquisition plan
 
 > Status: initial 30-day experiment plan, created 2026-11-01. This is a marketing plan, not a promise of shipped product capabilities or guaranteed growth.

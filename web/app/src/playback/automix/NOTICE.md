@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # AutoMix
 
 The DJ engine in this folder is ported from **AutoMix**

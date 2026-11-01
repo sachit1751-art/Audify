@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 [Unit]
 Description=BitChord Listen Together server
 After=network-online.target

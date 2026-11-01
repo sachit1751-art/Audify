@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Registers <am-lyrics>.
 import '@uimaxbai/am-lyrics/am-lyrics.js';
 import { Check, ChevronDown, Loader2, Minus, Settings2 } from 'lucide-react';

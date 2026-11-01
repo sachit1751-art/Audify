@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { withBackgroundVocals } from './model';

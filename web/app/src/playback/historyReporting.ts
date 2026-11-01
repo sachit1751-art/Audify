@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DetectedExtension } from '@audify/shared/bridge';

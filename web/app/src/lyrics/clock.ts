@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The lyric playhead: a clock that runs on its own frames and is *steered* by
  * the player's readings rather than set by them. A verbatim port of the

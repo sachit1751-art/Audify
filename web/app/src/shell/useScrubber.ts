@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect, useRef, useState } from 'react';
 import { getAudio, getMixBeat, getPlayhead, usePlayer } from '@/state/player';
 

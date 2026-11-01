@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { artworkAtPixels } from './artwork';
 
 export type Rgb = [number, number, number];

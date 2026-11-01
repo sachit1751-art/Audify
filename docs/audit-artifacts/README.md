@@ -1,4 +1,8 @@
-﻿# Audit artifacts
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+# Audit artifacts
 
 Generated emulator screenshots, UI hierarchy XML dumps, and diagnostic text captures are retained here rather than in the repository root.
 

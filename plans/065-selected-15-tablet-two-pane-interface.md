@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 065 — Selected feature 15: Tablet two-pane interface
 
 **Status: planned — extends existing plan 026 (Tablet / two-pane player).**

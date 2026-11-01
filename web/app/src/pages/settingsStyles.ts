@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Grouped inset rows, the settings idiom the app uses elsewhere: the
  * Extension, Settings, Discord and Listen Together pages.

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.music.audify.ui.components
 
 import android.os.Build

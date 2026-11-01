@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'wxt';
 import { LYRIC_ORIGINS, patternOf } from './lib/lyricHosts';

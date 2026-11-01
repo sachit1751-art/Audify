@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 058 — Selected feature 08: Download repair manager
 
 **Status: planned — builds on existing download verification; no repair UI assumed.**

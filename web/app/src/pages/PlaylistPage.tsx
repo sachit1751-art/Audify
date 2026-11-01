@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useCallback } from 'react';
 import { useParams } from 'react-router';
 import { DetailHeader } from '@/components/music/DetailHeader';

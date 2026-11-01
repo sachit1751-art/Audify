@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { Bridge, DetectedExtension } from '@audify/shared/bridge';
 import { queryClient } from '@/lib/queryClient';
 import { extensionQueryKey } from './useExtension';

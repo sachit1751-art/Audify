@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   The 4×1 widget's body: a dark translucent capsule over the wallpaper. A
   RemoteViews can't blur what is behind it, so it is tinted instead — dark
   enough that white text holds on a light wallpaper, light enough that the

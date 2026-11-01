@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { ChevronRight } from 'lucide-react';
 import { useState, type ComponentType } from 'react';
 import { FaChrome, FaFirefoxBrowser } from 'react-icons/fa';

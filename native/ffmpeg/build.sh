@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 # Builds app/src/main/jniLibs/<abi>/libffmpegJNI.so: Media3's FFmpeg audio
 # decoder JNI (ffmpeg_jni.cc, beside this script) statically linked against
 # libavcodec + libavutil from librempeg.

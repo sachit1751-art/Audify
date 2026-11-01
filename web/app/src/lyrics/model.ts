@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The lyric model, as shared/…/data/lyrics/LyricLine.kt has it: the data
  * only. Drawing is am-lyrics' job (prompt §10.2); these types exist so every

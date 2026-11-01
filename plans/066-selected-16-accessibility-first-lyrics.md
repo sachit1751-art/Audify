@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 066 — Selected feature 16: Accessibility-first lyrics
 
 **Status: planned — reconcile with existing plan 045. No previous accessibility preference patch should be assumed present.**

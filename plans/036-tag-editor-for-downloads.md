@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 036 — Tag editor for downloads
 
 **Status: blocked — unsafe to expose an editor with the current storage/tag APIs.** Re-audited on 2026-10-31.

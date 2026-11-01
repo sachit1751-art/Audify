@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 """Draws the README's contributor grid from the live GitHub contributor list.
 
 contrib.rocks used to draw it, but it caches each repo's list on its own side

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useParams } from 'react-router';
 import { DetailHeader } from '@/components/music/DetailHeader';
 import { playList, shuffleList } from '@/components/music/play';

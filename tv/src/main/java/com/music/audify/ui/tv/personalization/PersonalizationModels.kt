@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.music.audify.ui.tv.personalization
 
 import androidx.compose.runtime.Immutable

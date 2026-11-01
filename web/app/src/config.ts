@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /** Build-time configuration, from Vite's `VITE_*` environment variables. */
 export const config = {
   /** Pinned in development by the manifest `key` (web/extension/wxt.config.ts). */

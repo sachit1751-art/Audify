@@ -1,4 +1,8 @@
-﻿# Product context — Audify
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+# Product context — Audify
 
 > **Purpose:** durable product brief for contributors and implementation agents. This document describes the product evidenced by the current repository and distinguishes shipped behavior from planned work. It is not a promise that every upstream service or optional integration is always available.
 

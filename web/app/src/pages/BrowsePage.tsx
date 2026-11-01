@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useParams, useSearchParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
 import { CircleLockup, SquareLockup, VideoLockup } from '@/components/music/Lockups';

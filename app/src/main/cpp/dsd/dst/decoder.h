@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 #pragma once
 #include <stdint.h>
 #ifdef __cplusplus

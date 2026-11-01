@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   Stand-in artwork. Used two ways, and it has to work as both: as the picker
   preview's cover, where no real track exists yet, and as what the widget draws
   when a track genuinely has no artwork.

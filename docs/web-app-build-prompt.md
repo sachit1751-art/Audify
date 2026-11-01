@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Build Audify Web: a React + Vite web player with a companion browser extension
 
 You are building the web version of Audify, an existing Android/desktop music player whose code is in this repository. The web app streams from YouTube Music and from user-added HTTP addons, has Listen Together and Replay, and has YouTube Music, Spotify and Discord integrations. A companion browser extension does the networking and sign-in work that a web page isn't allowed to do. The UI replicates the Apple Music web player (music.apple.com).

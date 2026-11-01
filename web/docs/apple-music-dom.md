@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Apple Music web player: DOM and design report
 
 Measured on music.apple.com on 2026-10-15, in Chromium, in dark appearance (`prefers-color-scheme: dark`). Values were taken with `getComputedStyle` at a 1440×900 viewport unless a row says otherwise. The `:root` tokens come from Apple's own stylesheet (`/assets/index~*.css`; the track-list rules are in a lazily loaded `List~*.css`).

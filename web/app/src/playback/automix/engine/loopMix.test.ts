@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { describe, expect, it, vi } from 'vitest';
 vi.mock('signalsmith-stretch', () => ({ default: vi.fn() }));
 import type { TrackAnalysis } from '../analysis/types';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { useTrackLog } from '@/playback/trackLog';

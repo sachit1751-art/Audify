@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 057 — Selected feature 07: Better local music library
 
 **Status: planned — extends existing plan 025 (Local file library beside YTM).**

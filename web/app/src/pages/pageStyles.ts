@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /** Styles shared by several pages. */
 
 /** Album and playlist footer (report §3): 13px/18px secondary, release line, counts, label. */

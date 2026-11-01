@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   Pause. Two bars drawn as round-capped lines rather than as rounded rectangles:
   a line of stroke width w with a round cap *is* a bar w wide with fully rounded
   ends, which is what the rounded icon set's pause looks like, and it needs four

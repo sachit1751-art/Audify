@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <!-- More: the three dots the phone's player uses. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"

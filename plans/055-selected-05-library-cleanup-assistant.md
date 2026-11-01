@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 055 — Selected feature 05: Library cleanup assistant
 
 **Status: planned — extends existing plan 040 (Library hygiene tools).**

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { lyricsGet } from '@/lyrics/http';
 
 let appleToken: Promise<string | null> | null = null;

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { ArtistRef, MusicItem, Track } from '@/data/music/types';
 import type { QueueSource } from '@/playback/queue/timeline';
 import { usePlayer } from '@/state/player';

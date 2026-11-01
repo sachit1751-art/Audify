@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #include <jni.h>
 #include <array>

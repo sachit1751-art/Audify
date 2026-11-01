@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { StarFilledIcon, StarIcon } from '@/components/icons/Transport';
 import { useLikeStatus, useSetLiked, useSignedIn } from '@/data/music/queries';
 

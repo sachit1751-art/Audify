@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.music.audify.data.lyrics
 
 /** `ttm:agent` types, as both TTML and LyricsPlus name them. */

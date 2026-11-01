@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { GRID, meshPalette, type Rgb } from '@/lib/meshPalette';
 

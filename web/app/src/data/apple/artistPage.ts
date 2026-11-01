@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * Reading an Apple Music artist page (no network here, so it can be tested on its own).
  */

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.music.audify.download
 
 /** One physical downloaded file. Multiple song ids may point at the same URI. */

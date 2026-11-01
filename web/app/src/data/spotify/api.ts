@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { SpotifyPlaylist, SpotifyTrack } from '@audify/shared/bridge';
 import { best, type MatchCandidate } from '@/data/match/trackMatcher';
 import { searchSongs } from '@/data/music/api';

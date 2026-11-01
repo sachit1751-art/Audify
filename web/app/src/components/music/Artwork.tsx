@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useState, type CSSProperties } from 'react';
 import { sizedArtwork } from '@/lib/artwork';
 

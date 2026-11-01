@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # YouTube Music sign-in (phase 5)
 
 Prompt §5.3. There's no login screen: Audify uses the YouTube session the browser already has, through the extension. The cookies and the signature never reach the page; it only gets names, pictures and InnerTube responses.

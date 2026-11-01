@@ -1,4 +1,8 @@
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   Discord's filled brand mark. White, left to be tinted by Compose's Icon.
   Written with absolute commands and no arcs: Android's vector parser reads
   the compact arc flags SVG allows ("a.07 .07 0 00-.08") incorrectly.

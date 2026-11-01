@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 054 — Selected feature 04: Automatic backup scheduling
 
 **Status: planned — extends existing plan 050 and `Backup` implementation.**

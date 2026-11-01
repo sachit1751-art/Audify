@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useMutation } from '@tanstack/react-query';
 import { ListPlus } from 'lucide-react';
 import { useState } from 'react';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 module github.com/sachit1751-art/Audify/backend
 
 go 1.27.3

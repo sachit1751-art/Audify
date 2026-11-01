@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 name: TV
 
 # The Android TV app builds from the phone app's sources (see tv/README.md), so

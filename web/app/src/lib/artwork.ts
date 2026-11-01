@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The square sizes YouTube Music's own pages request. googleusercontent
  * resizes on demand, and answers bursts of uncached sizes with 429 (measured:

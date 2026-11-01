@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify launch content kit
 
 Use these drafts only after checking the current stable release link and community rules. Always disclose that you are the developer. Do not imply endorsements, user counts, or capabilities that have not been verified.

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify improvement plans
 
 This folder is the **execution track**: one self-contained plan file per feature, written so an

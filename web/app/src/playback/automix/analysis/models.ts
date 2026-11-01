@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Beat This! beat/downbeat tracking and the open-unmix vocal mask, as the
  * phone runs them: a TypeScript port of Audify's native front ends

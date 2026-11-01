@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Adapted from AutoMix's src/lib/library/db.ts (https://github.com/heydavidf/automix),
 // Copyright (C) 2026 David Finnegan. AGPL-3.0-only: see ./LICENSE and ./NOTICE.md.
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';

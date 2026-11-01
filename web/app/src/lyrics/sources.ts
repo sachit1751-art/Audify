@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The lyric providers, in default priority: LyricsSource.kt's declaration
  * order, minus its hidden entries (SimpMusic and Megalobiz). The user can

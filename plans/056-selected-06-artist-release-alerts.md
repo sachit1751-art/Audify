@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 056 — Selected feature 06: Artist release alerts
 
 **Status: planned — reconciles existing plan 044.**

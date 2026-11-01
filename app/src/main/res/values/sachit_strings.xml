@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <resources>
     <string name="weekly_recap_setting">Weekly Home recap</string>
     <string name="weekly_recap_setting_subtitle">Show a private summary of this weekâ€™s listening on Home</string>

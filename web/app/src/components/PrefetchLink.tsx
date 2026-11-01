@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { Link, NavLink, type LinkProps, type NavLinkProps } from 'react-router';
 import { preloadRoute } from '@/pageRegistry';
 

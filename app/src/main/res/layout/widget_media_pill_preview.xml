@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   What the picker shows for the 4×1 widget on API 31+: widget_media_pill with
   stand-in text, no ids and no press states. See that file for the layout.
 -->

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <resources>
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">अभी चल रहा है</string>

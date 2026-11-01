@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <p align="center">
   <img src="audify_banner.svg" alt="Audify" width="100%">
 </p>
@@ -128,6 +132,11 @@ The following implementation plans have been completed and verified:
 ## Download
 
 **[Download the latest stable release](https://github.com/sachit1751-art/Audify/releases/latest)** · [Browse all releases and prereleases](https://github.com/sachit1751-art/Audify/releases)
+
+### Alternative installation
+
+- **[Track Audify with Obtainium](obtainium://add/https%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify):** Install [Obtainium](https://f-droid.org/packages/dev.imranr.obtainium.fdroid/) first, then use this link to add Audify's official GitHub repository and receive release update notifications. Review the selected APK before installing.
+- **IzzyOnDroid:** Audify is not listed yet. Inclusion preparation is in progress; see [distribution status](docs/DISTRIBUTION.md).
 
 For most Android phones, choose the `arm64-v8a` APK. Use the universal APK only if you are unsure which architecture your device uses; it is substantially larger. Android TV and Wear OS packages are separate and should only be installed on those devices.
 

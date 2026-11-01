@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useMemo, useState, type CSSProperties } from 'react';
 import { useParams } from 'react-router';
 import { PlayIcon } from '@/components/icons/Transport';

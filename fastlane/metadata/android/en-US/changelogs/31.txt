@@ -1,0 +1,1 @@
+Audify 1.8.3 stable: improved synchronized lyrics matching and timing, expanded playlist import, download storage management, listening statistics and CSV export, refreshed discovery and playback experiences, and additional reliability and performance fixes.

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.music.audify.data.spotify
 
 /** File formats recognised by the Spotify playlist-file import layer. */

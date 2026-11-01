@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   The 4×2 entry in the widget picker: same widget, placed four cells wide by
   default and so laid out with the track alongside the transport. See
   widget_media_square for the grid arithmetic, why resizing is horizontal only,

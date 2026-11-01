@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { withBackgroundVocals, type LyricLine } from './model';
 import { lyricsGet } from './http';
 import type { Parsed } from './parse';

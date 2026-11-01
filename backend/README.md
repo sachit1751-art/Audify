@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify — Listen Together
 
 The party server behind **Listen together**: create a six-character code, share

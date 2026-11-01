@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { Track } from '@/data/music/types';
 import type { QueueTier } from '@/playback/queue/timeline';
 import { getAudio, partyPlayer, setPartyHooks, usePlayer } from '@/state/player';

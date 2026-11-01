@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // From AutoMix (https://github.com/heydavidf/automix), Copyright (C) 2026 David Finnegan.
 // AGPL-3.0-only: see ./LICENSE and ./NOTICE.md in playback/automix.
 

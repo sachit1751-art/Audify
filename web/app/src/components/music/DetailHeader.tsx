@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { Check, Plus, Shuffle } from 'lucide-react';
 import { useState } from 'react';
 import { PrefetchLink } from '@/components/PrefetchLink';

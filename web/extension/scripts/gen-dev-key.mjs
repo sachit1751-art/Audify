@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Pins the development extension's Chromium id.
 //
 // Chrome derives an unpacked extension's id from its install path unless the

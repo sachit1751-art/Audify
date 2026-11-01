@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.my.kizzy.gateway.entities
 
 import com.my.kizzy.gateway.entities.presence.Presence

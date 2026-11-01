@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // The player bar's icons, taken from Apple Music's web player (music.apple.com),
 // as the sidebar's are (NavIcons.tsx): its MusicKit player icons
 // (player-shuffle, player-next, player-repeat, player-repeat-1), the chrome's

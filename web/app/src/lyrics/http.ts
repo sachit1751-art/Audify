@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { BridgeCallError } from '@audify/shared/bridge';
 import { getBridge } from '@/extension/bridge';
 

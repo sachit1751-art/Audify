@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Spotify and Discord (phase 9)
 
 Prompt §7. Both live in the extension; the page only gets results.

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Horizontal shelves (report §2). Each kind sets its column count per
  * breakpoint, and the list lays out as

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { ApiResponse, Innertube, YT } from 'youtubei.js/web';
 import { trackLog } from '../trackLog';
 import { botguard } from './botguard';

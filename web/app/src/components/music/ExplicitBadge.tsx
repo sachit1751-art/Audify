@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The boxed "E" (report §2), 4px after the title. Drawn as one shape with the
  * letter cut out of it, so the E sits exactly in the middle at any size and

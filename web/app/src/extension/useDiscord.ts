@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import type { DetectedExtension, DiscordPresenceOptions, DiscordState } from '@audify/shared/bridge';

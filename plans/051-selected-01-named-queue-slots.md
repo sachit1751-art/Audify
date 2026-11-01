@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 051 — Selected feature 01: Named queue slots
 
 **Status: planned — reconcile with existing plan 031 before implementation.** Plan 031 already specifies the core 2–3 persistent queue-slot concept. This plan is the selected-list entry and must not create a second implementation.

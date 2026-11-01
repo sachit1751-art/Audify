@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # YouTube playback in the browser: what was measured
 
 Phase 3, 2026-10-15. Chromium 145 (Playwright's build) and Firefox 158, both with the extension, signed out, run from `localhost:5173`. Tracks are the 20 in the Debug page's test set (`/debug`).

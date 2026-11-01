@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Modeled on Orchard's own AudioDecoder (https://github.com/SFG5453/Orchard),
  * scoped down to the platform MediaCodec path — Orchard prefers a native

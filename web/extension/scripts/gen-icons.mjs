@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Renders the extension's toolbar and store icons from the site's app icon
 // (web/app/public/favicon.svg), so both carry the same Audify logo. WXT
 // picks up public/icon/<size>.png on its own. The PNGs are committed; run this

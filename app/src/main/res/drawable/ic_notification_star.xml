@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   Favorite, unset, on the media notification. The same star AudifyIcons.Star
   draws in the player; Media3's own ICON_STAR is Material's sharp-tipped one.
 -->

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { describe, expect, it } from 'vitest';
 import { albumIdOf, matches, motionUrls, normalizeForMatch, ranked, splitArtists } from './motion';
 

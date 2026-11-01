@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 060 — Selected feature 10: Audio presets per output
 
 **Status: planned — extends EQ foundation in plan 032; output routing capability must be audited first.**

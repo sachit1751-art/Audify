@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { usePlayer } from '@/state/player';

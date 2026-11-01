@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 buildscript {
     repositories {

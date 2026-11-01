@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Audify: the loop mix, a DJ transition on AutoMix's grids and stretch
  * decks. AGPL-3.0-only with the rest of playback/automix (see ../NOTICE.md).

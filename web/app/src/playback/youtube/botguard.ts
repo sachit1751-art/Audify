@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // BotGuard and WebPO tokens, ported from googlevideo's sabr-shaka-example
 // (src/BotguardService.ts) and Kira, https://github.com/LuanRT, MIT License.
 //

@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 # R8 is on for release for speed, not size — see the note on isMinifyEnabled in
 # build.gradle.kts. These rules keep it away from everything that finds classes
 # by name at runtime, where a missing class shows up as a crash on a device

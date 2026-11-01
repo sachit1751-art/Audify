@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { create } from 'zustand';
 import { LYRICS_SOURCES, orderedSources, type LyricsSourceId } from './sources';
 

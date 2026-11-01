@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { HttpRequest, HttpResponse } from '@audify/shared/bridge';
 
 import { LYRIC_ORIGINS, patternOf } from './lyricHosts';

@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { PageHeader } from '@/components/PageHeader';
 import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 import { DetailSkeleton } from './DetailSkeleton';

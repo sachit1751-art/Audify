@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useQuery } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
 import { requestHostAccess, useHostAccess } from '@/extension/useHostAccess';

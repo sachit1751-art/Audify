@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { YTMusic, YTNodes } from 'youtubei.js/web';
 import type { Candidate } from '@/playback/queue/builder';
 import { getInnertube, getMusicClient, getSignedInnertube } from '@/playback/youtube/innertube';

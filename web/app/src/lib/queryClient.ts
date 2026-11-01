@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { QueryClient } from '@tanstack/react-query';
 
 /** The app's one query client; modules outside React read cached results from it. */

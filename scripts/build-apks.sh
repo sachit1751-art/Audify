@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 # Audify (Sachit Music) — build APKs for release
 # Double-click build-apks.bat on Windows, or run this directly on macOS/Linux.
 set -euo pipefail

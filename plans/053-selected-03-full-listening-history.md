@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 053 — Selected feature 03: Full listening history
 
 **Status: planned — extends existing stats recorder; no per-play event history is currently documented.**

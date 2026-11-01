@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { detectExtension, type DetectedExtension } from '@audify/shared/bridge';
 import { useQuery } from '@tanstack/react-query';
 import { config } from '@/config';

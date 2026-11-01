@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { PrefetchLink } from '@/components/PrefetchLink';
 
 /** A page-sized message, centred: also the Spotify page's sign-in invitation. */

@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify for Wear OS
 
 A watch remote for the Audify phone app: now playing over the player's mesh

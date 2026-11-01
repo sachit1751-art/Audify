@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 059 — Selected feature 09: Smarter queue management
 
 **Status: planned — builds on existing queue sections/history; avoid duplicating shipped behavior.**

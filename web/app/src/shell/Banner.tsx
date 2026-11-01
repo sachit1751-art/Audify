@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 

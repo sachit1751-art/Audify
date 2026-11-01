@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * The library sections, signed in (prompt §5.3), in Apple's sidebar order
  * (report §1: Recently Added · Artists · Albums · Songs · Made for You). Each

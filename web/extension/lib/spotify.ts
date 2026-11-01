@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { SpotifyAuthState, SpotifyPage, SpotifyPlaylist, SpotifyTrack } from '@audify/shared/bridge';
 import { installSpotifyFetchRule } from './rules';
 

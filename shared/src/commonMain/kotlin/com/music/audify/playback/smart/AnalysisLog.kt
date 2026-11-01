@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 package com.music.audify.playback.smart
 
 /** Where the analyser's warnings go, without it having to know the platform. */

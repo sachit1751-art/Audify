@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * The glass rendering itself is Kyant0/backdrop (Apache-2.0), vendored at
  * [com.music.audify.ui.components.backdrop] — see that package for the

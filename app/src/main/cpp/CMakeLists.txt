@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 # Native analysis front end for Automix.
 #
 # Phase 1: whole-track DSP analysis (tempo/key/energy/structure via

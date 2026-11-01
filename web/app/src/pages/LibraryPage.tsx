@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect, useRef } from 'react';
 import { Navigate, useParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';

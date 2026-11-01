@@ -1,3 +1,5 @@
+REM Copyright (c) 2026 Sachit. All rights reserved.
+REM Project: AUDIFY
 @echo off
 rem Audify (Sachit Music) - double-click wrapper that builds every shippable APK
 rem with the bundled Gradle wrapper, drops a fresh set into dist\ at the project

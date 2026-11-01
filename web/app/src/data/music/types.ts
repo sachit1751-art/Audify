@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * What the browse pages render, independent of YouTube.js's node classes.
  * Mappers (mappers.ts) build these from yt.music responses; pages never touch

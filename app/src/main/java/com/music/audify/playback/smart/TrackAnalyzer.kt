@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * Modeled on Orchard's own TrackAnalyzer (https://github.com/SFG5453/Orchard).
  * Phase 1 was the DSP-only pass (native/analyzer/audio_analysis.cpp); Phase 2

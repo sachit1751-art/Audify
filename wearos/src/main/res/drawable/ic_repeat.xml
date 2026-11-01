@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <!-- AudifyIcons.Repeat: two straights joined by semicircles, heads flat on the straights. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"

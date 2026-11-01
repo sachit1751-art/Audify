@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Ported from googlevideo's sabr-shaka-example (src/helpers.ts),
 // https://github.com/LuanRT/googlevideo, MIT License, Copyright (c) LuanRT.
 // The ytc-bridge proxy helpers are dropped: Audify's extension supplies

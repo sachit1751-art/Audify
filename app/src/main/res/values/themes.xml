@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 <resources>
     <!-- Compose owns all theming; this just gives an edge-to-edge, action-bar-free window. -->
     <style name="Theme.Audify" parent="Theme.AppCompat.DayNight.NoActionBar">

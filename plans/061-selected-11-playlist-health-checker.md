@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 061 — Selected feature 11: Playlist health checker
 
 **Status: planned — share scanner primitives with plan 055; keep playlist findings distinct from library cleanup.**

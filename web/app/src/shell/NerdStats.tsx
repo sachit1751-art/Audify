@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useEffect, useReducer, useState } from 'react';
 import { useParty } from '@/party/listenTogether';
 import type { AutoDJSnapshot } from '@/playback/automix';

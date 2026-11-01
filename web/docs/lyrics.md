@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Lyrics (phase 8)
 
 Prompt §10. Our providers decide the lyrics; **am-lyrics renders them, unmodified**.

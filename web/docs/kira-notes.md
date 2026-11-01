@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Kira and ytc-bridge: how the reference web client plays YouTube
 
 Read on 2026-10-15.

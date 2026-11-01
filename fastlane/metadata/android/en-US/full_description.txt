@@ -1,0 +1,21 @@
+Audify is an open-source music player for Android, Android TV and Wear OS.
+
+Discover and organize music, manage playlists, play local audio, follow synchronized lyrics and customize playback.
+
+FEATURES
+
+• Music discovery: Search for songs, albums, artists and playlists.
+• Personal library: Access supported personalized content.
+• Playlist management: Create and organize playlists and manage the listening queue.
+• Local music: Browse and play audio stored on your device.
+• Background playback: Keep listening while using other apps.
+• Audio controls: Gapless playback, crossfade, playback speed, silence skipping and sleep timer.
+• Synchronized lyrics: Follow timed lyrics and navigate playback through them.
+• Offline listening: Save supported audio for local playback.
+• Customization: Material 3 interface, artwork-based colors and multiple launcher icons.
+• Multi-device support: Dedicated Android TV and Wear OS experiences.
+
+Audify is an independent third-party client and is not affiliated with or endorsed by Google or YouTube. Availability of connected services can vary.
+
+Source code: https://github.com/sachit1751-art/Audify
+License: GNU General Public License v3.0

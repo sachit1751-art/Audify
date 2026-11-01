@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { party, useParty } from '@/party/listenTogether';
 import { Infinity as InfinityIcon, MoreHorizontal, X } from 'lucide-react';
 import { useCallback, useState } from 'react';

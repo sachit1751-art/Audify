@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /*
  * The selection pill's motion — the travel spring, the held lift, the
  * acceleration squash and the glass-to-flat hand-off, with their constants —

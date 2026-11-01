@@ -1,4 +1,8 @@
-﻿# Design context — Audify
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+# Design context — Audify
 
 > **Purpose:** practical visual and interaction guidance derived from the current Android/Compose implementation. Treat this as the design baseline, not permission to replace established patterns wholesale. Verify current rendered screens before changing them.
 

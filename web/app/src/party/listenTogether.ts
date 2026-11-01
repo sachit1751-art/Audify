@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { create } from 'zustand';
 import { config } from '@/config';
 import { ytAuthSnapshot } from '@/extension/useYtAuth';

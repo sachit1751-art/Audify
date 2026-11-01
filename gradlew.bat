@@ -13,6 +13,8 @@
 @rem See the License for the specific language governing permissions and
 @rem limitations under the License.
 @rem
+@rem Copyright (c) 2026 Sachit. All rights reserved.
+@rem Project: AUDIFY
 
 @if "%DEBUG%" == "" @echo off
 @rem ##########################################################################

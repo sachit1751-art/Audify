@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 // Ported from Kira (src/streaming/ShakaPlayerAdapter.ts),
 // https://github.com/LuanRT/kira, MIT License, Copyright (c) LuanRT.
 // Kira targets the published googlevideo 4.x API, which is what Audify

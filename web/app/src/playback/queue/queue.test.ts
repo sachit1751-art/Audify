@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { describe, expect, it } from 'vitest';
 import type { Track } from '@/data/music/types';
 import { artistSet, extendStation, isSameRecording, type Candidate } from './builder';

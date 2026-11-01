@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   Picker artwork for the 2×2 widget, on hosts older than API 31 — from 31 the
   picker inflates previewLayout instead and this is never seen.
 

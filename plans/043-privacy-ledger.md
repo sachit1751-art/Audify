@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 043 — Privacy ledger
 
 **Status: not started.** Verified at commit `61778ab4` — no privacy ledger exists. The app has outbound calls 

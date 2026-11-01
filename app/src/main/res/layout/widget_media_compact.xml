@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   The 2×2 widget, and the shape either widget takes when it is narrower than
   MediaWidget.WIDE_LAYOUT_MIN_DP: full-bleed artwork with the track name over
   three centred transport buttons, in a band at the foot of it.

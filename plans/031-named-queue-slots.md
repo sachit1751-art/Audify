@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Plan 031 — Named queue slots with resume
 
 **Status: not started.** Verified at commit `4a3bee56` — no named queue slots, no sidecar-persisted

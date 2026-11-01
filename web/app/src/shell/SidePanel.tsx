@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { lazy, Suspense } from 'react';
 import { useUi } from '@/state/ui';
 import { UpNext } from './UpNext';

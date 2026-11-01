@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Audify TV
 
 Android TV / Google TV build of Audify: a remote-first Compose-for-TV interface

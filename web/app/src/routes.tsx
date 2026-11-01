@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { Navigate, type RouteObject } from 'react-router';
 import { notFound, pageElement, pages } from '@/pageRegistry';
 import { AppShell } from '@/shell/AppShell';

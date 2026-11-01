@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { albumHref, artistHref } from '@/components/music/links';
 import { fetchTrackLinks, findArtistPageId } from '@/data/music/api';
 import type { AlbumRef, ArtistRef } from '@/data/music/types';

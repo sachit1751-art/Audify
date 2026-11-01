@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { HttpResponse, YtFetchParams } from '@audify/shared/bridge';
 import { installExtensionFetchRule } from './rules';
 import { activeIdentity, signedFetch, SignedOutError } from './ytAuth';

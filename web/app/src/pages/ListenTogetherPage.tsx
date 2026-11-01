@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, Copy, Crown, LogOut, UserMinus } from 'lucide-react';
 import { useEffect, useState } from 'react';

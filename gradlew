@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
 
 #
 # Copyright 2015 the original author or authors.

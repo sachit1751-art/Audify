@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { ChevronsUpDown } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Menu, MenuItem } from './Menu';

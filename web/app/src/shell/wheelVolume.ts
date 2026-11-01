@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /** One wheel notch moves the volume by this much (the drag slider is finer). */
 export const WHEEL_VOLUME_STEP = 0.05;
 

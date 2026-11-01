@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * Apple Music's motion artwork, read and matched (no network here, so it can
  * be tested on its own). A port of the phone's AppleMusicCanvas.kt: the

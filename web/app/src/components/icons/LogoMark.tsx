@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import markSvg from '@/assets/logo-mark.svg?raw';
 
 // Audify's mark, the same file the desktop app ships, recoloured to

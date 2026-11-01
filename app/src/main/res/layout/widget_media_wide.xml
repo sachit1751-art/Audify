@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
+<!--
   The 4×2 widget, and the shape either widget takes at
   MediaWidget.WIDE_LAYOUT_MIN_DP or wider. Same full-bleed cover and same baked
   blur as widget_media_compact; the extra width goes to the track, because three

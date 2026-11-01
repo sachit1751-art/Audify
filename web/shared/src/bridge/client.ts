@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import {
   BRIDGE_CHANNEL,
   BRIDGE_PROTOCOL,

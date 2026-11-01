@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import { useLayoutEffect, useRef } from 'react';
 import { claimVideoSurface, type VideoFit } from '@/state/video';
 

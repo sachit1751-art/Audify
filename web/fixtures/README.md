@@ -1,3 +1,7 @@
+<!--
+Copyright (c) 2026 Sachit. All rights reserved.
+Project: AUDIFY
+-->
 # Fixtures
 
 Real responses, captured by `node web/scripts/capture-fixtures.mjs [innertube|lyrics]`. Parsers are tested against these files, never against hand-written JSON (build prompt §0).

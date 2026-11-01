@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 
 /** The page title row (report §1, `.header-nav`). */
 export function PageHeader({ title }: { title: string }) {

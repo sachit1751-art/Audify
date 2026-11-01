@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 import type { YtAccount, YtAuthState, YtChannel } from '@audify/shared/bridge';
 import { installExtensionFetchRule } from './rules';
 

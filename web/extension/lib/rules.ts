@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * declarativeNetRequest rules that let the site talk to YouTube from the page
  * itself (prompt §4.2). Audio bytes and InnerTube responses go straight to the

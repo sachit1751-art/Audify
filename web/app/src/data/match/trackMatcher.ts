@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Sachit. All rights reserved.
+// Project: AUDIFY
 /**
  * Whether one catalogue's track is the same recording as another's: a port of
  * TrackMatcher.kt (shared/…/data/sources), line for line where it can be.
