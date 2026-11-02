@@ -1,4 +1,4 @@
-﻿# Audify 1.8.4 — Demo screenshots
+# Audify — Demo screenshots
 
 Captured from the signed `ProdRelease` x86_64 APK on the `audify_shots` Android emulator.
 

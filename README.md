@@ -100,7 +100,7 @@ Audify is free and open-source software distributed under the GNU General Public
 - **Lyrics navigation:** Seek through a track using its timed lyrics.
 - **Animated artwork:** View motion artwork and album art on the now-playing screen.
 - **Dynamic theming:** Let the interface draw colors from the currently playing artwork.
-- **Material 3 design:** Customize the look and feel with a modern interface and translucent visual elements.
+- **Material 3 design:** Customize the look and feel with a modern interface and translucent visual elements. Progressive top and bottom scroll-edge blur can be switched off independently in Settings.
 
 ### Downloads and connected services
 
@@ -140,7 +140,7 @@ The following implementation plans have been completed and verified:
 
 For most Android phones, choose the `arm64-v8a` APK. Use the universal APK only if you are unsure which architecture your device uses; it is substantially larger. Android TV and Wear OS packages are separate and should only be installed on those devices.
 
-Audify 1.8.4 is the current stable release. Check [its release notes](RELEASE_NOTES_1.8.4.md) for compatibility details and known limitations. Download signed APKs from the [GitHub Releases page](https://github.com/sachit1751-art/Audify/releases). Prereleases, when published, are separate evaluation builds.
+Audify **1.8.6** (`v1.8.6`) is the current stable release, published on 2026-11-02. Read the [1.8.6 release notes](RELEASE_NOTES_1.8.6.md) for changes, compatibility details, and verification status. Download the signed phone, Android TV, or Wear OS APKs from the [1.8.6 release page](https://github.com/sachit1751-art/Audify/releases/tag/v1.8.6). Prereleases, when published, are separate evaluation builds.
 
 Phone releases may include separate APKs for `arm64-v8a`, `armeabi-v7a`, `x86_64`, and a universal package. Most current Android phones use `arm64-v8a`. Android TV and Wear OS builds are published as separate variants when included in a release.
 

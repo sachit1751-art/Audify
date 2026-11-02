@@ -1,4 +1,4 @@
-﻿# Audify 1.8.6
+# Audify 1.8.6
 
 ## What's new
 
@@ -21,6 +21,11 @@
 - All nine production APKs verified with APK Signature Scheme v2 and the same Audify Release certificate (SHA-256: `3901ab0e231ff1369f42373891d63893b224b87ff8bdc12638873acaec1ff130`).
 - `git diff --check` passed.
 - Device-install verification was unavailable because no Android device/emulator was connected during release preparation.
+
+## Publication
+
+- Published as the stable (non-prerelease) GitHub release on 2026-11-02: https://github.com/sachit1751-art/Audify/releases/tag/v1.8.6.
+- All 11 release assets are uploaded: nine production APKs, BUILD-MANIFEST.txt, and SHA256SUMS.txt.
 
 ## Downloads
 

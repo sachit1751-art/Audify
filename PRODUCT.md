@@ -6,7 +6,7 @@ Project: AUDIFY
 
 > **Purpose:** durable product brief for contributors and implementation agents. This document describes the product evidenced by the current repository and distinguishes shipped behavior from planned work. It is not a promise that every upstream service or optional integration is always available.
 >
-> **Context snapshot:** reviewed 2026-11-02 against stable release `1.8.4` (`v1.8.4`). Production APKs are signed and all three module lint tasks report zero errors.
+> **Context snapshot:** reviewed 2026-11-02 against published stable release `1.8.6` (`v1.8.6`). Phone, Android TV, and Wear OS production APKs are signed; all nine APKs passed signature verification. Device-install verification was unavailable because no device/emulator was connected during release preparation.
 
 ## Product summary
 
@@ -52,7 +52,7 @@ The following is a repository-backed snapshot, not a guarantee that each third-p
 
 ### Lyrics and presentation
 - Synchronized line-/word-level lyrics from supported providers, lyric navigation/seeking, provider selection, and offset controls.
-- Artwork-driven theming/backdrop effects and a shared Compose motion-token foundation.
+- Artwork-driven theming/backdrop effects, progressive top/bottom scroll-edge blur with an independent Settings toggle, and a shared Compose motion-token foundation.
 - Profile listening aggregates and a weekly recap; monthly/time-aware discovery surfaces exist.
 
 ### Downloads and integrations
