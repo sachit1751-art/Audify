@@ -34,8 +34,8 @@ plugins {
  * No "v" in the name — the in-app updater reads it as a number; the "v" is the
  * release tag's alone.
  */
-extra["audifyVersionCode"] = 32
-extra["audifyVersionName"] = "1.8.4"
+extra["audifyVersionCode"] = 33
+extra["audifyVersionName"] = "1.8.5"
 
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",

@@ -3272,12 +3272,13 @@ private fun AudifyApp(
                                     val categories = (exploreState as? UiState.Success)?.data.orEmpty()
                                         .flatMap { it.items }
                                     val terms = when (mood) {
-                                        "Energize" -> listOf("energy", "energ", "feel good")
-                                        "Workout" -> listOf("workout", "fitness", "exercise")
+                                        "Energy" -> listOf("energy", "energ", "upbeat")
                                         "Relax" -> listOf("relax", "chill", "calm")
+                                        "Feeling Blue" -> listOf("feeling blue", "sad", "melancholy", "blue")
+                                        "Feel Good" -> listOf("feel good", "happy", "good mood", "feel-good")
                                         "Focus" -> listOf("focus", "concentration", "study")
-                                        "Commute" -> listOf("commute", "driving", "road trip")
-                                        "Party" -> listOf("party", "dance", "celebration")
+                                        "Heartbreak" -> listOf("heartbreak", "breakup", "broken heart")
+                                        "Love" -> listOf("love", "romance", "romantic")
                                         else -> listOf(mood.lowercase())
                                     }
                                     val category = categories.firstOrNull { item ->

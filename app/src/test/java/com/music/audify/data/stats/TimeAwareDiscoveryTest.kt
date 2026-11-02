@@ -3,6 +3,7 @@
 package com.music.audify.data.stats
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
@@ -76,6 +77,23 @@ class TimeAwareDiscoveryTest {
             selectTimeAwareDiscoveryShelf(listOf(recents, fallback), ListeningHourBlock.LATE_NIGHT),
         )
         assertNull(selectTimeAwareDiscoveryShelf(listOf(recents), ListeningHourBlock.MORNING))
+    }
+
+    @Test
+    fun homeFeedVariationIsStablePerInstallAndDifferentAcrossInstallSeeds() {
+        val shelves = listOf(
+            HomeShelf("Recently played", listOf(shelfItem("history"))),
+            HomeShelf("Mixes", (1..8).map { shelfItem("mix-$it") }),
+            HomeShelf("Fresh playlists", (1..8).map { shelfItem("playlist-$it") }),
+            HomeShelf("New albums", (1..8).map { shelfItem("album-$it") }),
+            HomeShelf("Discover", (1..8).map { shelfItem("discover-$it") }),
+        )
+
+        val firstInstall = varyHomeFeed(shelves, 1234L)
+        assertEquals(firstInstall, varyHomeFeed(shelves, 1234L))
+        assertEquals("Recently played", firstInstall.first().title)
+        assertEquals("Recently played", varyHomeFeed(shelves, 9876L).first().title)
+        assertNotEquals(firstInstall, varyHomeFeed(shelves, 9876L))
     }
 
     private fun shelfItem(id: String) = ShelfItem(

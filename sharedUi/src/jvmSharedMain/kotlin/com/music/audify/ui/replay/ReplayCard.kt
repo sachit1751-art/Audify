@@ -42,7 +42,7 @@ fun ReplayCreditCard(
 ) {
     Row(
         modifier = modifier
-            .height(144.dp)
+            .height(116.dp)
             .clip(CardShape)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable(onClick = onClick)
@@ -51,7 +51,7 @@ fun ReplayCreditCard(
     ) {
         Box(
             Modifier
-                .size(116.dp)
+                .size(88.dp)
                 .clip(ArtworkShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
@@ -64,10 +64,10 @@ fun ReplayCreditCard(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                InitialTile(label, 116.dp, ArtworkShape)
+                InitialTile(label, 88.dp, ArtworkShape)
             }
         }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         Column(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             verticalArrangement = Arrangement.Center,
@@ -83,10 +83,10 @@ fun ReplayCreditCard(
             Spacer(Modifier.height(5.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (!detail.isNullOrBlank()) {
@@ -95,7 +95,7 @@ fun ReplayCreditCard(
                     text = detail,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

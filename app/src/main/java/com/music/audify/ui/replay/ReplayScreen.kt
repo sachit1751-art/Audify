@@ -502,7 +502,7 @@ internal fun ReplayCardRow(
                         detail = card.detail,
                         artworkUrl = card.artworkUrl,
                         onClick = { onCardClick(card.page) },
-                        modifier = Modifier.width(minOf(292.dp, maxWidth * 0.86f)),
+                        modifier = Modifier.width(minOf(264.dp, maxWidth * 0.82f)),
                     )
                 }
             }

@@ -6,6 +6,8 @@ import com.music.audify.sharedui.resources.*
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,10 +29,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -152,12 +159,20 @@ private fun MoodGenreCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) .975f else 1f,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "explore-category-press",
+    )
     MoodGenreSleeve(
         item = item,
         modifier = modifier
-            .aspectRatio(MOOD_CARD_ASPECT)
+            .aspectRatio(1.42f)
             .clip(MOOD_CARD_SHAPE)
-            .clickable(onClick = onClick),
+            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
     )
 }
 
@@ -194,12 +209,18 @@ fun MoodGenreSleeve(
                 )
             }
         }
-        // Pale stripes (Energize's cream, Feel good's mint) would swallow
+        // Pale stripes would swallow
         // white type; a soft shade under the title keeps it legible.
         Box(
             Modifier
                 .matchParentSize()
-                .background(Brush.verticalGradient(0f to Color.Black.copy(alpha = .24f), .62f to Color.Transparent)),
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = .30f),
+                        .48f to Color.Black.copy(alpha = .04f),
+                        1f to Color.Black.copy(alpha = .36f),
+                    ),
+                ),
         )
         Text(
             text = item.title,
@@ -267,13 +288,13 @@ private fun fallbackMoodColor(title: String): Color = when ((title.hashCode() an
 /** Gap between mood cards, in both directions. */
 private val MOOD_SPACING = 12.dp
 
-private val MOOD_CARD_SHAPE = RoundedCornerShape(18.dp)
+private val MOOD_CARD_SHAPE = RoundedCornerShape(22.dp)
 
 /** Width over height; a two-column phone row lands at about 100dp tall. */
-const val MOOD_CARD_ASPECT = 1.72f
+const val MOOD_CARD_ASPECT = 1.42f
 
 /** How much of the card the solid stripe covers before the artwork starts. */
-private const val MOOD_STRIPE_FRACTION = .28f
+private const val MOOD_STRIPE_FRACTION = .34f
 
 /**
  * The narrowest a mood card is let get before the row drops a column.

@@ -309,6 +309,7 @@ fun SettingsScreen(
     // exactly as if the field weren't there.
     // Saveable so a search survives a trip into one of the pages it found.
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
     var picking by remember { mutableStateOf<QualityTarget?>(null) }
     var pickingDownloadQuality by remember { mutableStateOf(false) }
     var pickingAutomixPerformance by remember { mutableStateOf(false) }
@@ -397,7 +398,16 @@ fun SettingsScreen(
     // Made fresh on every pass rather than remembered: it tallies the rows
     // that answered to the query, and that tally has to start from zero each
     // time the query changes.
-    val search = SettingsSearch(searchQuery)
+    val accountCategory = stringResource(R.string.account_integrations)
+    val audioQualityCategory = stringResource(R.string.audio_quality)
+    val categoryIndex = selectedCategory == null && searchQuery.isBlank()
+    val search = SettingsSearch(
+        searchQuery,
+        selectedCategory,
+        accountCategory,
+        audioQualityCategory,
+        categoryIndex,
+    )
 
     // What is left after a keystroke is a different list, and the offset the
     // last one was scrolled to means nothing in it.
@@ -421,15 +431,38 @@ fun SettingsScreen(
             .verticalScroll(scrollState)
             .padding(contentPadding),
     ) {
+        if (selectedCategory != null) {
+            Row(
+                modifier = Modifier
+                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {
+                        selectedCategory = null
+                        searchQuery = ""
+                    }
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp).scale(-1f, 1f))
+                Text(
+                    text = stringResource(R.string.settings),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
         Text(
-            text = stringResource(R.string.settings),
+            text = selectedCategory ?: stringResource(R.string.settings),
             style = MaterialTheme.typography.displayLarge,
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
         )
         SearchField(
             query = searchQuery,
-            onQueryChange = { searchQuery = it },
+            onQueryChange = {
+                searchQuery = it
+                if (it.isNotBlank()) selectedCategory = null
+            },
             onSubmit = {},
             placeholder = stringResource(R.string.settings_search_hint),
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
@@ -538,6 +571,32 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setDolbyAtmos(!dolbyAtmos) },
+                )
+            }
+        }
+
+        if (categoryIndex) {
+            val categories = listOf(
+                stringResource(R.string.downloads) to Icons.Rounded.Download,
+                stringResource(R.string.playback) to Icons.Rounded.SmartDisplay,
+                stringResource(R.string.appearance) to Icons.Rounded.Brightness4,
+                stringResource(R.string.performance) to Icons.Rounded.BarChart,
+                stringResource(R.string.local_music) to Icons.Rounded.Folder,
+                stringResource(R.string.storage) to Icons.Rounded.Storage,
+                stringResource(R.string.your_data) to Icons.Rounded.History,
+                stringResource(R.string.miscellaneous) to Icons.Rounded.Apps,
+                stringResource(R.string.language) to Icons.Rounded.Language,
+                stringResource(R.string.advanced_options) to Icons.Rounded.Extension,
+            )
+            categories.forEach { (title, icon) ->
+                SettingsCategoryCard(
+                    title = title,
+                    icon = icon,
+                    onClick = { selectedCategory = title },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 10.dp),
                 )
             }
         }
@@ -1311,7 +1370,7 @@ fun SettingsScreen(
 
         // Only in a build that carries the watch app — see app/build.gradle.kts.
         if (remember { WatchInstaller.available(context) }) {
-            SearchableSettingsGroup(search) {
+            SearchableSettingsGroup(search, header = stringResource(R.string.performance)) {
                 row(stringResource(R.string.wear_os_section), "watch", "wear os", "galaxy watch", "pixel watch", "install") {
                     WearOsSettingsRow(onClick = onWearOs)
                 }
@@ -1608,7 +1667,7 @@ fun SettingsScreen(
 
         // Read after every group above has had its turn at the query, which is
         // what makes this an accurate "nothing here" rather than a guess.
-        if (!search.anyMatch) {
+        if (searchQuery.isNotBlank() && !search.anyMatch) {
             MessageState(stringResource(R.string.settings_search_empty, searchQuery))
         }
 
@@ -1628,16 +1687,12 @@ fun SettingsScreen(
                     append("GitHub")
                 }
                 append("  ")
-                withLink(LinkAnnotation.Url("https://github.com/kushagrasinghx", linkStyles)) {
+                withLink(LinkAnnotation.Url("https://github.com/sachit1751-art", linkStyles)) {
                     append("Developer")
                 }
                 append("  ")
-                withLink(LinkAnnotation.Url("https://discord.gg/pDdKfrdHY6", linkStyles)) {
-                    append("Discord")
-                }
-                append("  ")
-                withLink(LinkAnnotation.Url("https://bitchord.kushagrasingh.in/", linkStyles)) {
-                    append("Website")
+                withLink(LinkAnnotation.Url("https://github.com/sachit1751-art/Audify/issues/new/choose", linkStyles)) {
+                    append("Issues / Bugs")
                 }
                 append("\n~YouTube Music & Listen Together Backend")
             },
@@ -2352,7 +2407,13 @@ internal val TEXT_INSET = ROW_INSET + ICON_SIZE + ICON_GAP
  * every group has had its turn, which is why this is made fresh on each pass
  * rather than remembered.
  */
-private class SettingsSearch(query: String) {
+private class SettingsSearch(
+    query: String,
+    private val selectedCategory: String?,
+    private val accountCategory: String,
+    private val audioQualityCategory: String,
+    private val categoryIndex: Boolean,
+) {
     // Trimmed, because a trailing space is a typo rather than a search for
     // something ending in one — and on a phone keyboard it is one keystroke
     // away from every word typed.
@@ -2362,10 +2423,62 @@ private class SettingsSearch(query: String) {
         private set
 
     fun matches(vararg keywords: String?): Boolean {
+        val header = keywords.firstOrNull()
+        if (categoryIndex) {
+            return header == null || header == audioQualityCategory
+        }
+        if (selectedCategory != null &&
+            header != selectedCategory &&
+            !(header == null && selectedCategory == accountCategory)
+        ) return false
         val hit = needle.isEmpty() ||
             keywords.any { it?.contains(needle, ignoreCase = true) == true }
         if (hit) anyMatch = true
         return hit
+    }
+}
+
+@Composable
+private fun SettingsCategoryCard(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 76.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            Icons.Rounded.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(17.dp),
+        )
     }
 }
 

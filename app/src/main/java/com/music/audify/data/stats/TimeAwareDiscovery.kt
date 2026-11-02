@@ -5,6 +5,26 @@ package com.music.audify.data.stats
 import com.music.audify.data.model.HomeShelf
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlin.random.Random
+
+/**
+ * Gives each installation its own discovery ordering without disturbing the
+ * listener's chronological history shelves. The seed is persisted per install
+ * by MainViewModel, so recomposition/reloads stay stable while reinstalling
+ * produces a different first impression.
+ */
+internal fun varyHomeFeed(shelves: List<HomeShelf>, installSeed: Long): List<HomeShelf> {
+    val (history, discovery) = shelves.partition { shelf ->
+        shelf.title.equals("Recents", ignoreCase = true) ||
+            shelf.title.equals("Recently played", ignoreCase = true)
+    }
+    val variedDiscovery = discovery
+        .map { shelf ->
+            shelf.copy(items = shelf.items.shuffled(Random(installSeed xor shelf.title.hashCode().toLong())))
+        }
+        .shuffled(Random(installSeed))
+    return history + variedDiscovery
+}
 
 /** The four local-time windows used to shape the Home discovery shelf. */
 enum class ListeningHourBlock(val labelKey: String, private val hours: IntRange) {

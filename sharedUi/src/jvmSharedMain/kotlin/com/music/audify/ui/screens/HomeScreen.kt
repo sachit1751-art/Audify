@@ -772,12 +772,13 @@ private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: ((
 private data class HomeMoodCard(val title: String, val colors: List<Color>)
 
 private val HOME_MOOD_CARDS = listOf(
-    HomeMoodCard("Energize", listOf(Color(0xFFDB6B43), Color(0xFF8D315D))),
-    HomeMoodCard("Workout", listOf(Color(0xFF277A79), Color(0xFF1D3F69))),
-    HomeMoodCard("Relax", listOf(Color(0xFF638A78), Color(0xFF294C55))),
-    HomeMoodCard("Focus", listOf(Color(0xFF5867A8), Color(0xFF34335F))),
-    HomeMoodCard("Commute", listOf(Color(0xFFB47743), Color(0xFF6C3F62))),
-    HomeMoodCard("Party", listOf(Color(0xFFB64F75), Color(0xFF593B91))),
+    HomeMoodCard("Energy", listOf(Color(0xFFFF7043), Color(0xFFE53970))),
+    HomeMoodCard("Relax", listOf(Color(0xFF45B7A0), Color(0xFF2674A8))),
+    HomeMoodCard("Feeling Blue", listOf(Color(0xFF4385D1), Color(0xFF5146A8))),
+    HomeMoodCard("Feel Good", listOf(Color(0xFFFFB52E), Color(0xFFFF6F61))),
+    HomeMoodCard("Focus", listOf(Color(0xFF6976D8), Color(0xFF39468E))),
+    HomeMoodCard("Heartbreak", listOf(Color(0xFFB85A83), Color(0xFF563D79))),
+    HomeMoodCard("Love", listOf(Color(0xFFFF668C), Color(0xFFB83272))),
 )
 
 @Composable
@@ -838,7 +839,7 @@ private fun MoodArtCard(
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     scaleX = 1f + motion * 0.035f
                     scaleY = 1f + motion * 0.035f
-                    rotationZ = motion * (if (mood.title == "Commute") -3f else 3f)
+                    rotationZ = motion * (if (mood.title == "Feeling Blue") -3f else 3f)
                 },
             )
         }
@@ -871,6 +872,15 @@ private fun MoodLineArt(mood: String, progress: Float, modifier: Modifier = Modi
             scale(scaleX = 1f + progress * 0.04f, scaleY = 1f + progress * 0.04f, pivot = Offset(cx, cy))
         }) {
             when (mood) {
+                "Energy" -> {
+                    val pulse = Path().apply {
+                        moveTo(w * .18f, h * .52f); lineTo(w * .38f, h * .52f)
+                        lineTo(w * .49f, h * .25f); lineTo(w * .61f, h * .72f)
+                        lineTo(w * .72f, h * .40f); lineTo(w * .84f, h * .52f)
+                    }
+                    drawPath(pulse, base, style = Stroke(stroke * 1.7f, cap = StrokeCap.Round))
+                    repeat(3) { i -> drawCircle(faint, unit * (.16f + i * .075f), Offset(cx, cy), style = lineStyle) }
+                }
                 "Energize" -> {
                     val pulse = Path().apply {
                         moveTo(w * .28f, h * .42f)
@@ -905,6 +915,42 @@ private fun MoodLineArt(mood: String, progress: Float, modifier: Modifier = Modi
                         drawPath(wave, if (i == 1) base else faint, style = lineStyle)
                     }
                     drawCircle(base, unit * .055f, Offset(w * .72f, h * .22f), style = lineStyle)
+                }
+                "Feeling Blue" -> {
+                    drawCircle(base, unit * .16f, Offset(w * .68f, h * .34f), style = lineStyle)
+                    val wave = Path().apply {
+                        moveTo(w * .12f, h * .72f)
+                        cubicTo(w * .30f, h * .50f, w * .48f, h * .92f, w * .68f, h * .68f)
+                        cubicTo(w * .78f, h * .56f, w * .84f, h * .58f, w * .92f, h * .50f)
+                    }
+                    drawPath(wave, faint, style = Stroke(stroke * 1.4f, cap = StrokeCap.Round))
+                    drawCircle(base, unit * .035f, Offset(w * .68f, h * .57f))
+                }
+                "Feel Good" -> {
+                    repeat(8) { i ->
+                        val angle = i * 45f * (kotlin.math.PI.toFloat() / 180f)
+                        drawLine(base, Offset(cx + kotlin.math.cos(angle) * unit * .17f, cy + kotlin.math.sin(angle) * unit * .17f), Offset(cx + kotlin.math.cos(angle) * unit * .34f, cy + kotlin.math.sin(angle) * unit * .34f), stroke * 1.4f, StrokeCap.Round)
+                    }
+                    drawCircle(base, unit * .13f, Offset(cx, cy), style = lineStyle)
+                }
+                "Heartbreak" -> {
+                    val heart = Path().apply {
+                        moveTo(w * .62f, h * .78f)
+                        cubicTo(w * .05f, h * .43f, w * .30f, h * .12f, w * .50f, h * .34f)
+                        cubicTo(w * .70f, h * .12f, w * .95f, h * .43f, w * .62f, h * .78f)
+                    }
+                    drawPath(heart, base, style = lineStyle)
+                    drawLine(faint, Offset(w * .53f, h * .31f), Offset(w * .43f, h * .52f), stroke, StrokeCap.Round)
+                    drawLine(faint, Offset(w * .43f, h * .52f), Offset(w * .56f, h * .58f), stroke, StrokeCap.Round)
+                }
+                "Love" -> {
+                    val heart = Path().apply {
+                        moveTo(cx, h * .78f)
+                        cubicTo(w * .08f, h * .38f, w * .34f, h * .10f, cx, h * .34f)
+                        cubicTo(w * .86f, h * .10f, w * .92f, h * .38f, cx, h * .78f)
+                    }
+                    drawPath(heart, base, style = lineStyle)
+                    drawCircle(faint, unit * .34f, Offset(cx, cy), style = lineStyle)
                 }
                 "Focus" -> {
                     repeat(4) { i ->

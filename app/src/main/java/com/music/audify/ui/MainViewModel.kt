@@ -28,6 +28,7 @@ import com.music.audify.data.lyrics.LyricLine
 import com.music.audify.data.lyrics.LyricsRepository
 import com.music.audify.data.lyrics.LyricsSource
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.stats.varyHomeFeed
 import com.music.audify.ui.navigation.AppNavigator
 import com.music.audify.data.innertube.Innertube
 import com.music.audify.data.innertube.PlaybackTracker
@@ -59,6 +60,7 @@ import com.music.audify.data.model.EntityType
 import com.music.audify.data.settings.SearchHistory
 import com.music.audify.download.Downloads
 import android.util.LruCache
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -99,6 +101,7 @@ import com.music.audify.data.LocalGroup
 import com.music.audify.data.LocalGroups
 import com.music.audify.data.matchesSearch
 import java.util.Locale
+import kotlin.random.Random
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -107,6 +110,15 @@ enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class MainViewModel(app: Application) : AndroidViewModel(app) {
+
+    /** One random discovery layout per installation; uninstalling resets it. */
+    private val homeVariationSeed: Long = runCatching {
+        // noBackupFilesDir is cleared on uninstall and excluded from Android
+        // backup, so a restored install gets a genuinely fresh discovery seed.
+        val seedFile = File(app.noBackupFilesDir, "home_feed_variation_seed")
+        seedFile.takeIf(File::isFile)?.readText()?.toLongOrNull()
+            ?: Random.nextLong().also { seedFile.writeText(it.toString()) }
+    }.getOrElse { Random.nextLong() }
 
     private val authStore = AuthStore(app)
 
@@ -1717,18 +1729,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         identity == listenerKey() && generation == homeLoadGeneration.get()
 
     private fun publishHomeShelves(shelves: List<HomeShelf>, prepend: Boolean = false) {
+        val variedShelves = varyHomeFeed(shelves, homeVariationSeed)
         val existing = (_home.value as? UiState.Success)?.data.orEmpty()
         if (prepend) {
             // YouTube's core home can also contain a stale "Recently played"
             // shelf. The dedicated history endpoint wins and replaces it.
-            val replacing = shelves.map { it.title.lowercase(Locale.ROOT) }.toSet()
+            val replacing = variedShelves.map { it.title.lowercase(Locale.ROOT) }.toSet()
             homeSeenTitles.addAll(replacing)
-            _home.value = UiState.Success(shelves + existing.filterNot {
+            _home.value = UiState.Success(variedShelves + existing.filterNot {
                 it.title.lowercase(Locale.ROOT) in replacing
             })
             return
         }
-        val added = shelves.withoutRepeatsOf(existing)
+        val added = variedShelves.withoutRepeatsOf(existing)
             .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
         if (added.isNotEmpty()) _home.value = UiState.Success(existing + added)
     }
@@ -1740,7 +1753,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             if (identity != listenerKey()) return@onSuccess
             homeContinuation = feed.continuation
             homeSeenTitles.clear()
-            val shelves = feed.shelves.withoutRepeatsOf(emptyList())
+            val shelves = varyHomeFeed(feed.shelves, homeVariationSeed).withoutRepeatsOf(emptyList())
                 .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
             if (shelves.isNotEmpty()) _home.value = UiState.Success(shelves)
         }
@@ -1763,7 +1776,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             YtMusicRepository.moreHome(token).onSuccess { feed ->
                 if (identity == listenerKey()) {
                     val existing = (_home.value as? UiState.Success)?.data ?: emptyList()
-                    val added = feed.shelves.withoutRepeatsOf(existing)
+                    val added = varyHomeFeed(feed.shelves, homeVariationSeed xor token.hashCode().toLong())
+                        .withoutRepeatsOf(existing)
                         .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
                     // A page with nothing new signals the feed has looped back on
                     // itself rather than run dry with a token still attached —
