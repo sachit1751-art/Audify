@@ -2,7 +2,7 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 044 — Artist new-release notifications
+# Plan 01 — Artist new-release notifications
 
 **Status: not started.** Verified at commit `61778ab4` — no artist new-release notifications exist. The app 
 has artist pages, artist subscriptions/bookmarks (the executor checks at implementation time whether the app 

@@ -2,7 +2,7 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 063 — Selected feature 13: Advanced search filters
+# Plan 05 — Selected feature 13: Advanced search filters
 
 **Status: planned — extend current search behavior only after auditing provider query capabilities.**
 

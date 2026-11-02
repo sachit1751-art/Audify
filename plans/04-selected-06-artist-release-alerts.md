@@ -2,9 +2,9 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 056 — Selected feature 06: Artist release alerts
+# Plan 04 — Selected feature 06: Artist release alerts
 
-**Status: planned — reconciles existing plan 044.**
+**Status: planned — reconciles existing plan 01.**
 
 ## Objective
 
@@ -18,7 +18,7 @@ Release alerts are useful discovery, but false matches, duplicate notifications,
 
 - Artist identity and metadata are surfaced through existing artist screens and `data/canvas/ArtistSignatures.kt`.
 - Existing notification patterns include `data/webdav/WebDavUploadNotifications.kt`; inspect Android notification channels and permission handling.
-- Plan 044 is the original feature plan and must be reconciled before implementation.
+- Plan 01 is the original feature plan and must be reconciled before implementation.
 
 ## Scope
 
@@ -39,7 +39,7 @@ Release alerts are useful discovery, but false matches, duplicate notifications,
 
 ## Implementation
 
-1. Audit plan 044, provider terms/capabilities, artist ID stability, and current notification infrastructure.
+1. Audit plan 01, provider terms/capabilities, artist ID stability, and current notification infrastructure.
 2. Define a release record and matching confidence; avoid name-only matching where artist identity is ambiguous.
 3. Add explicit follow state and controls using existing permitted persistence; no schema change without approval.
 4. Implement rate-limited background checks with backoff and a bounded lookback window.

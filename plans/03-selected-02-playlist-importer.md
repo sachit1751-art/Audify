@@ -2,7 +2,7 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 052 — Selected feature 02: Complete playlist importer
+# Plan 03 — Selected feature 02: Complete playlist importer
 
 **Status: planned — extends existing plan 038; importer is partially implemented.**
 

@@ -2,7 +2,7 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 045 — Accessibility-first lyrics
+# Plan 02 — Accessibility-first lyrics
 
 **Status: not started.** Verified at commit `61778ab4` — lyrics exist (portrait `LyricsLine`, 
 `OriginalLyrics`, `ExperimentalLyrics`, landscape plan 027 pending) but there's no accessibility-focused 

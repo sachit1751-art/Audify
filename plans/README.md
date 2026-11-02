@@ -42,12 +42,20 @@ Only plan files currently present in this directory are listed below. Plans remo
 
 | Plan | Feature | Status / relationship |
 |---|---|---|
-| [044 - Artist new-release notifications](044-artist-new-release-notifications.md) | Followed-artist release alerts | **Not started - earlier baseline plan; reconcile with 056** |
-| [045 - Accessibility-first lyrics](045-accessibility-first-lyrics.md) | Accessible lyrics presentation | **Not started - retained plan; reconcile against current lyrics implementation** |
-| [052 - Complete playlist importer](052-selected-02-playlist-importer.md) | Playlist import and portability | **Planned - reconcile with existing importer and partial 038** |
-| [056 - Artist release alerts](056-selected-06-artist-release-alerts.md) | Robust followed-artist release alerts | **Planned - newer hardened extension of 044; use one unified implementation scope** |
-| [063 - Advanced search filters](063-selected-13-advanced-search-filters.md) | Capability-aware search filters | **Planned - provider capability audit required** |
-| [067 - Statistics dashboard](067-selected-17-statistics-dashboard.md) | Improved statistics dashboard | **Planned - build on current aggregate statistics; no false per-play precision** |
+| [01 - Artist new-release notifications](01-artist-new-release-notifications.md) | Followed-artist release alerts | **Not started - earlier baseline plan; reconcile with 04** |
+| [02 - Accessibility-first lyrics](02-accessibility-first-lyrics.md) | Accessible lyrics presentation | **Not started - retained plan; reconcile against current lyrics implementation** |
+| [03 - Complete playlist importer](03-selected-02-playlist-importer.md) | Playlist import and portability | **Planned - reconcile with existing importer and partial historical plan 038** |
+| [04 - Artist release alerts](04-selected-06-artist-release-alerts.md) | Robust followed-artist release alerts | **Planned - newer hardened extension of 01; use one unified implementation scope** |
+| [05 - Advanced search filters](05-selected-13-advanced-search-filters.md) | Capability-aware search filters | **Planned - provider capability audit required** |
+| [06 - Statistics dashboard](06-selected-17-statistics-dashboard.md) | Improved statistics dashboard | **Planned - build on current aggregate statistics; no false per-play precision** |
+| [07 - Explainable listening recommendations](07-explainable-listening-recommendations.md) | Listening-aware recommendations and discovery controls | **Proposal - audit existing Home shelves and available signals first** |
+| [08 - Music recognition](08-music-recognition.md) | Foreground music recognition and recognition history | **Proposal - external provider, privacy, permission, and battery review required** |
+| [09 - Player Studio](09-player-studio.md) | Player layouts, backgrounds, gestures, and motion controls | **Proposal - extend existing player components; no parallel design system** |
+| [10 - Local metadata intelligence](10-local-metadata-intelligence.md) | Rich local tags, extraction, and library reconciliation | **Proposal - reconcile with older local-library plans before implementation** |
+| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | AutoEQ-style headphone profiles and output-aware tuning | **Proposal - reconcile with existing output preset plan and audio pipeline** |
+| [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Provider fallback, correction/import, translation, and romanization | **Proposal - reconcile with lyrics plans and existing translation foundation** |
+| [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | Evaluate FCast and DLNA support | **Research proposal - architecture and maintenance gate before implementation** |
+| [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions, episodes, and playback workflows | **Proposal - separate product surface; explicit scope decision required** |
 
 ## Completed and archived
 

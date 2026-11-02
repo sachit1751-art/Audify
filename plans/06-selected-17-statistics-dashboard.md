@@ -2,7 +2,7 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 067 — Selected feature 17: Better statistics dashboard
+# Plan 06 — Selected feature 17: Better statistics dashboard
 
 **Status: planned — known UX gap; builds on current aggregate stats and recap features.**
 
