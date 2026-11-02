@@ -29,6 +29,7 @@ Project: AUDIFY
   <a href="#features">Features</a> &middot;
   <a href="#download">Download</a> &middot;
   <a href="#build-from-source">Build from source</a> &middot;
+  <a href="#roadmap">Roadmap</a> &middot;
   <a href="#contributing">Contributing</a>
 </p>
 
@@ -67,9 +68,9 @@ Audify is free and open-source software distributed under the GNU General Public
       <br><sub>Move through a track using its timed lyrics.</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/audit-artifacts/screenshots/audify-relaunch-late.png" alt="Audify restoring a listening session after relaunch" width="220">
-      <br><strong>Playback restoration</strong>
-      <br><sub>Return to your listening session.</sub>
+      <img src="docs/audit-artifacts/screenshots/audify-relaunch-late.png" alt="Audify welcome screen asking the listener what name to use" width="220">
+      <br><strong>Welcome</strong>
+      <br><sub>Start your Audify experience.</sub>
     </td>
     <td></td>
   </tr>
@@ -116,18 +117,9 @@ Audify is free and open-source software distributed under the GNU General Public
 - **Android TV:** A dedicated interface and build for television devices.
 - **Wear OS:** A companion build for supported watches.
 
-## Completed implementation plans
+## Roadmap
 
-The following implementation plans have been completed and verified:
-
-- **028 — Week-shape recap card**
-- **029 — Time-aware discovery shelf**
-- **035 — Download quality upgrade and storage budget**
-- **037 — Statistics CSV export**
-- **038 — Playlist import expansion**
-- **039 — Offline truthfulness**
-- **046 — MotionTokens cleanup**
-- **047 — Performance pass**
+Audify's implementation plans, current planning status, and feature proposals are maintained in the dedicated [plans index](plans/README.md). For a comparison of Audify with InterTune, AsterTune, Metrolist, and ArchiveTune, see the [competitor feature audit](docs/competitor-feature-audit.md).
 
 ## Download
 
