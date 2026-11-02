@@ -38,34 +38,16 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 
 ## Active plans
 
-### Selected feature expansion (plans written, not started)
+Only plan files currently present in this directory are listed below. Plans removed from this directory remain recoverable in git history; their removal is preserved as part of the current working-tree changes. Do not recreate removed plans unless explicitly requested. Where two retained plans cover the same feature area, reconcile them before implementation.
 
-The following 18 plans map one-to-one to the user's selected feature list, in its original order.
-They use new plan IDs because 001–050 are already part of the repository's planning history.
-Where an earlier plan already covers the same area, the new plan is an implementation-ready
-reconciliation/extension, not permission to build a duplicate subsystem. Reconcile the older plan
-and current source before execution.
-
-| # | Plan | Selected item | Category | Effort | Depends on | Requires human gate | Status |
-|---|------|---------------|----------|--------|------------|---------------------|--------|
-| 051 | [Named queue slots](051-selected-01-named-queue-slots.md) | 1. Named queue slots | Queue | M | 031 | none | **planned — reconcile 031** |
-| 052 | [Complete playlist importer](052-selected-02-playlist-importer.md) | 2. Complete playlist importer | Import | H | 038 | none | **planned — extend partial 038** |
-| 053 | [Full listening history](053-selected-03-full-listening-history.md) | 3. Full listening history | Stats | H | 037 | storage approval if schema required | **planned — not started** |
-| 054 | [Automatic backups](054-selected-04-automatic-backups.md) | 4. Automatic backup scheduling | Backup | M | 050 | SAF destination decision | **planned — reconcile 050** |
-| 055 | [Library cleanup assistant](055-selected-05-library-cleanup-assistant.md) | 5. Library cleanup assistant | Library | M | 040 | none | **planned — extend 040** |
-| 056 | [Artist release alerts](056-selected-06-artist-release-alerts.md) | 6. Artist release alerts | Discovery | M | 044 | provider capability/terms review | **planned — reconcile 044** |
-| 057 | [Local music library](057-selected-07-local-music-library.md) | 7. Better local music library | Library | H | 025 | none | **planned — extend 025** |
-| 058 | [Download repair manager](058-selected-08-download-repair-manager.md) | 8. Download repair manager | Downloads | M | 039 | none | **planned — not started** |
-| 059 | [Smarter queue management](059-selected-09-smarter-queue-management.md) | 9. Smarter queue management | Queue | M | 020, 031 | none | **planned — not started** |
-| 060 | [Audio presets per output](060-selected-10-audio-presets-per-output.md) | 10. Audio presets per output | Audio | M | 032 | hardware QA | **planned — extend EQ foundation** |
-| 061 | [Playlist health checker](061-selected-11-playlist-health-checker.md) | 11. Playlist health checker | Playlists | M | 038, 040 | none | **planned — not started** |
-| 062 | [Source fallback transparency](062-selected-12-source-fallback-transparency.md) | 12. Improved source fallback | Playback | M | 021 | provider behavior review | **planned — extend shipped 021** |
-| 063 | [Advanced search filters](063-selected-13-advanced-search-filters.md) | 13. Advanced search filters | Search | M | none | provider capability review | **planned — not started** |
-| 064 | [Automix controls](064-selected-14-automix-controls.md) | 14. Better Automix controls | Playback | M | existing Automix | real-device listening QA | **planned — not started** |
-| 065 | [Tablet two-pane interface](065-selected-15-tablet-two-pane-interface.md) | 15. Tablet two-pane interface | UI | M | 026 | tablet/foldable QA | **planned — extend 026** |
-| 066 | [Accessibility-first lyrics](066-selected-16-accessibility-first-lyrics.md) | 16. Accessibility-first lyrics | Accessibility | H | 045 | assistive-tech QA | **planned — reconcile 045** |
-| 067 | [Statistics dashboard](067-selected-17-statistics-dashboard.md) | 17. Better statistics dashboard | Stats/UI | M | current stats | metric/data audit | **planned — known UX gap** |
-| 068 | [Contextual player actions](068-selected-18-contextual-player-actions.md) | 18. Contextual player actions | Player/UI | S–M | existing song menus | none | **planned — audit for duplicates** |
+| Plan | Feature | Status / relationship |
+|---|---|---|
+| [044 - Artist new-release notifications](044-artist-new-release-notifications.md) | Followed-artist release alerts | **Not started - earlier baseline plan; reconcile with 056** |
+| [045 - Accessibility-first lyrics](045-accessibility-first-lyrics.md) | Accessible lyrics presentation | **Not started - retained plan; reconcile against current lyrics implementation** |
+| [052 - Complete playlist importer](052-selected-02-playlist-importer.md) | Playlist import and portability | **Planned - reconcile with existing importer and partial 038** |
+| [056 - Artist release alerts](056-selected-06-artist-release-alerts.md) | Robust followed-artist release alerts | **Planned - newer hardened extension of 044; use one unified implementation scope** |
+| [063 - Advanced search filters](063-selected-13-advanced-search-filters.md) | Capability-aware search filters | **Planned - provider capability audit required** |
+| [067 - Statistics dashboard](067-selected-17-statistics-dashboard.md) | Improved statistics dashboard | **Planned - build on current aggregate statistics; no false per-play precision** |
 
 ## Completed and archived
 
