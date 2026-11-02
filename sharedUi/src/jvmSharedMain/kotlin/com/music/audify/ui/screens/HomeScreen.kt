@@ -39,6 +39,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -108,6 +112,7 @@ import com.music.audify.ui.components.SHELF_CARD_WIDTH
 import com.music.audify.ui.components.SearchPlayingBars
 import com.music.audify.ui.components.SignInBanner
 import com.music.audify.ui.components.feedMoreSkeleton
+import com.music.audify.ui.player.PlayerSettings
 import com.music.audify.ui.components.feedSkeleton
 import com.music.audify.ui.components.recentlyPlayedSkeleton
 import com.music.audify.ui.components.heroCardWidth
@@ -813,11 +818,27 @@ private fun MoodArtCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val motion by animateFloatAsState(
         targetValue = if (pressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
         label = "${mood.title}-line-art-press",
     )
+    // One quiet breathing cycle per composed card. LazyRow disposes distant
+    // cards, so off-screen artwork does not keep an animation clock running.
+    val ambient = if (reduceAnimation) {
+        0f
+    } else {
+        rememberInfiniteTransition(label = "${mood.title}-ambient").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "${mood.title}-breath",
+        ).value
+    }
     Column(
         modifier = modifier.clickable(
             enabled = enabled,
@@ -833,13 +854,30 @@ private fun MoodArtCard(
                 .clip(RoundedCornerShape(16.dp))
                 .background(Brush.linearGradient(mood.colors)),
         ) {
+            // A restrained highlight makes the card feel tactile without
+            // introducing a costly blur or a permanent animated shadow.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.12f + ambient * 0.05f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.08f),
+                            ),
+                        ),
+                    ),
+            )
             MoodLineArt(
                 mood = mood.title,
                 progress = motion,
+                phase = ambient,
                 modifier = Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = 1f + motion * 0.035f
-                    scaleY = 1f + motion * 0.035f
-                    rotationZ = motion * (if (mood.title == "Feeling Blue") -3f else 3f)
+                    val scale = 1f + motion * 0.045f + ambient * 0.012f
+                    scaleX = scale
+                    scaleY = scale
+                    rotationZ = motion * (if (mood.title == "Feeling Blue") -2f else 2f)
                 },
             )
         }
@@ -856,30 +894,36 @@ private fun MoodArtCard(
 
 /** Crisp, mood-specific geometry; the linework responds to the card's press state. */
 @Composable
-private fun MoodLineArt(mood: String, progress: Float, modifier: Modifier = Modifier) {
+private fun MoodLineArt(mood: String, progress: Float, phase: Float, modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val w = size.width
         val h = size.height
         val unit = minOf(w, h)
         val cx = w * 0.62f
         val cy = h * 0.40f
-        val base = Color.White.copy(alpha = 0.72f + progress * 0.2f)
-        val faint = Color.White.copy(alpha = 0.28f + progress * 0.22f)
+        val base = Color.White.copy(alpha = 0.76f + progress * 0.18f + phase * 0.06f)
+        val faint = Color.White.copy(alpha = 0.30f + progress * 0.18f + phase * 0.10f)
         val stroke = (unit * 0.009f).coerceAtLeast(1.5f)
         val lineStyle = Stroke(width = stroke, cap = StrokeCap.Round)
         withTransform({
-            rotate(degrees = progress * 5f, pivot = Offset(cx, cy))
-            scale(scaleX = 1f + progress * 0.04f, scaleY = 1f + progress * 0.04f, pivot = Offset(cx, cy))
+            rotate(degrees = progress * 5f + phase * 0.8f, pivot = Offset(cx, cy))
+            scale(scaleX = 1f + progress * 0.04f + phase * 0.012f, scaleY = 1f + progress * 0.04f + phase * 0.012f, pivot = Offset(cx, cy))
         }) {
             when (mood) {
                 "Energy" -> {
-                    val pulse = Path().apply {
-                        moveTo(w * .18f, h * .52f); lineTo(w * .38f, h * .52f)
-                        lineTo(w * .49f, h * .25f); lineTo(w * .61f, h * .72f)
-                        lineTo(w * .72f, h * .40f); lineTo(w * .84f, h * .52f)
+                    val bolt = Path().apply {
+                        moveTo(w * .60f, h * .12f)
+                        lineTo(w * .35f, h * .53f)
+                        lineTo(w * .52f, h * .53f)
+                        lineTo(w * .42f, h * .86f)
+                        lineTo(w * .72f, h * .42f)
+                        lineTo(w * .55f, h * .42f)
+                        close()
                     }
-                    drawPath(pulse, base, style = Stroke(stroke * 1.7f, cap = StrokeCap.Round))
-                    repeat(3) { i -> drawCircle(faint, unit * (.16f + i * .075f), Offset(cx, cy), style = lineStyle) }
+                    drawPath(bolt, faint.copy(alpha = .22f + phase * .12f))
+                    drawPath(bolt, base, style = Stroke(stroke * 1.45f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                    drawLine(faint, Offset(w * .18f, h * .32f), Offset(w * .30f, h * .32f), stroke, StrokeCap.Round)
+                    drawLine(faint, Offset(w * .70f, h * .72f), Offset(w * .84f, h * .72f), stroke, StrokeCap.Round)
                 }
                 "Energize" -> {
                     val pulse = Path().apply {
@@ -906,32 +950,42 @@ private fun MoodLineArt(mood: String, progress: Float, modifier: Modifier = Modi
                     drawLine(faint, Offset(w * .72f, h * .76f), Offset(w * .86f, h * .76f), stroke, StrokeCap.Round)
                 }
                 "Relax" -> {
-                    repeat(4) { i ->
-                        val offset = i * unit * .075f
-                        val wave = Path().apply {
-                            moveTo(w * .18f, h * .38f + offset)
-                            cubicTo(w * .38f, h * .12f + offset, w * .57f, h * .68f + offset, w * .84f, h * .36f + offset)
-                        }
-                        drawPath(wave, if (i == 1) base else faint, style = lineStyle)
+                    repeat(3) { i ->
+                        val width = unit * (.48f + i * .10f)
+                        val height = unit * (.14f + i * .018f)
+                        val left = cx - width / 2f
+                        val top = cy - height / 2f + (i - 1) * unit * .12f
+                        drawOval(
+                            color = if (i == 1) base else faint,
+                            topLeft = Offset(left, top),
+                            size = androidx.compose.ui.geometry.Size(width, height),
+                            style = Stroke(stroke * 1.15f, cap = StrokeCap.Round),
+                        )
                     }
-                    drawCircle(base, unit * .055f, Offset(w * .72f, h * .22f), style = lineStyle)
                 }
                 "Feeling Blue" -> {
-                    drawCircle(base, unit * .16f, Offset(w * .68f, h * .34f), style = lineStyle)
-                    val wave = Path().apply {
-                        moveTo(w * .12f, h * .72f)
-                        cubicTo(w * .30f, h * .50f, w * .48f, h * .92f, w * .68f, h * .68f)
-                        cubicTo(w * .78f, h * .56f, w * .84f, h * .58f, w * .92f, h * .50f)
+                    val spiral = Path().apply {
+                        val radius = unit * .30f
+                        moveTo(cx + radius, cy)
+                        cubicTo(cx + radius, cy - radius, cx - radius, cy - radius, cx - radius, cy)
+                        cubicTo(cx - radius, cy + radius, cx + radius, cy + radius, cx + radius * .56f, cy)
+                        cubicTo(cx + radius * .56f, cy - radius * .56f, cx - radius * .42f, cy - radius * .42f, cx - radius * .42f, cy)
+                        cubicTo(cx - radius * .42f, cy + radius * .42f, cx + radius * .22f, cy + radius * .42f, cx + radius * .22f, cy)
+                        cubicTo(cx + radius * .22f, cy - radius * .22f, cx - radius * .08f, cy - radius * .22f, cx - radius * .08f, cy)
                     }
-                    drawPath(wave, faint, style = Stroke(stroke * 1.4f, cap = StrokeCap.Round))
-                    drawCircle(base, unit * .035f, Offset(w * .68f, h * .57f))
+                    drawPath(spiral, base, style = Stroke(stroke * 1.25f, cap = StrokeCap.Round))
                 }
                 "Feel Good" -> {
-                    repeat(8) { i ->
-                        val angle = i * 45f * (kotlin.math.PI.toFloat() / 180f)
-                        drawLine(base, Offset(cx + kotlin.math.cos(angle) * unit * .17f, cy + kotlin.math.sin(angle) * unit * .17f), Offset(cx + kotlin.math.cos(angle) * unit * .34f, cy + kotlin.math.sin(angle) * unit * .34f), stroke * 1.4f, StrokeCap.Round)
+                    val sparkle = Path().apply {
+                        moveTo(cx, cy - unit * .34f)
+                        cubicTo(cx + unit * .08f, cy - unit * .08f, cx + unit * .08f, cy - unit * .08f, cx + unit * .34f, cy)
+                        cubicTo(cx + unit * .08f, cy + unit * .08f, cx + unit * .08f, cy + unit * .08f, cx, cy + unit * .34f)
+                        cubicTo(cx - unit * .08f, cy + unit * .08f, cx - unit * .08f, cy + unit * .08f, cx - unit * .34f, cy)
+                        cubicTo(cx - unit * .08f, cy - unit * .08f, cx - unit * .08f, cy - unit * .08f, cx, cy - unit * .34f)
+                        close()
                     }
-                    drawCircle(base, unit * .13f, Offset(cx, cy), style = lineStyle)
+                    drawPath(sparkle, faint.copy(alpha = .20f + phase * .10f))
+                    drawPath(sparkle, base, style = Stroke(stroke * 1.3f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
                 }
                 "Heartbreak" -> {
                     val heart = Path().apply {
@@ -950,7 +1004,7 @@ private fun MoodLineArt(mood: String, progress: Float, modifier: Modifier = Modi
                         cubicTo(w * .86f, h * .10f, w * .92f, h * .38f, cx, h * .78f)
                     }
                     drawPath(heart, base, style = lineStyle)
-                    drawCircle(faint, unit * .34f, Offset(cx, cy), style = lineStyle)
+                    drawCircle(faint, unit * (.34f + phase * .012f), Offset(cx, cy), style = lineStyle)
                 }
                 "Focus" -> {
                     repeat(4) { i ->

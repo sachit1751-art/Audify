@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.ui.motion.MotionTokens
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
@@ -341,7 +342,7 @@ private fun BottomBarItem(
         } else {
             unselectedTint ?: MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = tween(200),
+        animationSpec = tween(MotionTokens.NAVIGATION_TINT_MS, easing = MotionTokens.STANDARD_EASING),
         label = "tabTint",
     )
 

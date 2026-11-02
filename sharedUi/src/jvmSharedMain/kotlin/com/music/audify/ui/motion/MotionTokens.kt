@@ -12,6 +12,9 @@ object MotionTokens {
     const val SHORT_FADE_MS = 180
     const val CONTENT_TRANSITION_MS = 220
     const val SHEET_ENTER_MS = 260
+    const val NAVIGATION_TRANSITION_MS = 220
+    const val NAVIGATION_FADE_MS = 180
+    const val NAVIGATION_TINT_MS = CONTROL_STATE_MS
 
     val STANDARD_EASING: Easing = FastOutSlowInEasing
     val LINEAR_EASING: Easing = LinearEasing

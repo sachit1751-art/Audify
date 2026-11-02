@@ -55,3 +55,6 @@ AGENTS.md
 
 # Claude Code session files (launch configs, worktrees)
 .claude/
+
+# Animation reference captures and comparison evidence
+.reanimate/

@@ -231,6 +231,7 @@ fun SettingsScreen(
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val progressiveScrollEdgeBlur by AppSettings.progressiveScrollEdgeBlur.collectAsStateWithLifecycle()
     val liquidGlass by AppSettings.liquidGlass.collectAsStateWithLifecycle()
     val liquidGlassSupported = isGlassSupported()
     val lyricsBlur by AppSettings.lyricsBlur.collectAsStateWithLifecycle()
@@ -944,6 +945,25 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setReduceDynamicBlur(!reduceDynamicBlur) },
+                )
+            }
+            val progressiveScrollEdgeBlurTitle = stringResource(R.string.progressive_scroll_edge_blur)
+            row(progressiveScrollEdgeBlurTitle, "scroll", "edge", "blur", "fade") {
+                SettingsRow(
+                    icon = Icons.Rounded.BlurOn,
+                    title = progressiveScrollEdgeBlurTitle,
+                    subtitle = stringResource(R.string.progressive_scroll_edge_blur_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = progressiveScrollEdgeBlur,
+                            onCheckedChange = AppSettings::setProgressiveScrollEdgeBlur,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = { AppSettings.setProgressiveScrollEdgeBlur(!progressiveScrollEdgeBlur) },
                 )
             }
             val liquidGlassTitle = stringResource(R.string.liquid_glass)

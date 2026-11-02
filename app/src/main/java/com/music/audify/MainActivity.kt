@@ -33,6 +33,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -279,6 +281,8 @@ import com.music.audify.sharedui.resources.search_hint
 import com.music.audify.sharedui.resources.search_addons_hint
 import com.music.audify.sharedui.resources.search_library_hint
 import com.music.audify.ui.components.TopBarDownloadButton
+import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
+import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.optimizedHazeEffect
 import com.music.audify.ui.components.topBarContentPadding
 import com.music.audify.ui.components.AppLanguageDialog
@@ -2734,25 +2738,21 @@ private fun AudifyApp(
                     // A route's entry is copied when the release pages under it
                     // change, which is not a different page.
                     contentKey = { it.key },
-                    // Tabs swap outright; everything else crossfades.
+                    // Tabs use a restrained directional drift instead of an
+                    // abrupt swap. Both pages remain composed over the same
+                    // surface, avoiding the dim flash a plain crossfade caused.
                     //
-                    // A tab is not a place you travel to — the bar is the whole
-                    // navigation and it carries its own movement — so a fade
-                    // between two of them only ever reads as a stutter. And it
-                    // cannot read as anything else: neither page paints a
-                    // background, so a crossfade dissolves both through to the
-                    // window and the switch dips through a dimmer frame in the
-                    // middle. Pushing a page or raising Settings is a real
-                    // change of context and keeps the fade.
+                    // The bar carries the primary selection movement; the page
+                    // follows with a small 16dp drift and fade, not a competing
+                    // full-screen slide. Pushed routes keep their existing fade.
                     //
                     // "Show all" swapping with the Library tab underneath it is
                     // the same case as a tab swap, not a pushed page: it's still
                     // that tab, just laid out as a grid instead of a row, sharing
                     // its background rather than painting its own — so this one
-                    // pair gets the tab's no-fade swap too, in both directions, or
-                    // the dip through a dim frame shows up on every hold of a
-                    // card there. A card opened *from* the grid is a real page
-                    // and keeps the fade, same as one opened from the row.
+                    // pair gets the same restrained directional transition in
+                    // both directions. A card opened *from* the grid is a real
+                    // page and keeps the standard context fade.
                     transitionSpec = {
                         val initial = initialState
                         val target = targetState
@@ -2763,10 +2763,30 @@ private fun AudifyApp(
                         val libraryShowAllSwap = (initial.isShowAll() && target == libraryTab) ||
                             (target.isShowAll() && initial == libraryTab)
                         if (tabSwap || libraryShowAllSwap) {
-                            EnterTransition.None togetherWith ExitTransition.None
+                            if (reducePlayerMotion) {
+                                EnterTransition.None togetherWith ExitTransition.None
+                            } else {
+                                val forward = when {
+                                    tabSwap -> (target as AppDestination.Tab).index >= (initial as AppDestination.Tab).index
+                                    else -> target.isShowAll()
+                                }
+                                val direction = if (forward) 1 else -1
+                                (fadeIn(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
+                                    slideInHorizontally(
+                                        animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
+                                    ) { direction * (it / 28) }) togetherWith
+                                    (fadeOut(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
+                                        slideOutHorizontally(
+                                            animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
+                                        ) { -direction * (it / 28) })
+                            }
                         } else {
-                            fadeIn(tween(MotionTokens.SHORT_FADE_MS)) togetherWith
-                                fadeOut(tween(MotionTokens.SHORT_FADE_MS))
+                            if (reducePlayerMotion) {
+                                EnterTransition.None togetherWith ExitTransition.None
+                            } else {
+                                fadeIn(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING)) togetherWith
+                                    fadeOut(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING))
+                            }
                         }
                     },
                     modifier = Modifier
@@ -3614,6 +3634,13 @@ private fun AudifyApp(
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
+                ProgressiveScrollEdgeBlur(
+                    hazeState = hazeState,
+                    pageColor = chromePageColor,
+                    edge = ScrollBlurEdge.Top,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+
                 BottomFadeScrim(
                     pageColor = chromePageColor,
                     modifier = Modifier
@@ -3967,6 +3994,15 @@ private fun AudifyApp(
                     // easing out of it and into this, so this is what is actually
                     // under the tab bar.
                     pageColor = chromePageColor,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+
+                // The scroll content softens into the floating controls at the
+                // bottom edge, above the colour fade and below the glass bars.
+                ProgressiveScrollEdgeBlur(
+                    hazeState = hazeState,
+                    pageColor = chromePageColor,
+                    edge = ScrollBlurEdge.Bottom,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 

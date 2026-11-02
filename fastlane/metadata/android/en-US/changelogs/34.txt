@@ -1,0 +1,1 @@
+Progressive scroll-edge blur with an independent Settings switch and longer edge fade. Refined animated Home mood cards and smoother tab transitions. Reduced-motion and reduced-blur preferences remain respected.
