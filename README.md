@@ -27,7 +27,7 @@ Project: AUDIFY
 <p align="center">
   <a href="#screenshots">Screenshots</a> &middot;
   <a href="#features">Features</a> &middot;
-  <a href="#download">Download</a> &middot;
+  <a href="#download-and-install">Download</a> &middot;
   <a href="#build-from-source">Build from source</a> &middot;
   <a href="#roadmap">Roadmap</a> &middot;
   <a href="#contributing">Contributing</a>
@@ -95,7 +95,25 @@ These are captures from the app — not concept mockups.
 - **Dynamic theming:** Let the interface draw colors from the currently playing artwork.
 - **Material 3 design:** Customize the look and feel with a modern interface and translucent visual elements. Progressive top and bottom scroll-edge blur can be switched off independently in Settings.
 
-### Download and install
+### Downloads and connected services
+
+- **Offline listening:** Download tracks with metadata for local playback.
+- **Spotify integration:** Import supported playlist exports and access supported Spotify library features.
+- **Discord Rich Presence:** Share the currently playing track and playback progress.
+- **Scrobbling:** Send listening history to Last.fm and ListenBrainz.
+- **External sources:** Configure supported source modules, including optional high-resolution audio sources.
+
+### Available across devices
+
+- **Android:** The full mobile listening experience.
+- **Android TV:** A dedicated interface and build for television devices.
+- **Wear OS:** A companion build for supported watches.
+
+## Roadmap
+
+Audify's implementation plans, current planning status, and feature proposals are maintained in the dedicated [plans index](plans/README.md). For a comparison of Audify with InterTune, AsterTune, Metrolist, and ArchiveTune, see the [competitor feature audit](docs/competitor-feature-audit.md).
+
+## Download and install
 
 **[Get the latest stable release](https://github.com/sachit1751-art/Audify/releases/latest)** · [Browse every release](https://github.com/sachit1751-art/Audify/releases)
 
