@@ -2,19 +2,54 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300" role="img" aria-label="Audify banner">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+  <title id="title">Audify</title>
+  <desc id="desc">Audify, an open-source music player for Android, Android TV and Wear OS. Discover, listen and make music yours.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#11111b"/>
-      <stop offset="1" stop-color="#1a1b26"/>
+      <stop offset="0.55" stop-color="#211b3a"/>
+      <stop offset="1" stop-color="#34204b"/>
     </linearGradient>
-    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#89b4fa"/>
-      <stop offset="1" stop-color="#cba6f7"/>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f05a9d"/>
+      <stop offset="1" stop-color="#9b7bff"/>
     </linearGradient>
+    <linearGradient id="wordmark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e7d8ff"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#a855f7" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="1200" height="300" fill="url(#bg)"/>
-  <text x="600" y="140" font-family="Menlo, Consolas, monospace" font-size="58" font-weight="bold" fill="url(#title)" text-anchor="middle">Audify</text>
-  <text x="600" y="185" font-family="Menlo, Consolas, monospace" font-size="22" fill="#a9b1d6" text-anchor="middle">Stream, discover and organize YouTube Music — your way.</text>
-  <text x="600" y="225" font-family="Menlo, Consolas, monospace" font-size="18" fill="#6c7086" text-anchor="middle">One APK. Three flavors. No Google Play Services needed.</text>
+
+  <rect width="1200" height="340" rx="28" fill="url(#background)"/>
+  <circle cx="1030" cy="40" r="330" fill="url(#glow)"/>
+  <circle cx="1130" cy="330" r="250" fill="url(#glow)" opacity=".55"/>
+
+  <g transform="translate(78 82)">
+    <rect width="112" height="112" rx="30" fill="url(#accent)"/>
+    <g fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round">
+      <path d="M22 58v-9 M39 75V33 M56 88V22 M73 72V38 M90 59V51"/>
+    </g>
+  </g>
+
+  <text x="225" y="157" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="88" font-weight="750" letter-spacing="-3" fill="url(#wordmark)">Audify</text>
+  <text x="230" y="211" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="29" font-weight="500" fill="#d8d1eb">Discover. Listen. Make music yours.</text>
+
+  <g transform="translate(230 250)">
+    <rect width="196" height="42" rx="21" fill="#ffffff" fill-opacity=".09" stroke="#ffffff" stroke-opacity=".15"/>
+    <text x="98" y="27" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="650" letter-spacing="1.2" fill="#f5efff" text-anchor="middle">ANDROID</text>
+    <rect x="210" width="170" height="42" rx="21" fill="#ffffff" fill-opacity=".09" stroke="#ffffff" stroke-opacity=".15"/>
+    <text x="295" y="27" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="650" letter-spacing="1.2" fill="#f5efff" text-anchor="middle">ANDROID TV</text>
+    <rect x="394" width="150" height="42" rx="21" fill="#ffffff" fill-opacity=".09" stroke="#ffffff" stroke-opacity=".15"/>
+    <text x="469" y="27" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="15" font-weight="650" letter-spacing="1.2" fill="#f5efff" text-anchor="middle">WEAR OS</text>
+  </g>
+
+  <g transform="translate(900 90)" fill="none" stroke="url(#accent)" stroke-width="8" stroke-linecap="round" opacity=".9">
+    <path d="M0 78V62 M25 100V40 M50 122V18 M75 91V49 M100 72V68 M125 106V34 M150 120V20 M175 86V54 M200 72V68"/>
+  </g>
+  <path d="M850 250 C920 220 1000 285 1080 245 S1170 225 1200 245" fill="none" stroke="#d7b5ff" stroke-opacity=".18" stroke-width="2"/>
 </svg>
