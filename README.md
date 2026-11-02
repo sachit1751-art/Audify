@@ -35,10 +35,6 @@ Project: AUDIFY
 
 Audify brings music discovery, library management, local playback, offline downloads, synchronized lyrics, and detailed playback controls into one customizable app. Listen on your phone, use the dedicated Android TV experience, or control playback from the Wear OS companion.
 
-<p align="center">
-  <img src="docs/audify-preview.png" alt="Audify app preview" width="100%">
-</p>
-
 Audify is free and open-source software distributed under the GNU General Public License v3.0.
 
 > **Independent project:** Audify is a third-party client. It is not affiliated with, endorsed by, or sponsored by Google or YouTube.
