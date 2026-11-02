@@ -147,7 +147,7 @@ Review the selected package in Obtainium and choose the correct phone variant. O
 
 ### Current stable release
 
-Audify **1.8.6** (`v1.8.6`) was published on 2026-11-02. See the [release notes](RELEASE_NOTES_1.8.6.md) for changes and verification details. The release contains phone, Android TV and Wear OS builds.
+Audify **1.8.7** (`v1.8.7`) is the current release. See the [release notes](RELEASE_NOTES_1.8.7.md) for changes and verification details. The release contains phone, Android TV and Wear OS builds.
 
 **Need help?** [Open an issue](https://github.com/sachit1751-art/Audify/issues/new/choose) with your Audify version, device model, Android version and reproduction steps. Remove personal information from logs before attaching them.
 
@@ -199,7 +199,7 @@ For local release signing, copy `keystore.properties.example` to `keystore.prope
 
 Contributions, bug reports, and thoughtful suggestions are welcome. Before opening a pull request, read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). See [ADDITIONAL.md](ADDITIONAL.md) for further project documentation.
 
-When reporting a bug, include the affected app variant, Android version, steps to reproduce, and relevant logs or screenshots. Remove personal information from logs before sharing them.
+Use the dedicated [bug report form](https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml) for reproducible problems, or the [tester feedback form](https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml) for suggestions and general feedback. Both forms ask for the context needed to investigate without requesting account credentials or private listening history. Remove personal information from screenshots and logs before sharing them.
 
 ## Legal and third-party services
 

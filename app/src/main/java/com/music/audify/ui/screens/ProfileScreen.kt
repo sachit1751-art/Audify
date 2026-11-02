@@ -10,10 +10,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,11 +25,13 @@ import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,9 +58,11 @@ fun ProfileScreen(
 ) {
     var summary by remember { mutableStateOf<ReplaySummary?>(null) }
     var loading by remember { mutableStateOf(true) }
+    var period by remember { mutableStateOf(ReplayPeriod.THIS_MONTH) }
 
-    LaunchedEffect(Unit) {
-        summary = runCatching { ListeningStats.summary(ReplayPeriod.ALL_TIME) }.getOrNull()
+    LaunchedEffect(period) {
+        loading = true
+        summary = runCatching { ListeningStats.summary(period) }.getOrNull()
         loading = false
     }
 
@@ -62,16 +70,17 @@ fun ProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(26.dp),
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Surface(
-                modifier = Modifier.size(76.dp),
+                modifier = Modifier.size(48.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
             ) {
@@ -87,13 +96,13 @@ fun ProfileScreen(
                         imageVector = Icons.Rounded.Person,
                         contentDescription = "Profile picture",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(18.dp),
+                        modifier = Modifier.padding(14.dp),
                     )
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    "YOUR PROFILE",
+                    "YOUR PROFILE  •  HI-FI",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.SemiBold,
@@ -105,7 +114,7 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    "Your music, in numbers",
+                    "Your acoustic aura • in numbers",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -124,16 +133,14 @@ fun ProfileScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ) {
-                    Text(
-                        "ALL TIME",
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(ReplayPeriod.THIS_WEEK, ReplayPeriod.THIS_MONTH, ReplayPeriod.ALL_TIME).forEach { option ->
+                    FilterChip(
+                        selected = period == option,
+                        onClick = { period = option },
+                        label = { Text(option.chip) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -149,7 +156,7 @@ fun ProfileScreen(
                 else -> {
                     val data = requireNotNull(summary)
                     ListeningTimeCard(formatListeningTime(data.totalMs))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StatCard(
                             label = "Total plays",
                             value = NumberFormat.getIntegerInstance().format(data.totalPlays),
@@ -162,13 +169,139 @@ fun ProfileScreen(
                             icon = { Icon(Icons.Rounded.MusicNote, contentDescription = null) },
                             modifier = Modifier.weight(1f),
                         )
+                        StatCard(
+                            label = "Peak hour",
+                            value = data.peakHour?.let { hour ->
+                                java.time.LocalTime.of(hour, 0).format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
+                            } ?: "—",
+                            icon = { Icon(Icons.Rounded.Schedule, contentDescription = null) },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
-                    StatCard(
-                        label = "Distinct artists",
-                        value = NumberFormat.getIntegerInstance().format(data.distinctArtists),
-                        icon = { Icon(Icons.Rounded.Headphones, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    if (data.hourOfDay.any { it > 0L }) {
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text("Listening by hour", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            val maxHour = data.hourOfDay.maxOrNull()?.coerceAtLeast(1L) ?: 1L
+                            Row(Modifier.fillMaxWidth().height(76.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
+                                data.hourOfDay.forEachIndexed { hour, ms ->
+                                    Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom, horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Box(
+                                            Modifier.fillMaxWidth().weight((ms.toFloat() / maxHour).coerceAtLeast(0.035f)).clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                                                .background(if (hour == data.peakHour) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.38f))
+                                        )
+                                    }
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("12 AM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("6 AM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("12 PM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("6 PM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("11 PM", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    if (data.songs.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                "Most played tracks",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                            )
+                            data.songs.take(5).forEachIndexed { index, ranked ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        (index + 1).toString(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    AsyncImage(
+                                        model = ranked.song.thumbnailUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(42.dp).clip(RoundedCornerShape(9.dp)),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            ranked.song.title,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                        )
+                                        Text(
+                                            ranked.song.artist,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                    Text(
+                                        "${ranked.plays} plays",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (data.artists.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Top artists", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                data.artists.take(3).forEachIndexed { index, artist ->
+                                    Column(
+                                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow).padding(10.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                                    ) {
+                                        AsyncImage(
+                                            model = artist.artworkUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(54.dp).clip(CircleShape),
+                                            contentScale = ContentScale.Crop,
+                                        )
+                                        Text("#${index + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                        Text(artist.title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                        Text(formatListeningTime(artist.ms), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (data.genres.isNotEmpty()) {
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text("Genre breakdown", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            val totalGenreMs = data.genres.sumOf { it.ms }.coerceAtLeast(1L)
+                            Row(Modifier.fillMaxWidth().height(10.dp).clip(CircleShape)) {
+                                data.genres.take(5).forEachIndexed { index, genre ->
+                                    Box(Modifier.weight(genre.ms.coerceAtLeast(1L).toFloat()).fillMaxHeight().background(MaterialTheme.colorScheme.primary.copy(alpha = 1f - index * 0.14f)))
+                                }
+                            }
+                            data.genres.take(5).forEach { genre ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(genre.title, style = MaterialTheme.typography.bodySmall)
+                                    Text("${(genre.ms * 100 / totalGenreMs).toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -294,6 +427,8 @@ private fun formatListeningTime(ms: Long): String {
     return when {
         days > 0 -> "${days}d ${hours % 24}h"
         hours > 0 -> "${hours}h ${minutes % 60}m"
-        else -> "${minutes}m"
+        minutes > 0 -> "${minutes}m"
+        ms > 0 -> "<1m"
+        else -> "0m"
     }
 }

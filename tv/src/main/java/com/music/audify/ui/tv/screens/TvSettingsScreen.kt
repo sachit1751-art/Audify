@@ -50,6 +50,7 @@ import com.music.audify.ui.tv.personalization.AppThemeOption
 import com.music.audify.ui.tv.theme.TvDimensions
 import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvType
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 
 // Discord Rich Presence is hidden on TV for now; TvDiscordDialog is kept for when it returns.
 private enum class SettingsSheet { Theme, RefreshRate, Equalizer, Scrobbling, LyricsSources, Update, About }
@@ -68,6 +69,7 @@ fun TvSettingsScreen(
     onRunSetupAgain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionReduced = LocalTvReduceMotion.current
     TvChromePinned()
     val signedIn by viewModel.signedIn.collectAsState()
     val account by viewModel.account.collectAsState()
@@ -112,7 +114,11 @@ fun TvSettingsScreen(
             Spacer(modifier = Modifier.height(22.dp))
             AnimatedContent(
                 targetState = blurb,
-                transitionSpec = { fadeIn().togetherWith(fadeOut()) },
+                transitionSpec = {
+                    val duration = if (motionReduced) 100 else 150
+                    fadeIn(androidx.compose.animation.core.tween(duration))
+                        .togetherWith(fadeOut(androidx.compose.animation.core.tween(duration)))
+                },
                 label = "settingsBlurb",
             ) { text ->
                 Text(

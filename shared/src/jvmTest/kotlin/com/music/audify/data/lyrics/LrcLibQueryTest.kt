@@ -3,6 +3,9 @@
 package com.music.audify.data.lyrics
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import org.junit.Test
 
 class LrcLibQueryTest {
@@ -32,5 +35,27 @@ class LrcLibQueryTest {
             "Song",
             LrcLib.cleanTitleForSearch("Song (feat. Guest) [Official Video]"),
         )
+    }
+
+    @Test
+    fun `fuzzy search rejects a closer duration from another recording`() {
+        val hits = Json.parseToJsonElement(
+            """[
+                {"trackName":"Different Song","artistName":"Radiohead","duration":298,"syncedLyrics":"wrong"},
+                {"trackName":"Let Down","artistName":"Another Artist","duration":299,"syncedLyrics":"wrong artist"},
+                {"trackName":"Let Down","artistName":"Radiohead, Thom Yorke","duration":301,"syncedLyrics":"right"}
+            ]""",
+        ).jsonArray
+
+        assertEquals("right", LrcLib.bestSearchHit(hits, "Let Down", "Radiohead", 298))
+    }
+
+    @Test
+    fun `fuzzy search has no result when title or artist identity disagrees`() {
+        val hits = Json.parseToJsonElement(
+            """[{"trackName":"Let Down (Live)","artistName":"Radiohead","duration":298,"syncedLyrics":"live"}]""",
+        ).jsonArray
+
+        assertNull(LrcLib.bestSearchHit(hits, "Let Down", "Radiohead", 298))
     }
 }

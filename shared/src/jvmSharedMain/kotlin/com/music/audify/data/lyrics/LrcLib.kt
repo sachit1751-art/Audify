@@ -3,6 +3,7 @@
 package com.music.audify.data.lyrics
 
 import com.music.audify.data.Http
+import com.music.audify.data.sources.TrackMatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -66,14 +67,31 @@ object LrcLib {
             .build()
         val body = get(url.toString()) ?: return null
         val hits = json.parseToJsonElement(body) as? JsonArray ?: return null
+        return bestSearchHit(hits, title, artist, seconds)
+    }
+
+    /** Selects the closest-duration result after confirming its recording identity. */
+    internal fun bestSearchHit(hits: JsonArray, title: String, artist: String, seconds: Int): String? {
+        val wantedTitle = title.identityKey()
+        if (wantedTitle.isBlank()) return null
         return hits.mapNotNull { it as? JsonObject }
             .filter { it["syncedLyrics"]?.jsonPrimitive?.contentOrNull?.isNotBlank() == true }
+            .filter { hit ->
+                val hitTitle = (hit["trackName"] ?: hit["name"])?.jsonPrimitive?.contentOrNull
+                    ?.let(::cleanTitleForSearch)?.identityKey().orEmpty()
+                val hitArtist = hit["artistName"]?.jsonPrimitive?.contentOrNull
+                    ?.clean().orEmpty()
+                hitTitle == wantedTitle && (artist.isBlank() || TrackMatcher.sharesArtist(artist, hitArtist))
+            }
             .minByOrNull {
                 val d = it["duration"]?.jsonPrimitive?.doubleOrNull ?: 0.0
                 abs(d - seconds)
             }
             ?.get("syncedLyrics")?.jsonPrimitive?.contentOrNull
     }
+
+    private fun String.identityKey(): String = lowercase(java.util.Locale.ROOT)
+        .replace(Regex("[^\\p{L}\\p{N}]+"), "")
 
     private fun get(url: String): String? {
         val request = Request.Builder().url(url).header("User-Agent", AGENT).build()

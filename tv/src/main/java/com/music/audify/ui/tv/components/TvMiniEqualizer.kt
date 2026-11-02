@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 
 /**
  * Animated mini 3-bar equalizer indicator that displays next to the active playing song title,
@@ -37,39 +38,12 @@ fun TvMiniEqualizer(
     barWidth: Dp = 2.dp,
     barSpacing: Dp = 2.dp,
 ) {
-    val transition = rememberInfiniteTransition(label = "miniEqTransition")
-
-    val bar1Height by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.95f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 420, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bar1",
-    )
-
-    val bar2Height by transition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 0.25f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 350, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bar2",
-    )
-
-    val bar3Height by transition.animateFloat(
-        initialValue = 0.40f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 480, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bar3",
-    )
-
-    val heights = if (isPlaying) {
+    val reduceMotion = LocalTvReduceMotion.current
+    val heights = if (isPlaying && !reduceMotion) {
+        val transition = rememberInfiniteTransition(label = "miniEqTransition")
+        val bar1Height by transition.animateFloat(0.35f, 0.95f, infiniteRepeatable(tween(420, easing = LinearEasing), RepeatMode.Reverse), label = "bar1")
+        val bar2Height by transition.animateFloat(0.85f, 0.25f, infiniteRepeatable(tween(350, easing = LinearEasing), RepeatMode.Reverse), label = "bar2")
+        val bar3Height by transition.animateFloat(0.40f, 1.0f, infiniteRepeatable(tween(480, easing = LinearEasing), RepeatMode.Reverse), label = "bar3")
         listOf(bar1Height, bar2Height, bar3Height)
     } else {
         listOf(0.40f, 0.70f, 0.40f)

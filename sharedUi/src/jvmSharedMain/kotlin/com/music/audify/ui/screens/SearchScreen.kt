@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -795,8 +797,9 @@ private fun LazyListScope.recentSearches(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(percent = 50))
-                    .clickable(onClick = onClear)
+                    .clickable(role = Role.Button, onClick = onClear)
                     .padding(horizontal = 10.dp, vertical = 4.dp),
             )
         }
@@ -853,7 +856,7 @@ private fun LazyListScope.recentAddonSearches(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onClick(term) }
+                .clickable(role = Role.Button) { onClick(term) }
                 .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -874,9 +877,9 @@ private fun LazyListScope.recentAddonSearches(
             )
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .clickable { onRemove(term) },
+                    .clickable(role = Role.Button) { onRemove(term) },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -953,9 +956,9 @@ private fun RecentSearchEntityRow(
             }
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .clickable(onClick = onRemove),
+                    .clickable(role = Role.Button, onClick = onRemove),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

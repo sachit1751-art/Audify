@@ -56,6 +56,12 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Provider fallback, correction/import, translation, and romanization | **Proposal - reconcile with lyrics plans and existing translation foundation** |
 | [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | Evaluate FCast and DLNA support | **Research proposal - architecture and maintenance gate before implementation** |
 | [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions, episodes, and playback workflows | **Proposal - separate product surface; explicit scope decision required** |
+| [069 - Artwork-to-detail continuity](069-artwork-to-detail-continuity.md) | Spatial continuity from album/playlist cover to detail hero | **TODO - high visual impact; implement before player micro-polish** |
+| [070 - Playback-state transitions](070-playback-state-transitions.md) | Play/pause, buffering and track identity feedback | **TODO - high-frequency interaction; use authoritative playback state** |
+| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity and edit feedback | **TODO - high priority; duplicate-track correctness prerequisite** |
+| [072 - Settings and expandable continuity](072-settings-expandable-continuity.md) | Interruptible expansion and settings state feedback | **TODO - medium priority; preserve immediate controls** |
+| [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | Apply Reduce Motion consistently across TV transitions | **TODO - accessibility fix; TV preference currently misses hard-coded transitions** |
+| [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | TalkBack, hit bounds, rotary, state semantics and ambient behavior | **TODO - high priority; device verification required** |
 
 ## Completed and archived
 

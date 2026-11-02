@@ -164,14 +164,16 @@ internal fun TvNowPlayingStage(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = com.music.audify.ui.tv.theme.LocalTvReduceMotion.current
     // While the transport is up the lyrics fade out above it rather than run under it.
-    val underControls by animateFloatAsState(if (controlsVisible) 1f else 0f, tween(320), label = "lyricsFade")
+    val underControls by animateFloatAsState(if (controlsVisible) 1f else 0f, tween(if (reduceMotion) 120 else 320), label = "lyricsFade")
     val canvasEnabled by AppSettings.animatedCanvas.collectAsState()
     var canvas by remember(song.videoId) { mutableStateOf<CanvasArtwork?>(null) }
     LaunchedEffect(song.videoId, canvasEnabled) {
         canvas = if (canvasEnabled) CanvasRepository.canvasFor(song) else null
     }
-    val side by animateFloatAsState(if (showLyrics) 1f else 0f, tween(520), label = "artToSide")
+    val animatedSide by animateFloatAsState(if (showLyrics) 1f else 0f, tween(520), label = "artToSide")
+    val side = if (reduceMotion) if (showLyrics) 1f else 0f else animatedSide
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val centredSize = (maxHeight * 0.62f).coerceAtMost(320.dp)
@@ -205,7 +207,7 @@ internal fun TvNowPlayingStage(
 
         // With the transport away, the song is named under the cover: the title and
         // artist the transport carries, riding the same glide to the side.
-        val captionShown by animateFloatAsState(if (controlsVisible) 0f else 1f, tween(320), label = "captionFade")
+        val captionShown by animateFloatAsState(if (controlsVisible) 0f else 1f, tween(if (reduceMotion) 120 else 320), label = "captionFade")
         if (captionShown > 0f) {
             val captionGap = 14.dp
             val sideCaptionY = sideY + sideSize + captionGap

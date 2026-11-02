@@ -3,6 +3,7 @@
 package com.music.audify
 
 import com.music.audify.data.LocalGroups
+import com.music.audify.data.matchesSearch
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.Song
 import com.music.audify.download.DownloadedCollection
@@ -17,6 +18,16 @@ class LocalGroupsTest {
 
     private fun song(id: String, title: String, artist: String = "Artist", album: String? = "Album", track: Int? = null) =
         Song(videoId = id, title = title, artist = artist, thumbnailUrl = null, albumName = album, trackNumber = track)
+
+    @Test
+    fun searchMatchesEveryQueryWordAcrossTrackFields() {
+        val track = song("a", "Midnight City", artist = "M83", album = "Hurry Up")
+
+        assertTrue(track.matchesSearch("midnight m83"))
+        assertTrue(track.matchesSearch("  CITY   hurry "))
+        assertFalse(track.matchesSearch("midnight unrelated"))
+        assertTrue(track.matchesSearch("   "))
+    }
 
     @Test
     fun pageIds_roundTripNamesWithColons() {

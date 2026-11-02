@@ -93,6 +93,7 @@ import com.music.audify.ui.screens.MoodGenreSleeve
 import com.music.audify.ui.tv.theme.TvDimensions
 import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvType
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 import kotlin.math.floor
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,21 +118,23 @@ fun Modifier.tvLift(
 ): Modifier {
     val focused by interactionSource.collectIsFocusedAsState()
     val pressed by interactionSource.collectIsPressedAsState()
+    val reduceMotion = LocalTvReduceMotion.current
     val chrome = LocalTvChrome.current
     val requester = remember { FocusRequester() }
     LaunchedEffect(focused) { if (focused) chrome.lastFocused = requester }
     val scale = animateFloatAsState(
         targetValue = when {
+            reduceMotion -> 1f
             pressed -> 1f + (focusedScale - 1f) * 0.35f
             focused -> focusedScale
             else -> 1f
         },
-        animationSpec = LiftSpring,
+        animationSpec = tween(if (reduceMotion) 0 else 220),
         label = "tvLiftScale",
     )
     val shadow = animateDpAsState(
-        targetValue = if (focused && !pressed) elevation else 0.dp,
-        animationSpec = LiftDpSpring,
+        targetValue = if (!reduceMotion && focused && !pressed) elevation else 0.dp,
+        animationSpec = tween(if (reduceMotion) 0 else 220),
         label = "tvLiftShadow",
     )
     return this
@@ -174,9 +177,10 @@ fun Modifier.tvPlatter(
     focused: Color = TvGlass.Platter,
 ): Modifier {
     val isFocused by interactionSource.collectIsFocusedAsState()
+    val reduceMotion = LocalTvReduceMotion.current
     val color = animateColorAsState(
         targetValue = if (isFocused) focused else resting,
-        animationSpec = tween(140),
+        animationSpec = tween(if (reduceMotion) 0 else 140),
         label = "tvPlatter",
     )
     return drawBehind { drawRect(color.value) }
@@ -438,8 +442,9 @@ fun TvLockup(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val reduceMotion = LocalTvReduceMotion.current
     val shape = if (circle) CircleShape else RoundedCornerShape(10.dp)
-    val captionDrop = animateDpAsState(if (focused) 7.dp else 0.dp, LiftDpSpring, label = "captionDrop")
+    val captionDrop = animateDpAsState(if (focused && !reduceMotion) 7.dp else 0.dp, tween(if (reduceMotion) 0 else 180), label = "captionDrop")
 
     Column(
         // Dp.Unspecified fills the cell it's given — a grid column rather than a shelf slot.

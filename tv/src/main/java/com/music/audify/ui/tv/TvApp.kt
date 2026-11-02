@@ -82,6 +82,8 @@ import com.music.audify.ui.tv.screens.TvLibraryScreen
 import com.music.audify.ui.tv.screens.TvSearchScreen
 import com.music.audify.ui.tv.screens.TvSettingsScreen
 import com.music.audify.ui.tv.theme.TvGlass
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
+import com.music.audify.ui.tv.theme.tvMotionDuration
 import com.music.audify.ui.tv.theme.TvThemeColors
 import kotlinx.coroutines.delay
 
@@ -113,6 +115,7 @@ fun TvApp(
     modifier: Modifier = Modifier,
 ) {
     val setupVersionCompleted by TvSettings.tvSetupVersionCompleted.collectAsState()
+    val reduceMotion by com.music.audify.data.settings.AppSettings.reduceAnimation.collectAsState()
     var isRunningSetup by remember(setupVersionCompleted) { mutableStateOf(setupVersionCompleted == 0) }
     var isNowPlayingOpen by remember { mutableStateOf(false) }
     val googleAccounts by viewModel.googleAccounts.collectAsState()
@@ -188,6 +191,7 @@ fun TvApp(
     }
 
 
+    CompositionLocalProvider(LocalTvReduceMotion provides reduceMotion) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -195,7 +199,10 @@ fun TvApp(
     ) {
         AnimatedContent(
             targetState = isRunningSetup,
-            transitionSpec = { fadeIn(tween(220)).togetherWith(fadeOut(tween(160))) },
+            transitionSpec = {
+                fadeIn(tween(tvMotionDuration(reduceMotion, 220)))
+                    .togetherWith(fadeOut(tween(tvMotionDuration(reduceMotion, 160))))
+            },
             label = "tvAppView",
             modifier = Modifier.fillMaxSize(),
         ) { setup ->
@@ -222,8 +229,8 @@ fun TvApp(
                     )
                     AnimatedVisibility(
                         visible = isNowPlayingOpen,
-                        enter = scaleIn(initialScale = 0.94f, animationSpec = tween(260)) + fadeIn(tween(220)),
-                        exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.97f, animationSpec = tween(180)),
+                        enter = if (reduceMotion) fadeIn(tween(120)) else scaleIn(initialScale = 0.94f, animationSpec = tween(260)) + fadeIn(tween(220)),
+                        exit = if (reduceMotion) fadeOut(tween(120)) else fadeOut(tween(180)) + scaleOut(targetScale = 0.97f, animationSpec = tween(180)),
                     ) {
                         // The player places its own focus (scrubber or stage).
                         Box(modifier = Modifier.fillMaxSize().focusGroup()) {
@@ -255,6 +262,7 @@ fun TvApp(
             TvUpdateDialog(update = pendingUpdate, onDismiss = { updateDismissed = true })
         }
     }
+    }
 }
 
 /**
@@ -269,7 +277,8 @@ private fun Modifier.tvCanvas(artworkUrl: String?): Modifier {
         artworkUrl = if (palette.tintsCanvas) artworkUrl else null,
         defaultColor = palette.canvasTop,
     )
-    val tint = animateColorAsState(tintSource, tween(900), label = "canvasTint")
+    val reduceMotion = LocalTvReduceMotion.current
+    val tint = animateColorAsState(tintSource, tween(if (reduceMotion) 0 else 240), label = "canvasTint")
     val top = palette.canvasTop
     val bottom = palette.canvasBottom
     return drawBehind {
@@ -410,7 +419,8 @@ private fun TvMainShell(
 
     // The bar floats over pushed pages too, stepping aside as they scroll.
     val barVisible = !chrome.contentScrolled || barHasFocus
-    val barProgress by animateFloatAsState(if (barVisible) 1f else 0f, tween(260), label = "barProgress")
+    val reduceMotion = LocalTvReduceMotion.current
+    val barProgress by animateFloatAsState(if (barVisible) 1f else 0f, tween(tvMotionDuration(reduceMotion, 260)), label = "barProgress")
 
     CompositionLocalProvider(LocalTvChrome provides chrome) {
         Box(
@@ -514,7 +524,7 @@ private fun TvMainShell(
                     .zIndex(10f)
                     .graphicsLayer {
                         alpha = barProgress
-                        translationY = -(1f - barProgress) * 72.dp.toPx()
+                        translationY = if (reduceMotion) 0f else -(1f - barProgress) * 72.dp.toPx()
                     }
                     .onFocusChanged { barHasFocus = it.hasFocus },
             )

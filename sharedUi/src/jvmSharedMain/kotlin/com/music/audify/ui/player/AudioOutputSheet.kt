@@ -102,6 +102,8 @@ internal fun AudioOutputSheet(
         title = stringResource(Res.string.audio_output),
         onDismiss = onDismiss,
         modifier = modifier,
+        maxHeight = 700.dp,
+        minHeightFraction = 0.72f,
     ) {
         // Flat, with the playing one marked, rather than folded behind a
         // chevron. There are two outputs on a phone most of the time; one

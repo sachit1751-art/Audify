@@ -56,4 +56,11 @@ Project: AUDIFY
     <string name="download_storage_budget_reached">The download storage budget has been reached. Review the oldest files before retrying.</string>
     <string name="download_storage_delete_failed">The selected files could not be deleted. No files were removed; retry after checking file access.</string>
     <string name="download_storage_partial_delete">Some selected files were deleted, but others could not be removed. Retry the download to refresh storage usage.</string>
+    <string name="help_and_feedback" translatable="false">Help &amp; feedback</string>
+    <string name="report_a_bug" translatable="false">Report a bug</string>
+    <string name="report_a_bug_subtitle" translatable="false">Send a reproducible issue report to the Audify issue tracker</string>
+    <string name="could_not_open_bug_report" translatable="false">Could not open the bug report form.</string>
+    <string name="share_feedback" translatable="false">Share feedback</string>
+    <string name="share_feedback_subtitle" translatable="false">Suggest improvements or share your experience using Audify</string>
+    <string name="could_not_open_feedback" translatable="false">Could not open the feedback form.</string>
 </resources>

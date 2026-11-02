@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -106,6 +107,10 @@ fun PlayerDrawer(
     modifier: Modifier = Modifier,
     /** Air between the title and whatever the drawer opens with. */
     titleGap: Dp = 14.dp,
+    /** Maximum drawer height; taller sheets can clear persistent player controls. */
+    maxHeight: Dp = 560.dp,
+    /** Minimum fraction of the available window height, clamped to that window. */
+    minHeightFraction: Float = 0f,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val reduceDynamicBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
@@ -197,9 +202,6 @@ fun PlayerDrawer(
         ) {
         Column(
             modifier = Modifier
-                // Capped so a phone full of rows scrolls inside the drawer
-                // rather than growing one into a full-screen page.
-                .heightIn(max = 560.dp)
                 // Capped before the fill, so [Modifier.fillMaxWidth] fills to
                 // the cap rather than to the window. Centred by the parent's
                 // own BottomCenter alignment once it is narrower.
@@ -240,7 +242,15 @@ fun PlayerDrawer(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp)
                 .padding(top = 10.dp, bottom = 20.dp)
-                .verticalScroll(rememberScrollState()),
+                // These constraints must wrap the scroll modifier: otherwise
+                // verticalScroll measures its child with an unbounded height
+                // and silently discards the requested responsive sheet size.
+                .verticalScroll(rememberScrollState())
+                .heightIn(max = maxHeight)
+                .then(
+                    if (minHeightFraction > 0f) Modifier.fillMaxHeight(minHeightFraction.coerceIn(0f, 1f))
+                    else Modifier
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The grab handle every sheet here has, and the thing that says the

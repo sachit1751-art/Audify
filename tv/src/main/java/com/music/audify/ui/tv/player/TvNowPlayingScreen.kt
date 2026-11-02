@@ -79,6 +79,7 @@ fun TvNowPlayingScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = com.music.audify.ui.tv.theme.LocalTvReduceMotion.current
     val song = playerState.song
     if (song == null) {
         BackHandler(onBack = onBack)
@@ -242,7 +243,7 @@ fun TvNowPlayingScreen(
                 .focusable(),
         )
 
-        val dim by animateFloatAsState(if (upNextOpen) 0.12f else 1f, tween(280), label = "stageDim")
+        val dim by animateFloatAsState(if (upNextOpen) 0.12f else 1f, tween(if (reduceMotion) 120 else 280), label = "stageDim")
         TvNowPlayingStage(
             song = song,
             isPlaying = isPlaying,
@@ -257,8 +258,8 @@ fun TvNowPlayingScreen(
 
         AnimatedVisibility(
             visible = controlsVisible,
-            enter = fadeIn(tween(240)) + slideInVertically(tween(320)) { it / 6 },
-            exit = fadeOut(tween(320)) + slideOutVertically(tween(320)) { it / 6 },
+            enter = if (reduceMotion) fadeIn(tween(120)) else fadeIn(tween(240)) + slideInVertically(tween(320)) { it / 6 },
+            exit = if (reduceMotion) fadeOut(tween(120)) else fadeOut(tween(320)) + slideOutVertically(tween(320)) { it / 6 },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             TvTransport(

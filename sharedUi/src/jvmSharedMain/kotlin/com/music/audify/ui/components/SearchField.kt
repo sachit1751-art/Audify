@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,8 +70,9 @@ fun SearchField(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // Fixed height prevents the row from growing when text is entered
-            .height(48.dp)
+            // Keep a comfortable default target while allowing the field to
+            // grow when the system font scale makes its text taller.
+            .heightIn(min = 48.dp)
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(11.dp))
             // Asymmetric: the magnifier is a button now and wants a real touch
             // target, so it's given the room by pulling the field's own start
@@ -88,7 +89,7 @@ fun SearchField(
             contentDescription = stringResource(Res.string.search),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .size(40.dp)
+                .size(48.dp)
                 .clip(CircleShape)
                 .clickable(enabled = query.isNotBlank(), role = Role.Button, onClick = submit)
                 .padding(6.dp),
@@ -127,7 +128,7 @@ fun SearchField(
         if (query.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .clickable(role = Role.Button) {
                         onQueryChange("")

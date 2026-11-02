@@ -20,6 +20,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 
@@ -150,32 +151,16 @@ object AppUpdateChecker {
             dir.listFiles()?.forEach { it.delete() }
             val target = File(dir, "audify-${info.version}.apk")
 
-            val request = Request.Builder().url(url).build()
-            Http.client.newCall(request).execute().use { response ->
-                check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
-                val body = response.body ?: error("Empty download body")
-                val total = body.contentLength().takeIf { it > 0 }
-
-                body.byteStream().use { input ->
-                    target.outputStream().use { output ->
-                        val buffer = ByteArray(64 * 1024)
-                        var readTotal = 0L
-                        while (true) {
-                            if (downloadCancelled) {
-                                _download.value = DownloadState.Idle
-                                return@withContext
-                            }
-                            val read = input.read(buffer)
-                            if (read == -1) break
-                            output.write(buffer, 0, read)
-                            readTotal += read
-                            total?.let {
-                                _download.value =
-                                    DownloadState.Downloading((readTotal.toFloat() / it).coerceIn(0f, 1f))
-                            }
-                        }
-                    }
-                }
+            val completed = downloadToFile(
+                url = url,
+                target = target,
+                client = Http.client,
+                isCancelled = { downloadCancelled },
+                onProgress = { fraction -> _download.value = DownloadState.Downloading(fraction) },
+            )
+            if (!completed) {
+                _download.value = DownloadState.Idle
+                return@withContext
             }
             _download.value = DownloadState.Ready(target)
         }.onFailure { error ->
@@ -195,6 +180,38 @@ object AppUpdateChecker {
     /** Back to square one after a failure, so the dialog offers Download again. */
     fun resetDownload() {
         _download.value = DownloadState.Idle
+    }
+
+    /** Performs the HTTP/file portion independently of Android Context and UI state. */
+    internal fun downloadToFile(
+        url: String,
+        target: File,
+        client: OkHttpClient = Http.client,
+        isCancelled: () -> Boolean = { false },
+        onProgress: (Float) -> Unit = {},
+    ): Boolean {
+        val request = Request.Builder().url(url).build()
+        client.newCall(request).execute().use { response ->
+            check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
+            val body = response.body ?: error("Empty download body")
+            val total = body.contentLength().takeIf { it > 0 }
+
+            body.byteStream().use { input ->
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var readTotal = 0L
+                    while (true) {
+                        if (isCancelled()) return false
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        output.write(buffer, 0, read)
+                        readTotal += read
+                        total?.let { onProgress((readTotal.toFloat() / it).coerceIn(0f, 1f)) }
+                    }
+                }
+            }
+        }
+        return true
     }
 
     /**

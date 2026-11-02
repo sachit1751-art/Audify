@@ -64,6 +64,8 @@ import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvMidnightPalette
 import com.music.audify.ui.tv.theme.TvOledPalette
 import com.music.audify.ui.tv.theme.TvType
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
+import com.music.audify.ui.tv.theme.tvMotionDuration
 
 private enum class SetupStep { Welcome, SignIn, Appearance, Preferences, Done }
 
@@ -78,6 +80,7 @@ fun TvSetupScreen(
     onComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = LocalTvReduceMotion.current
     var step by remember { mutableStateOf(SetupStep.Welcome) }
     var theme by remember { mutableStateOf(AppThemeOption.fromId(TvSettings.tvTheme.value)) }
 
@@ -98,8 +101,12 @@ fun TvSetupScreen(
         targetState = step,
         transitionSpec = {
             val forward = targetState.ordinal > initialState.ordinal
-            (slideInHorizontally(tween(320)) { if (forward) it / 6 else -it / 6 } + fadeIn(tween(320)))
-                .togetherWith(slideOutHorizontally(tween(240)) { if (forward) -it / 6 else it / 6 } + fadeOut(tween(200)))
+            if (reduceMotion) {
+                fadeIn(tween(120)).togetherWith(fadeOut(tween(120)))
+            } else {
+                (slideInHorizontally(tween(320)) { if (forward) it / 6 else -it / 6 } + fadeIn(tween(320)))
+                    .togetherWith(slideOutHorizontally(tween(240)) { if (forward) -it / 6 else it / 6 } + fadeOut(tween(200)))
+            }
         },
         label = "setupStep",
         modifier = modifier.fillMaxSize(),

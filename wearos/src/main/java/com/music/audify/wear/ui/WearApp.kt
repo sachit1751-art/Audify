@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,7 +61,12 @@ fun WearApp(link: PhoneLink) {
         // Kept composed under the ambient player so waking up lands exactly
         // where it was. Alpha 0 is skipped at draw time, so it costs nothing
         // while the always-on screen is up.
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (showAmbient) 0f else 1f }) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = if (showAmbient) 0f else 1f }
+                .then(if (showAmbient) Modifier.clearAndSetSemantics {} else Modifier),
+        ) {
         SwipeDismissableNavHost(navController = nav, startDestination = PLAYER) {
             composable(PLAYER) {
                 PlayerRoute(

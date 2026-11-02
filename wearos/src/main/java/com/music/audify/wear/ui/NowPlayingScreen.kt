@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -46,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -392,6 +395,8 @@ private fun PlayDisc(
             .clip(CircleShape)
             .semantics {
                 role = Role.Button
+                contentDescription = "${np.title} by ${np.artist}"
+                stateDescription = if (np.playing) "Playing" else "Paused"
                 onClick(toggleLabel) {
                     onToggle()
                     true
@@ -539,14 +544,10 @@ fun GlyphButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.88f else 1f, label = "glyphPress")
     Box(
         modifier = modifier
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .size(size)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
             .clip(CircleShape)
             .background(if (pressed) background.copy(alpha = (background.alpha + 0.12f).coerceAtMost(1f)) else background)
             .clickable(

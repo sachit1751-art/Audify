@@ -177,9 +177,15 @@ object LocalGroups {
  * same tracks a folder would.
  */
 fun Song.matchesSearch(query: String): Boolean =
-    title.contains(query, ignoreCase = true) ||
-        artist.contains(query, ignoreCase = true) ||
-        albumName?.contains(query, ignoreCase = true) == true
+    query.trim().takeIf { it.isNotEmpty() }?.let { term ->
+        val fields = listOf(title, artist, albumName.orEmpty())
+        // Keep ordinary phrase matching, while allowing a multi-word query to
+        // span the fields users naturally search together (title + artist).
+        fields.any { it.contains(term, ignoreCase = true) } ||
+            term.split(Regex("\\s+")).all { token ->
+                fields.any { it.contains(token, ignoreCase = true) }
+            }
+    } ?: true
 
 /** A device folder's running order, per the sort its top bar menu picked. */
 fun List<Song>.sortedForLibrary(order: LocalMusicSort): List<Song> = when (order) {

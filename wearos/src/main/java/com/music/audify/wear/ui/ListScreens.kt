@@ -33,6 +33,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,7 +85,7 @@ fun QueueScreen(
                         row = row,
                         isCurrent = row.index == live.currentIndex,
                         isPast = row.index < live.currentIndex,
-                        onClick = { onPlay(row.index) },
+                    onClick = { onPlay(row.index) },
                     )
                 }
             }
@@ -93,7 +95,15 @@ fun QueueScreen(
 
 @Composable
 private fun QueueCell(row: QueueRow, isCurrent: Boolean, isPast: Boolean, onClick: () -> Unit) {
-    Cell(onClick = onClick, dimmed = isPast) {
+    Cell(
+        onClick = onClick,
+        dimmed = isPast,
+        stateDescription = when {
+            isCurrent -> "Playing now"
+            isPast -> "Previously played"
+            else -> "Up next"
+        },
+    ) {
         Box(
             Modifier
                 .size(34.dp)
@@ -150,7 +160,8 @@ fun MoreScreen(np: NowPlaying?, link: PhoneLink, onOpenOutput: () -> Unit) {
                     icon = if (onWatch) R.drawable.ic_watch else R.drawable.ic_phone,
                     label = stringResource(R.string.output),
                     value = stringResource(if (onWatch) R.string.this_watch else R.string.on_phone_output),
-                    active = false,
+                    active = onWatch,
+                    stateDescription = if (onWatch) "This watch selected" else "Phone output selected",
                     onClick = onOpenOutput,
                 )
             }
@@ -164,6 +175,7 @@ fun MoreScreen(np: NowPlaying?, link: PhoneLink, onOpenOutput: () -> Unit) {
                     label = stringResource(R.string.shuffle),
                     value = stringResource(if (np.shuffle) R.string.on else R.string.off),
                     active = np.shuffle,
+                    stateDescription = if (np.shuffle) "On" else "Off",
                     onClick = link::toggleShuffle,
                 )
             }
@@ -179,6 +191,13 @@ fun MoreScreen(np: NowPlaying?, link: PhoneLink, onOpenOutput: () -> Unit) {
                         },
                     ),
                     active = np.repeatMode != PhoneLink.REPEAT_OFF,
+                    stateDescription = stringResource(
+                        when (np.repeatMode) {
+                            PhoneLink.REPEAT_ALL -> R.string.repeat_all
+                            PhoneLink.REPEAT_ONE -> R.string.repeat_one
+                            else -> R.string.repeat_off
+                        },
+                    ),
                     badge = if (np.repeatMode == PhoneLink.REPEAT_ONE) "1" else null,
                     onClick = link::cycleRepeat,
                 )
@@ -189,6 +208,7 @@ fun MoreScreen(np: NowPlaying?, link: PhoneLink, onOpenOutput: () -> Unit) {
                     label = stringResource(if (np.liked) R.string.loved else R.string.love),
                     value = null,
                     active = np.liked,
+                    stateDescription = if (np.liked) "Liked" else "Not liked",
                     activeTint = AccentRed,
                     onClick = link::toggleLike,
                 )
@@ -204,10 +224,11 @@ private fun ToggleCell(
     value: String?,
     active: Boolean,
     onClick: () -> Unit,
+    stateDescription: String? = null,
     activeTint: Color? = null,
     badge: String? = null,
 ) {
-    Cell(onClick = onClick) {
+    Cell(onClick = onClick, stateDescription = stateDescription) {
         // On: a filled disc, as the phone's player highlights shuffle and repeat.
         val disc = when {
             !active -> Color.White.copy(alpha = 0.12f)
@@ -255,6 +276,7 @@ private fun ToggleCell(
 private fun Cell(
     onClick: () -> Unit,
     dimmed: Boolean = false,
+    stateDescription: String? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -266,6 +288,7 @@ private fun Cell(
             .clip(RoundedCornerShape(22.dp))
             .background(if (pressed) Color(0xFF2C2C2E) else Cell)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { if (stateDescription != null) this.stateDescription = stateDescription }
             .padding(PaddingValues(horizontal = 12.dp, vertical = 9.dp)),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -374,7 +397,7 @@ private fun OutputCell(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    Cell(onClick = onClick) {
+    Cell(onClick = onClick, stateDescription = if (selected) "Selected" else "Not selected") {
         Box(
             Modifier
                 .size(32.dp)

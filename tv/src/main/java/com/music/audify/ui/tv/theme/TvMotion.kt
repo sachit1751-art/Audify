@@ -9,6 +9,14 @@ import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
+
+/** App-wide TV motion preference, provided once by [TvApp]. */
+val LocalTvReduceMotion = compositionLocalOf { false }
+
+/** Reduced motion uses a brief opacity/state transition; never spatial movement. */
+fun tvMotionDuration(reduceMotion: Boolean, normalMillis: Int): Int =
+    if (reduceMotion) 120 else normalMillis.coerceAtMost(300)
 
 /**
  * Apple Design System Animation and Motion Tokens.

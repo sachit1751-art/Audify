@@ -48,6 +48,8 @@ import androidx.compose.material.icons.rounded.BlurOff
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.Brightness4
 import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Feedback
 import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -1685,6 +1687,51 @@ fun SettingsScreen(
             }
         }
 
+        SearchableSettingsGroup(search, header = stringResource(R.string.help_and_feedback)) {
+            val reportBugTitle = stringResource(R.string.report_a_bug)
+            row(reportBugTitle, "bug", "issue", "problem", "crash", "feedback", "support") {
+                SettingsRow(
+                    icon = Icons.Rounded.BugReport,
+                    title = reportBugTitle,
+                    subtitle = stringResource(R.string.report_a_bug_subtitle),
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml"),
+                        )
+                        runCatching { context.startActivity(intent) }.onFailure {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.could_not_open_bug_report),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
+                )
+            }
+            val shareFeedbackTitle = stringResource(R.string.share_feedback)
+            row(shareFeedbackTitle, "suggestion", "idea", "feedback", "experience", "tester") {
+                SettingsRow(
+                    icon = Icons.Rounded.Feedback,
+                    title = shareFeedbackTitle,
+                    subtitle = stringResource(R.string.share_feedback_subtitle),
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml"),
+                        )
+                        runCatching { context.startActivity(intent) }.onFailure {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.could_not_open_feedback),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
+                )
+            }
+        }
+
         // Read after every group above has had its turn at the query, which is
         // what makes this an accurate "nothing here" rather than a guess.
         if (searchQuery.isNotBlank() && !search.anyMatch) {
@@ -1709,10 +1756,6 @@ fun SettingsScreen(
                 append("  ")
                 withLink(LinkAnnotation.Url("https://github.com/sachit1751-art", linkStyles)) {
                     append("Developer")
-                }
-                append("  ")
-                withLink(LinkAnnotation.Url("https://github.com/sachit1751-art/Audify/issues/new/choose", linkStyles)) {
-                    append("Issues / Bugs")
                 }
                 append("\n~YouTube Music & Listen Together Backend")
             },
