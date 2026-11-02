@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -228,7 +230,7 @@ private fun ToggleCell(
     activeTint: Color? = null,
     badge: String? = null,
 ) {
-    Cell(onClick = onClick, stateDescription = stateDescription) {
+    Cell(onClick = onClick, stateDescription = stateDescription, semanticRole = Role.Switch) {
         // On: a filled disc, as the phone's player highlights shuffle and repeat.
         val disc = when {
             !active -> Color.White.copy(alpha = 0.12f)
@@ -277,6 +279,7 @@ private fun Cell(
     onClick: () -> Unit,
     dimmed: Boolean = false,
     stateDescription: String? = null,
+    semanticRole: Role = Role.Button,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -284,11 +287,15 @@ private fun Cell(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .graphicsLayer { alpha = if (dimmed) 0.5f else 1f }
             .clip(RoundedCornerShape(22.dp))
             .background(if (pressed) Color(0xFF2C2C2E) else Cell)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
-            .semantics { if (stateDescription != null) this.stateDescription = stateDescription }
+            .semantics {
+                role = semanticRole
+                if (stateDescription != null) this.stateDescription = stateDescription
+            }
             .padding(PaddingValues(horizontal = 12.dp, vertical = 9.dp)),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
@@ -397,7 +404,11 @@ private fun OutputCell(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    Cell(onClick = onClick, stateDescription = if (selected) "Selected" else "Not selected") {
+    Cell(
+        onClick = onClick,
+        stateDescription = if (selected) "Selected" else "Not selected",
+        semanticRole = Role.RadioButton,
+    ) {
         Box(
             Modifier
                 .size(32.dp)

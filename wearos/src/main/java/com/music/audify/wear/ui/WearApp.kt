@@ -4,8 +4,6 @@ package com.music.audify.wear.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -198,17 +197,12 @@ private fun Message(title: String, body: String, action: String, onAction: () ->
 /** The phone app's primary button: white, black label, fully rounded. */
 @Composable
 private fun Pill(text: String, onClick: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
     Box(
         Modifier
-            .graphicsLayer {
-                scaleX = if (pressed) 0.95f else 1f
-                scaleY = if (pressed) 0.95f else 1f
-            }
+            .heightIn(min = 48.dp)
             .clip(CircleShape)
             .background(Color.White)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 22.dp, vertical = 9.dp),
     ) {
         Text(text, style = WearType.button, color = Color.Black)

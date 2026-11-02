@@ -172,7 +172,7 @@ internal fun TvNowPlayingStage(
     LaunchedEffect(song.videoId, canvasEnabled) {
         canvas = if (canvasEnabled) CanvasRepository.canvasFor(song) else null
     }
-    val animatedSide by animateFloatAsState(if (showLyrics) 1f else 0f, tween(520), label = "artToSide")
+    val animatedSide by animateFloatAsState(if (showLyrics) 1f else 0f, tween(if (reduceMotion) 0 else 520), label = "artToSide")
     val side = if (reduceMotion) if (showLyrics) 1f else 0f else animatedSide
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -337,6 +337,7 @@ internal fun TvTransport(
     upNext: @Composable () -> Unit,
 ) {
     val showStats by AppSettings.showNerdStats.collectAsState()
+    val reduceMotion = com.music.audify.ui.tv.theme.LocalTvReduceMotion.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -401,8 +402,8 @@ internal fun TvTransport(
         )
         AnimatedVisibility(
             visible = upNextOpen,
-            enter = expandVertically(tween(300)) + fadeIn(tween(240)),
-            exit = shrinkVertically(tween(260)) + fadeOut(tween(180)),
+            enter = if (reduceMotion) fadeIn(tween(120)) else expandVertically(tween(300)) + fadeIn(tween(240)),
+            exit = if (reduceMotion) fadeOut(tween(120)) else shrinkVertically(tween(260)) + fadeOut(tween(180)),
         ) {
             Column {
                 Spacer(modifier = Modifier.height(18.dp))
@@ -480,7 +481,8 @@ private fun TvScrubber(
     LaunchedEffect(isPlaying) {
         if (isPlaying) while (true) withFrameNanos { frame.longValue = it }
     }
-    val thickness by animateDpAsState(if (focused) 6.dp else 4.dp, tween(160), label = "scrubThickness")
+    val reduceMotion = com.music.audify.ui.tv.theme.LocalTvReduceMotion.current
+    val thickness by animateDpAsState(if (focused) 6.dp else 4.dp, tween(if (reduceMotion) 0 else 160), label = "scrubThickness")
 
     Column {
         Box(
@@ -767,12 +769,13 @@ internal enum class TvFlash { Play, Pause, Next, Previous }
  */
 @Composable
 internal fun TvFlashGlyph(flash: TvFlash?, tick: Int, modifier: Modifier = Modifier) {
+    val reduceMotion = com.music.audify.ui.tv.theme.LocalTvReduceMotion.current
     val alpha = remember { Animatable(0f) }
-    LaunchedEffect(tick) {
+    LaunchedEffect(tick, reduceMotion) {
         if (tick == 0) return@LaunchedEffect
         alpha.snapTo(1f)
         delay(420)
-        alpha.animateTo(0f, tween(360))
+        if (reduceMotion) alpha.snapTo(0f) else alpha.animateTo(0f, tween(360))
     }
     val shown = flash ?: return
     Box(
@@ -780,7 +783,7 @@ internal fun TvFlashGlyph(flash: TvFlash?, tick: Int, modifier: Modifier = Modif
             .size(94.dp)
             .graphicsLayer {
                 this.alpha = alpha.value
-                val s = 0.92f + 0.08f * alpha.value
+                val s = if (reduceMotion) 1f else 0.92f + 0.08f * alpha.value
                 scaleX = s
                 scaleY = s
             }

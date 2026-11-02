@@ -329,15 +329,6 @@ private fun PlayDisc(
     } else {
         null
     }
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        when {
-            scrubbing -> 1.04f
-            pressed -> 0.94f
-            else -> 1f
-        },
-        label = "discPress",
-    )
     // Read by the gesture blocks, which live across recompositions.
     val latestScrubbing by rememberUpdatedState(scrubbing)
     val latestDuration by rememberUpdatedState(np.durationMs)
@@ -346,10 +337,6 @@ private fun PlayDisc(
     Box(
         modifier = Modifier
             .size(size)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
             .drawBehind {
                 val stroke = (if (scrubMs != null) 5.dp else 3.5.dp).toPx()
                 val inset = stroke / 2f
@@ -404,11 +391,6 @@ private fun PlayDisc(
             }
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        tryAwaitRelease()
-                        pressed = false
-                    },
                     // The drag detector below owns the hold; this is set only
                     // so a hold is never also taken as a tap when let go.
                     onLongPress = {},
@@ -529,7 +511,7 @@ private fun rememberProgress(np: NowPlaying): State<Float> {
     return progress
 }
 
-/** A round glyph button that dips when pressed instead of rippling. */
+/** A round glyph button with a minimum 48dp hit target. */
 @Composable
 fun GlyphButton(
     @DrawableRes icon: Int,
@@ -547,9 +529,6 @@ fun GlyphButton(
     Box(
         modifier = modifier
             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-            .size(size)
-            .clip(CircleShape)
-            .background(if (pressed) background.copy(alpha = (background.alpha + 0.12f).coerceAtMost(1f)) else background)
             .clickable(
                 enabled = enabled,
                 interactionSource = interaction,
@@ -560,12 +539,20 @@ fun GlyphButton(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = description,
-            tint = if (enabled) tint else tint.copy(alpha = 0.35f),
-            modifier = Modifier.size(iconSize),
-        )
+        Box(
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(if (pressed) background.copy(alpha = (background.alpha + 0.12f).coerceAtMost(1f)) else background),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = description,
+                tint = if (enabled) tint else tint.copy(alpha = 0.35f),
+                modifier = Modifier.size(iconSize),
+            )
+        }
     }
 }
 

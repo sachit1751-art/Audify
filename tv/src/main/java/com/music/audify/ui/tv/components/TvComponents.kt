@@ -61,6 +61,7 @@ import coil3.toBitmap
 import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvType
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -175,9 +176,10 @@ fun TvCard(
     }
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val reduceMotion = LocalTvReduceMotion.current
     val footer = animateColorAsState(
         targetValue = rememberDominantCardColor(artworkUrl),
-        animationSpec = tween(300),
+        animationSpec = tween(if (reduceMotion) 0 else 300),
         label = "cardFooter",
     )
 
@@ -386,11 +388,12 @@ fun TvDialog(
     width: Dp = 448.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val reduceMotion = LocalTvReduceMotion.current
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     val progress by animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(220),
+        animationSpec = tween(if (reduceMotion) 120 else 220),
         label = "tvDialogIn",
     )
 
@@ -414,7 +417,7 @@ fun TvDialog(
                 modifier = modifier
                     .width(width)
                     .graphicsLayer {
-                        val s = 0.96f + 0.04f * progress
+                        val s = if (reduceMotion) 1f else 0.96f + 0.04f * progress
                         scaleX = s
                         scaleY = s
                     }

@@ -223,25 +223,35 @@ val LocalTvChrome = staticCompositionLocalOf { TvChrome() }
 @Composable
 fun TvChromeScrollEffect(state: LazyListState) {
     val chrome = LocalTvChrome.current
+    val reduceMotion = LocalTvReduceMotion.current
     val scrolled by remember(state) {
         derivedStateOf { state.firstVisibleItemIndex > 0 || state.firstVisibleItemScrollOffset > 32 }
     }
     LaunchedEffect(scrolled, chrome.epoch) { chrome.contentScrolled = scrolled }
     val seen = remember { chrome.scrollToTopRequests }
     val requests = chrome.scrollToTopRequests
-    LaunchedEffect(requests) { if (requests != seen) state.animateScrollToItem(0) }
+    LaunchedEffect(requests, reduceMotion) {
+        if (requests != seen) {
+            if (reduceMotion) state.scrollToItem(0) else state.animateScrollToItem(0)
+        }
+    }
 }
 
 @Composable
 fun TvChromeScrollEffect(state: LazyGridState) {
     val chrome = LocalTvChrome.current
+    val reduceMotion = LocalTvReduceMotion.current
     val scrolled by remember(state) {
         derivedStateOf { state.firstVisibleItemIndex > 0 || state.firstVisibleItemScrollOffset > 32 }
     }
     LaunchedEffect(scrolled, chrome.epoch) { chrome.contentScrolled = scrolled }
     val seen = remember { chrome.scrollToTopRequests }
     val requests = chrome.scrollToTopRequests
-    LaunchedEffect(requests) { if (requests != seen) state.animateScrollToItem(0) }
+    LaunchedEffect(requests, reduceMotion) {
+        if (requests != seen) {
+            if (reduceMotion) state.scrollToItem(0) else state.animateScrollToItem(0)
+        }
+    }
 }
 
 /** For screens that never scroll under the bar (two-pane Library, Settings). */
@@ -299,6 +309,7 @@ fun <T> TvRow(
     contentType: (T) -> Any? = { null },
     itemContent: @Composable (index: Int, item: T) -> Unit,
 ) {
+    val reduceMotion = LocalTvReduceMotion.current
     val state = rememberLazyListState()
     var first by remember { mutableIntStateOf(state.firstVisibleItemIndex) }
     var focused by remember { mutableIntStateOf(-1) }
@@ -307,7 +318,7 @@ fun <T> TvRow(
     val entry = remember { FocusRequester() }
     val density = LocalDensity.current
 
-    LaunchedEffect(focused) {
+    LaunchedEffect(focused, reduceMotion) {
         if (focused < 0) return@LaunchedEffect
         val info = state.layoutInfo
         val itemSize = info.visibleItemsInfo.firstOrNull()?.size ?: return@LaunchedEffect
@@ -320,7 +331,7 @@ fun <T> TvRow(
         }
         if (next != first || state.firstVisibleItemIndex != next || state.firstVisibleItemScrollOffset != 0) {
             first = next
-            state.animateScrollToItem(next)
+            if (reduceMotion) state.scrollToItem(next) else state.animateScrollToItem(next)
         }
     }
 
@@ -870,15 +881,16 @@ fun TvActivityIndicator(
     size: Dp = 24.dp,
     color: Color = Color.White,
 ) {
-    val transition = rememberInfiniteTransition(label = "tvSpinner")
-    val step = transition.animateFloat(
+    val reduceMotion = LocalTvReduceMotion.current
+    val transition = if (reduceMotion) null else rememberInfiniteTransition(label = "tvSpinner")
+    val step = transition?.animateFloat(
         initialValue = 0f,
         targetValue = 8f,
         animationSpec = infiniteRepeatable(tween(durationMillis = 840, easing = LinearEasing)),
         label = "tvSpinnerStep",
     )
     Canvas(modifier = modifier.size(size)) {
-        val head = floor(step.value).toInt() % 8
+        val head = if (reduceMotion) 0 else floor(step?.value ?: 0f).toInt() % 8
         val radius = this.size.minDimension / 2f
         val stroke = radius * 0.2f
         for (i in 0 until 8) {

@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 import androidx.compose.ui.window.DialogProperties
 import com.music.audify.BuildConfig
 import com.music.audify.auth.GoogleAccountSession
@@ -543,10 +544,11 @@ private fun TvProfileSettingsButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val reduceMotion = LocalTvReduceMotion.current
 
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(180),
+        animationSpec = tween(if (reduceMotion) 120 else 180),
         label = "settingsButtonAlpha",
     )
 
@@ -742,10 +744,11 @@ private fun TvPinDialog(
 
     val cancelFocusRequester = remember { FocusRequester() }
     val firstKeyFocusRequester = remember { FocusRequester() }
+    val reduceMotion = LocalTvReduceMotion.current
 
     val keypadAlpha by animateFloatAsState(
         targetValue = if (isInputBlocked) 0.35f else 1f,
-        animationSpec = tween(250),
+        animationSpec = tween(if (reduceMotion) 0 else 250),
         label = "keypadAlpha",
     )
 

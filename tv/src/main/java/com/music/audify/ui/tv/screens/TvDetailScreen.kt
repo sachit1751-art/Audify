@@ -68,6 +68,7 @@ import com.music.audify.ui.tv.dialogs.TvSongMenu
 import com.music.audify.ui.tv.theme.TvDimensions
 import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvType
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 import kotlinx.coroutines.launch
 
 @Composable
@@ -181,6 +182,7 @@ private fun TvReleaseContent(
     val songs = (songsState as? UiState.Success)?.data.orEmpty()
     val suggested = page?.suggestedSongs.orEmpty()
     val numbered = type == BrowseType.ALBUM
+    val reduceMotion = LocalTvReduceMotion.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     TvChromeScrollEffect(listState)
@@ -188,7 +190,7 @@ private fun TvReleaseContent(
     // The cover's colour, washed down from the top of the page.
     val tint = animateColorAsState(
         targetValue = rememberDominantCardColor(artworkUrl, Color.Transparent),
-        animationSpec = tween(500),
+        animationSpec = tween(if (reduceMotion) 0 else 500),
         label = "releaseTint",
     )
 

@@ -76,6 +76,7 @@ import com.music.audify.ui.tv.components.tvPlatter
 import com.music.audify.ui.tv.theme.TvDimensions
 import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvType
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 import kotlinx.coroutines.launch
 
 /** Top Songs stops here, as on the phone: past twenty the list would bury the releases. */
@@ -104,6 +105,7 @@ internal fun TvArtistContent(
     onNavigateToDetail: (browseId: String, title: String, subtitle: String, thumbnailUrl: String?, type: BrowseType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = LocalTvReduceMotion.current
     val songs = (page?.songs as? UiState.Success)?.data.orEmpty()
     val sections = page?.sections.orEmpty()
     val topRelease = remember(sections) { sections.topRelease() }
@@ -144,7 +146,11 @@ internal fun TvArtistContent(
                         onPlay = { onPlay(songs, 0) },
                         onShuffle = { onShuffle(songs) },
                         onToggleSubscription = onToggleSubscription,
-                        onActionsFocused = { scope.launch { listState.animateScrollToItem(0) } },
+                        onActionsFocused = {
+                            scope.launch {
+                                if (reduceMotion) listState.scrollToItem(0) else listState.animateScrollToItem(0)
+                            }
+                        },
                     )
                 }
 

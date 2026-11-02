@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -76,6 +77,7 @@ import androidx.compose.foundation.layout.heightIn
 import com.music.audify.ui.tv.theme.AppleSpringPreset
 import com.music.audify.ui.tv.theme.TvSFProDisplay
 import com.music.audify.ui.tv.theme.TvThemeColors
+import com.music.audify.ui.tv.theme.LocalTvReduceMotion
 import com.music.audify.ui.tv.theme.appleSpring
 import java.util.Locale
 import kotlin.math.abs
@@ -220,15 +222,17 @@ private fun TvBandFader(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
+    val reduceMotion = LocalTvReduceMotion.current
 
     val targetScale = when {
+        reduceMotion -> 1f
         isPressed -> 0.94f
         isFocused -> 1.08f
         else -> 1.0f
     }
     val faderScale by animateFloatAsState(
         targetValue = targetScale,
-        animationSpec = appleSpring(AppleSpringPreset.Snappy),
+        animationSpec = if (reduceMotion) tween(0) else appleSpring(AppleSpringPreset.Snappy),
         label = "bandFaderScale",
     )
 
