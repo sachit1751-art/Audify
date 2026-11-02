@@ -27,10 +27,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Write local.properties
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          LISTEN_TOGETHER_SERVER: ${{ secrets.LISTEN_TOGETHER_SERVER }}
         run: |
-          echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" > local.properties
-          echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
-          echo "LISTEN_TOGETHER_SERVER=${{ secrets.LISTEN_TOGETHER_SERVER }}" >> local.properties
+          printf 'LASTFM_API_KEY=%s\n' "$LASTFM_API_KEY" > local.properties
+          printf 'LASTFM_SECRET=%s\n' "$LASTFM_SECRET" >> local.properties
+          printf 'LISTEN_TOGETHER_SERVER=%s\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
 
       # The local debug key, so this APK installs over a local dev build and
       # back. Fork PRs get no secrets; AGP then makes a throwaway key itself.
