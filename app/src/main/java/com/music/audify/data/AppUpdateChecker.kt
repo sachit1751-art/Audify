@@ -107,12 +107,15 @@ object AppUpdateChecker {
      * so this app's APKs are the ones named with its own
      * [BuildConfig.UPDATE_APK_PREFIX] — "Audify-" never matches a TV file,
      * since the prefix ends at the hyphen. The universal build (no `_ABI`
-     * suffix) is taken first, as it installs anywhere; failing that, the split
-     * for this device's ABI. A release with neither leaves
+     * suffix) is used only as a fallback. The matching ABI split is preferred
+     * to avoid downloading a much larger universal APK. A release with neither leaves
      * [UpdateInfo.apkUrl] null and the UI falls back to opening the releases
      * page.
      */
-    private fun apkAssetUrl(release: JsonObject): String? = runCatching {
+    internal fun apkAssetUrl(
+        release: JsonObject,
+        supportedAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    ): String? = runCatching {
         val apks = release["assets"]?.jsonArray
             ?.mapNotNull { it as? JsonObject }
             ?.mapNotNull { asset ->
@@ -124,10 +127,9 @@ object AppUpdateChecker {
                 if (ours) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
             }
             .orEmpty()
-        apks.firstOrNull { (name, _) -> '_' !in name }?.second
-            ?: Build.SUPPORTED_ABIS.firstNotNullOfOrNull { abi ->
-                apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
-            }
+        supportedAbis.firstNotNullOfOrNull { abi ->
+            apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
+        } ?: apks.firstOrNull { (name, _) -> '_' !in name }?.second
     }.getOrNull()
 
     /**
@@ -245,7 +247,7 @@ object AppUpdateChecker {
      * the tag it was testing toward. Without this, a beta and the release it
      * matches compare equal and testers never get nudged onto the real build.
      */
-    private fun isNewer(latest: String, current: String): Boolean {
+    internal fun isNewer(latest: String, current: String): Boolean {
         val l = parseVersion(latest)
         val c = parseVersion(current)
         for (i in 0 until maxOf(l.parts.size, c.parts.size)) {

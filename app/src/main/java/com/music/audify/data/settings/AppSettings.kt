@@ -102,6 +102,11 @@ enum class ThemeMode(val label: String) {
     SYSTEM("System"), LIGHT("Light"), DARK("Dark")
 }
 
+/** App-wide typeface preference. AUDIFY keeps its bundled display face by default. */
+enum class AppFontChoice(val label: String) {
+    AUDIFY("Audify"), SYSTEM("System"), SERIF("Serif")
+}
+
 /**
  * Which of the equaliser's two tabs is driving the sound.
  *
@@ -349,6 +354,7 @@ object AppSettings {
 
     val playbackSpeed = MutableStateFlow(1.0f)
     val themeMode = MutableStateFlow(ThemeMode.DARK)
+    val fontChoice = MutableStateFlow(AppFontChoice.AUDIFY)
 
     /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
@@ -869,6 +875,9 @@ object AppSettings {
         themeMode.value = runCatching {
             ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "DARK")
         }.getOrDefault(ThemeMode.DARK)
+        fontChoice.value = runCatching {
+            AppFontChoice.valueOf(prefs.getString(KEY_FONT_CHOICE, null) ?: AppFontChoice.AUDIFY.name)
+        }.getOrDefault(AppFontChoice.AUDIFY)
         autoplay.value = prefs.getBoolean(KEY_AUTOPLAY, true)
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
@@ -1246,6 +1255,11 @@ object AppSettings {
     fun setThemeMode(value: ThemeMode) {
         themeMode.value = value
         prefs.edit { putString(KEY_THEME, value.name) }
+    }
+
+    fun setFontChoice(value: AppFontChoice) {
+        fontChoice.value = value
+        prefs.edit { putString(KEY_FONT_CHOICE, value.name) }
     }
 
     fun setReduceAnimation(value: Boolean) {
@@ -2067,6 +2081,7 @@ object AppSettings {
     private const val KEY_EQ_BANDS = "equalizer_bands"
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_THEME = "theme_mode"
+    private const val KEY_FONT_CHOICE = "font_choice"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"

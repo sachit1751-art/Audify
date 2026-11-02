@@ -1089,8 +1089,6 @@ Project: AUDIFY
     <string name="artist_signatures_test_failed">No se pudo contactar con la API en esa URL</string>
     <string name="search_source_addons">Addons</string>
     <string name="search_addons_none">No hay addons activados. Añade uno en Ajustes → Fuentes.</string>
-    <string name="app_icon">Icono de la app</string>
-    <string name="app_icon_default">Predeterminado</string>
     <string name="show_queue_history">Mostrar historial de la cola</string>
     <string name="show_queue_history_subtitle">Muestra hasta 25 canciones reproducidas antes de «Reproduciendo ahora» en la cola</string>
     <string name="not_enough_this_week">Escucha unas cuantas canciones más esta semana para desbloquear tu Replay.</string>
@@ -1231,29 +1229,17 @@ Project: AUDIFY
         <item quantity="many">%1$d canciones · En este dispositivo</item>
     </plurals>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="audify_selected">Selected</string>
 

@@ -1049,8 +1049,6 @@ Project: AUDIFY
     <string name="artist_signatures_test_failed">ไม่สามารถเข้าถึง API ที่ URL นี้ได้</string>
     <string name="search_source_addons">แอดออน</string>
     <string name="search_addons_none">ยังไม่ได้เปิดใช้แอดออน เพิ่มได้ที่ การตั้งค่า → แหล่งที่มา</string>
-    <string name="app_icon">ไอคอนแอป</string>
-    <string name="app_icon_default">ค่าเริ่มต้น</string>
     <string name="show_queue_history">แสดงประวัติคิว</string>
     <string name="show_queue_history_subtitle">แสดงเพลงที่เล่นไปแล้วสูงสุด 25 เพลงเหนือ “กำลังเล่น” ในคิว</string>
     <string name="not_enough_this_week">ฟังเพลงอีกสักหน่อยในสัปดาห์นี้เพื่อปลดล็อก Replay ของคุณ</string>
@@ -1177,29 +1175,17 @@ Project: AUDIFY
         <item quantity="other">%1$d เพลง · ในเครื่องนี้</item>
     </plurals>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="audify_selected">Selected</string>
 

@@ -1088,33 +1088,19 @@ Project: AUDIFY
         <item quantity="other">%1$d 首歌曲 · 本裝置上</item>
     </plurals>
 
-    <string name="app_icon">App icon</string>
 
-    <string name="app_icon_default">Default</string>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="artist_signatures">Artist signatures</string>
 

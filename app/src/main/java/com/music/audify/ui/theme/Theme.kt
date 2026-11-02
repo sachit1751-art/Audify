@@ -9,16 +9,25 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.music.audify.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.getValue
+import com.music.audify.data.settings.AppFontChoice
+import com.music.audify.data.settings.AppSettings
 
 // Apple Music's signature red. No longer the primary accent, but kept for the
 // spots (Replay's rank badge) that want that specific red regardless of theme.
@@ -72,7 +81,7 @@ private val AudifyTypography = Typography(
     bodyMedium = TextStyle(fontWeight = FontWeight.W400, fontSize = 14.sp),
     labelMedium = TextStyle(fontWeight = FontWeight.W600, fontSize = 12.sp),
     labelSmall = TextStyle(fontWeight = FontWeight.W600, fontSize = 11.sp),
-).withFamily(SFProDisplay)
+)
 
 /** Applies [family] to every style in the scale, so nothing is left on Roboto. */
 private fun Typography.withFamily(family: FontFamily) = Typography(
@@ -96,13 +105,33 @@ private fun Typography.withFamily(family: FontFamily) = Typography(
 @Composable
 fun AudifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    windowWidth: Dp = 0.dp,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
-        typography = AudifyTypography,
-        content = content,
-    )
+    val baseDensity = LocalDensity.current
+    val fontChoice by AppSettings.fontChoice.collectAsStateWithLifecycle()
+    val selectedFont = when (fontChoice) {
+        AppFontChoice.AUDIFY -> SFProDisplay
+        AppFontChoice.SYSTEM -> FontFamily.Default
+        AppFontChoice.SERIF -> FontFamily.Serif
+    }
+    val adaptiveFontScale = when {
+        windowWidth >= 840.dp -> 1.18f
+        windowWidth >= 600.dp -> 1.12f
+        else -> 1f
+    }
+    CompositionLocalProvider(
+        LocalDensity provides Density(
+            density = baseDensity.density,
+            fontScale = baseDensity.fontScale * adaptiveFontScale,
+        ),
+    ) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = AudifyTypography.withFamily(selectedFont),
+            content = content,
+        )
+    }
 }
 
 /**

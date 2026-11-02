@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.view.WindowCompat
+import androidx.media3.common.util.UnstableApi
 import com.music.audify.data.listentogether.JamInviteLink
 import com.music.audify.playback.MusicLink
 import com.music.audify.playback.PlayerDeepLink
@@ -24,6 +25,7 @@ import com.music.audify.ui.tv.theme.AudifyTvTheme
  * Dedicated TV Activity for Android TV, Google TV, and Fire TV devices.
  * Launched via `android.intent.category.LEANBACK_LAUNCHER`.
  */
+@UnstableApi
 class TvActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()

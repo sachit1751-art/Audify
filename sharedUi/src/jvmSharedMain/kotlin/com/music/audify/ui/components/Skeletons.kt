@@ -285,17 +285,36 @@ fun LazyListScope.feedMoreSkeleton() {
  */
 @Composable
 fun ReplayCardRowSkeleton(modifier: Modifier = Modifier) {
-    LazyRow(
-        modifier = modifier.padding(vertical = 6.dp),
-        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        userScrollEnabled = false,
-    ) {
-        items(2) {
-            ShimmerBox(
-                modifier = Modifier.width(300.dp).aspectRatio(1.586f),
-                shape = RoundedCornerShape(20.dp),
-            )
+    BoxWithConstraints(modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        if (maxWidth >= 720.dp) {
+            Column(
+                modifier = Modifier.padding(horizontal = PAGE_GUTTER),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                repeat(2) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        repeat(2) {
+                            ShimmerBox(
+                                modifier = Modifier.weight(1f).height(144.dp),
+                                shape = RoundedCornerShape(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                userScrollEnabled = false,
+            ) {
+                items(2) {
+                    ShimmerBox(
+                        modifier = Modifier.width(minOf(292.dp, maxWidth * 0.86f)).height(144.dp),
+                        shape = RoundedCornerShape(20.dp),
+                    )
+                }
+            }
         }
     }
 }

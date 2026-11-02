@@ -1074,8 +1074,6 @@ Project: AUDIFY
     <string name="artist_signatures_test_failed">Bu URL\'de API\'ye ulaşılamadı</string>
     <string name="search_source_addons">Eklentiler</string>
     <string name="search_addons_none">Etkin eklenti yok. Ayarlar → Kaynaklar bölümünden bir tane ekleyin.</string>
-    <string name="app_icon">Uygulama simgesi</string>
-    <string name="app_icon_default">Varsayılan</string>
     <string name="show_queue_history">Sıra geçmişini göster</string>
     <string name="show_queue_history_subtitle">Sırada “Şimdi çalıyor” öğesinin üstünde daha önce çalınan en fazla 25 şarkıyı gösterir</string>
     <string name="not_enough_this_week">Replay’inizin kilidini açmak için bu hafta birkaç şarkı daha dinleyin.</string>
@@ -1200,29 +1198,17 @@ Project: AUDIFY
         <item quantity="other">%1$d şarkı · Bu cihazda</item>
     </plurals>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="audify_selected">Selected</string>
 

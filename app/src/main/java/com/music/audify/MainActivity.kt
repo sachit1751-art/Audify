@@ -407,7 +407,8 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-            AudifyTheme(darkTheme = darkTheme) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+            AudifyTheme(darkTheme = darkTheme, windowWidth = maxWidth) {
                 // The glass surfaces sample this layer, and a layer records only
                 // what is drawn into it — which, for Audify, is a page that
                 // paints no background of its own. Everywhere a page is not
@@ -430,26 +431,14 @@ class MainActivity : AppCompatActivity() {
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
                     LocalAppBackdrop provides appBackdrop,
                 ) {
-                // The window's width, measured rather than asked for.
-                //
-                // `Configuration.screenWidthDp` is the wrong question here: in a
-                // freeform or desktop window it can report the display rather
-                // than the window it is actually in, and it lands a beat late
-                // when that window is dragged. The layout downstream splits in
-                // two on the strength of this number and sizes both halves from
-                // it, so a stale one is a player pane sized for a window that no
-                // longer exists and a page squeezed to a sliver to pay for it.
-                // A measured constraint cannot be stale — it is the very width
-                // the split is about to be laid out in.
-                BoxWithConstraints(Modifier.fillMaxSize()) {
                     AudifyApp(
                         darkTheme = darkTheme,
                         windowWidth = maxWidth,
                         windowHeight = maxHeight,
                         appBackdrop = appBackdrop,
                     )
-                }
-                }
+            }
+            }
             }
         }
     }
@@ -3223,6 +3212,7 @@ private fun AudifyApp(
                                 title = stringResource(R.string.listen_now),
                                 signedIn = signedIn,
                                 userName = ListenTogether.nickname().ifBlank { account?.name.orEmpty() },
+                                profileThumbnailUrl = account?.thumbnailUrl,
                                 greetingMorning = stringResource(R.string.good_morning),
                                 greetingAfternoon = stringResource(R.string.good_afternoon),
                                 greetingEvening = stringResource(R.string.good_evening),
@@ -3286,7 +3276,9 @@ private fun AudifyApp(
                                         "Workout" -> listOf("workout", "fitness", "exercise")
                                         "Relax" -> listOf("relax", "chill", "calm")
                                         "Focus" -> listOf("focus", "concentration", "study")
-                                        else -> listOf("commute", "driving", "road trip")
+                                        "Commute" -> listOf("commute", "driving", "road trip")
+                                        "Party" -> listOf("party", "dance", "celebration")
+                                        else -> listOf(mood.lowercase())
                                     }
                                     val category = categories.firstOrNull { item ->
                                         terms.any { term -> item.title.contains(term, ignoreCase = true) }
@@ -3302,6 +3294,7 @@ private fun AudifyApp(
                                         viewModel.searchFor("$mood music")
                                     }
                                 },
+                                onListenTogetherClick = { navigator.push(AppRoute.ListenTogether) },
                                 onPlayAllQuickPicks = { shelf ->
                                     val songs = shelf.items.mapNotNull(shelfSong).map { song ->
                                         song.copy(
@@ -3546,8 +3539,6 @@ private fun AudifyApp(
                                     LibraryReplayEntry(
                                         cards = replayCards,
                                         loading = replay.loading,
-                                        holder = account?.name.orEmpty(),
-                                        memberSince = replay.memberSince,
                                         onOpenReplay = { page ->
                                             replayLandingPage = page
                                             navigator.push(AppRoute.Replay)
@@ -3562,6 +3553,7 @@ private fun AudifyApp(
                                 contentPadding = listPadding,
                                 links = libraryLinks(),
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
+                                deviceEmptyText = stringResource(R.string.on_device_empty),
                             )
                         }
                     }
@@ -4015,7 +4007,7 @@ private fun AudifyApp(
                         selectedIndex = if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2),
                         onTabSelected = onTabSelected,
                         scrollConnection = navBarScroll,
-                        song = player.song,
+                        song = playerSong,
                         isPlaying = player.isPlaying,
                         isLoading = playPauseBusy,
                         onPlayPause = {
@@ -4049,7 +4041,7 @@ private fun AudifyApp(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     QueueActionNoticeHost(queueNotice)
-                    player.song?.let { song ->
+                    playerSong?.let { song ->
                         MiniPlayer(
                             song = song,
                             isPlaying = player.isPlaying,

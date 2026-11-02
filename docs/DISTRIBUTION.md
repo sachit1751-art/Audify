@@ -4,6 +4,8 @@ Project: AUDIFY
 -->
 # Alternative Android distribution
 
+> **Status snapshot: 2026-11-02.** `1.8.4` (`v1.8.4`) is the current stable release. This page records alternative-distribution readiness, not a store submission or approval.
+
 ## Obtainium
 
 Obtainium can track the Audify GitHub Releases page and notify users when a new release is published. The README includes an `obtainium://` deep link that pre-fills the official repository URL. Users must review and confirm the app in Obtainium before adding it.
@@ -14,7 +16,7 @@ Audify's GitHub release currently contains multiple APKs. Users must select the 
 
 **Not listed yet.** Fastlane metadata and screenshots are prepared in `fastlane/metadata/android/en-US/` for a future inclusion request.
 
-The current 1.8.3 phone APKs exceed IzzyOnDroid's usual 30 MB per-APK limit: even the smallest ABI-specific phone APK is approximately 55 MiB. The current release therefore cannot be submitted as-is. A smaller, properly signed release artifact is required first. All bundled fonts, model assets, native libraries and runtime dependencies also need a documented license/compliance review before requesting inclusion.
+The 1.8.4 phone APKs still exceed IzzyOnDroid's usual 30 MB per-APK limit. The signed ABI-specific APKs are larger than that threshold, so this release cannot be submitted as-is. All bundled fonts, model assets, native libraries and runtime dependencies also need a documented license/compliance review before requesting inclusion.
 
 IzzyOnDroid inclusion policy: https://izzyondroid.org/docs/general/AppInclusionPolicy/
 New app inclusion guidance: https://izzyondroid.org/contributing/NewAppInclusions/

@@ -36,10 +36,9 @@ Do not claim Audify is a Spotify replacement, has an unlimited catalogue, is ad-
 ## 3. Current distribution reality
 
 - Primary distribution is GitHub Releases; there is no Play Store listing to rely on.
-- `v1.8.3` is the current stable release and the default build to promote.
+- `v1.8.4` is the current stable release; use its signed APK assets as the distribution baseline.
 - The repository is public but early in its audience-building lifecycle. The observed public baseline on 2026-11-01 was 2 stars, 1 fork, and no open issues. GitHub asset download counters are not unique-user or active-user counts.
-- The GitHub repository About panel currently describes Audify only as a "YouTube Music client for Android" and includes a `flutter` topic despite the repository being Kotlin-based. Update the About description and topics manually in GitHub repository settings; the current connector does not expose repository metadata editing.
-- The universal phone APK is approximately 164 MB; the arm64 phone APK is approximately 65 MB. Recommend arm64-v8a for most current Android phones and explain the universal fallback.
+- Recommend `arm64-v8a` for most current Android phones and explain the universal fallback. Refer to `docs/DISTRIBUTION.md` and the selected release assets for current package sizes rather than keeping volatile APK-size figures in this plan.
 - GitHub Discussions are currently disabled. Use a small, structured tester-feedback path until a maintained community space is deliberately enabled.
 
 For future releases, verify that the selected stable release is installable, signed as expected, has accurate release notes, and has no unresolved release-blocking defects. Never silently direct newcomers to a prerelease.
@@ -117,9 +116,8 @@ Use this only in communities where project promotion is allowed. Keep the develo
 
 ## 9. Immediate next actions
 
-1. Review the README download changes and merge/push them with this plan.
-2. Update the GitHub About description and remove the inaccurate `flutter` topic; use relevant topics such as `android`, `kotlin`, `music-player`, `youtube-music`, `jetpack-compose`, and `open-source`.
-3. Record the baseline GitHub counters on the day the first outreach post goes live.
-4. Choose one community whose rules allow a developer introduction; post once and respond to feedback.
-5. Record the first five tester questions and fix the highest-friction issue before posting again.
+1. Confirm the README download path and stable release are still current.
+2. Record the baseline GitHub counters on the day the first outreach post goes live.
+3. Choose one community whose rules allow a developer introduction; post once and respond to feedback.
+4. Record the first five tester questions and fix the highest-friction issue before posting again.
 

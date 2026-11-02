@@ -282,11 +282,13 @@ private const val MOOD_STRIPE_FRACTION = .28f
  * 1.8 of these), while a tablet or a window lays out as many as fit rather
  * than two cards each half a screen wide.
  */
-private val MOOD_MIN_CARD_WIDTH = 220.dp
+private val MOOD_MIN_CARD_WIDTH = 176.dp
 
-private const val MOOD_MAX_COLUMNS = 6
+// Keep the landscape tablet grid at four generous cards per row. Extra-wide
+// desktop windows should not turn the category sleeves into tiny tiles.
+private const val MOOD_MAX_COLUMNS = 4
 
-private fun moodColumns(available: Dp): Int {
+internal fun moodColumns(available: Dp): Int {
     val row = available - PAGE_GUTTER * 2
     return ((row + MOOD_SPACING) / (MOOD_MIN_CARD_WIDTH + MOOD_SPACING)).toInt().coerceIn(2, MOOD_MAX_COLUMNS)
 }

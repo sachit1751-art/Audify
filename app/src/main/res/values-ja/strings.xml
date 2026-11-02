@@ -1072,8 +1072,6 @@ Project: AUDIFY
     <string name="artist_signatures_test_failed">そのURLでAPIに到達できませんでした</string>
     <string name="search_source_addons">アドオン</string>
     <string name="search_addons_none">有効なアドオンがありません。設定 → ソースで追加してください。</string>
-    <string name="app_icon">アプリアイコン</string>
-    <string name="app_icon_default">デフォルト</string>
     <string name="show_queue_history">キューの履歴を表示</string>
     <string name="show_queue_history_subtitle">キューの「再生中」の上に、再生済みの曲を最大25曲表示します</string>
     <string name="not_enough_this_week">今週もう少し曲を再生するとReplayが解放されます。</string>
@@ -1200,29 +1198,17 @@ Project: AUDIFY
         <item quantity="other">%1$d 曲 · この端末内</item>
     </plurals>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="audify_selected">Selected</string>
 

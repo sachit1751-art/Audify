@@ -117,6 +117,8 @@ fun LibraryScreen(
      * whole. Left off the page entirely while there are none.
      */
     deviceItems: List<ShelfItem>,
+    /** Copy shown under On Device until the user has saved an album or playlist. */
+    deviceEmptyText: String,
     /** The big "Library" heading; the desktop's pages carry none. */
     showTitle: Boolean = true,
 ) {
@@ -147,8 +149,8 @@ fun LibraryScreen(
             if (links.isNotEmpty()) {
                 item(key = "links") { LibraryLinkList(links = links, onClick = onShelfItemClick) }
             }
-            if (deviceItems.isNotEmpty()) {
-                item(key = "shelf:$onDevice") {
+            item(key = "shelf:$onDevice") {
+                if (deviceItems.isNotEmpty()) {
                     val onDeviceShelf = HomeShelf(title = onDevice, items = deviceItems)
                     LibraryGridShelf(
                         shelf = onDeviceShelf,
@@ -156,6 +158,16 @@ fun LibraryScreen(
                         onItemLongPress = onShelfItemLongPress,
                         onShowAll = { onShowAll(onDeviceShelf) },
                     )
+                } else {
+                    Column(Modifier.fillMaxWidth().padding(bottom = 22.dp)) {
+                        SectionHeader(onDevice, emphasized = true)
+                        Text(
+                            text = deviceEmptyText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = PAGE_GUTTER),
+                        )
+                    }
                 }
             }
             if (!signedIn) {

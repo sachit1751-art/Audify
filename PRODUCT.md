@@ -5,6 +5,8 @@ Project: AUDIFY
 # Product context — Audify
 
 > **Purpose:** durable product brief for contributors and implementation agents. This document describes the product evidenced by the current repository and distinguishes shipped behavior from planned work. It is not a promise that every upstream service or optional integration is always available.
+>
+> **Context snapshot:** reviewed 2026-11-02 against stable release `1.8.4` (`v1.8.4`). Production APKs are signed and all three module lint tasks report zero errors.
 
 ## Product summary
 
@@ -25,6 +27,7 @@ Audify is independent of Google, YouTube, YouTube Music, Deezer, Telegram, and o
 - **Android phone:** primary full-featured application; Explore/Home, Search, Library, player, lyrics, queue, settings, account/source management, and downloads.
 - **Android TV:** separate TV application/build with remote-oriented navigation and shared playback/download infrastructure where supported.
 - **Wear OS:** companion build for supported watch workflows; not a replacement for the phone application.
+- **Web:** a separate Vite/React web-player and browser-extension workstream lives in `web/`. Treat its feature set and deployment state independently; do not imply Android feature parity or infer that a local build is publicly deployed.
 - **Shared UI and domain modules:** Compose Multiplatform code is shared where the architecture allows; Android-only integrations remain in platform source sets.
 
 ## Current capability baseline
@@ -108,7 +111,9 @@ The selected feature expansions are tracked in `plans/README.md` as plans 051–
 - Do not commit, push, merge, or rewrite history unless explicitly authorized.
 - Preserve unrelated working-tree changes. Inspect `git status` and current HEAD before implementation.
 - Build with JDK 21. Use the current repository task names and verify the actual variant/module affected.
-- Read `plans/README.md`, `CONTEXT.md` if it exists, and relevant `docs/adr/` decisions before implementing a plan. If a referenced context file is absent, report that rather than inventing its contents.
+- The current Gradle wrapper is 9.7.0, Android Gradle Plugin is 9.3.1, Kotlin is 2.4.21, and Compose Multiplatform is 1.12.2. The Android phone/TV modules compile against API 37 and target API 36; Wear OS has min API 30 while phone/TV have min API 26. Verify these values in build files before changing them.
+- The Android app targets JVM 17 bytecode while the build itself requires JDK 21. Do not confuse `sourceCompatibility`/`jvmTarget` with the Gradle runtime JDK.
+- Read `PRODUCT.md`, `DESIGN.md`, `plans/README.md`, and relevant architecture decisions before implementing a plan. This checkout has no root `CONTEXT.md` or `docs/adr/` directory; do not assume either exists or invent their contents.
 
 ## Planning and status source of truth
 

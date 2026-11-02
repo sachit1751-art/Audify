@@ -4,6 +4,11 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
+    <string name="font_choice" translatable="false">App font</string>
+    <string name="font_choice_subtitle" translatable="false">Choose the typeface used throughout AUDIFY.</string>
+    <string name="on_device_empty" translatable="false">Saved albums and playlists on this device will appear here.</string>
+    <string name="replay_section_title" translatable="false">Your Replay</string>
+    <string name="replay_section_subtitle" translatable="false">A look at what you have been listening to.</string>
     <string name="weekly_recap_setting">Weekly Home recap</string>
     <string name="weekly_recap_setting_subtitle">Show a private summary of this weekâ€™s listening on Home</string>
     <string name="time_aware_shelf_setting" translatable="false">Time-aware discovery shelf</string>

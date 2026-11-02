@@ -1232,7 +1232,7 @@ fun TvAboutDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun TvRefreshRateDialog(onDismiss: () -> Unit) {
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     val capabilities by TvRefreshRateController.capabilities.collectAsState()
     val current by TvRefreshRateController.preference.collectAsState()
 

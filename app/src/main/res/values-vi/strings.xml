@@ -1065,8 +1065,6 @@ Project: AUDIFY
     <string name="artist_signatures_test_failed">Không thể kết nối tới API tại URL này</string>
     <string name="search_source_addons">Addon</string>
     <string name="search_addons_none">Chưa bật addon nào. Hãy thêm một addon trong Cài đặt → Nguồn.</string>
-    <string name="app_icon">Biểu tượng ứng dụng</string>
-    <string name="app_icon_default">Mặc định</string>
     <string name="show_queue_history">Hiện lịch sử hàng đợi</string>
     <string name="show_queue_history_subtitle">Hiện tối đa 25 bài đã phát phía trên “Đang phát” trong hàng đợi</string>
     <string name="not_enough_this_week">Hãy nghe thêm vài bài trong tuần này để mở khóa Replay của bạn.</string>
@@ -1193,29 +1191,17 @@ Project: AUDIFY
         <item quantity="other">%1$d bài hát · Trên thiết bị này</item>
     </plurals>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="audify_selected">Selected</string>
 

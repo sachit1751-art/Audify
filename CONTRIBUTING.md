@@ -13,7 +13,7 @@ Thank you for contributing to Audify. Follow these guidelines to ensure an effic
 ## Branch and Pull Request Workflow
 Always check the repository for the current active version or development branch before starting work.
 
-New work should normally be based on the latest active version or development branch rather than `main`, unless maintainers explicitly instruct otherwise. For example, during the `v1.6.x` release cycle, contributions branch from `v1.6.1`. As new release cycles begin, the target branch will advance accordingly.
+New work should normally be based on the branch or release explicitly named by the maintainers. Check the current repository state and open pull requests before choosing a base; do not copy an old release-cycle example from this guide.
 
 When contributing:
 - Fork the repository and create a descriptive branch (e.g., `fix/streaming-buffer`, `docs/translation-guide`).
@@ -25,37 +25,37 @@ When contributing:
 
 ## Development Setup
 The project requires the following tools:
-- **JDK**: Java Development Kit 17 (Eclipse Temurin 17 recommended).
-- **Android SDK**: `compileSdk = 36`, `targetSdk = 36`, `minSdk = 26`.
+- **JDK**: JDK 21 to run the current Gradle/Kotlin build. The Android app's Java/Kotlin bytecode target remains JVM 17; that is not the required Gradle runtime JDK.
+- **Android SDK**: phone and TV use `compileSdk = 37`, `targetSdk = 36`, `minSdk = 26`; Wear OS uses `compileSdk = 37`, `targetSdk = 36`, `minSdk = 30`.
 - **C/C++ NDK & CMake**: CMake 3.22.1+ and Android NDK (for native audio DSP components configured under `app/src/main/cpp`).
-- **Listen Together Backend (Optional)**: Go 1.22+ if developing or testing the party server (`backend/`).
+- **Listen Together Backend (Optional)**: Go 1.27.3 or compatible toolchain support for the version declared in `backend/go.mod`.
 
 ## Build and Test Commands
 Run Gradle commands from the repository root.
 
 Build:
 ```bash
-./gradlew assembleDevDebug
+./gradlew :app:assembleDevDebug
 ```
 
 Windows:
 ```powershell
-.\gradlew.bat assembleDevDebug
+.\gradlew.bat :app:assembleDevDebug
 ```
 
 Tests:
 ```bash
-./gradlew testDevDebugUnitTest
+./gradlew :app:testDevDebugUnitTest
 ```
 
 Windows:
 ```powershell
-.\gradlew.bat testDevDebugUnitTest
+.\gradlew.bat :app:testDevDebugUnitTest
 ```
 
 Run a specific test:
 ```bash
-./gradlew testDevDebugUnitTest --tests "com.music.audify.playback.audio.DirectAudioStreamingRegressionTest"
+./gradlew :app:testDevDebugUnitTest --tests "com.music.audify.playback.audio.DirectAudioStreamingRegressionTest"
 ```
 
 ## Code Quality

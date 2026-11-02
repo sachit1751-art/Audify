@@ -8,6 +8,9 @@ import com.music.audify.sharedui.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -28,8 +31,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.audify.ui.components.ShelfRow
@@ -37,6 +38,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -58,11 +60,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cached
@@ -84,6 +93,8 @@ import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
 import java.util.Locale
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import java.time.LocalTime
 import kotlinx.coroutines.delay
 import com.music.audify.data.model.artworkAt
@@ -113,6 +124,17 @@ private val HOME_TITLE_LIFT = 64.dp
 
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
+
+/** Minimum useful width for one Quick Picks column before another is added. */
+private val QUICK_PICK_MIN_COLUMN_WIDTH = 208.dp
+private val QUICK_PICK_COLUMN_SPACING = 18.dp
+
+/** Derive track columns from the actual content window, including its gutters. */
+internal fun quickPickColumns(available: Dp): Int {
+    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
+    return ((usable + QUICK_PICK_COLUMN_SPACING) /
+        (QUICK_PICK_MIN_COLUMN_WIDTH + QUICK_PICK_COLUMN_SPACING)).toInt().coerceIn(1, 5)
+}
 
 data class WeeklyRecapCardData(
     val minutes: String,
@@ -174,7 +196,9 @@ fun HomeScreen(
     onSearchClick: (() -> Unit)? = null,
     onCastClick: (() -> Unit)? = null,
     onProfileClick: (() -> Unit)? = null,
+    profileThumbnailUrl: String? = null,
     onMoodClick: ((String) -> Unit)? = null,
+    onListenTogetherClick: (() -> Unit)? = null,
     onPlayAllQuickPicks: ((HomeShelf) -> Unit)? = null,
     userName: String? = null,
     greetingMorning: String = "Good morning",
@@ -212,14 +236,12 @@ fun HomeScreen(
                         onSearchClick = onSearchClick,
                         onBluetoothClick = openAudioOutput,
                         onProfileClick = onProfileClick,
+                        profileThumbnailUrl = profileThumbnailUrl,
                         userName = userName,
                         greetingMorning = greetingMorning,
                         greetingAfternoon = greetingAfternoon,
                         greetingEvening = greetingEvening,
                     )
-                }
-                item(key = "home-mood-shortcuts") {
-                    MoodChips(onMoodClick = onMoodClick)
                 }
             }
             if (!signedIn && onSignIn != null) {
@@ -276,6 +298,8 @@ fun HomeScreen(
                         onPlayAllQuickPicks = onPlayAllQuickPicks,
                         currentSong = currentSong,
                         isPlaying = isPlaying,
+                        onMoodClick = onMoodClick,
+                        onListenTogetherClick = onListenTogetherClick,
                         firstIsHero = leadHero && !recentlyPlayedLoading,
                         recentsViewType = recentsViewType,
                         onRecentsViewTypeToggle = {
@@ -388,6 +412,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     onPlayAllQuickPicks: ((HomeShelf) -> Unit)?,
     currentSong: Song?,
     isPlaying: Boolean,
+    onMoodClick: ((String) -> Unit)?,
+    onListenTogetherClick: (() -> Unit)?,
     firstIsHero: Boolean = true,
     recentsViewType: LibraryViewType,
     onRecentsViewTypeToggle: () -> Unit,
@@ -424,6 +450,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                 )
             }
         }
+        if (shelf.title.equals("Quick picks", ignoreCase = true)) {
+            item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
+            item(key = "home-listen-together") {
+                ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
+            }
+        }
+    }
+    if (shelves.none { it.title.equals("Quick picks", ignoreCase = true) }) {
+        item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
+        item(key = "home-listen-together") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
     }
 }
 
@@ -448,7 +484,15 @@ private fun RecentShelf(
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         if (viewType == LibraryViewType.LIST) {
             BoxWithConstraints {
-                val columnWidth = trackColumnWidth(maxWidth)
+                // The docked player leaves a tablet's Home pane narrower than
+                // the full window. Keep the rows readable, but use that pane
+                // efficiently: the phone-sized 400dp cap otherwise leaves only
+                // one full column and a sliver of the next on most tablets.
+                val columnWidth = if (maxWidth >= 480.dp) {
+                    minOf(maxWidth * 0.42f, 300.dp)
+                } else {
+                    trackColumnWidth(maxWidth)
+                }
                 ShelfRow(
                     contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -641,6 +685,7 @@ private fun HomeTitle(
     onSearchClick: (() -> Unit)?,
     onBluetoothClick: (() -> Unit)?,
     onProfileClick: (() -> Unit)?,
+    profileThumbnailUrl: String?,
     userName: String?,
     greetingMorning: String,
     greetingAfternoon: String,
@@ -685,7 +730,22 @@ private fun HomeTitle(
         }
         HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick)
         HomeHeaderAction(Icons.Rounded.Bluetooth, "Bluetooth audio output", onBluetoothClick)
-        HomeHeaderAction(Icons.Rounded.AccountCircle, "Profile", onProfileClick)
+        Box(
+            modifier = Modifier.size(48.dp).clip(CircleShape)
+                .clickable(enabled = onProfileClick != null, role = Role.Button) { onProfileClick?.invoke() },
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!profileThumbnailUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = profileThumbnailUrl,
+                    contentDescription = "Profile",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(34.dp).clip(CircleShape),
+                )
+            } else {
+                Icon(Icons.Rounded.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(26.dp))
+            }
+        }
     }
 }
 
@@ -709,39 +769,215 @@ private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: ((
     }
 }
 
-private val HOME_MOODS = listOf(
-    "Energize", "Workout", "Relax", "Focus", "Commute",
-    "Party", "Chill", "Study", "Sleep", "Romance", "Devotional", "Throwbacks",
+private data class HomeMoodCard(val title: String, val colors: List<Color>)
+
+private val HOME_MOOD_CARDS = listOf(
+    HomeMoodCard("Energize", listOf(Color(0xFFDB6B43), Color(0xFF8D315D))),
+    HomeMoodCard("Workout", listOf(Color(0xFF277A79), Color(0xFF1D3F69))),
+    HomeMoodCard("Relax", listOf(Color(0xFF638A78), Color(0xFF294C55))),
+    HomeMoodCard("Focus", listOf(Color(0xFF5867A8), Color(0xFF34335F))),
+    HomeMoodCard("Commute", listOf(Color(0xFFB47743), Color(0xFF6C3F62))),
+    HomeMoodCard("Party", listOf(Color(0xFFB64F75), Color(0xFF593B91))),
 )
 
 @Composable
-private fun MoodChips(onMoodClick: ((String) -> Unit)?) {
-    var selected by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(start = PAGE_GUTTER, end = PAGE_GUTTER, top = 4.dp, bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        HOME_MOODS.forEach { mood ->
-            val active = selected == mood
-            Box(
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .clickable(enabled = onMoodClick != null, role = Role.Button) {
-                        selected = mood
-                        onMoodClick?.invoke(mood)
-                    }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+private fun FindYourMood(onMoodClick: ((String) -> Unit)?) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        SectionHeader("Find Your Mood", emphasized = true)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val cardWidth = if (maxWidth >= 720.dp) 164.dp else 208.dp
+            ShelfRow(
+                contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(
-                    text = mood,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                )
+                items(HOME_MOOD_CARDS, key = HomeMoodCard::title) { mood ->
+                    MoodArtCard(
+                        mood = mood,
+                        onClick = { onMoodClick?.invoke(mood.title) },
+                        modifier = Modifier.width(cardWidth),
+                        enabled = onMoodClick != null,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoodArtCard(
+    mood: HomeMoodCard,
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val motion by animateFloatAsState(
+        targetValue = if (pressed) 1f else 0f,
+        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        label = "${mood.title}-line-art-press",
+    )
+    Column(
+        modifier = modifier.clickable(
+            enabled = enabled,
+            role = Role.Button,
+            interactionSource = interaction,
+            onClick = onClick,
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Brush.linearGradient(mood.colors)),
+        ) {
+            MoodLineArt(
+                mood = mood.title,
+                progress = motion,
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    scaleX = 1f + motion * 0.035f
+                    scaleY = 1f + motion * 0.035f
+                    rotationZ = motion * (if (mood.title == "Commute") -3f else 3f)
+                },
+            )
+        }
+        Text(
+            text = mood.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+/** Crisp, mood-specific geometry; the linework responds to the card's press state. */
+@Composable
+private fun MoodLineArt(mood: String, progress: Float, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val unit = minOf(w, h)
+        val cx = w * 0.62f
+        val cy = h * 0.40f
+        val base = Color.White.copy(alpha = 0.72f + progress * 0.2f)
+        val faint = Color.White.copy(alpha = 0.28f + progress * 0.22f)
+        val stroke = (unit * 0.009f).coerceAtLeast(1.5f)
+        val lineStyle = Stroke(width = stroke, cap = StrokeCap.Round)
+        withTransform({
+            rotate(degrees = progress * 5f, pivot = Offset(cx, cy))
+            scale(scaleX = 1f + progress * 0.04f, scaleY = 1f + progress * 0.04f, pivot = Offset(cx, cy))
+        }) {
+            when (mood) {
+                "Energize" -> {
+                    val pulse = Path().apply {
+                        moveTo(w * .28f, h * .42f)
+                        lineTo(w * .43f, h * .42f)
+                        lineTo(w * .51f, h * .22f)
+                        lineTo(w * .60f, h * .62f)
+                        lineTo(w * .70f, h * .34f)
+                        lineTo(w * .77f, h * .42f)
+                        lineTo(w * .92f, h * .42f)
+                    }
+                    drawPath(pulse, base, style = Stroke(stroke * 1.5f, cap = StrokeCap.Round))
+                    repeat(3) { i -> drawCircle(faint, radius = unit * (.13f + i * .085f), center = Offset(cx, cy), style = lineStyle) }
+                }
+                "Workout" -> {
+                    val bolt = Path().apply {
+                        moveTo(w * .63f, h * .12f); lineTo(w * .43f, h * .49f)
+                        lineTo(w * .59f, h * .49f); lineTo(w * .47f, h * .78f)
+                        lineTo(w * .78f, h * .37f); lineTo(w * .62f, h * .37f); close()
+                    }
+                    drawPath(bolt, base, style = lineStyle)
+                    drawLine(faint, Offset(w * .22f, h * .25f), Offset(w * .34f, h * .25f), stroke, StrokeCap.Round)
+                    drawLine(faint, Offset(w * .18f, h * .34f), Offset(w * .30f, h * .34f), stroke, StrokeCap.Round)
+                    drawLine(faint, Offset(w * .72f, h * .76f), Offset(w * .86f, h * .76f), stroke, StrokeCap.Round)
+                }
+                "Relax" -> {
+                    repeat(4) { i ->
+                        val offset = i * unit * .075f
+                        val wave = Path().apply {
+                            moveTo(w * .18f, h * .38f + offset)
+                            cubicTo(w * .38f, h * .12f + offset, w * .57f, h * .68f + offset, w * .84f, h * .36f + offset)
+                        }
+                        drawPath(wave, if (i == 1) base else faint, style = lineStyle)
+                    }
+                    drawCircle(base, unit * .055f, Offset(w * .72f, h * .22f), style = lineStyle)
+                }
+                "Focus" -> {
+                    repeat(4) { i ->
+                        drawCircle(if (i == 0) base else faint, radius = unit * (.07f + i * .09f), center = Offset(cx, cy), style = lineStyle)
+                    }
+                    drawLine(base, Offset(cx - unit * .34f, cy), Offset(cx - unit * .20f, cy), stroke, StrokeCap.Round)
+                    drawLine(base, Offset(cx + unit * .20f, cy), Offset(cx + unit * .34f, cy), stroke, StrokeCap.Round)
+                    drawLine(base, Offset(cx, cy - unit * .34f), Offset(cx, cy - unit * .20f), stroke, StrokeCap.Round)
+                    drawLine(base, Offset(cx, cy + unit * .20f), Offset(cx, cy + unit * .34f), stroke, StrokeCap.Round)
+                }
+                "Commute" -> {
+                    val road = Path().apply {
+                        moveTo(w * .12f, h * .86f); lineTo(w * .48f, h * .24f)
+                        moveTo(w * .88f, h * .86f); lineTo(w * .48f, h * .24f)
+                    }
+                    drawPath(road, base, style = lineStyle)
+                    repeat(3) { i ->
+                        val y = h * (.55f + i * .12f)
+                        val half = unit * (.025f + i * .025f)
+                        drawLine(faint, Offset(w * .48f - half, y), Offset(w * .48f + half, y), stroke, StrokeCap.Round)
+                    }
+                    drawCircle(faint, unit * .045f, Offset(w * .78f, h * .22f), style = lineStyle)
+                }
+                else -> {
+                    repeat(12) { i ->
+                        val angle = (i * 30f + progress * 12f) * (kotlin.math.PI.toFloat() / 180f)
+                        val inner = unit * .12f
+                        val outer = unit * (.23f + if (i % 2 == 0) .10f else .035f)
+                        drawLine(
+                            if (i % 2 == 0) base else faint,
+                            Offset(cx + kotlin.math.cos(angle) * inner, cy + kotlin.math.sin(angle) * inner),
+                            Offset(cx + kotlin.math.cos(angle) * outer, cy + kotlin.math.sin(angle) * outer),
+                            stroke,
+                            StrokeCap.Round,
+                        )
+                    }
+                    drawCircle(base, unit * (.09f + progress * .015f), Offset(cx, cy), style = lineStyle)
+                    drawCircle(faint, unit * .39f, Offset(cx, cy), style = lineStyle)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        SectionHeader("Listen together", emphasized = true)
+        ShelfRow(
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            items(listOf("Start a session", "Join a session").withIndex().toList()) { (index, label) ->
+                Box(
+                    modifier = Modifier.width(300.dp).height(142.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .clickable(enabled = onClick != null, role = Role.Button) { onClick?.invoke() },
+                ) {
+                    val cardArtwork = artworks.getOrNull(index)
+                    if (!cardArtwork.isNullOrBlank()) {
+                        AsyncImage(model = cardArtwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .86f), Color.Black.copy(alpha = .28f))),
+                        ),
+                    )
+                    Column(Modifier.align(Alignment.CenterStart).padding(18.dp)) {
+                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .78f))
+                        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    }
+                }
             }
         }
     }
@@ -1105,15 +1341,29 @@ internal fun Shelf(
                     actionLabel = stringResource(Res.string.play_all),
                     emphasized = true,
                 )
-                Column(Modifier.padding(horizontal = PAGE_GUTTER)) {
-                    shelf.items.take(4).forEach { item ->
-                        QuickPickTrackRow(
-                            item = item,
-                            onClick = { onItemClick(item) },
-                            onLongPress = onItemLongPress?.let { { it(item) } },
-                            isCurrent = isCurrentItem(item),
-                            isPlaying = isCurrentItem(item) && isPlaying,
-                        )
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val columns = quickPickColumns(maxWidth)
+                    val rows = shelf.items.take(if (columns >= 3) columns * 4 else 4).chunked(columns)
+                    Column(Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER)) {
+                        rows.forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                            ) {
+                                rowItems.forEach { item ->
+                                    Column(Modifier.weight(1f)) {
+                                        QuickPickTrackRow(
+                                            item = item,
+                                            onClick = { onItemClick(item) },
+                                            onLongPress = onItemLongPress?.let { { it(item) } },
+                                            isCurrent = isCurrentItem(item),
+                                            isPlaying = isCurrentItem(item) && isPlaying,
+                                        )
+                                    }
+                                }
+                                repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
                     }
                 }
             }
@@ -1145,7 +1395,12 @@ internal fun Shelf(
                 }
             }
             else -> {
-                SectionHeader(shelf.title, shelf.subtitle)
+                val homeTitle = when {
+                    shelf.title.equals("New releases", ignoreCase = true) -> "Fresh finds"
+                    shelf.title.equals("Forgotten favorites", ignoreCase = true) -> "Old favorites"
+                    else -> shelf.title
+                }
+                SectionHeader(homeTitle, shelf.subtitle)
                 ShelfRow(
                     contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),

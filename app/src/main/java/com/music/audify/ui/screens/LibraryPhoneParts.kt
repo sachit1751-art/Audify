@@ -3,6 +3,8 @@
 package com.music.audify.ui.screens
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
@@ -12,9 +14,12 @@ import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
@@ -84,13 +89,19 @@ fun libraryLinks(): List<LibraryLink> {
             stringResource(R.string.smb_subtitle),
             com.music.audify.data.smb.SmbConfig.BROWSE_ID,
         ).takeIf { smbHost.isNotBlank() && smbShare.isNotBlank() },
-        // Only while signed in to Spotify in Settings → Accounts; it opens that
-        // account's playlists rather than a browse page.
+        // Always visible: the destination provides sign-in/token setup when no
+        // Spotify account is connected, and playlists when one is.
         link(
             stringResource(R.string.spotify),
-            stringResource(R.string.spotify_library_subtitle),
+            stringResource(
+                if (spotifyConnected.isNotBlank()) {
+                    R.string.spotify_library_subtitle
+                } else {
+                    R.string.spotify_connect_subtitle
+                },
+            ),
             SPOTIFY_BROWSE_ID,
-        ).takeIf { spotifyConnected.isNotBlank() }?.copy(logo = Res.drawable.spotify_logo),
+        ).copy(logo = Res.drawable.spotify_logo),
     )
 }
 
@@ -149,20 +160,32 @@ const val CACHE_FOLDER_BROWSE_ID = "local:cache"
 fun LibraryReplayEntry(
     cards: List<ReplayHeroCard>,
     loading: Boolean,
-    holder: String,
-    memberSince: String?,
     onOpenReplay: (ReplayStoryPage) -> Unit,
 ) {
-    if (loading) {
-        ReplayCardRowSkeleton()
-    } else if (cards.isNotEmpty()) {
-        ReplayCardRow(
-            cards = cards,
-            holder = holder,
-            memberSince = memberSince,
-            onCardClick = onOpenReplay,
-            modifier = Modifier.padding(vertical = 6.dp),
-            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-        )
+    if (loading || cards.isNotEmpty()) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+            Text(
+                text = stringResource(R.string.replay_section_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = PAGE_GUTTER, vertical = 2.dp),
+            )
+            Text(
+                text = stringResource(R.string.replay_section_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = PAGE_GUTTER).padding(bottom = 10.dp),
+            )
+            if (loading) {
+                ReplayCardRowSkeleton()
+            } else {
+                ReplayCardRow(
+                    cards = cards,
+                    onCardClick = onOpenReplay,
+                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                )
+            }
+        }
     }
 }

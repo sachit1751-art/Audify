@@ -14,6 +14,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -228,8 +229,6 @@ fun ReplayScreen(
                     item("cards") {
                         ReplayCardRow(
                             cards = summary.cards(context),
-                            holder = holder,
-                            memberSince = state.memberSince,
                             onCardClick = onOpenStory,
                         )
                     }
@@ -462,31 +461,51 @@ private fun PeriodPicker(selected: ReplayPeriod, onSelect: (ReplayPeriod) -> Uni
 @Composable
 internal fun ReplayCardRow(
     cards: List<ReplayHeroCard>,
-    holder: String,
-    memberSince: String?,
     onCardClick: (ReplayStoryPage) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = PAGE_GUTTER + 4.dp),
 ) {
-    val rowState = rememberLazyListState()
-    LazyRow(
-        modifier = modifier,
-        state = rowState,
-        contentPadding = contentPadding,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        flingBehavior = rememberSnapFlingBehavior(lazyListState = rowState),
-    ) {
-        items(cards, key = { it.label }) { card ->
-            ReplayCreditCard(
-                label = card.label,
-                value = card.value,
-                detail = card.detail,
-                artworkUrl = card.artworkUrl,
-                holder = holder,
-                memberSince = memberSince,
-                onClick = { onCardClick(card.page) },
-                modifier = Modifier.width(300.dp),
-            )
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        if (maxWidth >= 720.dp) {
+            Column(
+                modifier = Modifier.padding(horizontal = PAGE_GUTTER),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                cards.chunked(2).forEach { rowCards ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        rowCards.forEach { card ->
+                            ReplayCreditCard(
+                                label = card.label,
+                                value = card.value,
+                                detail = card.detail,
+                                artworkUrl = card.artworkUrl,
+                                onClick = { onCardClick(card.page) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (rowCards.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+        } else {
+            val rowState = rememberLazyListState()
+            LazyRow(
+                state = rowState,
+                contentPadding = contentPadding,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                flingBehavior = rememberSnapFlingBehavior(lazyListState = rowState),
+            ) {
+                items(cards, key = { it.label }) { card ->
+                    ReplayCreditCard(
+                        label = card.label,
+                        value = card.value,
+                        detail = card.detail,
+                        artworkUrl = card.artworkUrl,
+                        onClick = { onCardClick(card.page) },
+                        modifier = Modifier.width(minOf(292.dp, maxWidth * 0.86f)),
+                    )
+                }
+            }
         }
     }
 }

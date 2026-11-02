@@ -1065,8 +1065,6 @@ Project: AUDIFY
     <string name="spotify_sign_in">使用 Spotify 登入</string>
 <string name="search_source_addons">外掛</string>
     <string name="search_addons_none">尚未啟用任何外掛。請在「設定 → 來源」中新增。</string>
-    <string name="app_icon">應用程式圖示</string>
-    <string name="app_icon_default">預設</string>
     <string name="show_queue_history">顯示佇列記錄</string>
     <string name="show_queue_history_subtitle">在佇列中「正在播放」上方顯示最多 25 首已播放的歌曲</string>
     <string name="not_enough_this_week">本週再多播放幾首歌曲即可解鎖你的 Replay。</string>
@@ -1163,29 +1161,17 @@ Project: AUDIFY
         <item quantity="other">%1$d 首歌曲 · 本裝置上</item>
     </plurals>
 
-    <string name="app_icon_liquid_glass">Liquid Glass</string>
 
-    <string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string>
 
-    <string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string>
 
-    <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
 
-    <string name="app_icon_pixel_glass">Pixel Glass</string>
 
-    <string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string>
 
-    <string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string>
 
-    <string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string>
 
-    <string name="app_icon_samsung_glass">Samsung Glass</string>
 
-    <string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string>
 
-    <string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string>
 
-    <string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string>
 
     <string name="audify_selected">Selected</string>
 <string name="pause_on_mute">Pause on mute</string>
