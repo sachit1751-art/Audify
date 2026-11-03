@@ -23,6 +23,10 @@ Project: AUDIFY
   &nbsp;·&nbsp;
   <a href="https://github.com/sachit1751-art/Audify/releases">View all builds</a>
   &nbsp;·&nbsp;
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify"><img src="https://img.shields.io/badge/Get%20it%20on-Obtainium-4A8F3C?logo=android&logoColor=white" alt="Get it on Obtainium"></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/badge/Get%20it%20on-GitHub-181717?logo=github&logoColor=white" alt="Get it on GitHub"></a>
+  &nbsp;·&nbsp;
   <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store"></a>
 </p>
 
