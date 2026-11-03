@@ -107,7 +107,8 @@ These are captures from the app — not concept mockups.
 - **Android TV:** A dedicated interface and build for television devices.
 - **Wear OS:** A companion build for supported watches.
 
-## Build from source
+<details>
+<summary><strong>Build from source</strong></summary>
 
 Audify uses the Gradle wrapper. You do not need to install Gradle separately. Android Studio is optional, but the Android SDK is required.
 
@@ -151,6 +152,7 @@ For a development build, use the corresponding `assembleDevDebug` task, for exam
 
 For local release signing, copy `keystore.properties.example` to `keystore.properties` and add your own signing configuration. Keep your keystore and credentials private; the local properties file is gitignored. CI release signing requires the repository's configured secrets.
 
+</details>
 ## Contributing
 
 Contributions, bug reports, and thoughtful suggestions are welcome. Before opening a pull request, read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). See [ADDITIONAL.md](ADDITIONAL.md) for further project documentation.
