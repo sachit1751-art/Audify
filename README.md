@@ -27,9 +27,7 @@ Project: AUDIFY
 <p align="center">
   <a href="#screenshots">Screenshots</a> &middot;
   <a href="#features">Features</a> &middot;
-  <a href="#download-and-install">Download</a> &middot;
   <a href="#build-from-source">Build from source</a> &middot;
-  <a href="#roadmap">Roadmap</a> &middot;
   <a href="#contributing">Contributing</a>
 </p>
 
@@ -108,48 +106,6 @@ These are captures from the app — not concept mockups.
 - **Android:** The full mobile listening experience.
 - **Android TV:** A dedicated interface and build for television devices.
 - **Wear OS:** A companion build for supported watches.
-
-## Roadmap
-
-Audify's implementation plans, current planning status, and feature proposals are maintained in the dedicated [plans index](plans/README.md). For a comparison of Audify with InterTune, AsterTune, Metrolist, and ArchiveTune, see the [competitor feature audit](docs/competitor-feature-audit.md).
-
-## Download and install
-
-**[Get the latest stable release](https://github.com/sachit1751-art/Audify/releases/latest)** · [Browse every release](https://github.com/sachit1751-art/Audify/releases)
-
-### Choose the right APK
-
-Open the latest release and download the phone APK that matches your device:
-
-- **Most Android phones:** `Audify-1.8.6_arm64-v8a.apk` (64-bit ARM).
-- **Older 32-bit ARM phones:** `Audify-1.8.6_armeabi-v7a.apk`.
-- **x86_64 devices and emulators:** `Audify-1.8.6_x86_64.apk`.
-- **Not sure?** The universal `Audify-1.8.6.apk` supports multiple architectures but is much larger.
-
-Android TV and Wear OS have separate packages. Do not install the TV or watch build on a phone.
-
-### Install manually
-
-1. Download the matching phone APK from the [latest release](https://github.com/sachit1751-art/Audify/releases/latest).
-2. Open the downloaded APK from your browser's downloads or your file manager.
-3. If Android asks, allow that app to install unknown apps, then return to the installer.
-4. Confirm the installation and open Audify.
-
-Only install APKs from the official repository. The release includes `SHA256SUMS.txt` for checksum verification and `BUILD-MANIFEST.txt` for build details.
-
-### Keep Audify updated
-
-You can download each update from [GitHub Releases](https://github.com/sachit1751-art/Audify/releases), or use [Obtainium](https://github.com/ImranR98/Obtainium) to track the official repository:
-
-[Add Audify to Obtainium](obtainium://add/https%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify)
-
-Review the selected package in Obtainium and choose the correct phone variant. Obtainium is an independent app; it is not an app store operated by Audify.
-
-### Current stable release
-
-Audify **1.8.7** (`v1.8.7`) is the current release. See the [release notes](RELEASE_NOTES_1.8.7.md) for changes and verification details. The release contains phone, Android TV and Wear OS builds.
-
-**Need help?** [Open an issue](https://github.com/sachit1751-art/Audify/issues/new/choose) with your Audify version, device model, Android version and reproduction steps. Remove personal information from logs before attaching them.
 
 ## Build from source
 
