@@ -9,9 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag to build (for example v1.8.8)
+        description: Version tag to build (for example v1.8.8)
         required: true
         type: string
+      dry_run:
+        description: Build and verify only; do not create or publish a release
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -30,7 +35,7 @@ jobs:
       - name: Check out the release tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.dry_run && github.sha || inputs.tag || github.ref }}
 
       - name: Validate release tag and project version
         shell: bash
@@ -171,6 +176,10 @@ jobs:
           done
           echo "All six APKs are signed by the same production certificate."
 
+      - name: Report dry-run completion
+        if: ${{ inputs.dry_run == true }}
+        run: echo "Dry run complete. All six APKs passed validation; no GitHub Release was created."
+
       - name: Upload verified APKs for the approval-gated publish job
         uses: actions/upload-artifact@v4
         with:
@@ -180,6 +189,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: ${{ inputs.dry_run != true }}
     name: Publish approved GitHub Release
     needs: build
     runs-on: ubuntu-latest
