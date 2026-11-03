@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: audify-release-\${{ inputs.tag || github.ref_name }}
+  group: audify-release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -25,12 +25,12 @@ jobs:
     name: Build and verify production APKs
     runs-on: ubuntu-latest
     env:
-      TAG: \${{ inputs.tag || github.ref_name }}
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Check out the release tag
         uses: actions/checkout@v4
         with:
-          ref: \${{ inputs.tag || github.ref }}
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Validate release tag and project version
         shell: bash
@@ -57,17 +57,17 @@ jobs:
       - name: Configure private build credentials
         shell: bash
         env:
-          LASTFM_API_KEY: \${{ secrets.LASTFM_API_KEY }}
-          LASTFM_SECRET: \${{ secrets.LASTFM_SECRET }}
-          LISTEN_TOGETHER_SERVER: \${{ secrets.LISTEN_TOGETHER_SERVER }}
-          KEYSTORE: \${{ secrets.KEYSTORE }}
-          KEYSTORE_PASSWORD: \${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: \${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: \${{ secrets.KEY_PASSWORD }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          LISTEN_TOGETHER_SERVER: ${{ secrets.LISTEN_TOGETHER_SERVER }}
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
           for name in KEYSTORE KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
-            if [ -z "\${!name}" ]; then
+            if [ -z "${!name}" ]; then
               echo "::error::Required signing secret $name is missing."
               exit 1
             fi
@@ -109,19 +109,19 @@ jobs:
             local destination="$3"
             local -a matches=()
             mapfile -d '' -t matches < <(find "$source_dir" -maxdepth 1 -type f -name "$pattern" -print0 | sort -z)
-            if [ "\${#matches[@]}" -ne 1 ]; then
-              echo "::error::Expected exactly one $pattern in $source_dir; found \${#matches[@]}"
-              printf '%s\n' "\${matches[@]}"
+            if [ "${#matches[@]}" -ne 1 ]; then
+              echo "::error::Expected exactly one $pattern in $source_dir; found ${#matches[@]}"
+              printf '%s\n' "${matches[@]}"
               exit 1
             fi
-            cp "\${matches[0]}" "dist/$destination"
+            cp "${matches[0]}" "dist/$destination"
           }
 
-          copy_one app/build/outputs/apk/prod/release '*universal*.apk' "Audify-$VERSION_NAME.apk"
+          copy_one app/build/outputs/apk/prod/release '*-universal-release.apk' "Audify-$VERSION_NAME.apk"
           copy_one app/build/outputs/apk/prod/release '*arm64-v8a*.apk' "Audify-$VERSION_NAME""_arm64-v8a.apk"
-          copy_one tv/build/outputs/apk/prod/release '*universal*.apk' "AudifyTV-$VERSION_NAME.apk"
+          copy_one tv/build/outputs/apk/prod/release '*-universal-release.apk' "AudifyTV-$VERSION_NAME.apk"
           copy_one tv/build/outputs/apk/prod/release '*arm64-v8a*.apk' "AudifyTV-$VERSION_NAME""_arm64-v8a.apk"
-          copy_one wearos/build/outputs/apk/prod/release '*universal*.apk' "AudifyWear-$VERSION_NAME.apk"
+          copy_one wearos/build/outputs/apk/prod/release '*-universal-release.apk' "AudifyWear-$VERSION_NAME.apk"
           copy_one wearos/build/outputs/apk/prod/release '*arm64-v8a*.apk' "AudifyWear-$VERSION_NAME""_arm64-v8a.apk"
 
           test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 6
@@ -185,12 +185,12 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: release
-      url: https://github.com/\${{ github.repository }}/releases/tag/\${{ inputs.tag || github.ref_name }}
+      url: https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag || github.ref_name }}
     permissions:
       contents: write
     env:
-      TAG: \${{ inputs.tag || github.ref_name }}
-      GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Download verified APKs
         uses: actions/download-artifact@v4
@@ -202,7 +202,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION_NAME="\${TAG#v}"
+          VERSION_NAME="${TAG#v}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "::error::A release for $TAG already exists. Refusing to overwrite existing release assets."
             exit 1
