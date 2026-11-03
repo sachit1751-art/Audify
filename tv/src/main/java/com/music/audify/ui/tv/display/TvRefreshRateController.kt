@@ -44,7 +44,10 @@ object TvRefreshRateController {
 
         // Read stored preference
         val stored = TvSettings.tvRefreshRate.value
-        val pref = TvRefreshRatePreference.fromString(stored)
+        val requested = TvRefreshRatePreference.fromString(stored)
+        val pref = if (requested == TvRefreshRatePreference.ULTRA_120 && !_capabilities.value.is120HzSupported) {
+            TvRefreshRatePreference.SYSTEM_AUTO.also { TvSettings.setTvRefreshRate(it.name) }
+        } else requested
         _preference.value = pref
         applyToWindow(activity, pref)
 
@@ -75,9 +78,14 @@ object TvRefreshRateController {
     }
 
     fun setPreference(activity: Activity, preference: TvRefreshRatePreference) {
-        _preference.value = preference
-        TvSettings.setTvRefreshRate(preference.name)
-        applyToWindow(activity, preference)
+        val effectivePreference = if (preference == TvRefreshRatePreference.ULTRA_120 && !_capabilities.value.is120HzSupported) {
+            TvRefreshRatePreference.SYSTEM_AUTO
+        } else {
+            preference
+        }
+        _preference.value = effectivePreference
+        TvSettings.setTvRefreshRate(effectivePreference.name)
+        applyToWindow(activity, effectivePreference)
     }
 
     private fun applyToWindow(activity: Activity, pref: TvRefreshRatePreference) {

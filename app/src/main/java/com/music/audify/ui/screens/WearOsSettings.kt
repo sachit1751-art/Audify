@@ -153,6 +153,7 @@ private fun WatchRow(
     onInstall: () -> Unit,
     onUpdate: () -> Unit,
 ) {
+    val sending = update is WatchUpdateState.Sending
     val mine = when (update) {
         is WatchUpdateState.Sending -> update.nodeId == watch.nodeId
         is WatchUpdateState.Sent -> update.nodeId == watch.nodeId
@@ -160,7 +161,9 @@ private fun WatchRow(
         WatchUpdateState.Idle -> false
     }
     val subtitle = when {
-        mine && update is WatchUpdateState.Sending -> stringResource(R.string.wear_os_sending)
+        mine && sending -> stringResource(R.string.wear_os_sending)
+        sending && !mine && watch.status in setOf(WatchAppStatus.UPDATE_AVAILABLE, WatchAppStatus.UNKNOWN) ->
+            stringResource(R.string.wear_os_update_busy)
         mine && update is WatchUpdateState.Sent && watch.status != WatchAppStatus.UP_TO_DATE ->
             stringResource(R.string.wear_os_sent)
         mine && update is WatchUpdateState.Failed -> stringResource(R.string.wear_os_send_failed, update.reason)
@@ -178,12 +181,16 @@ private fun WatchRow(
         subtitle = subtitle,
         trailing = {
             when {
-                mine && update is WatchUpdateState.Sending || watch.status == WatchAppStatus.CHECKING ->
+                mine && sending || watch.status == WatchAppStatus.CHECKING ->
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 watch.status == WatchAppStatus.NOT_INSTALLED ->
                     ActionPill(stringResource(R.string.wear_os_install), onInstall)
                 watch.status == WatchAppStatus.UPDATE_AVAILABLE || watch.status == WatchAppStatus.UNKNOWN ->
-                    ActionPill(stringResource(R.string.wear_os_update), onUpdate)
+                    ActionPill(
+                        text = stringResource(R.string.wear_os_update),
+                        onClick = onUpdate,
+                        enabled = !sending,
+                    )
                 else -> Icon(
                     Icons.Rounded.Check,
                     contentDescription = null,
@@ -197,12 +204,13 @@ private fun WatchRow(
 
 /** The trailing action, as the App Store draws GET and UPDATE: a small filled capsule. */
 @Composable
-private fun ActionPill(text: String, onClick: () -> Unit) {
+private fun ActionPill(text: String, onClick: () -> Unit, enabled: Boolean = true) {
     Box(
         modifier = Modifier
+            .alpha(if (enabled) 1f else 0.45f)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Text(

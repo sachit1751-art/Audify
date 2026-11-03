@@ -63,4 +63,5 @@ Project: AUDIFY
     <string name="share_feedback" translatable="false">Share feedback</string>
     <string name="share_feedback_subtitle" translatable="false">Suggest improvements or share your experience using Audify</string>
     <string name="could_not_open_feedback" translatable="false">Could not open the feedback form.</string>
+    <string name="wear_os_update_busy" translatable="false">Another watch update is in progress</string>
 </resources>

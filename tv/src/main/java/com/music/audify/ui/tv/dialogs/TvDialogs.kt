@@ -1247,7 +1247,11 @@ fun TvRefreshRateDialog(onDismiss: () -> Unit) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             TvRefreshRatePreference.entries.forEach { preference ->
-                val supported = preference != TvRefreshRatePreference.SMOOTH_60 || capabilities.is60HzSupported
+                val supported = when (preference) {
+                    TvRefreshRatePreference.SYSTEM_AUTO -> true
+                    TvRefreshRatePreference.SMOOTH_60 -> capabilities.is60HzSupported
+                    TvRefreshRatePreference.ULTRA_120 -> capabilities.is120HzSupported
+                }
                 TvListRow(
                     title = preference.label,
                     subtitle = preference.description,
