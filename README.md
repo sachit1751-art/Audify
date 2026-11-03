@@ -22,6 +22,8 @@ Project: AUDIFY
   <strong><a href="https://github.com/sachit1751-art/Audify/releases/latest">Download the latest stable APK</a></strong>
   &nbsp;·&nbsp;
   <a href="https://github.com/sachit1751-art/Audify/releases">View all builds</a>
+  &nbsp;·&nbsp;
+  <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store"></a>
 </p>
 
 <p align="center">
