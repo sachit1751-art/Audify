@@ -1,13 +1,6 @@
-<!--
-Copyright (c) 2026 Sachit. All rights reserved.
-Project: AUDIFY
--->
+<!-- Copyright (c) 2026 Sachit. All rights reserved. Project: AUDIFY -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="1024"
-    android:viewportHeight="1024">
-    <path
-        android:fillColor="#FF000000"
-        android:pathData="M0,0h1024v1024h-1024z" />
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="1024" android:viewportHeight="1024">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M0,0h1024v1024h-1024z"/>
 </vector>
