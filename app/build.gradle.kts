@@ -497,8 +497,13 @@ abstract class BundleWearApk : DefaultTask() {
         val out = outputDir.get().asFile.resolve("wear")
         out.deleteRecursively()
         out.mkdirs()
-        val apk = apks.asFileTree.matching { include("*.apk") }.files.singleOrNull()
-            ?: throw GradleException("Expected exactly one watch APK in ${apks.files}")
+        val candidates = apks.asFileTree.matching { include("*.apk") }.files
+        // Wear OS now publishes universal + ABI-specific APKs. The phone must
+        // carry one installable watch package, so prefer the universal variant;
+        // retain the single-file fallback for configurations without splits.
+        val apk = candidates.singleOrNull { it.name.contains("-universal-") }
+            ?: candidates.singleOrNull()
+            ?: throw GradleException("Expected one universal (or one total) watch APK in ${apks.files}")
         val target = out.resolve("AudifyWear.apk")
         apk.copyTo(target, overwrite = true)
         val digest = MessageDigest.getInstance("SHA-256")
