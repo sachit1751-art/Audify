@@ -6,12 +6,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,7 +41,6 @@ import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 private val POPUP_CARD_SHAPE = RoundedCornerShape(ALERT_CORNER)
 private val POPUP_SCRIM_COLOR = Color.Black.copy(alpha = 0.4f)
-private val POPUP_WIDTH = 320.dp
 private val POPUP_CONTENT_MAX_HEIGHT = 420.dp
 
 /**
@@ -66,11 +69,12 @@ internal fun AudioPopupCard(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .containSheetGestures()
             .background(POPUP_SCRIM_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -80,7 +84,8 @@ internal fun AudioPopupCard(
     ) {
         Column(
             modifier = Modifier
-                .width(POPUP_WIDTH)
+                .width(alertCardWidth(maxWidth))
+                .heightIn(max = maxHeight)
                 .clip(POPUP_CARD_SHAPE)
                 .then(
                     if (reduceDynamicBlur) {
@@ -105,6 +110,8 @@ internal fun AudioPopupCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = (this@BoxWithConstraints.maxHeight - ACTION_HEIGHT - 1.dp).coerceAtLeast(0.dp))
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 19.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -131,6 +138,7 @@ internal fun AudioPopupCard(
 
             Box(
                 modifier = Modifier
+                    .weight(1f, fill = false)
                     .heightIn(max = POPUP_CONTENT_MAX_HEIGHT)
                     .verticalScroll(rememberScrollState()),
                 content = content,

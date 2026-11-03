@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,7 +60,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /** How much of the screen the list may take before it scrolls inside the card. */
-private val LIST_MAX_HEIGHT = 340.dp
+private val LIST_MAX_HEIGHT = 420.dp
 
 /**
  * Which language the lyrics translate button translates into.
@@ -103,10 +108,12 @@ fun TranslationLanguageDialog(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(SCRIM_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding()
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -116,7 +123,8 @@ fun TranslationLanguageDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(ALERT_WIDTH)
+                .width(alertCardWidth(maxWidth))
+                .heightIn(max = maxHeight)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -165,7 +173,11 @@ fun TranslationLanguageDialog(
             SearchField(query = query, onQueryChange = { query = it })
             AlertRule()
 
-            LazyColumn(modifier = Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .heightIn(max = LIST_MAX_HEIGHT),
+            ) {
                 // Only with an empty field: it is the default rather than a
                 // language, so it has no name to match and filtering it in on a
                 // near-miss would be noise.

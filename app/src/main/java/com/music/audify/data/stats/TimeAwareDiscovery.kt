@@ -5,6 +5,7 @@ package com.music.audify.data.stats
 import com.music.audify.data.model.HomeShelf
 import java.time.LocalDate
 import java.time.LocalTime
+import java.util.Locale
 import kotlin.random.Random
 
 /**
@@ -93,7 +94,7 @@ internal fun selectTimeAwareDiscoveryShelf(
     block: ListeningHourBlock,
 ): HomeShelf? {
     val eligible = shelves.filter { shelf ->
-        !shelf.title.equals("Recents", ignoreCase = true) &&
+        shelf.title.trim().lowercase(Locale.ROOT) !in CHRONOLOGICAL_HISTORY_SHELF_TITLES &&
             shelf.items.any { it.videoId != null || it.browseId != null }
     }
     val preferredTerms = when (block) {
@@ -107,3 +108,5 @@ internal fun selectTimeAwareDiscoveryShelf(
         preferredTerms.any(searchable::contains)
     } ?: eligible.firstOrNull()
 }
+
+private val CHRONOLOGICAL_HISTORY_SHELF_TITLES = setOf("recents", "recently played")

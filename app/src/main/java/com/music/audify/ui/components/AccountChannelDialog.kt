@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -73,10 +80,11 @@ fun AccountChannelDialog(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(SCRIM_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -86,7 +94,9 @@ fun AccountChannelDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(ALERT_WIDTH)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(0.88f)
+                .heightIn(max = maxHeight)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -109,6 +119,8 @@ fun AccountChannelDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = (this@BoxWithConstraints.maxHeight - 90.dp).coerceAtLeast(0.dp))
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 19.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -149,16 +161,22 @@ fun AccountChannelDialog(
                 }
             }
 
-            channels.forEach { channel ->
-                AlertRule()
-                ChannelRow(
-                    channel = channel,
-                    selected = channel.key == selectedKey,
-                    onClick = {
-                        onSelect(channel)
-                        onDismiss()
-                    },
-                )
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                channels.forEach { channel ->
+                    AlertRule()
+                    ChannelRow(
+                        channel = channel,
+                        selected = channel.key == selectedKey,
+                        onClick = {
+                            onSelect(channel)
+                            onDismiss()
+                        },
+                    )
+                }
             }
 
             AlertRule()

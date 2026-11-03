@@ -52,12 +52,20 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
     val onSurface = MaterialTheme.colorScheme.onSurface
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .width(ALERT_WIDTH)
-                .clip(RoundedCornerShape(ALERT_CORNER))
-                .background(MaterialTheme.colorScheme.surface),
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+            contentAlignment = Alignment.Center,
         ) {
+            Column(
+                Modifier
+                    .width(alertCardWidth(maxWidth))
+                    .heightIn(max = maxHeight)
+                    .clip(RoundedCornerShape(ALERT_CORNER))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .verticalScroll(rememberScrollState()),
+            ) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -94,7 +102,7 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
             AlertRule()
             Column(
                 Modifier
-                    .heightIn(max = INFO_BODY_MAX_HEIGHT)
+                    .heightIn(max = minOf(INFO_BODY_MAX_HEIGHT, (this@BoxWithConstraints.maxHeight - 180.dp).coerceAtLeast(0.dp)))
                     .verticalScroll(rememberScrollState()),
             ) {
                 val unavailable = stringResource(R.string.song_info_unavailable)
@@ -128,6 +136,7 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
                 AlertRule()
             }
             AlertAction(label = stringResource(R.string.done), emphasised = true, onClick = onDismiss)
+            }
         }
     }
 }

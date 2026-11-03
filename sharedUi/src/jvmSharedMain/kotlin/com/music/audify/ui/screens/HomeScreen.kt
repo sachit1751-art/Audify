@@ -133,12 +133,28 @@ private const val RECENT_TRACKS_PER_COLUMN = 4
 /** Minimum useful width for one Quick Picks column before another is added. */
 private val QUICK_PICK_MIN_COLUMN_WIDTH = 208.dp
 private val QUICK_PICK_COLUMN_SPACING = 18.dp
+private val KEEP_LISTENING_MIN_CARD_WIDTH = 200.dp
+private val KEEP_LISTENING_COLUMN_SPACING = 14.dp
 
 /** Derive track columns from the actual content window, including its gutters. */
 internal fun quickPickColumns(available: Dp): Int {
     val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
     return ((usable + QUICK_PICK_COLUMN_SPACING) /
         (QUICK_PICK_MIN_COLUMN_WIDTH + QUICK_PICK_COLUMN_SPACING)).toInt().coerceIn(1, 5)
+}
+
+/** Keep album cards wide enough for their title and subtitle to remain readable. */
+internal fun keepListeningColumns(available: Dp): Int {
+    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
+    return ((usable + KEEP_LISTENING_COLUMN_SPACING) /
+        (KEEP_LISTENING_MIN_CARD_WIDTH + KEEP_LISTENING_COLUMN_SPACING)).toInt().coerceIn(1, 4)
+}
+
+/** Width each weighted Keep Listening card receives after page gutters and inter-card spacing. */
+internal fun keepListeningCardWidth(available: Dp): Dp {
+    val columns = keepListeningColumns(available)
+    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
+    return (usable - KEEP_LISTENING_COLUMN_SPACING * (columns - 1)) / columns
 }
 
 data class WeeklyRecapCardData(
@@ -214,6 +230,12 @@ fun HomeScreen(
     var showAudioOutput by remember { mutableStateOf(false) }
     val outputHaze = remember { HazeState() }
     val openAudioOutput = rememberOutputPicker { showAudioOutput = true }
+    val featuredItemIds = remember(timeAwareShelf) {
+        timeAwareShelf?.items.orEmpty().mapNotNull { it.videoId ?: it.browseId }.toSet()
+    }
+    val isChronologicalHistoryShelf: (HomeShelf) -> Boolean = { shelf ->
+        shelf.title.trim().lowercase(Locale.ROOT) in setOf("recents", "recently played")
+    }
 
     PullToRefresh(
         refreshing = refreshing,
@@ -297,7 +319,13 @@ fun HomeScreen(
                     // Recently Played lands, every real shelf must retain its
                     // compact-card layout instead of briefly becoming a hero.
                     itemsIndexedShelves(
-                        shelves = state.data,
+                        // The time-aware lead is selected from this same feed;
+                        // keep its cards from appearing a second time below.
+                        shelves = if (featuredItemIds.isEmpty()) state.data else state.data.mapNotNull { shelf ->
+                            if (isChronologicalHistoryShelf(shelf)) return@mapNotNull shelf
+                            val remaining = shelf.items.filterNot { (it.videoId ?: it.browseId) in featuredItemIds }
+                            remaining.takeIf { it.isNotEmpty() }?.let { shelf.copy(items = it) }
+                        },
                         onItemClick = onItemClick,
                         onItemLongPress = onItemLongPress,
                         onPlayAllQuickPicks = onPlayAllQuickPicks,
@@ -1471,8 +1499,8 @@ internal fun Shelf(
                 shelf.title.equals("Keep listening", ignoreCase = true) -> {
                 SectionHeader("Keep listening", shelf.subtitle, emphasized = true)
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val spacing = 14.dp
-                    val columns = 3
+                    val spacing = KEEP_LISTENING_COLUMN_SPACING
+                    val columns = keepListeningColumns(maxWidth)
                     shelf.items.chunked(columns).forEach { rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER),

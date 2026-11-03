@@ -80,6 +80,38 @@ class TimeAwareDiscoveryTest {
     }
 
     @Test
+    fun timeAwareDiscoveryExcludesBothChronologicalHistoryTitlesRegardlessOfCaseOrPadding() {
+        val recents = HomeShelf("  rEcEnTs  ", listOf(shelfItem("recent")))
+        val recentlyPlayed = HomeShelf("RECENTLY PLAYED", listOf(shelfItem("played")))
+        val discovery = HomeShelf("Night mix", listOf(shelfItem("night")))
+
+        assertEquals(
+            discovery,
+            selectTimeAwareDiscoveryShelf(
+                listOf(recents, recentlyPlayed, discovery),
+                ListeningHourBlock.LATE_NIGHT,
+            ),
+        )
+        assertNull(
+            selectTimeAwareDiscoveryShelf(
+                listOf(recents, recentlyPlayed),
+                ListeningHourBlock.MORNING,
+            ),
+        )
+    }
+
+    @Test
+    fun chronologicalHistoryShelvesRemainFirstAndInOriginalOrder() {
+        val recents = HomeShelf("Recents", listOf(shelfItem("recent")))
+        val recentlyPlayed = HomeShelf("Recently played", listOf(shelfItem("played")))
+        val discovery = HomeShelf("Mixes", listOf(shelfItem("mix")))
+
+        val result = varyHomeFeed(listOf(recents, recentlyPlayed, discovery), 1234L)
+
+        assertEquals(listOf(recents, recentlyPlayed), result.take(2))
+    }
+
+    @Test
     fun homeFeedVariationIsStablePerInstallAndDifferentAcrossInstallSeeds() {
         val shelves = listOf(
             HomeShelf("Recently played", listOf(shelfItem("history"))),

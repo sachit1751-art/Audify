@@ -5,6 +5,7 @@ package com.music.audify.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -65,18 +69,21 @@ fun AccountProfileSelector(
     var managing by remember { mutableStateOf(false) }
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = MaterialTheme.shapes.extraLarge
-    Column(
-        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = .48f))
+    BoxWithConstraints(
+        modifier = modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = .48f))
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .clickable(onClick = onDismiss),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        contentAlignment = Alignment.TopCenter,
     ) {
         Surface(
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = shape,
             modifier = Modifier
-                .padding(top = 56.dp, start = 20.dp, end = 20.dp)
-                .fillMaxWidth()
+                .padding(top = 56.dp)
+                .width(alertCardWidth(maxWidth))
+                .heightIn(max = (maxHeight - 68.dp).coerceAtLeast(0.dp))
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -90,7 +97,7 @@ fun AccountProfileSelector(
                 )
                 .clickable(onClick = {}),
         ) {
-            LazyColumn {
+            LazyColumn(modifier = Modifier.heightIn(max = (this@BoxWithConstraints.maxHeight - 68.dp).coerceAtLeast(0.dp))) {
                 item { Text(stringResource(R.string.switch_account), style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(20.dp, 18.dp, 20.dp, 8.dp)) }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -43,10 +48,13 @@ import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
-/** UIAlertController's own metrics: fixed narrow width, 14pt corner, 44pt rows. */
-internal val ALERT_WIDTH = 270.dp
+/** UIAlertController's visual metrics: responsive bounded width, 14pt corner, 44pt rows. */
 internal val ALERT_CORNER = 14.dp
 internal val ACTION_HEIGHT = 44.dp
+
+/** Responsive alert width: compact on phones, bounded on tablets and desktop-sized windows. */
+internal fun alertCardWidth(availableWidth: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+    (availableWidth - 32.dp).coerceAtLeast(0.dp).coerceAtMost(420.dp)
 
 /**
  * The dim behind the alert. Flat on purpose — the glass is the card, and
@@ -95,10 +103,11 @@ fun UpdateAvailableDialog(
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(SCRIM_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             // Tapping the scrim reads the same as Remind Me Later — nothing
             // about this update is mandatory, so backing out of it should be as
             // easy as getting into it. Mid-download it only closes the sheet;
@@ -112,7 +121,9 @@ fun UpdateAvailableDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(ALERT_WIDTH)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(0.88f)
+                .heightIn(max = maxHeight)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -130,7 +141,8 @@ fun UpdateAvailableDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .verticalScroll(rememberScrollState()),
         ) {
             Column(
                 modifier = Modifier

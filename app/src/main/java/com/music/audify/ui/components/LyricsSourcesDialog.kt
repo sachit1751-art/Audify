@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
@@ -72,7 +77,7 @@ import dev.chrisbanes.haze.blur.materials.HazeMaterials
  * Which lyric databases the player is allowed to ask.
  *
  * Same frosted iOS alert as [UpdateAvailableDialog], down to the shared
- * [ALERT_WIDTH]/[ALERT_CORNER] metrics and hairline [AlertRule]s, with the
+ * shared responsive alert width, [ALERT_CORNER] metrics and hairline [AlertRule]s, with the
  * action rows swapped for checkable ones. Checkmarks rather than Material
  * checkboxes: that is what a multiple-selection list looks like in this
  * lineage, and a column of square boxes would be the one Material thing left
@@ -97,10 +102,11 @@ fun LyricsSourcesDialog(
     var showPaxSenixKeyDialog by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(ALERT_CORNER)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(SCRIM_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -110,7 +116,9 @@ fun LyricsSourcesDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(ALERT_WIDTH)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(0.88f)
+                .heightIn(max = maxHeight)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -128,7 +136,8 @@ fun LyricsSourcesDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .verticalScroll(rememberScrollState()),
         ) {
             Column(
                 modifier = Modifier

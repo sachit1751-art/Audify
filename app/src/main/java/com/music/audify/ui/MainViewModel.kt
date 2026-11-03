@@ -119,6 +119,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         seedFile.takeIf(File::isFile)?.readText()?.toLongOrNull()
             ?: Random.nextLong().also { seedFile.writeText(it.toString()) }
     }.getOrElse { Random.nextLong() }
+    /** A fresh deterministic ordering seed for each Home load or refresh. */
+    private var homeSessionSeed: Long = homeVariationSeed
 
     private val authStore = AuthStore(app)
 
@@ -140,6 +142,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Titles already on screen, so a later page can't repeat a shelf. */
     private val homeSeenTitles = mutableSetOf<String>()
 
+    /** Track ids already rendered anywhere in this Home browsing session. */
+    private val homeSeenVideoIds = mutableSetOf<String>()
+
+    /** Previous session's tracks, used only to rank fresh tracks ahead on refresh. */
+    private val homePreviousSessionVideoIds = mutableSetOf<String>()
+
+    /** Continuation tokens already requested, preventing server-side token loops. */
+    private val homeSeenContinuationTokens = mutableSetOf<String>()
+
     private val _homeLoadingMore = MutableStateFlow(false)
 
     /**
@@ -158,6 +169,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _homeRecentlyPlayedLoading = MutableStateFlow(false)
     val homeRecentlyPlayedLoading: StateFlow<Boolean> = _homeRecentlyPlayedLoading.asStateFlow()
     private val homeLoadGeneration = AtomicLong(0L)
+    private val homePagingGeneration = AtomicLong(0L)
 
     private val _explore = MutableStateFlow<UiState<List<MoodGenreSection>>>(UiState.Loading)
     val explore: StateFlow<UiState<List<MoodGenreSection>>> = _explore.asStateFlow()
@@ -1043,33 +1055,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * track's menu — one request, so it can't half-succeed into an empty
      * playlist the user has to add to again.
      */
-    fun createPlaylist(
+    internal fun createPlaylist(
         title: String,
         privacy: PlaylistPrivacy,
         song: Song? = null,
-        onResult: ((Boolean) -> Unit)? = null,
+        onResult: ((PlaylistCreationResult) -> Unit)? = null,
     ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         viewModelScope.launch {
-            if (!_signedIn.value) {
-                val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, listOfNotNull(song))
-                onResult?.invoke(true)
-                return@launch
-            }
-            YtMusicRepository.createPlaylist(
-                title = name,
-                privacy = privacy,
-                videoIds = listOfNotNull(song?.videoId),
-            ).fold(
-                onSuccess = { playlistId ->
+            when (val result = createPlaylistWithLocalFallback(
+                signedIn = _signedIn.value,
+                createRemote = {
+                    YtMusicRepository.createPlaylist(
+                        title = name,
+                        privacy = privacy,
+                        videoIds = listOfNotNull(song?.videoId),
+                    )
+                },
+                saveLocal = {
+                    com.music.audify.data.spotify.LocalPlaylistStore
+                        .savePlaylist(name, listOfNotNull(song)).browseId
+                },
+            )) {
+                is PlaylistCreationResult.RemoteCreated -> {
                     // Nothing to look up for a playlist this account has just
                     // made: it is the owner by construction, so its card is
                     // editable the moment it appears rather than one request
                     // after someone holds it.
-                    setPlaylistOwned("VL$playlistId", true)
+                    setPlaylistOwned("VL${result.playlistId}", true)
                     libraryStale = true
                     val created = UserPlaylist(
-                        playlistId = playlistId,
+                        playlistId = result.playlistId,
                         title = name,
                         // Only what this request itself establishes. Both
                         // surfaces that draw it leave a blank one out, so an
@@ -1096,13 +1112,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             ),
                         ) + items.filterNot { it.browseId == created.browseId }
                     }
-                    onResult?.invoke(true)
-                },
-                onFailure = { failure ->
-                    android.util.Log.w("MainViewModel", "Playlist creation failed: ${failure.message}", failure)
-                    onResult?.invoke(false)
-                },
-            )
+                    onResult?.invoke(result)
+                }
+                is PlaylistCreationResult.SavedLocally -> {
+                    // LocalPlaylistStore publishes through its StateFlow before
+                    // returning, so the Library's On device shelf updates now.
+                    result.remoteFailure?.let { failure ->
+                        android.util.Log.w(
+                            "MainViewModel",
+                            "YouTube Music playlist creation failed; saved locally: ${failure.message}",
+                            failure,
+                        )
+                    }
+                    onResult?.invoke(result)
+                }
+                is PlaylistCreationResult.Failed -> {
+                    android.util.Log.w(
+                        "MainViewModel",
+                        "Playlist creation failed: ${result.cause.message}",
+                        result.cause,
+                    )
+                    onResult?.invoke(result)
+                }
+            }
         }
     }
 
@@ -1721,9 +1753,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadHome() {
         val identity = listenerKey()
         val generation = homeLoadGeneration.incrementAndGet()
+        homePagingGeneration.incrementAndGet()
+        homeSessionSeed = Random.nextLong() xor homeVariationSeed
+        homePreviousSessionVideoIds.clear()
+        homePreviousSessionVideoIds.addAll(homeSeenVideoIds)
         _home.value = UiState.Loading
         homeContinuation = null
         homeSeenTitles.clear()
+        homeSeenVideoIds.clear()
+        homeSeenContinuationTokens.clear()
         _homeLoadingMore.value = false
         _homeRecentlyPlayedLoading.value = _signedIn.value
         // The core feed plus one browse per supplement. Recently played is left
@@ -1737,7 +1775,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         .onSuccess { feed ->
                             if (!isCurrentHomeLoad(identity, generation)) return@onSuccess
                             homeContinuation = feed.continuation
-                            publishHomeShelves(feed.shelves)
+                            publishHomeShelves(feed.shelves, prioritize = true)
                         }
                         .onFailure { failure ->
                             if (isCurrentHomeLoad(identity, generation) && _home.value !is UiState.Success) {
@@ -1788,32 +1826,81 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun isCurrentHomeLoad(identity: String?, generation: Long) =
         identity == listenerKey() && generation == homeLoadGeneration.get()
 
-    private fun publishHomeShelves(shelves: List<HomeShelf>, prepend: Boolean = false) {
-        val variedShelves = varyHomeFeed(shelves, homeVariationSeed)
+    private fun publishHomeShelves(
+        shelves: List<HomeShelf>,
+        prepend: Boolean = false,
+        prioritize: Boolean = false,
+    ) {
+        val variedShelves = varyHomeFeed(shelves, homeSessionSeed).map { shelf ->
+            diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
+        }
+        val freshnessOrderedShelves = if (prepend) variedShelves else
+            prioritizeFreshHomeTracks(variedShelves, homePreviousSessionVideoIds)
         val existing = (_home.value as? UiState.Success)?.data.orEmpty()
+        if (prioritize) {
+            // The personalised core feed wins over supplementary browse
+            // requests even when one of those faster requests arrived first.
+            // Keep any dedicated history shelf at the head of the page.
+            val history = existing.filter {
+                it.title.equals("Recents", ignoreCase = true) ||
+                    it.title.equals("Recently played", ignoreCase = true)
+            }
+            val historyTitles = history.map { it.title.lowercase(Locale.ROOT) }.toSet()
+            val core = freshnessOrderedShelves.filterNot { it.title.lowercase(Locale.ROOT) in historyTitles }
+            val replacing = core.map { it.title.lowercase(Locale.ROOT) }.toSet()
+            val supplements = existing.filterNot {
+                it.title.equals("Recents", ignoreCase = true) ||
+                    it.title.equals("Recently played", ignoreCase = true) ||
+                    it.title.lowercase(Locale.ROOT) in replacing
+            }
+            homeSeenVideoIds.clear()
+            val unique = deduplicateHomeTracks(history + core + supplements, homeSeenVideoIds)
+            homeSeenTitles.clear()
+            homeSeenTitles.addAll(unique.map { it.title.lowercase(Locale.ROOT) })
+            _home.value = UiState.Success(unique)
+            return
+        }
         if (prepend) {
             // YouTube's core home can also contain a stale "Recently played"
             // shelf. The dedicated history endpoint wins and replaces it.
-            val replacing = variedShelves.map { it.title.lowercase(Locale.ROOT) }.toSet()
-            homeSeenTitles.addAll(replacing)
-            _home.value = UiState.Success(variedShelves + existing.filterNot {
+            val replacing = freshnessOrderedShelves.map { it.title.lowercase(Locale.ROOT) }.toSet()
+            val combined = freshnessOrderedShelves + existing.filterNot {
                 it.title.lowercase(Locale.ROOT) in replacing
-            })
+            }
+            homeSeenVideoIds.clear()
+            val unique = deduplicateHomeTracks(combined, homeSeenVideoIds)
+            homeSeenTitles.clear()
+            homeSeenTitles.addAll(unique.map { it.title.lowercase(Locale.ROOT) })
+            _home.value = UiState.Success(unique)
             return
         }
-        val added = variedShelves.withoutRepeatsOf(existing)
+        val candidates = freshnessOrderedShelves.withoutRepeatsOf(existing)
+            .filterNot { it.title.lowercase(Locale.ROOT) in homeSeenTitles }
+        val added = deduplicateHomeTracks(candidates, homeSeenVideoIds)
             .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
         if (added.isNotEmpty()) _home.value = UiState.Success(existing + added)
     }
 
     /** Refreshes the core feed without blanking the current Play page first. */
     private suspend fun refreshHome(identity: String?) = coroutineScope {
+        homePagingGeneration.incrementAndGet()
+        _homeLoadingMore.value = false
+        homeContinuation = null
+        homeSessionSeed = Random.nextLong() xor homeVariationSeed
+        homePreviousSessionVideoIds.clear()
+        homePreviousSessionVideoIds.addAll(homeSeenVideoIds)
         val recent = if (_signedIn.value) async { YtMusicRepository.homeRecentlyPlayed() } else null
         YtMusicRepository.home().onSuccess { feed ->
             if (identity != listenerKey()) return@onSuccess
             homeContinuation = feed.continuation
             homeSeenTitles.clear()
-            val shelves = varyHomeFeed(feed.shelves, homeVariationSeed).withoutRepeatsOf(emptyList())
+            homeSeenVideoIds.clear()
+            homeSeenContinuationTokens.clear()
+            val varied = varyHomeFeed(feed.shelves, homeSessionSeed).map { shelf ->
+                diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
+            }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
+                .withoutRepeatsOf(emptyList())
+            val shelves = deduplicateHomeTracks(varied, homeSeenVideoIds)
                 .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
             if (shelves.isNotEmpty()) _home.value = UiState.Success(shelves)
         }
@@ -1831,27 +1918,69 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val token = homeContinuation ?: return
         if (_homeLoadingMore.value) return
         val identity = listenerKey()
+        val pagingGeneration = homePagingGeneration.get()
         _homeLoadingMore.value = true
         viewModelScope.launch {
-            YtMusicRepository.moreHome(token).onSuccess { feed ->
-                if (identity == listenerKey()) {
-                    val existing = (_home.value as? UiState.Success)?.data ?: emptyList()
-                    val added = varyHomeFeed(feed.shelves, homeVariationSeed xor token.hashCode().toLong())
-                        .withoutRepeatsOf(existing)
+            try {
+                var nextToken: String? = token
+                var emptyPages = 0
+                while (nextToken != null && emptyPages < HOME_MAX_EMPTY_CONTINUATION_PAGES) {
+                    if (identity != listenerKey() || pagingGeneration != homePagingGeneration.get()) break
+                    if (!homeSeenContinuationTokens.add(nextToken)) {
+                        homeContinuation = null
+                        break
+                    }
+                    val pageToken = nextToken
+                    val result = YtMusicRepository.moreHome(pageToken)
+                    val feed = result.getOrNull()
+                    if (feed == null) {
+                        if (identity == listenerKey() && pagingGeneration == homePagingGeneration.get()) {
+                            homeContinuation = null
+                        }
+                        break
+                    }
+                    if (identity != listenerKey() || pagingGeneration != homePagingGeneration.get()) break
+
+                    val existing = (_home.value as? UiState.Success)?.data.orEmpty()
+                    val varied = varyHomeFeed(
+                        feed.shelves,
+                        homeSessionSeed xor pageToken.hashCode().toLong(),
+                    ).map { shelf ->
+                        diversifyHomeShelf(shelf, homeSessionSeed xor pageToken.hashCode().toLong() xor shelf.title.hashCode().toLong())
+                    }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
+                    val candidates = varied.withoutRepeatsOf(existing)
+                        .filterNot { it.title.lowercase(Locale.ROOT) in homeSeenTitles }
+                    val added = deduplicateHomeTracks(candidates, homeSeenVideoIds)
                         .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
-                    // A page with nothing new signals the feed has looped back on
-                    // itself rather than run dry with a token still attached —
-                    // treat it the same as exhausted so scrolling can't spin here.
-                    homeContinuation = feed.continuation.takeIf { added.isNotEmpty() }
-                    if (added.isNotEmpty()) _home.value = UiState.Success(existing + added)
+                    val followingToken = feed.continuation?.takeIf {
+                        it != pageToken && it !in homeSeenContinuationTokens
+                    }
+                    homeContinuation = followingToken
+                    if (added.isNotEmpty()) {
+                        _home.value = UiState.Success(existing + added)
+                        break
+                    }
+
+                    // A continuation page can contain only already displayed
+                    // shelves or tracks. Keep walking a bounded number of pages
+                    // so one duplicate-only response cannot kill the feed.
+                    emptyPages++
+                    nextToken = followingToken
                 }
-            }.onFailure {
-                // HomeScreen rechecks the tail as soon as loadingMore becomes
-                // false. Keeping a failed token would immediately retry here
-                // while the list remains at its end, creating a request loop.
-                if (identity == listenerKey()) homeContinuation = null
+                if (identity == listenerKey() && pagingGeneration == homePagingGeneration.get() &&
+                    emptyPages == HOME_MAX_EMPTY_CONTINUATION_PAGES &&
+                    nextToken != null && (_home.value as? UiState.Success)?.data.orEmpty().isNotEmpty()
+                ) {
+                    // Three consecutive pages with no unseen shelves indicate
+                    // that this continuation chain is looping or exhausted.
+                    // Stop here so the tail observer cannot issue requests forever.
+                    homeContinuation = null
+                }
+            } finally {
+                if (identity == listenerKey() && pagingGeneration == homePagingGeneration.get()) {
+                    _homeLoadingMore.value = false
+                }
             }
-            if (identity == listenerKey()) _homeLoadingMore.value = false
         }
     }
 
@@ -2478,6 +2607,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        private const val HOME_MAX_EMPTY_CONTINUATION_PAGES = 3
         /** Per-addon budget for the Addons search tab; a slow addon is left out, not waited on. */
         private const val ADDON_SEARCH_TIMEOUT_MS = 12_000L
         private const val ADDON_SEARCH_LIMIT = 20

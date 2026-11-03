@@ -4,6 +4,7 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
+    <string name="playlist_saved_on_device" translatable="false">\'%1$s\' was saved on this device.</string>
     <string name="font_choice" translatable="false">App font</string>
     <string name="font_choice_subtitle" translatable="false">Choose the typeface used throughout AUDIFY.</string>
     <string name="on_device_empty" translatable="false">Saved albums and playlists on this device will appear here.</string>

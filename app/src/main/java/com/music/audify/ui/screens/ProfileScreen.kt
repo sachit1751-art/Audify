@@ -69,9 +69,20 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(contentPadding)
+            // Paint the entire viewport, including the part currently showing
+            // past the scrollable child's bounds. Keeping this after
+            // verticalScroll only paints the scrolled content; the uncovered
+            // viewport then reveals the parent's (black in dark theme) surface.
+            .background(MaterialTheme.colorScheme.background)
+            // Keep the top chrome inset fixed, but make the bottom inset part
+            // of the scrollable content. The mini-player and tab bar are drawn
+            // over this page; putting their height outside verticalScroll
+            // shortens the viewport without adding scroll range, trapping the
+            // final statistic cards behind the persistent controls.
+            .padding(top = contentPadding.calculateTopPadding())
             .padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = contentPadding.calculateBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(

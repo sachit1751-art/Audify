@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -350,7 +352,11 @@ fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
                 )
             },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 280.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
                     if (plan == null) {
                         Text(prompt.reason.orEmpty())
                         prompt.files.forEach { file ->
@@ -405,7 +411,11 @@ fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
                 onDismissRequest = { confirmStorageDeletion = false },
                 title = { Text(stringResource(R.string.download_storage_confirm_title)) },
                 text = {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 280.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
                         Text(stringResource(R.string.download_storage_delete_warning))
                         Spacer(Modifier.height(8.dp))
                         plan.oldestFiles.forEach { file ->

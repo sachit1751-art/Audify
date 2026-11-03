@@ -239,6 +239,7 @@ import com.music.audify.ui.components.ConfirmationAlert
 import com.music.audify.ui.components.DownloadManagerSheet
 import com.music.audify.ui.components.PlaylistPickerSheet
 import com.music.audify.ui.components.ReorderPlaylistPage
+import com.music.audify.ui.PlaylistCreationResult
 import com.music.audify.ui.components.LongPressOrigin
 import com.music.audify.ui.components.SongActionsPresentation
 import com.music.audify.ui.components.SongActionsSheet
@@ -284,6 +285,7 @@ import com.music.audify.ui.components.TopBarDownloadButton
 import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
 import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.optimizedHazeEffect
+import com.music.audify.ui.components.TopBarContentGap
 import com.music.audify.ui.components.topBarContentPadding
 import com.music.audify.ui.components.AppLanguageDialog
 import com.music.audify.ui.components.TranslationLanguageDialog
@@ -2279,16 +2281,23 @@ private fun AudifyApp(
         startDownload(listOf(withDuration), null)
     }
 
+    // One measured height feeds both the tap guard and every page's scroll
+    // viewport. The bottom bars include their system-navigation inset in this
+    // measurement, because each bar applies floatingBarInsets to its own root.
+    val floatingBarsHeight = remember { mutableIntStateOf(0) }
+
     // Content padding leaves room for the frosted bar above and the tab bar
-    // (plus mini player) below, so nothing is ever trapped under the glass.
+    // (plus mini player) below, so the last row can scroll clear of the glass.
     //
     // The top is measured off the bar rather than guessed at: the bar is pinned
     // under the status bar inset, and that inset varies by device and by window,
     // so a fixed number only ever lines up on the one device it was picked on.
     // See [topBarContentPadding].
+    val fallbackBottomChrome = if (player.song != null) 210.dp else 140.dp
+    val measuredBottomChrome = with(LocalDensity.current) { floatingBarsHeight.intValue.toDp() }
     val listPadding = PaddingValues(
         top = topBarContentPadding(),
-        bottom = if (player.song != null) 210.dp else 140.dp,
+        bottom = (if (floatingBarsHeight.intValue > 0) measuredBottomChrome else fallbackBottomChrome) + 16.dp,
     )
 
     // What colour the page currently under the bars is. The fades either end
@@ -3630,18 +3639,27 @@ private fun AudifyApp(
                 val artistListState = detail
                     ?.takeIf { isDetailVisible && it.type == BrowseType.ARTIST }
                     ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
+                // A playlist sleeve starts below the floating bar. Keep the top
+                // fade off until scrolling carries that sleeve up to the bar;
+                // otherwise the opaque end of the scrim washes out its top edge
+                // even before the user has moved the page.
+                val playlistListState = detail
+                    ?.takeIf { isDetailVisible && it.type == BrowseType.PLAYLIST }
+                    ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
                 val homeHeadingVisible = route == null && detail == null && selectedTab == TAB_HOME
-                val headerListState = artistListState ?: homeListState.takeIf { homeHeadingVisible }
+                val headerListState = artistListState ?: playlistListState ?: homeListState.takeIf { homeHeadingVisible }
                 val fadeStart = if (artistListState != null) TOP_FADE_START else 0f
-                val fadeRamp = if (artistListState != null) TOP_FADE_RAMP else 1f
-                val topFadeAlpha by remember(headerListState, fadeStart, fadeRamp) {
+                val fadeRamp = if (artistListState != null || playlistListState != null) TOP_FADE_RAMP else 1f
+                val playlistFadeStartPx = with(LocalDensity.current) { TopBarContentGap.toPx() }
+                val topFadeAlpha by remember(headerListState, fadeStart, fadeRamp, playlistListState, playlistFadeStartPx) {
                     derivedStateOf {
                         val list = headerListState ?: return@derivedStateOf 1f
                         if (list.firstVisibleItemIndex > 0) return@derivedStateOf 1f
                         val header = list.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.index == 0 }?.size?.toFloat()
                             ?: return@derivedStateOf 0f
-                        ((list.firstVisibleItemScrollOffset - header * fadeStart) /
+                        val startPx = if (playlistListState != null) playlistFadeStartPx else header * fadeStart
+                        ((list.firstVisibleItemScrollOffset - startPx) /
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
@@ -4019,7 +4037,6 @@ private fun AudifyApp(
 
                 // Whichever bar is drawing reports its height here, for the
                 // guard to read at layout — never in composition, see the guard.
-                val floatingBarsHeight = remember { mutableIntStateOf(0) }
                 FloatingBarsTapGuard(
                     barsHeight = { floatingBarsHeight.intValue },
                     modifier = Modifier.align(Alignment.BottomCenter),
@@ -4742,8 +4759,25 @@ private fun AudifyApp(
                         dismiss()
                     },
                     onCreate = { title, privacy ->
-                        viewModel.createPlaylist(title, privacy, target) { created ->
-                            if (created) dismiss() else showQueueNotice(failedMessage)
+                        viewModel.createPlaylist(title, privacy, target) { result ->
+                            when (result) {
+                                is PlaylistCreationResult.RemoteCreated -> dismiss()
+                                is PlaylistCreationResult.SavedLocally -> {
+                                    dismiss()
+                                    showQueueNotice(
+                                        if (result.remoteFailure != null) {
+                                            String.format(
+                                                Locale.getDefault(),
+                                                spotifyImportLocalFallbackFormat,
+                                                title,
+                                            )
+                                        } else {
+                                            resources.getString(R.string.playlist_saved_on_device, title)
+                                        },
+                                    )
+                                }
+                                is PlaylistCreationResult.Failed -> showQueueNotice(failedMessage)
+                            }
                         }
                     },
                 )

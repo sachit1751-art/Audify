@@ -3,6 +3,7 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
+    <string name="saved_to_youtube_music_account">Saved to YouTube Music when signed in; otherwise on this device</string>
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">Now playing</string>
 <string name="download_notification_title">Downloading</string>
@@ -568,7 +569,6 @@ Project: AUDIFY
     <string name="save_name">Save name</string>
     <string name="save_order">Save</string>
     <string name="saved_to_downloads">Saved to Downloads</string>
-    <string name="saved_to_youtube_music_account">Saved to your YouTube Music account</string>
     <string name="scrobble_delay">Scrobble delay</string>
     <string name="scrobble_delay_subtitle">How far into a song to scrobble it</string>
     <string name="scrobble_timing">Scrobble timing</string>

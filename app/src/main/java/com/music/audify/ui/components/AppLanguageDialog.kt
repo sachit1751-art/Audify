@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +17,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,10 +107,11 @@ fun AppLanguageDialog(
             ?: LocalLocale.current.platformLocale.toLanguageTag(),
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(SCRIM_COLOR)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -115,7 +121,9 @@ fun AppLanguageDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(ALERT_WIDTH)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(0.88f)
+                .heightIn(max = maxHeight)
                 .clip(shape)
                 .then(
                     if (reduceDynamicBlur) {
@@ -166,7 +174,11 @@ fun AppLanguageDialog(
             // [TranslationLanguageDialog] — sixteen rows is short enough not
             // to need that dialog's filter field, but still taller than the
             // card should get to stay centred on a phone.
-            LazyColumn(modifier = Modifier.heightIn(max = LANGUAGE_LIST_MAX_HEIGHT)) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .heightIn(max = LANGUAGE_LIST_MAX_HEIGHT),
+            ) {
                 items(SUPPORTED_LANGUAGES, key = { it.tag }) { language ->
                     AlertRule()
                     LanguageRow(

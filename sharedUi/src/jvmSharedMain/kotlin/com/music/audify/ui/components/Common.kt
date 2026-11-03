@@ -94,7 +94,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.isMatchPending
@@ -102,10 +101,6 @@ import com.music.audify.data.model.isMatchMissing
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.CircularProgressIndicator
 import com.music.audify.data.model.artworkAt
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.ui.composed
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.foundation.border
 
 /**
  * The left and right inset every page's content sits at — the artist page's
@@ -558,14 +553,9 @@ private fun SongRowContent(
             }
         } else {
             Box(Modifier.size(52.dp)) {
-                AsyncImage(
-                    model = com.music.audify.ui.player.rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(RoundedCornerShape(8.dp))
-                        .thumbnailBorder(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                TrackArtworkThumbnail(
+                    imageUrl = com.music.audify.ui.player.rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
+                    modifier = Modifier.matchParentSize(),
                 )
                 if (searchPlayingStyle && isCurrent && isPlaying) {
                     SearchPlayingBars(Modifier.align(Alignment.Center))
