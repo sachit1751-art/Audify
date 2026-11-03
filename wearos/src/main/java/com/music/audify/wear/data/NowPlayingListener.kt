@@ -89,7 +89,7 @@ class NowPlayingListener : WearableListenerService() {
             val open = PendingIntent.getActivity(
                 context,
                 0,
-                Intent(context, WearActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                Intent(context, WearActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val builder = NotificationCompat.Builder(context, CHANNEL)

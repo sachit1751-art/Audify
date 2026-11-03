@@ -11,6 +11,7 @@ import android.content.Intent
 import android.media.AudioFormat
 import android.media.audiofx.AudioEffect
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
@@ -1698,7 +1699,7 @@ fun SettingsScreen(
                     onClick = {
                         val intent = Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml"),
+                            "https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml".toUri(),
                         )
                         runCatching { context.startActivity(intent) }.onFailure {
                             Toast.makeText(
@@ -1720,7 +1721,7 @@ fun SettingsScreen(
                     onClick = {
                         val intent = Intent(
                             Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml"),
+                            "https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml".toUri(),
                         )
                         runCatching { context.startActivity(intent) }.onFailure {
                             Toast.makeText(

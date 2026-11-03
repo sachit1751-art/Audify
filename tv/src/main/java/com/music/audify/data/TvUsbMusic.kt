@@ -5,6 +5,7 @@ package com.music.audify.data
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import androidx.core.net.toUri
 import com.music.audify.data.DebugLog as Log
 import com.music.audify.data.model.Song
 import java.io.File
@@ -87,7 +88,7 @@ object TvUsbMusic {
         runCatching {
             val retriever = MediaMetadataRetriever()
             try {
-                retriever.setDataSource(context, Uri.parse(uri))
+                retriever.setDataSource(context, uri.toUri())
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                     ?.takeIf { it.isNotBlank() }?.let { title = it }
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)

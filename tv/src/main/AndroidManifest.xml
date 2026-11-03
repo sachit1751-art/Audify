@@ -211,7 +211,7 @@ Project: AUDIFY
               Schemes and paths still multiply out: every scheme × every path
               prefix listed here is one accepted shape.
             -->
-            <intent-filter>
+            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -229,7 +229,7 @@ Project: AUDIFY
               Kept in their own filter because the path there *is* the id, so it
               can't share the path prefixes above.
             -->
-            <intent-filter>
+            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -252,7 +252,7 @@ Project: AUDIFY
             </intent-filter>
 
             <!-- Custom scheme for Listen Together invites on custom server deployments. -->
-            <intent-filter>
+            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
@@ -285,14 +285,13 @@ Project: AUDIFY
             android:exported="false"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:icon="@mipmap/ic_launcher"
-            android:label="@string/app_name"
             android:launchMode="singleTask"
-            android:screenOrientation="landscape"
             android:theme="@style/Theme.Audify.Tv" />
 
         <service
             android:name=".playback.PlaybackService"
             android:exported="true"
+            tools:ignore="ExportedService"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaLibraryService" />

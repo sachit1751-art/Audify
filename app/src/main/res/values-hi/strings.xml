@@ -139,13 +139,11 @@ Project: AUDIFY
     <string name="german">जर्मन</string>
     <string name="polish">पोलिश</string>
     <string name="portuguese">पुर्तगाली</string>
-    <string name="indonesian">इंडोनेशियाई</string>
     <string name="hindi">हिन्दी</string>
     <string name="japanese">जापानी</string>
     <string name="russian">रूसी</string>
 <string name="chinese_simplified">चीनी (सरलीकृत)</string>
     <string name="chinese_traditional">चीनी (पारंपरिक)</string>
-    <string name="hebrew">हिब्रू</string>
     <string name="italian">इतालवी</string>
     <string name="turkish">तुर्की</string>
     <string name="thai">थाई</string>

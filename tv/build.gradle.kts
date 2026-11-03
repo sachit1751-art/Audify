@@ -357,9 +357,9 @@ dependencies {
     implementation("androidx.palette:palette-ktx:1.1.0")
 
     // ---- Frosted glass / progressive blur (Telegram-style bars) ----
-    implementation("dev.chrisbanes.haze:haze:2.0.1")
-    implementation("dev.chrisbanes.haze:haze-blur:2.0.1")
-    implementation("dev.chrisbanes.haze:haze-blur-materials:2.0.1")
+    implementation("dev.chrisbanes.haze:haze:2.1.0")
+    implementation("dev.chrisbanes.haze:haze-blur:2.1.0")
+    implementation("dev.chrisbanes.haze:haze-blur-materials:2.1.0")
 
     // ---- QR encoding, for the party invite ----
     // `core` only: the `android-core`/`zxing-android-embedded` artifacts bring
@@ -406,7 +406,7 @@ dependencies {
     //   ./gradlew :app:dependencies --configuration prodReleaseRuntimeClasspath
     implementation(files(newPipeExtractorStripped))
     implementation("com.github.TeamNewPipe:nanojson:1.7-np")
-    implementation("org.jsoup:jsoup:1.23.2")
+    implementation("org.jsoup:jsoup:1.24.1")
     implementation("com.google.code.findbugs:jsr305:3.0.2")
     implementation("com.google.protobuf:protobuf-javalite:4.36.2")
     implementation("org.mozilla:rhino:1.9.2")

@@ -108,8 +108,7 @@ object TvRefreshRateController {
             lp.preferredDisplayModeId = targetModeId
 
             // Legacy direct refresh rate override (API 23+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                when (pref) {
+            when (pref) {
                     TvRefreshRatePreference.ULTRA_120 -> {
                         @Suppress("DEPRECATION")
                         lp.preferredRefreshRate = 120.0f
@@ -123,7 +122,6 @@ object TvRefreshRateController {
                         lp.preferredRefreshRate = 0.0f
                     }
                 }
-            }
 
             // Modern Android R (API 30+) display refresh rate bounds via reflection for universal SDK compatibility
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

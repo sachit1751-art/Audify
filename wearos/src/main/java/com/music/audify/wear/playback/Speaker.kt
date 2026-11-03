@@ -4,6 +4,7 @@ package com.music.audify.wear.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.annotation.SuppressLint
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
@@ -36,6 +37,7 @@ import com.music.audify.wear.WearProtocol as P
  * Main thread throughout; the listener service posts here.
  */
 @OptIn(markerClass = [UnstableApi::class])
+@SuppressLint("StaticFieldLeak")
 object Speaker {
 
     private val main = Handler(Looper.getMainLooper())
@@ -81,7 +83,7 @@ object Speaker {
     }
 
     private fun handleOnMain(context: Context, command: String, payload: ByteArray?) {
-        app = context
+        app = context.applicationContext
         val text = payload?.let { String(it, Charsets.UTF_8) }.orEmpty()
         when (command) {
             P.SPEAKER_LOAD -> {

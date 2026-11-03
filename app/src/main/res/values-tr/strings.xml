@@ -147,13 +147,11 @@ Project: AUDIFY
     <string name="german">Almanca</string>
     <string name="polish">Lehçe</string>
     <string name="portuguese">Portekizce</string>
-    <string name="indonesian">Endonezce</string>
     <string name="hindi">Hintçe</string>
     <string name="japanese">Japonca</string>
     <string name="russian">Rusça</string>
 <string name="chinese_simplified">Çince (Basitleştirilmiş)</string>
     <string name="chinese_traditional">Çince (Geleneksel)</string>
-    <string name="hebrew">İbranice</string>
     <string name="italian">İtalyanca</string>
     <string name="turkish">Türkçe</string>
     <string name="thai">Tayca</string>

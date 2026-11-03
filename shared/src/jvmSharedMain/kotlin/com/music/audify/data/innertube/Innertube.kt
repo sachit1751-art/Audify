@@ -969,6 +969,14 @@ object Innertube {
                 putJsonArray("videoIds") { videoIds.forEach { add(it) } }
             }
         }
+        // YouTube Music can return an application-level error with HTTP 200.
+        // Treat that as a failed create instead of falling through to the
+        // misleading "no id came back" error.
+        response["error"]?.let { apiError ->
+            val message = (apiError as? JsonObject)
+                ?.get("message")?.jsonPrimitive?.contentOrNull
+            error("YouTube Music refused to create the playlist: ${message ?: apiError}")
+        }
         // Normally a bare top-level id; occasionally only inside the command
         // that would navigate the web client to the new page, so fall back to
         // finding it by name rather than by a path that would rot.

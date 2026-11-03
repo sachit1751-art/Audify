@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.DeleteForever
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -173,6 +174,7 @@ fun BrowseActionsSheet(
      * also happens to be downloaded.
      */
     onDeleteDownload: (() -> Unit)? = null,
+    onSyncToYouTubeMusic: (() -> Unit)? = null,
     /**
      * [SongActionsPresentation.Menu] draws only the rows, compact, for the
      * popup a held card lifts into — [HeldContextMenu] shows the card itself,
@@ -276,6 +278,9 @@ fun BrowseActionsSheet(
             }
             onShare?.let {
                 ActionRow(Icons.Rounded.Share, stringResource(R.string.share), onClick = it)
+            }
+            onSyncToYouTubeMusic?.let {
+                ActionRow(Icons.Rounded.Refresh, "Sync to YouTube Music", onClick = it)
             }
             onTogglePin?.let {
                 ActionRow(

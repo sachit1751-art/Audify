@@ -7,6 +7,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
+import androidx.core.content.edit
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.Intent
@@ -76,7 +77,10 @@ object SelfUpdate {
             }
         }
         val hash = digest.digest().joinToString("") { "%02x".format(it) }
-        prefs.edit().putLong("hashed_at", installedAt).putString("hash", hash).apply()
+        prefs.edit {
+            putLong("hashed_at", installedAt)
+            putString("hash", hash)
+        }
         return hash
     }
 
@@ -165,7 +169,7 @@ object SelfUpdate {
         val tap = PendingIntent.getActivity(
             context,
             0,
-            confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            confirm,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL)

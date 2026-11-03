@@ -3,6 +3,7 @@
 package com.music.audify.ui.tv.components
 
 import android.graphics.Bitmap
+import androidx.core.graphics.get
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -115,7 +116,7 @@ private fun sampleDominantColor(bitmap: Bitmap): Color {
     var weight = 0L
     for (x in 0 until bitmap.width) {
         for (y in 0 until bitmap.height) {
-            val pixel = bitmap.getPixel(x, y)
+            val pixel = bitmap[x, y]
             if ((pixel ushr 24) < 100) continue
             val pr = (pixel shr 16) and 0xff
             val pg = (pixel shr 8) and 0xff

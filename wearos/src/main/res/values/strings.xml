@@ -26,7 +26,6 @@ Project: AUDIFY
     <string name="love">Love</string>
     <string name="loved">Loved</string>
     <string name="volume">Volume</string>
-    <string name="on_phone">On phone</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="next">Next</string>
@@ -40,7 +39,6 @@ Project: AUDIFY
     <string name="usb_audio">USB audio</string>
     <string name="hdmi">HDMI</string>
     <string name="other_output">Other output</string>
-    <string name="moving_to_watch">Moving to watch…</string>
     <string name="update_channel">Updates</string>
     <string name="update_ready">Audify update ready</string>
     <string name="update_tap">Tap to install the update from your phone.</string>

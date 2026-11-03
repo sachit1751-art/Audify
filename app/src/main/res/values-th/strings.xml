@@ -143,13 +143,11 @@ Project: AUDIFY
     <string name="german">เยอรมัน</string>
     <string name="polish">โปแลนด์</string>
     <string name="portuguese">โปรตุเกส</string>
-    <string name="indonesian">อินโดนีเซีย</string>
     <string name="hindi">ฮินดี</string>
     <string name="japanese">ญี่ปุ่น</string>
     <string name="russian">รัสเซีย</string>
 <string name="chinese_simplified">จีน (ตัวย่อ)</string>
     <string name="chinese_traditional">จีน (ตัวเต็ม)</string>
-    <string name="hebrew">ฮีบรู</string>
     <string name="italian">อิตาลี</string>
     <string name="turkish">ตุรกี</string>
     <string name="thai">ไทย</string>

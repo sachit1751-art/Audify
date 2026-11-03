@@ -75,7 +75,9 @@ class WearActivity : ComponentActivity() {
         lifecycle.addObserver(ambientObserver)
         // For the watch-face icon while the phone plays. Asked once; a "no"
         // only costs that icon — the app itself works the same.
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
         }
         // Listening follows the screen: on while the app is visible, off the
@@ -92,7 +94,7 @@ class WearActivity : ComponentActivity() {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 SelfUpdate.pendingConfirm.filterNotNull().collect { confirm ->
                     SelfUpdate.pendingConfirm.value = null
-                    runCatching { startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    runCatching { startActivity(confirm) }
                 }
             }
         }

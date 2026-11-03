@@ -153,13 +153,11 @@ Project: AUDIFY
     <string name="german">Tiếng Đức</string>
     <string name="polish">Tiếng Ba Lan</string>
     <string name="portuguese">Tiếng Bồ Đào Nha</string>
-    <string name="indonesian">Tiếng Indonesia</string>
     <string name="hindi">Tiếng Hindi</string>
     <string name="japanese">Tiếng Nhật</string>
     <string name="russian">Tiếng Nga</string>
 <string name="chinese_simplified">Tiếng Trung (Giản thể)</string>
     <string name="chinese_traditional">Tiếng Trung (Phồn thể)</string>
-    <string name="hebrew">Tiếng Do Thái</string>
     <string name="italian">Tiếng Ý</string>
     <string name="turkish">Tiếng Thổ Nhĩ Kỳ</string>
     <string name="vietnamese">Tiếng Việt</string>

@@ -16,6 +16,7 @@ data class LocalPlaylist(
     val id: String,
     val title: String,
     val songs: List<Song>,
+    val youtubePlaylistId: String? = null,
 ) {
     val browseId: String get() = "local:playlist:$id"
 }
@@ -61,7 +62,7 @@ object LocalPlaylistStore {
                     )
                     songs.add(song)
                 }
-                list.add(LocalPlaylist(id, title, songs))
+                list.add(LocalPlaylist(id, title, songs, obj.optString("youtubePlaylistId").takeIf { it.isNotBlank() && it != "null" }))
             }
             _playlists.value = list
         }
@@ -74,6 +75,31 @@ object LocalPlaylistStore {
         _playlists.value = updated
         persist(updated)
         return playlist
+    }
+
+    fun addSongs(id: String, songs: List<Song>): Int {
+        val cleanId = id.removePrefix("local:playlist:")
+        val current = _playlists.value.firstOrNull { it.id == cleanId } ?: return 0
+        val known = current.songs.mapTo(mutableSetOf()) { it.videoId }
+        val additions = songs.filter { it.videoId.isNotBlank() && known.add(it.videoId) }
+        if (additions.isEmpty()) return 0
+        val updated = _playlists.value.map { playlist ->
+            if (playlist.id == cleanId) playlist.copy(songs = playlist.songs + additions) else playlist
+        }
+        _playlists.value = updated
+        persist(updated)
+        return additions.size
+    }
+
+    fun markSynced(id: String, youtubePlaylistId: String): Boolean {
+        val cleanId = id.removePrefix("local:playlist:")
+        if (_playlists.value.none { it.id == cleanId }) return false
+        val updated = _playlists.value.map { playlist ->
+            if (playlist.id == cleanId) playlist.copy(youtubePlaylistId = youtubePlaylistId) else playlist
+        }
+        _playlists.value = updated
+        persist(updated)
+        return true
     }
 
     fun deletePlaylist(id: String) {
@@ -106,6 +132,7 @@ object LocalPlaylistStore {
                 val pObj = JSONObject()
                 pObj.put("id", playlist.id)
                 pObj.put("title", playlist.title)
+                pObj.put("youtubePlaylistId", playlist.youtubePlaylistId)
                 val songsArray = JSONArray()
                 for (song in playlist.songs) {
                     val sObj = JSONObject()

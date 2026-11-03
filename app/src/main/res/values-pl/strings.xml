@@ -146,7 +146,6 @@ Project: AUDIFY
     <string name="german">Niemiecki</string>
     <string name="polish">Polski</string>
     <string name="portuguese">Portugalski</string>
-    <string name="indonesian">Indonezyjski</string>
     <string name="hindi">Hindi</string>
     <string name="japanese">Japoński</string>
     <string name="russian">Rosyjski</string>
@@ -637,7 +636,6 @@ Project: AUDIFY
         <item quantity="many">%1$d miesięcy słuchania</item>
         <item quantity="other">%1$d miesięcy słuchania</item>
     </plurals>
-    <string name="hebrew">Hebrajski</string>
     <string name="switch_to_grid_view">Przełącz na widok siatki</string>
 <string name="switch_to_list_view">Przełącz na widok listy</string>
 

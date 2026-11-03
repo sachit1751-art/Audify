@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!--
+        Keep targetSdk 36 until the TV app's LAN features are migrated to
+        Android 17's ACCESS_LOCAL_NETWORK runtime permission and device-tested.
+        This exception is limited to the module build file.
+    -->
+    <issue id="OldTargetApi">
+        <ignore path="build.gradle.kts" />
+    </issue>
+</lint>

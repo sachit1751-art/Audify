@@ -4,6 +4,7 @@ package com.music.audify.data.settings
 
 import android.content.SharedPreferences
 import android.os.SystemClock
+import androidx.core.content.edit
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -119,12 +120,11 @@ object TvPinThrottle {
         memoryLockUntil.remove(key)
         memoryLockSince.remove(key)
         memoryLockDelay.remove(key)
-        prefs?.edit()?.apply {
+        prefs?.edit {
             remove("$KEY_ATTEMPTS_PREFIX$key")
             remove("$KEY_LOCK_UNTIL_PREFIX$key")
             remove("$KEY_LOCK_SINCE_PREFIX$key")
             remove("$KEY_LOCK_DELAY_PREFIX$key")
-            apply()
         }
     }
 
@@ -133,15 +133,15 @@ object TvPinThrottle {
         memoryLockUntil.clear()
         memoryLockSince.clear()
         memoryLockDelay.clear()
-        prefs?.let { p ->
-            val editor = p.edit()
-            p.all.keys
+        prefs?.let { preferences ->
+            preferences.edit {
+                preferences.all.keys
                 .filter {
                     it.startsWith(KEY_ATTEMPTS_PREFIX) || it.startsWith(KEY_LOCK_UNTIL_PREFIX) ||
                         it.startsWith(KEY_LOCK_SINCE_PREFIX) || it.startsWith(KEY_LOCK_DELAY_PREFIX)
                 }
-                .forEach { editor.remove(it) }
-            editor.apply()
+                .forEach { remove(it) }
+            }
         }
     }
 
@@ -155,7 +155,7 @@ object TvPinThrottle {
 
     private fun setAttempts(key: String, count: Int) {
         memoryAttempts[key] = count
-        prefs?.edit()?.putInt("$KEY_ATTEMPTS_PREFIX$key", count)?.apply()
+        prefs?.edit { putInt("$KEY_ATTEMPTS_PREFIX$key", count) }
     }
 
     private fun getLockUntil(key: String): Long {
@@ -168,7 +168,7 @@ object TvPinThrottle {
 
     private fun setLockUntil(key: String, until: Long) {
         memoryLockUntil[key] = until
-        prefs?.edit()?.putLong("$KEY_LOCK_UNTIL_PREFIX$key", until)?.apply()
+        prefs?.edit { putLong("$KEY_LOCK_UNTIL_PREFIX$key", until) }
     }
 
     private fun getLong(key: String, prefix: String, cache: ConcurrentHashMap<String, Long>): Long {
@@ -180,6 +180,6 @@ object TvPinThrottle {
 
     private fun setLong(key: String, prefix: String, cache: ConcurrentHashMap<String, Long>, value: Long) {
         cache[key] = value
-        prefs?.edit()?.putLong("$prefix$key", value)?.apply()
+        prefs?.edit { putLong("$prefix$key", value) }
     }
 }

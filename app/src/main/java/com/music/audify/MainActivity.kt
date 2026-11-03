@@ -924,6 +924,17 @@ private fun AudifyApp(
             browseId = playlist.browseId,
         )
     }
+    val pickerPlaylists = remember(playlists, localPlaylists) {
+        playlists + localPlaylists.map { local ->
+            UserPlaylist(
+                playlistId = local.browseId,
+                title = local.title,
+                subtitle = "${local.songs.size} songs · On this device" +
+                    if (local.youtubePlaylistId != null) " · Synced" else "",
+                thumbnailUrl = local.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+            )
+        }
+    }
     // What a browse id is recorded under in Downloads.collections, when it names
     // a release downloaded whole — see BrowseTarget.downloadId. A downloaded
     // playlist's own page and its card both carry the id under the
@@ -4704,7 +4715,7 @@ private fun AudifyApp(
                 containerColor = MaterialTheme.colorScheme.background,
             ) {
                 PlaylistPickerSheet(
-                    playlists = playlists,
+                    playlists = pickerPlaylists,
                     loading = playlistsLoading,
                     song = target,
                     startCreating = target == null,
@@ -4731,8 +4742,9 @@ private fun AudifyApp(
                         dismiss()
                     },
                     onCreate = { title, privacy ->
-                        viewModel.createPlaylist(title, privacy, target)
-                        dismiss()
+                        viewModel.createPlaylist(title, privacy, target) { created ->
+                            if (created) dismiss() else showQueueNotice(failedMessage)
+                        }
                     },
                 )
             }
@@ -4803,6 +4815,9 @@ private fun AudifyApp(
             val playlist = target.browseId
                 ?.takeIf { signedIn && ownedPlaylists[it] == true }
                 ?.let { id -> playlists.firstOrNull { it.browseId == id } }
+            val localPlaylist = target.browseId
+                ?.takeIf { it.startsWith("local:playlist:") }
+                ?.let(com.music.audify.data.spotify.LocalPlaylistStore::getPlaylist)
             val remote = target.browseId?.startsWith("local:") == false
             // Spotify playlists saved on this device ("local:playlist:sp_local_…")
             // carry real YouTube video ids, so they download like a remote
@@ -4890,6 +4905,21 @@ private fun AudifyApp(
                             }
                             context.startActivity(Intent.createChooser(sendIntent, target.title))
                             browseActions = null
+                        }
+                    },
+                onSyncToYouTubeMusic = localPlaylist
+                    ?.takeIf { signedIn && it.youtubePlaylistId == null }
+                    ?.let { local ->
+                        {
+                            viewModel.syncLocalPlaylist(local.browseId) { synced, remoteBrowseId ->
+                                if (synced) {
+                                    showQueueNotice("Playlist synced to YouTube Music")
+                                    remoteBrowseId?.let { id -> viewModel.loadPlaylists() }
+                                } else {
+                                    showQueueNotice(failedMessage)
+                                }
+                                browseActions = null
+                            }
                         }
                     },
                 isPinned = pinnableId != null && pinnableId in pinnedPlaylists,

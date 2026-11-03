@@ -998,7 +998,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         song: Song,
         onResult: (added: Int, alreadyThere: Int, failed: Int) -> Unit = { _, _, _ -> },
     ) {
-        if (!requireSignIn() || playlists.isEmpty()) return
+        if (playlists.isEmpty()) return
         viewModelScope.launch {
             val outcomes = playlists.map { addOne(it, song) }
             onResult(
@@ -1012,6 +1012,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private enum class AddOutcome { ADDED, ALREADY_THERE, FAILED }
 
     private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
+        if (playlist.playlistId.startsWith("local:playlist:")) {
+            return if (com.music.audify.data.spotify.LocalPlaylistStore.addSongs(playlist.playlistId, listOf(song)) > 0) {
+                AddOutcome.ADDED
+            } else if (com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(playlist.playlistId)
+                    ?.songs?.any { it.videoId == song.videoId } == true
+            ) AddOutcome.ALREADY_THERE else AddOutcome.FAILED
+        }
+        if (!requireSignIn()) return AddOutcome.FAILED
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }
             ?.songs as? UiState.Success)?.data
         val known = openSongs
@@ -1035,10 +1043,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * track's menu — one request, so it can't half-succeed into an empty
      * playlist the user has to add to again.
      */
-    fun createPlaylist(title: String, privacy: PlaylistPrivacy, song: Song? = null) {
-        if (!requireSignIn()) return
+    fun createPlaylist(
+        title: String,
+        privacy: PlaylistPrivacy,
+        song: Song? = null,
+        onResult: ((Boolean) -> Unit)? = null,
+    ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         viewModelScope.launch {
+            if (!_signedIn.value) {
+                val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, listOfNotNull(song))
+                onResult?.invoke(true)
+                return@launch
+            }
             YtMusicRepository.createPlaylist(
                 title = name,
                 privacy = privacy,
@@ -1079,8 +1096,51 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             ),
                         ) + items.filterNot { it.browseId == created.browseId }
                     }
+                    onResult?.invoke(true)
                 },
-                onFailure = {},
+                onFailure = { failure ->
+                    android.util.Log.w("MainViewModel", "Playlist creation failed: ${failure.message}", failure)
+                    onResult?.invoke(false)
+                },
+            )
+        }
+    }
+
+    /** Manually copies a device playlist to YouTube Music; the local copy is retained. */
+    fun syncLocalPlaylist(id: String, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        if (!requireSignIn()) {
+            onResult(false, null)
+            return
+        }
+        val local = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(id)
+        if (local == null) {
+            onResult(false, null)
+            return
+        }
+        if (local.youtubePlaylistId != null) {
+            onResult(true, "VL${local.youtubePlaylistId}")
+            return
+        }
+        viewModelScope.launch {
+            val ids = local.songs.map { it.videoId }.filter(String::isNotBlank).distinct()
+            YtMusicRepository.createPlaylist(local.title, PlaylistPrivacy.PRIVATE, ids.take(50)).fold(
+                onSuccess = { playlistId ->
+                    var failed = false
+                    ids.drop(50).chunked(50).forEach { chunk ->
+                        if (YtMusicRepository.addToPlaylist(playlistId, chunk).isFailure) failed = true
+                    }
+                    if (!failed && com.music.audify.data.spotify.LocalPlaylistStore.markSynced(local.id, playlistId)) {
+                        libraryStale = true
+                        setPlaylistOwned("VL$playlistId", true)
+                        onResult(true, "VL$playlistId")
+                    } else {
+                        onResult(false, null)
+                    }
+                },
+                onFailure = { failure ->
+                    android.util.Log.w("MainViewModel", "Local playlist sync failed: ${failure.message}", failure)
+                    onResult(false, null)
+                },
             )
         }
     }

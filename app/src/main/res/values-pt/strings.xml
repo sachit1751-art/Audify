@@ -143,13 +143,11 @@ Project: AUDIFY
     <string name="german">Alemão</string>
     <string name="polish">Polonês</string>
     <string name="portuguese">Português</string>
-    <string name="indonesian">Indonésio</string>
     <string name="hindi">Híndi</string>
     <string name="japanese">Japonês</string>
     <string name="russian">Russo</string>
 <string name="chinese_simplified">Chinês (simplificado)</string>
     <string name="chinese_traditional">Chinês (tradicional)</string>
-    <string name="hebrew">Hebraico</string>
     <string name="italian">Italiano</string>
     <string name="turkish">Turco</string>
     <string name="thai">Tailandês</string>

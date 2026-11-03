@@ -136,13 +136,11 @@ Project: AUDIFY
     <string name="german">德語</string>
     <string name="polish">波蘭語</string>
     <string name="portuguese">葡萄牙語</string>
-    <string name="indonesian">印度尼西亞語</string>
     <string name="hindi">印地語</string>
     <string name="japanese">日語</string>
     <string name="russian">俄語</string>
     <string name="chinese_simplified">中文（簡體）</string>
     <string name="chinese_traditional">中文（繁體）</string>
-<string name="hebrew">希伯來語</string>
     <string name="italian">義大利語</string>
     <string name="turkish">土耳其語</string>
     <string name="thai">泰語</string>

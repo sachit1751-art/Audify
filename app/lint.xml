@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Narrow exceptions for third-party bytecode inspected by Android Lint.
+
+    libadb-android implements the ADB Wireless Debugging TLS transport. Its
+    trust-all manager is part of that protocol implementation: pairing is
+    authenticated by the ADB SPAKE2 pairing exchange, and the subsequent ADB
+    connection authenticates the client key through the ADB protocol. This
+    dependency is used only for the user-initiated watch-install flow.
+
+    Bouncy Castle's bcpkix artifact also contains its optional EST client
+    helpers, which Lint flags. Audify uses only its X.509 certificate builder
+    to create the ADB client identity; it does not use the EST helpers.
+
+    Do not broaden these path-scoped ignores or suppress this issue globally.
+    Revisit them if either dependency or the ADB pairing flow changes.
+-->
+<lint>
+    <issue id="TrustAllX509TrustManager">
+        <ignore path="**/bcpkix-jdk18on-1.86.jar" />
+        <ignore path="**/libadb-android-3.1.1/**/classes.jar" />
+    </issue>
+    <!--
+        targetSdk 37 changes LAN access to a runtime-permission flow. Audify's
+        SMB, WebDAV, wireless-ADB and Cast entry points need that migration and
+        device testing before the target can be raised. Keep this warning
+        scoped to the module build file; do not suppress OldTargetApi globally.
+    -->
+    <issue id="OldTargetApi">
+        <ignore path="build.gradle.kts" />
+    </issue>
+</lint>
