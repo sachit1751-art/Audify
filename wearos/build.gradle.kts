@@ -45,6 +45,16 @@ android {
         versionName = rootProject.extra["audifyVersionName"] as String
     }
 
+    // Keep the same universal + ABI-specific release outputs as phone and TV.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     sourceSets {
         // The phone <-> watch protocol, shared with :app. See WearProtocol.
         getByName("main") { kotlin.directories += "protocol" }
