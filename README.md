@@ -68,44 +68,56 @@ These are captures from the app — not concept mockups.
 
 ## Features
 
-### Discover and organize
+<table>
+  <tr>
+    <td width="50%" valign="top">
 
-- **Music discovery:** Search for songs, albums, artists, and playlists through YouTube Music.
-- **Personal library:** Sign in with your Google account to access supported personalized content.
-- **Playlist management:** Create and organize playlists, edit supported playlist details, and manage the listening queue.
-- **Local music:** Browse and play audio files stored on your device, including selected folders.
+### Playback
 
-### Playback and audio
+- **Background playback** — Keep listening while using other apps.
+- **Gapless playback** — Move between tracks with minimal interruption.
+- **Crossfade** — Blend consecutive tracks with an adjustable transition duration.
+- **Automix (Beta)** — DJ-style transitions with beat matching and tempo stretching.
+- **Playback controls** — Adjust speed, skip silence, set a sleep timer, and use your device's system equalizer.
+- **Audio quality** — Configure streaming quality separately for Wi-Fi and mobile data, with supported high-resolution output options.
+- **Output selection** — Choose available audio outputs and inspect the active audio pipeline.
 
-- **Background playback:** Keep listening while using other apps.
-- **Gapless playback:** Move between tracks with minimal interruption.
-- **Crossfade:** Blend consecutive tracks with an adjustable transition duration.
-- **Automix (Beta):** Experiment with DJ-style transitions, beat matching, and tempo stretching.
-- **Playback controls:** Adjust speed, skip silence, set a sleep timer, and use your device's system equalizer.
-- **Audio quality:** Configure streaming quality separately for Wi-Fi and mobile data, with supported high-resolution output options.
-- **Output selection:** Choose available audio outputs and inspect the active audio pipeline.
+### Discovery & Library
 
-### Lyrics and interface
+- **Music discovery** — Search for songs, albums, artists, and playlists through YouTube Music.
+- **Google account** — Sign in to access supported personalized content.
+- **Playlist management** — Create and organize playlists, edit supported playlist details, and manage the listening queue.
+- **Local music** — Browse and play audio files stored on your device, including selected folders.
 
-- **Synchronized lyrics:** Follow line- and word-level timing from supported lyric providers.
-- **Lyrics navigation:** Seek through a track using its timed lyrics.
-- **Animated artwork:** View motion artwork and album art on the now-playing screen.
-- **Dynamic theming:** Let the interface draw colors from the currently playing artwork.
-- **Material 3 design:** Customize the look and feel with a modern interface and translucent visual elements. Progressive top and bottom scroll-edge blur can be switched off independently in Settings.
+    </td>
+    <td width="50%" valign="top">
 
-### Downloads and connected services
+### Experience
 
-- **Offline listening:** Download tracks with metadata for local playback.
-- **Spotify integration:** Import supported playlist exports and access supported Spotify library features.
-- **Discord Rich Presence:** Share the currently playing track and playback progress.
-- **Scrobbling:** Send listening history to Last.fm and ListenBrainz.
-- **External sources:** Configure supported source modules, including optional high-resolution audio sources.
+- **Synchronized lyrics** — Follow line- and word-level timing from supported lyric providers.
+- **Lyrics navigation** — Seek through a track using its timed lyrics.
+- **Animated artwork** — View motion artwork and album art on the now-playing screen.
+- **Dynamic theming** — Let the interface draw colors from the currently playing artwork.
+- **Material 3 design** — Customize the look and feel with a modern interface and translucent visual elements.
+- **Scroll-edge blur** — Independently enable or disable progressive top and bottom blur in Settings.
 
-### Available across devices
+### Downloads & Services
 
-- **Android:** The full mobile listening experience.
-- **Android TV:** A dedicated interface and build for television devices.
-- **Wear OS:** A companion build for supported watches.
+- **Offline listening** — Download tracks with metadata for local playback.
+- **Spotify integration** — Import supported playlist exports and access supported Spotify library features.
+- **Discord Rich Presence** — Share the currently playing track and playback progress.
+- **Scrobbling** — Send listening history to Last.fm and ListenBrainz.
+- **External sources** — Configure supported source modules, including optional high-resolution audio sources.
+
+### Across Devices
+
+- **Android** — The full mobile listening experience.
+- **Android TV** — A dedicated interface and build for television devices.
+- **Wear OS** — A companion build for supported watches.
+
+    </td>
+  </tr>
+</table>
 
 <details>
 <summary><strong>Build from source</strong></summary>
