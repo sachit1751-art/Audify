@@ -5,7 +5,11 @@
 # Double-click build-apks.bat on Windows, or run this directly on macOS/Linux.
 set -euo pipefail
 
-DIST="dist"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+DIST="$PROJECT_ROOT/dist"
 FLAVOR="${FLAVOR:-prod}"
 WITH_DEBUG="${WITH_DEBUG:-false}"
 

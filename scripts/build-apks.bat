@@ -5,8 +5,8 @@ rem Audify (Sachit Music) - double-click wrapper that builds every shippable APK
 rem with the bundled Gradle wrapper, drops a fresh set into dist\ at the project
 rem root, and pauses at the end so the results stay visible from Explorer.
 
-rem The script lives in the project root, so work from its own directory.
-pushd "%~dp0"
+rem The script lives in scripts\; move to the project root before using Gradle.
+pushd "%~dp0.."
 
 rem Use the bundled Gradle wrapper so the exact Gradle version in
 rem gradle/wrapper/gradle-wrapper.properties is used, not whatever happens to be

@@ -1689,6 +1689,7 @@ fun SettingsScreen(
 
         SearchableSettingsGroup(search, header = stringResource(R.string.help_and_feedback)) {
             val reportBugTitle = stringResource(R.string.report_a_bug)
+            val couldNotOpenBugReport = stringResource(R.string.could_not_open_bug_report)
             row(reportBugTitle, "bug", "issue", "problem", "crash", "feedback", "support") {
                 SettingsRow(
                     icon = Icons.Rounded.BugReport,
@@ -1702,7 +1703,7 @@ fun SettingsScreen(
                         runCatching { context.startActivity(intent) }.onFailure {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.could_not_open_bug_report),
+                                couldNotOpenBugReport,
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -1710,6 +1711,7 @@ fun SettingsScreen(
                 )
             }
             val shareFeedbackTitle = stringResource(R.string.share_feedback)
+            val couldNotOpenFeedback = stringResource(R.string.could_not_open_feedback)
             row(shareFeedbackTitle, "suggestion", "idea", "feedback", "experience", "tester") {
                 SettingsRow(
                     icon = Icons.Rounded.Feedback,
@@ -1723,7 +1725,7 @@ fun SettingsScreen(
                         runCatching { context.startActivity(intent) }.onFailure {
                             Toast.makeText(
                                 context,
-                                context.getString(R.string.could_not_open_feedback),
+                                couldNotOpenFeedback,
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
