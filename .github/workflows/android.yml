@@ -214,6 +214,7 @@ jobs:
         run: echo "Dry run complete. All four APKs passed validation; no GitHub Release was created."
 
       - name: Upload verified APKs for the approval-gated publish job
+        if: ${{ inputs.dry_run != true }}
         uses: actions/upload-artifact@v4
         with:
           name: audify-release-apks
