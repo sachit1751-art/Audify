@@ -247,20 +247,12 @@ jobs:
             exit 1
           fi
 
-          cat > release-notes.md <<'NOTES'
-          ## What's new
-
-          - Fixed layout and scrolling issues across Statistics, playlists, and bottom controls.
-          - Improved track artwork consistency across Home and Search.
-          - Improved Home recommendation diversity and fallback continuation.
-          - Hardened the translation-language dialog for constrained screens, landscape, and keyboard layouts.
-          - Improved playlist creation reliability with durable local persistence and remote-failure fallback.
-          - Improved long-title and subtitle handling in Keep Listening.
-          - Restored the previous Audify app icon and matching brand marks.
-
-          All production APKs are built and signature-checked by GitHub Actions against the signing certificate used by Audify 1.8.7.
-          NOTES
-          gh release create "$TAG" --draft --title "Audify $VERSION_NAME" --notes-file release-notes.md
+          NOTES_FILE="docs/releases/RELEASE_NOTES_${VERSION_NAME}.md"
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "::error::Missing versioned release notes: $NOTES_FILE"
+            exit 1
+          fi
+          gh release create "$TAG" --draft --title "Audify $VERSION_NAME" --notes-file "$NOTES_FILE"
 
           # Upload sequentially. GitHub preserves the asset creation order.
           gh release upload "$TAG" "dist/Audify-$VERSION_NAME.apk"

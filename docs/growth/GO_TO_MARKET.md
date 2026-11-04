@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Audify user acquisition plan
 
-> Status: initial 30-day experiment plan, created 2026-11-01. This is a marketing plan, not a promise of shipped product capabilities or guaranteed growth.
+> Status: initial 30-day experiment plan, created 2026-11-01; distribution facts reviewed 2026-11-04. This is a marketing plan, not a promise of shipped product capabilities or guaranteed growth.
 
 ## 1. Objective
 
@@ -36,9 +36,9 @@ Do not claim Audify is a Spotify replacement, has an unlimited catalogue, is ad-
 ## 3. Current distribution reality
 
 - Primary distribution is GitHub Releases; there is no Play Store listing to rely on.
-- `v1.8.6` is the current stable release, publicly published with nine signed APKs across phone, Android TV, and Wear OS. Use its assets as the distribution baseline: https://github.com/sachit1751-art/Audify/releases/tag/v1.8.6.
+- `v1.8.7` is the latest published stable release as of 2026-11-04. Audify `1.8.9` is a candidate undergoing CI dry-run validation, not a stable download target. Use the latest published release page for distribution: https://github.com/sachit1751-art/Audify/releases.
 - The repository is public but early in its audience-building lifecycle. The observed public baseline on 2026-11-01 was 2 stars, 1 fork, and no open issues. GitHub asset download counters are not unique-user or active-user counts.
-- Recommend `arm64-v8a` for most current Android phones and explain the universal fallback. Refer to `docs/DISTRIBUTION.md` and the selected release assets for current package sizes rather than keeping volatile APK-size figures in this plan.
+- The candidate release workflow targets four APKs: phone universal, phone ARM64, Android TV universal, and Wear OS universal. Recommend the phone ARM64 APK for compatible current phones and explain the universal fallback only after confirming the assets actually published. Refer to `docs/future updates/DISTRIBUTION.md` for current packaging guidance.
 - GitHub Discussions are currently disabled. Use a small, structured tester-feedback path until a maintained community space is deliberately enabled.
 
 For future releases, verify that the selected stable release is installable, signed as expected, has accurate release notes, and has no unresolved release-blocking defects. Never silently direct newcomers to a prerelease.

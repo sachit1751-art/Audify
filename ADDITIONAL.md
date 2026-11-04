@@ -4,20 +4,24 @@ Project: AUDIFY
 -->
 # Additional Documentation
 
-Additional Audify project and development information will be maintained here.
+Use this index to find the maintained product, design, release, and implementation context. Keep status claims synchronized with source, tests, and GitHub rather than copying stale release snapshots.
 
 ## Project
 - [Listen Together Server Documentation](backend/README.md): Architecture, synchronization protocol, and deployment instructions for the party server.
-- [Lyrics Translation](docs/LYRICS_TRANSLATION.md): Pipeline documentation for on-demand lyrics translation, timing projection, and UI transitions.
+- [Lyrics Translation](docs/future%20updates/LYRICS_TRANSLATION.md): Pipeline documentation for on-demand lyrics translation, timing projection, and UI transitions.
+- [Product context](PRODUCT.md): shipped capability baseline, architecture constraints, and project rules.
+- [Design context](DESIGN.md): current visual, interaction, accessibility, and motion conventions.
+- [Release process and current status](docs/future%20updates/RELEASE_PROCESS.md): APK variants, CI gates, signing verification, and current 1.8.9 dry-run status.
+- [Improvement plans](plans/README.md): active proposal index and implementation status ledger.
 
 ## Development
-Placeholder for project development notes and environment guides.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for JDK 21, Android SDK, build, and test setup.
 
 ## Technical Notes
-Placeholder for component-specific technical documentation and implementation notes.
+Component-specific implementation details belong beside the relevant module documentation; avoid duplicating fast-changing source facts here.
 
 ## Future Documentation
-Placeholder for future project and technical documentation.
+Add new documents to this index and give each one an owner, scope, and last-reviewed date where status can become stale.
 ---
 
 > **Audify** — made by [Sachit](https://github.com/sachit1751-art).

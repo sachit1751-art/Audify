@@ -6,7 +6,7 @@ Project: AUDIFY
 
 > **Purpose:** durable product brief for contributors and implementation agents. This document describes the product evidenced by the current repository and distinguishes shipped behavior from planned work. It is not a promise that every upstream service or optional integration is always available.
 >
-> **Context snapshot:** reviewed 2026-11-02 against published stable release `1.8.6` (`v1.8.6`). Phone, Android TV, and Wear OS production APKs are signed; all nine APKs passed signature verification. Device-install verification was unavailable because no device/emulator was connected during release preparation.
+> **Context snapshot:** reviewed 2026-11-04 against repository `main` at `a135811c` (Audify `1.8.9`, versionCode `37`) and GitHub Releases. The latest published stable release remains `1.8.7` (`v1.8.7`). The `1.8.9` release workflow is a dry run and is currently in progress; it has not yet produced verified APK artifacts or a published release. The production build now gives Gradle a 6 GiB heap and serializes APK assembly workers to reduce R8 memory pressure. Do not describe `1.8.9` as released until CI completes package, signature, and native-payload verification and the release is explicitly published.
 
 ## Product summary
 
@@ -117,7 +117,7 @@ The selected feature expansions are tracked in `plans/README.md` as plans 051–
 
 ## Planning and status source of truth
 
-`plans/README.md` is the implementation-plan index and status ledger. It distinguishes completed, partial, blocked, in-progress, and planned work. Release notes in `docs/releases/` and `RELEASE_NOTES_*.md` are validation snapshots and may contain release-candidate limitations. When documents disagree, verify current source and tests before asserting a feature is shipped.
+`plans/README.md` is the implementation-plan index and status ledger. It distinguishes completed, partial, blocked, in-progress, and planned work. `docs/future%20updates/RELEASE_PROCESS.md` is the CI/release status and artifact contract. Versioned release notes live in `docs/releases/` and may contain release-candidate limitations. When documents disagree, verify current source, tests, and GitHub release state before asserting a feature is shipped.
 
 ## Definition of product completion
 

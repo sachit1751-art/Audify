@@ -42,10 +42,12 @@ the same signing key. So the watch app takes the phone app's ids:
 | `prodRelease` | `com.music.audify` | the phone's `prodRelease` (release key) |
 
 A watch build only finds a phone build of the same flavor **and** signed with
-the same key. Published phone APKs are signed in CI with the key from
-`secrets.KEYSTORE_BASE64`, which is not the keystore in a local checkout, so
-the prod watch APK for those phones has to come from CI too. `android.yml`
-uploads it as `audify-wear-prod-release-signed`.
+the same key. Published production APKs are signed in CI with the repository
+secrets `KEYSTORE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`. The
+keystore is not present in a normal local checkout, so the production watch APK
+intended to pair with a published phone build must also come from the same CI
+release run. The release workflow stages the Wear OS universal APK alongside
+the phone and TV packages; see [`RELEASE_PROCESS.md`](../docs/future%20updates/RELEASE_PROCESS.md).
 
 ## Build and install
 
