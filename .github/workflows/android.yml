@@ -102,7 +102,7 @@ jobs:
       - name: Build all production APK variants
         run: ./gradlew --no-daemon :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease
 
-      - name: Stage exactly six release APKs in the required order
+      - name: Stage exactly four release APKs in the required order
         shell: bash
         run: |
           set -euo pipefail
@@ -125,18 +125,14 @@ jobs:
           copy_one app/build/outputs/apk/prod/release '*-universal-release.apk' "Audify-$VERSION_NAME.apk"
           copy_one app/build/outputs/apk/prod/release '*arm64-v8a*.apk' "Audify-$VERSION_NAME""_arm64-v8a.apk"
           copy_one tv/build/outputs/apk/prod/release '*-universal-release.apk' "AudifyTV-$VERSION_NAME.apk"
-          copy_one tv/build/outputs/apk/prod/release '*arm64-v8a*.apk' "AudifyTV-$VERSION_NAME""_arm64-v8a.apk"
           copy_one wearos/build/outputs/apk/prod/release '*-universal-release.apk' "AudifyWear-$VERSION_NAME.apk"
-          copy_one wearos/build/outputs/apk/prod/release '*arm64-v8a*.apk' "AudifyWear-$VERSION_NAME""_arm64-v8a.apk"
 
-          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 6
+          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 4
           printf '%s\n' \
             "1. Audify Phone — Universal" \
             "2. Audify Phone — ARM64" \
             "3. Audify Android TV — Universal" \
-            "4. Audify Android TV — ARM64" \
-            "5. Audify Wear OS — Universal" \
-            "6. Audify Wear OS — ARM64"
+            "4. Audify Wear OS — Universal"
 
       - name: Verify package IDs, versions and production signatures
         shell: bash
@@ -160,9 +156,7 @@ jobs:
             "dist/Audify-$VERSION_NAME.apk" \
             "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \
             "dist/AudifyTV-$VERSION_NAME.apk" \
-            "dist/AudifyTV-$VERSION_NAME""_arm64-v8a.apk" \
-            "dist/AudifyWear-$VERSION_NAME.apk" \
-            "dist/AudifyWear-$VERSION_NAME""_arm64-v8a.apk"; do
+            "dist/AudifyWear-$VERSION_NAME.apk"; do
             test -s "$apk"
             case "$apk" in
               *AudifyTV-*) expected_package="com.music.audify.tv" ;;
@@ -182,11 +176,36 @@ jobs:
             fi
             echo "Verified: $apk ($expected_package, $VERSION_NAME/$VERSION_CODE)"
           done
-          echo "All six APKs match the signing certificate of the published v1.8.7 app."
+
+          # Phone and TV ship native code for all three configured ABIs. A
+          # universal APK must retain each ABI's complete native payload;
+          # the ARM64 phone APK remains available as the smaller phone option.
+          require_native_payload() {
+            local apk="$1"
+            local abi="$2"
+            local entry
+            for entry in \
+              "lib/$abi/libffmpegJNI.so" \
+              "lib/$abi/libaudify_analysis.so" \
+              "lib/$abi/libaudify_dsd.so" \
+              "lib/$abi/libaudify_dst.so"; do
+              if ! unzip -Z1 "$apk" | grep -Fx "$entry" >/dev/null; then
+                echo "::error::Universal APK $apk is missing required native library $entry"
+                exit 1
+              fi
+            done
+          }
+          for apk in "dist/Audify-$VERSION_NAME.apk" "dist/AudifyTV-$VERSION_NAME.apk"; do
+            for abi in armeabi-v7a arm64-v8a x86_64; do
+              require_native_payload "$apk" "$abi"
+            done
+            echo "Verified universal native payload: $apk (armeabi-v7a, arm64-v8a, x86_64)"
+          done
+          echo "All four APKs match the signing certificate of the published v1.8.7 app."
 
       - name: Report dry-run completion
         if: ${{ inputs.dry_run == true }}
-        run: echo "Dry run complete. All six APKs passed validation; no GitHub Release was created."
+        run: echo "Dry run complete. All four APKs passed validation; no GitHub Release was created."
 
       - name: Upload verified APKs for the approval-gated publish job
         uses: actions/upload-artifact@v4
@@ -245,9 +264,7 @@ jobs:
           gh release upload "$TAG" "dist/Audify-$VERSION_NAME.apk"
           gh release upload "$TAG" "dist/Audify-$VERSION_NAME""_arm64-v8a.apk"
           gh release upload "$TAG" "dist/AudifyTV-$VERSION_NAME.apk"
-          gh release upload "$TAG" "dist/AudifyTV-$VERSION_NAME""_arm64-v8a.apk"
           gh release upload "$TAG" "dist/AudifyWear-$VERSION_NAME.apk"
-          gh release upload "$TAG" "dist/AudifyWear-$VERSION_NAME""_arm64-v8a.apk"
 
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
           gh release upload "$TAG" dist/SHA256SUMS.txt
