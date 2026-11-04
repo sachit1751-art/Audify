@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Version tag to build (for example v1.8.8)
+        description: Version tag to build (for example v1.8.9)
         required: true
         type: string
       dry_run:
@@ -145,7 +145,17 @@ jobs:
           BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           AAPT="$BUILD_TOOLS/aapt"
           APKSIGNER="$BUILD_TOOLS/apksigner"
-          EXPECTED_CERT=""
+          REFERENCE_APK="$RUNNER_TEMP/audify-v1.8.7-reference.apk"
+          curl --fail --location --silent --show-error \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.8.7/Audify-1.8.7_arm64-v8a.apk" \
+            --output "$REFERENCE_APK"
+          "$APKSIGNER" verify --verbose "$REFERENCE_APK"
+          EXPECTED_CERT="$("$APKSIGNER" verify --print-certs "$REFERENCE_APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}')"
+          test -n "$EXPECTED_CERT" || {
+            echo "::error::Could not read the published v1.8.7 signing certificate."
+            exit 1
+          }
+          echo "Reference signing certificate (v1.8.7): $EXPECTED_CERT"
           for apk in \
             "dist/Audify-$VERSION_NAME.apk" \
             "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \
@@ -166,15 +176,13 @@ jobs:
             "$APKSIGNER" verify --verbose "$apk"
             cert="$("$APKSIGNER" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ {print $2; exit}')"
             test -n "$cert"
-            if [ -z "$EXPECTED_CERT" ]; then
-              EXPECTED_CERT="$cert"
-            elif [ "$cert" != "$EXPECTED_CERT" ]; then
-              echo "::error::Signing certificate mismatch in $apk"
+            if [ "$cert" != "$EXPECTED_CERT" ]; then
+              echo "::error::Signing certificate mismatch in $apk; it does not match the published v1.8.7 app."
               exit 1
             fi
             echo "Verified: $apk ($expected_package, $VERSION_NAME/$VERSION_CODE)"
           done
-          echo "All six APKs are signed by the same production certificate."
+          echo "All six APKs match the signing certificate of the published v1.8.7 app."
 
       - name: Report dry-run completion
         if: ${{ inputs.dry_run == true }}
@@ -218,7 +226,20 @@ jobs:
             exit 1
           fi
 
-          gh release create "$TAG" --draft --title "Audify $VERSION_NAME" --generate-notes
+          cat > release-notes.md <<'NOTES'
+          ## What's new
+
+          - Fixed layout and scrolling issues across Statistics, playlists, and bottom controls.
+          - Improved track artwork consistency across Home and Search.
+          - Improved Home recommendation diversity and fallback continuation.
+          - Hardened the translation-language dialog for constrained screens, landscape, and keyboard layouts.
+          - Improved playlist creation reliability with durable local persistence and remote-failure fallback.
+          - Improved long-title and subtitle handling in Keep Listening.
+          - Restored the previous Audify app icon and matching brand marks.
+
+          All production APKs are built and signature-checked by GitHub Actions against the signing certificate used by Audify 1.8.7.
+          NOTES
+          gh release create "$TAG" --draft --title "Audify $VERSION_NAME" --notes-file release-notes.md
 
           # Upload sequentially. GitHub preserves the asset creation order.
           gh release upload "$TAG" "dist/Audify-$VERSION_NAME.apk"

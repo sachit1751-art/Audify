@@ -324,10 +324,10 @@ private fun ReorderRow(
         AsyncImage(
             model = song.artworkAt(ROW_ART_PX),
             contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(7.dp))
-                .thumbnailBorder(RoundedCornerShape(7.dp))
                 .background(palette.elevated),
         )
         Spacer(Modifier.width(16.dp))

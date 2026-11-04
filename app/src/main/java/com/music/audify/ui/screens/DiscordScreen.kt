@@ -605,7 +605,7 @@ private fun RichPresencePreview(
                     model = song.artworkAt(CARD_ART_PX),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(84.dp).clip(artShape).thumbnailBorder(artShape),
+                    modifier = Modifier.size(84.dp).clip(artShape),
                 )
             } else {
                 Box(

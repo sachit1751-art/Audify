@@ -50,9 +50,7 @@ internal fun diversifyHomeShelf(shelf: HomeShelf, seed: Long): HomeShelf {
 
     val buckets = LinkedHashMap<String, ArrayDeque<ShelfItem>>()
     shelf.items.shuffled(Random(seed)).forEach { item ->
-        val artist = item.subtitle.substringBefore(" • ").trim()
-            .lowercase(Locale.ROOT)
-            .ifBlank { item.videoId ?: item.browseId ?: item.title }
+        val artist = homeArtistKey(item)
         buckets.getOrPut(artist) { ArrayDeque() }.addLast(item)
     }
 
@@ -67,3 +65,51 @@ internal fun diversifyHomeShelf(shelf: HomeShelf, seed: Long): HomeShelf {
     }
     return shelf.copy(items = ordered)
 }
+
+/** Uses only the explicit artist-credit text in the catalogue strapline. */
+internal fun homeArtistKey(item: ShelfItem): String = item.subtitle
+    .substringBefore(" • ")
+    .trim()
+    .lowercase(Locale.ROOT)
+    .ifBlank { item.videoId ?: item.browseId ?: item.title }
+
+/**
+ * Interleaves category-backed shelves so adjacent fallback batches do not
+ * present several shelves from the same exact catalogue category together.
+ * Unlabelled shelves retain their original relative order.
+ */
+internal fun diversifyHomeShelves(shelves: List<HomeShelf>): List<HomeShelf> {
+    val (history, discovery) = shelves.partition { shelf ->
+        shelf.title.equals("Recents", ignoreCase = true) ||
+            shelf.title.equals("Recently played", ignoreCase = true)
+    }
+    val sources = LinkedHashMap<String, ArrayDeque<HomeShelf>>()
+    discovery.forEachIndexed { index, shelf ->
+        // Unknown source stays its own bucket; the title is not treated as a
+        // genre or category and no metadata is fabricated for that shelf.
+        val category = shelf.discoveryCategory?.trim()?.lowercase(Locale.ROOT)
+            ?.takeIf { it.isNotEmpty() } ?: "unlabelled:$index"
+        sources.getOrPut(category) { ArrayDeque() }.addLast(shelf)
+    }
+    val ordered = ArrayList<HomeShelf>(discovery.size)
+    var previousCategory: String? = null
+    while (sources.isNotEmpty()) {
+        val nextCategory = sources.keys.firstOrNull { it != previousCategory } ?: sources.keys.first()
+        val bucket = sources.getValue(nextCategory)
+        ordered += bucket.removeFirst()
+        if (bucket.isEmpty()) sources.remove(nextCategory)
+        previousCategory = nextCategory
+    }
+    return history + ordered
+}
+
+/** Switches a stalled primary chain to catalogue fallback; preserves fallback paging. */
+internal fun continueHomeAfterEmptyPages(nextToken: String?, fallbackPrefix: String): String? = when {
+    nextToken == null -> null
+    nextToken.startsWith(fallbackPrefix) -> nextToken
+    else -> "${fallbackPrefix}0"
+}
+
+/** Keep a valid empty primary page's continuation; use catalogue fallback only after exhaustion. */
+internal fun initialHomeContinuation(primaryContinuation: String?, fallbackPrefix: String): String =
+    primaryContinuation ?: "${fallbackPrefix}0"

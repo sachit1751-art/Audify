@@ -1182,55 +1182,85 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         privacy: PlaylistPrivacy,
         videoIds: List<String>,
         songs: List<Song> = emptyList(),
+        onError: ((Throwable) -> Unit)? = null,
+        onPartialResult: ((browseId: String, title: String, addedSongCount: Int, requestedSongCount: Int, failedSongCount: Int) -> Unit)? = null,
         /** [savedLocally] is true when the playlist went to this device, not YouTube Music. */
         onResult: ((browseId: String?, title: String, savedLocally: Boolean) -> Unit)? = null,
     ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
+        val requestedVideoIds = videoIds.filter(String::isNotBlank).distinct()
+        val localSongs = songs.filter { it.videoId.isNotBlank() }.distinctBy { it.videoId }
         viewModelScope.launch {
-            if (authStore.isSignedIn) {
-                val initialBatch = videoIds.take(50)
-                YtMusicRepository.createPlaylist(
-                    title = name,
-                    privacy = privacy,
-                    videoIds = initialBatch,
-                ).fold(
-                    onSuccess = { playlistId ->
-                        if (videoIds.size > 50) {
-                            videoIds.drop(50).chunked(50).forEach { chunk ->
-                                YtMusicRepository.addToPlaylist(playlistId, chunk)
-                            }
-                        }
-                        setPlaylistOwned("VL$playlistId", true)
-                        libraryStale = true
-                        val created = UserPlaylist(
-                            playlistId = playlistId,
-                            title = name,
-                            subtitle = "${videoIds.size} songs",
-                            thumbnailUrl = null,
-                        )
-                        _playlists.value = listOf(created) +
-                            _playlists.value.filterNot { it.playlistId == created.playlistId }
-                        editPlaylistShelf { items ->
-                            listOf(
-                                ShelfItem(
-                                    title = created.title,
-                                    subtitle = created.subtitle,
-                                    thumbnailUrl = created.thumbnailUrl,
-                                    videoId = null,
-                                    browseId = created.browseId,
-                                ),
-                            ) + items.filterNot { it.browseId == created.browseId }
-                        }
+            when (val result = createPlaylistWithLocalFallback(
+                signedIn = authStore.isSignedIn,
+                createRemote = {
+                    YtMusicRepository.createPlaylist(
+                        title = name,
+                        privacy = privacy,
+                        videoIds = requestedVideoIds.take(50),
+                    )
+                },
+                saveLocal = {
+                    com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, localSongs).browseId
+                },
+            )) {
+                is PlaylistCreationResult.RemoteCreated -> {
+                    val extraSongs = addPlaylistSongsInChunks(requestedVideoIds.drop(50)) { chunk ->
+                        YtMusicRepository.addToPlaylist(result.playlistId, chunk)
+                    }
+                    setPlaylistOwned("VL${result.playlistId}", true)
+                    libraryStale = true
+                    val addedSongCount = minOf(requestedVideoIds.size, 50) + extraSongs.addedSongCount
+                    val created = UserPlaylist(
+                        playlistId = result.playlistId,
+                        title = name,
+                        subtitle = "$addedSongCount songs",
+                        thumbnailUrl = null,
+                    )
+                    _playlists.value = listOf(created) +
+                        _playlists.value.filterNot { it.playlistId == created.playlistId }
+                    editPlaylistShelf { items ->
+                        listOf(
+                            ShelfItem(
+                                title = created.title,
+                                subtitle = created.subtitle,
+                                thumbnailUrl = created.thumbnailUrl,
+                                videoId = null,
+                                browseId = created.browseId,
+                            ),
+                        ) + items.filterNot { it.browseId == created.browseId }
+                    }
+                    if (extraSongs.isComplete) {
                         onResult?.invoke(created.browseId, created.title, false)
-                    },
-                    onFailure = {
-                        val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
-                        onResult?.invoke(local.browseId, local.title, true)
-                    },
-                )
-            } else {
-                val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
-                onResult?.invoke(local.browseId, local.title, true)
+                    } else {
+                        extraSongs.failures.forEach { failure ->
+                            android.util.Log.w(
+                                "MainViewModel",
+                                "Playlist ${result.playlistId} created with missing tracks: ${failure.message}",
+                                failure,
+                            )
+                        }
+                        onPartialResult?.invoke(
+                            created.browseId,
+                            created.title,
+                            addedSongCount,
+                            requestedVideoIds.size,
+                            extraSongs.failedVideoIds.size,
+                        ) ?: onResult?.invoke(created.browseId, created.title, false)
+                    }
+                }
+                is PlaylistCreationResult.SavedLocally -> {
+                    val local = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(result.browseId)
+                    onResult?.invoke(local?.browseId ?: result.browseId, local?.title ?: name, true)
+                }
+                is PlaylistCreationResult.Failed -> {
+                    android.util.Log.w(
+                        "MainViewModel",
+                        "Playlist import creation failed: ${result.cause.message}",
+                        result.cause,
+                    )
+                    onError?.invoke(result.cause)
+                }
             }
         }
     }
@@ -1771,17 +1801,40 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             launch {
                 try {
-                    YtMusicRepository.home()
-                        .onSuccess { feed ->
-                            if (!isCurrentHomeLoad(identity, generation)) return@onSuccess
-                            homeContinuation = feed.continuation
+                    val result = YtMusicRepository.home()
+                    val feed = result.getOrNull()
+                    if (feed != null) {
+                        if (!isCurrentHomeLoad(identity, generation)) return@launch
+                        homeContinuation = initialHomeContinuation(
+                            feed.continuation,
+                            YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX,
+                        )
+                        if (feed.shelves.isNotEmpty()) {
                             publishHomeShelves(feed.shelves, prioritize = true)
+                        } else {
+                            // An empty first page can still have a valid server continuation.
+                            // Publish an empty success so the tail observer can request it.
+                            _home.value = UiState.Success(emptyList())
                         }
-                        .onFailure { failure ->
+                    } else {
+                        val fallback = YtMusicRepository.homeFallback(
+                            "${YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX}0",
+                        )
+                        fallback.onSuccess { fallbackFeed ->
+                            if (isCurrentHomeLoad(identity, generation)) {
+                                homeContinuation = fallbackFeed.continuation
+                                if (fallbackFeed.shelves.isNotEmpty()) {
+                                    publishHomeShelves(fallbackFeed.shelves, prioritize = true)
+                                } else {
+                                    _home.value = UiState.Success(emptyList())
+                                }
+                            }
+                        }.onFailure { failure ->
                             if (isCurrentHomeLoad(identity, generation) && _home.value !is UiState.Success) {
                                 _home.value = UiState.Error(failure.friendly())
                             }
                         }
+                    }
                 } finally {
                     homeShelfRequestSettled(identity, generation)
                 }
@@ -1820,7 +1873,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun homeShelfRequestSettled(identity: String?, generation: Long) {
         if (!isCurrentHomeLoad(identity, generation)) return
-        _homePendingShelves.value = (_homePendingShelves.value - 1).coerceAtLeast(0)
+        val remaining = (_homePendingShelves.value - 1).coerceAtLeast(0)
+        _homePendingShelves.value = remaining
+        if (remaining == 0 && _home.value is UiState.Loading) {
+            // A failed/empty set of optional endpoints must not leave the Play
+            // screen showing its first-load skeleton forever.
+            _home.value = UiState.Success(emptyList())
+        }
     }
 
     private fun isCurrentHomeLoad(identity: String?, generation: Long) =
@@ -1831,7 +1890,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         prepend: Boolean = false,
         prioritize: Boolean = false,
     ) {
-        val variedShelves = varyHomeFeed(shelves, homeSessionSeed).map { shelf ->
+        val variedShelves = diversifyHomeShelves(varyHomeFeed(shelves, homeSessionSeed)).map { shelf ->
             diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
         }
         val freshnessOrderedShelves = if (prepend) variedShelves else
@@ -1890,20 +1949,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         homePreviousSessionVideoIds.clear()
         homePreviousSessionVideoIds.addAll(homeSeenVideoIds)
         val recent = if (_signedIn.value) async { YtMusicRepository.homeRecentlyPlayed() } else null
-        YtMusicRepository.home().onSuccess { feed ->
-            if (identity != listenerKey()) return@onSuccess
-            homeContinuation = feed.continuation
-            homeSeenTitles.clear()
-            homeSeenVideoIds.clear()
-            homeSeenContinuationTokens.clear()
-            val varied = varyHomeFeed(feed.shelves, homeSessionSeed).map { shelf ->
-                diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
-            }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
-                .withoutRepeatsOf(emptyList())
-            val shelves = deduplicateHomeTracks(varied, homeSeenVideoIds)
-                .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
-            if (shelves.isNotEmpty()) _home.value = UiState.Success(shelves)
+        val primary = YtMusicRepository.home().getOrNull()
+        val useFallback = primary == null || (primary.shelves.isEmpty() && primary.continuation == null)
+        val feed = if (useFallback) {
+            YtMusicRepository.homeFallback("${YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX}0")
+                .getOrElse { failure ->
+                    android.util.Log.w("MainViewModel", "Home refresh fallback failed: ${failure.message}", failure)
+                    return@coroutineScope
+                }
+        } else primary!!
+        if (identity != listenerKey()) return@coroutineScope
+        homeContinuation = if (useFallback) {
+            feed.continuation
+        } else {
+            initialHomeContinuation(feed.continuation, YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX)
         }
+        homeSeenTitles.clear()
+        homeSeenVideoIds.clear()
+        homeSeenContinuationTokens.clear()
+        val varied = diversifyHomeShelves(varyHomeFeed(feed.shelves, homeSessionSeed)).map { shelf ->
+            diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
+        }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
+            .withoutRepeatsOf(emptyList())
+        val shelves = deduplicateHomeTracks(varied, homeSeenVideoIds)
+            .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
+        _home.value = UiState.Success(shelves)
         recent?.await()?.onSuccess { shelf ->
             if (identity == listenerKey()) shelf?.let { publishHomeShelves(listOf(it), prepend = true) }
         }
@@ -1927,25 +1997,40 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 while (nextToken != null && emptyPages < HOME_MAX_EMPTY_CONTINUATION_PAGES) {
                     if (identity != listenerKey() || pagingGeneration != homePagingGeneration.get()) break
                     if (!homeSeenContinuationTokens.add(nextToken)) {
-                        homeContinuation = null
-                        break
+                        homeContinuation = if (nextToken.startsWith(YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX)) {
+                            null
+                        } else {
+                            "${YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX}0"
+                        }
+                        nextToken = homeContinuation
+                        if (nextToken != null) {
+                            emptyPages++
+                            continue
+                        } else break
                     }
                     val pageToken = nextToken
-                    val result = YtMusicRepository.moreHome(pageToken)
+                    val isFallback = pageToken.startsWith(YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX)
+                    val result = if (isFallback) YtMusicRepository.homeFallback(pageToken)
+                    else YtMusicRepository.moreHome(pageToken)
                     val feed = result.getOrNull()
                     if (feed == null) {
                         if (identity == listenerKey() && pagingGeneration == homePagingGeneration.get()) {
-                            homeContinuation = null
+                            homeContinuation = if (isFallback) null
+                            else "${YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX}0"
+                            nextToken = homeContinuation
                         }
-                        break
+                        if (nextToken != null) {
+                            emptyPages++
+                            continue
+                        } else break
                     }
                     if (identity != listenerKey() || pagingGeneration != homePagingGeneration.get()) break
 
                     val existing = (_home.value as? UiState.Success)?.data.orEmpty()
-                    val varied = varyHomeFeed(
+                    val varied = diversifyHomeShelves(varyHomeFeed(
                         feed.shelves,
                         homeSessionSeed xor pageToken.hashCode().toLong(),
-                    ).map { shelf ->
+                    )).map { shelf ->
                         diversifyHomeShelf(shelf, homeSessionSeed xor pageToken.hashCode().toLong() xor shelf.title.hashCode().toLong())
                     }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
                     val candidates = varied.withoutRepeatsOf(existing)
@@ -1954,7 +2039,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
                     val followingToken = feed.continuation?.takeIf {
                         it != pageToken && it !in homeSeenContinuationTokens
-                    }
+                    } ?: if (!isFallback) "${YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX}0" else null
                     homeContinuation = followingToken
                     if (added.isNotEmpty()) {
                         _home.value = UiState.Success(existing + added)
@@ -1974,7 +2059,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     // Three consecutive pages with no unseen shelves indicate
                     // that this continuation chain is looping or exhausted.
                     // Stop here so the tail observer cannot issue requests forever.
-                    homeContinuation = null
+                    homeContinuation = continueHomeAfterEmptyPages(
+                        nextToken,
+                        YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX,
+                    )
                 }
             } finally {
                 if (identity == listenerKey() && pagingGeneration == homePagingGeneration.get()) {

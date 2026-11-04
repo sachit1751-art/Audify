@@ -5,6 +5,7 @@ Project: AUDIFY
 -->
 <resources>
     <string name="playlist_saved_on_device" translatable="false">\'%1$s\' was saved on this device.</string>
+    <string name="playlist_import_partial" translatable="false">\'%1$s\' was created with %2$d of %3$d songs. %4$d songs could not be added.</string>
     <string name="font_choice" translatable="false">App font</string>
     <string name="font_choice_subtitle" translatable="false">Choose the typeface used throughout AUDIFY.</string>
     <string name="on_device_empty" translatable="false">Saved albums and playlists on this device will appear here.</string>

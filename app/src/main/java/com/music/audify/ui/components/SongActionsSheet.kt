@@ -945,10 +945,10 @@ internal fun SheetTrackHeader(
         AsyncImage(
             model = song.artworkAt(ROW_ART_PX),
             contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .thumbnailBorder(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         )
         Spacer(Modifier.width(14.dp))

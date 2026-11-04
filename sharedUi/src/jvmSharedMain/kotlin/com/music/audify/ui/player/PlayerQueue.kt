@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import coil3.compose.AsyncImage
-import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.data.model.QueueTier
 import com.music.audify.data.model.Song
@@ -774,10 +773,10 @@ private fun InlineQueueRow(
         AsyncImage(
             model = rememberRemoteArtworkUrl(song),
             contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .thumbnailBorder(RoundedCornerShape(6.dp))
                 .background(Color.White.copy(alpha = 0.08f)),
         )
         Spacer(Modifier.width(12.dp))

@@ -2,6 +2,10 @@ package com.music.audify.ui
 
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import com.music.audify.data.spotify.persistBeforePublish
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -52,6 +56,24 @@ class PlaylistCreationTest {
     }
 
     @Test
+    fun signedOutWaitsForSuspendingLocalPersistenceBeforeReportingSuccess() = runTest {
+        var persisted = false
+
+        val result = createPlaylistWithLocalFallback(
+            signedIn = false,
+            createRemote = { error("Signed-out creation must not call the remote service") },
+            saveLocal = {
+                delay(10)
+                persisted = true
+                "local:playlist:durable"
+            },
+        )
+
+        assertTrue(persisted)
+        assertEquals(PlaylistCreationResult.SavedLocally("local:playlist:durable"), result)
+    }
+
+    @Test
     fun failedLocalFallbackPreservesBothFailures() = runTest {
         val remoteFailure = IllegalStateException("remote unavailable")
         val localFailure = IllegalArgumentException("storage unavailable")
@@ -81,5 +103,73 @@ class PlaylistCreationTest {
 
         assertTrue(result.exceptionOrNull() is CancellationException)
         assertFalse(localSaveCalled)
+    }
+
+    @Test
+    fun chunkFailureRetainsExactFailedIdsAndCountsOnlySuccessfulChunks() = runTest {
+        val ids = (1..125).map { "video-$it" }
+        val attempted = mutableListOf<List<String>>()
+        val result = addPlaylistSongsInChunks(ids) { chunk ->
+            attempted += chunk
+            if (chunk.first() == "video-51") Result.failure<Unit>(IllegalStateException("batch rejected"))
+            else Result.success(Unit)
+        }
+
+        assertEquals(listOf(50, 50, 25), attempted.map { it.size })
+        assertEquals(125, result.requestedSongCount)
+        assertEquals(75, result.addedSongCount)
+        assertEquals(ids.subList(50, 100), result.failedVideoIds)
+        assertFalse(result.isComplete)
+    }
+
+    @Test
+    fun failedPersistenceDoesNotPublishMutation() = runTest {
+        val mutex = Mutex()
+        var published = false
+
+        val failure = runCatching {
+            persistBeforePublish<List<String>, Unit>(
+                mutex = mutex,
+                persist = { throw IllegalStateException("commit failed") },
+                publish = { published = true },
+            )
+        }.exceptionOrNull()
+        assertTrue(failure is IllegalStateException)
+        assertFalse(published)
+    }
+
+    @Test
+    fun mutationsSerializePersistenceAndPublishInCommitOrder() = runTest {
+        val mutex = Mutex()
+        val events = mutableListOf<String>()
+        val first = launch {
+            persistBeforePublish<String, Unit>(
+                mutex = mutex,
+                persist = {
+                    events += "first-commit-start"
+                    delay(10)
+                    events += "first-commit-end"
+                    "first" to Unit
+                },
+                publish = { events += "$it-published" },
+            )
+        }
+        val second = launch {
+            persistBeforePublish<String, Unit>(
+                mutex = mutex,
+                persist = {
+                    events += "second-commit"
+                    "second" to Unit
+                },
+                publish = { events += "$it-published" },
+            )
+        }
+        first.join()
+        second.join()
+
+        assertEquals(
+            listOf("first-commit-start", "first-commit-end", "first-published", "second-commit", "second-published"),
+            events,
+        )
     }
 }

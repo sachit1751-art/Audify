@@ -465,10 +465,10 @@ private fun DownloadManagerRow(
             AsyncImage(
                 model = item.song.artworkAt(ROW_ART_PX),
                 contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier
                     .size(ART_SIZE)
                     .clip(RoundedCornerShape(8.dp))
-                    .thumbnailBorder(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             // A finished or failed track is stated over its own cover rather

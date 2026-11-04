@@ -677,7 +677,6 @@ fun CompactTrackRow(
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .thumbnailBorder(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
@@ -1396,7 +1395,10 @@ private fun HeroCard(
         modifier = modifier
             .aspectRatio(1.12f)
             .clip(RoundedCornerShape(18.dp))
-            .thumbnailBorder(RoundedCornerShape(18.dp))
+            .then(
+                if (item.videoId == null) Modifier.thumbnailBorder(RoundedCornerShape(18.dp))
+                else Modifier,
+            )
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onLongPress),
@@ -1514,6 +1516,8 @@ internal fun Shelf(
                                     modifier = Modifier.weight(1f),
                                     isCurrent = isCurrentItem(item),
                                     isPlaying = isCurrentItem(item) && isPlaying,
+                                    titleMaxLines = 3,
+                                    subtitleMaxLines = 2,
                                 )
                             }
                             repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
@@ -1571,7 +1575,6 @@ private fun QuickPickTrackRow(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
                     .clip(RoundedCornerShape(9.dp))
-                    .thumbnailBorder(RoundedCornerShape(9.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
@@ -1700,6 +1703,8 @@ internal fun ShelfCard(
     isPinned: Boolean = false,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    titleMaxLines: Int = 1,
+    subtitleMaxLines: Int = 1,
 ) {
     Column(
         modifier = modifier
@@ -1756,7 +1761,10 @@ internal fun ShelfCard(
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .thumbnailBorder(RoundedCornerShape(12.dp))
+                        .then(
+                            if (item.videoId == null) Modifier.thumbnailBorder(RoundedCornerShape(12.dp))
+                            else Modifier,
+                        )
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     AsyncImage(
@@ -1787,9 +1795,9 @@ internal fun ShelfCard(
                 text = item.title,
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
+                maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f),
             )
         }
         val displaySubtitle = localizeCardSubtitle(item.subtitle)
@@ -1797,7 +1805,7 @@ internal fun ShelfCard(
             text = displaySubtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = subtitleMaxLines,
             overflow = TextOverflow.Ellipsis,
         )
     }

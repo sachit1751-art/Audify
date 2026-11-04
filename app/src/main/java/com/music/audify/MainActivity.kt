@@ -4795,14 +4795,35 @@ private fun AudifyApp(
                         privacy,
                         songs.map { it.videoId },
                         songs,
-                    ) { browseId, pTitle, savedLocally ->
-                        showQueueNotice(
-                            String.format(
-                                Locale.getDefault(),
-                                if (savedLocally && signedIn) spotifyImportLocalFallbackFormat else spotifyImportDoneFormat,
+                        onError = { showQueueNotice(failedMessage) },
+                        onPartialResult = { browseId, pTitle, addedSongCount, requestedSongCount, failedSongCount ->
+                            showQueueNotice(
+                                resources.getString(
+                                    R.string.playlist_import_partial,
+                                    pTitle,
+                                    addedSongCount,
+                                    requestedSongCount,
+                                    failedSongCount,
+                                ),
+                            )
+                            viewModel.openDetail(
+                                browseId,
                                 pTitle,
-                            ),
-                        )
+                                "$addedSongCount songs",
+                                songs.firstOrNull()?.thumbnailUrl,
+                            )
+                        },
+                    ) { browseId, pTitle, savedLocally ->
+                        val notice = when {
+                            savedLocally && signedIn -> String.format(
+                                Locale.getDefault(),
+                                spotifyImportLocalFallbackFormat,
+                                pTitle,
+                            )
+                            savedLocally -> resources.getString(R.string.playlist_saved_on_device, pTitle)
+                            else -> String.format(Locale.getDefault(), spotifyImportDoneFormat, pTitle)
+                        }
+                        showQueueNotice(notice)
                         browseId?.let { id ->
                             viewModel.openDetail(id, pTitle, "${songs.size} songs", songs.firstOrNull()?.thumbnailUrl)
                         }

@@ -82,6 +82,60 @@ class HomeFeedRecommendationsTest {
         assertEquals(listOf("fresh-1", "old-1", "old-2"), result.items.mapNotNull { it.videoId })
     }
 
+    @Test
+    fun artistKeyUsesFirstExplicitCreditAndDoesNotInferFromTrackTitle() {
+        assertEquals("artist a, artist b", homeArtistKey(track("song-title", "Artist A, Artist B • 3:21")))
+        assertEquals("earth, wind & fire", homeArtistKey(track("song-title", "Earth, Wind & Fire")))
+        assertEquals("song-title", homeArtistKey(track("song-title", " • 3:21")))
+    }
+
+    @Test
+    fun categoryBackedShelvesAreInterleavedAndHistoryStaysFirst() {
+        val history = HomeShelf("Recently played", listOf(track("recent", "Artist R")))
+        val shelves = listOf(
+            HomeShelf("Pop one", emptyList(), discoveryCategory = "Pop"),
+            HomeShelf("Pop two", emptyList(), discoveryCategory = "Pop"),
+            HomeShelf("Rock one", emptyList(), discoveryCategory = "Rock"),
+            history,
+        )
+
+        val result = diversifyHomeShelves(shelves)
+
+        assertEquals(history, result.first())
+        assertEquals(listOf("Pop", "Rock", "Pop"), result.drop(1).map { it.discoveryCategory })
+        assertEquals(shelves.size, result.size)
+    }
+
+    @Test
+    fun unlabelledShelvesAreNotAssignedInventedCategories() {
+        val shelves = listOf(
+            HomeShelf("For you", listOf(track("one", "Artist A"))),
+            HomeShelf("Listen again", listOf(track("two", "Artist B"))),
+        )
+
+        val result = diversifyHomeShelves(shelves)
+
+        assertEquals(listOf(null, null), result.map { it.discoveryCategory })
+        assertEquals(shelves, result)
+    }
+
+    @Test
+    fun stalledPrimaryPagingSwitchesToFallbackAndFallbackPagingRemainsExplicit() {
+        val prefix = "audify-home-fallback:"
+
+        assertEquals("${prefix}0", continueHomeAfterEmptyPages("server-next-token", prefix))
+        assertEquals("${prefix}4", continueHomeAfterEmptyPages("${prefix}4", prefix))
+        assertEquals(null, continueHomeAfterEmptyPages(null, prefix))
+    }
+
+    @Test
+    fun initialEmptyPrimaryPageKeepsItsContinuationBeforeFallingBack() {
+        val prefix = "audify-home-fallback:"
+
+        assertEquals("primary-next", initialHomeContinuation("primary-next", prefix))
+        assertEquals("${prefix}0", initialHomeContinuation(null, prefix))
+    }
+
     private fun track(id: String, artist: String) = ShelfItem(
         title = id,
         subtitle = artist,

@@ -364,6 +364,7 @@ private fun GlassNowPlaying(
             AsyncImage(
                 model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                 contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier
                     .size(artSize)
                     // Whichever of the two densities is on screen is the one

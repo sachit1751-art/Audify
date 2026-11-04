@@ -61,7 +61,6 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.sharedui.resources.Res as SharedRes
 import com.music.audify.sharedui.resources.ic_player_next
-import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import com.music.audify.ui.player.PlayerDock
@@ -412,11 +411,11 @@ fun MiniPlayer(
             AsyncImage(
                 model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                 contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier
                     .size(40.dp)
                     .playerDockArt(dock, ART_CORNER)
                     .clip(RoundedCornerShape(ART_CORNER))
-                    .thumbnailBorder(RoundedCornerShape(ART_CORNER))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             Spacer(Modifier.width(10.dp))

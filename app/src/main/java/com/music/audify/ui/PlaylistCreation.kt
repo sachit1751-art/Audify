@@ -12,6 +12,46 @@ internal sealed interface PlaylistCreationResult {
     data class Failed(val cause: Throwable) : PlaylistCreationResult
 }
 
+internal data class PlaylistChunkAddResult(
+    val requestedSongCount: Int,
+    val addedSongCount: Int,
+    val failedVideoIds: List<String>,
+    val failures: List<Throwable>,
+) {
+    val isComplete: Boolean get() = failedVideoIds.isEmpty()
+}
+
+/** Attempts every batch and retains the exact IDs that need a retry. */
+internal suspend fun addPlaylistSongsInChunks(
+    videoIds: List<String>,
+    addChunk: suspend (List<String>) -> Result<*>,
+): PlaylistChunkAddResult {
+    val ids = videoIds.filter(String::isNotBlank).distinct()
+    var added = 0
+    val failedIds = mutableListOf<String>()
+    val failures = mutableListOf<Throwable>()
+    for (chunk in ids.chunked(50)) {
+        val result = try {
+            addChunk(chunk)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Result.failure<Any?>(failure)
+        }
+        result.fold(
+            // A successful add response may omit per-entry set IDs; the
+            // repository documents that as normal because the add still landed.
+            onSuccess = { added += chunk.size },
+            onFailure = { failure ->
+                if (failure is CancellationException) throw failure
+                failedIds += chunk
+                failures += failure
+            },
+        )
+    }
+    return PlaylistChunkAddResult(ids.size, added, failedIds, failures)
+}
+
 /**
  * Try YouTube Music for signed-in listeners, retaining the playlist locally if
  * that write fails. Signed-out listeners save locally without making a remote
@@ -20,7 +60,7 @@ internal sealed interface PlaylistCreationResult {
 internal suspend fun createPlaylistWithLocalFallback(
     signedIn: Boolean,
     createRemote: suspend () -> Result<String>,
-    saveLocal: () -> String,
+    saveLocal: suspend () -> String,
 ): PlaylistCreationResult {
     return if (signedIn) {
         val remote = try {

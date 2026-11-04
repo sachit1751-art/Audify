@@ -24,9 +24,11 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Search
@@ -61,6 +63,16 @@ import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 /** How much of the screen the list may take before it scrolls inside the card. */
 private val LIST_MAX_HEIGHT = 420.dp
+
+/** Below this viewport height, the fixed header/search/action chrome cannot leave a useful list viewport. */
+internal val TRANSLATION_DIALOG_PINNED_CHROME_MIN_HEIGHT = 240.dp
+
+internal fun translationDialogNeedsOuterScroll(availableHeight: androidx.compose.ui.unit.Dp): Boolean =
+    availableHeight < TRANSLATION_DIALOG_PINNED_CHROME_MIN_HEIGHT
+
+/** Translation picker uses more of a landscape window while retaining phone gutters. */
+internal fun translationDialogCardWidth(width: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
+    (width - 32.dp).coerceAtLeast(0.dp).coerceAtMost(640.dp)
 
 /**
  * Which language the lyrics translate button translates into.
@@ -123,7 +135,7 @@ fun TranslationLanguageDialog(
     ) {
         Column(
             modifier = Modifier
-                .width(alertCardWidth(maxWidth))
+                .width(translationDialogCardWidth(maxWidth))
                 .heightIn(max = maxHeight)
                 .clip(shape)
                 .then(
@@ -140,6 +152,13 @@ fun TranslationLanguageDialog(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
+                )
+                .then(
+                    if (translationDialogNeedsOuterScroll(maxHeight)) {
+                        Modifier.verticalScroll(rememberScrollState())
+                    } else {
+                        Modifier
+                    },
                 ),
         ) {
             Column(

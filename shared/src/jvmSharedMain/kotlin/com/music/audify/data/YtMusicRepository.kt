@@ -36,11 +36,23 @@ import kotlinx.serialization.json.JsonObject
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
+/** Keeps partial catalogue discovery, but never disguises a total outage as an empty feed. */
+internal fun <T> combineHomeFallbackCategoryResults(results: List<Result<List<T>>>): Result<List<T>> {
+    val successful = results.mapNotNull { it.getOrNull() }
+    if (results.isEmpty() || successful.isNotEmpty()) return Result.success(successful.flatten())
+
+    val failures = results.mapNotNull { it.exceptionOrNull() }
+    val combined = IllegalStateException("Every Home discovery category request failed")
+    failures.forEach(combined::addSuppressed)
+    return Result.failure(combined)
+}
+
 /** Suspend API over Innertube. Every call returns a Result so the UI can show a real error. */
 object YtMusicRepository {
 
     private const val TAG = "Audify"
     private val moodGenreShelfCache = ConcurrentHashMap<String, List<HomeShelf>>()
+    @Volatile private var homeFallbackCategoriesCache: List<MoodGenreSection>? = null
     // Includes unchanged video fallbacks as well as successful matches. The
     // queue prefetcher asks before a track becomes current; remembering its
     // answer makes the eventual player switch use the exact rendition whose
@@ -59,8 +71,8 @@ object YtMusicRepository {
      *
      * FEmusic_home's own continuation token comes back, for [moreHome] —
      * signed in, it keeps paging into mood mixes and more personalised
-     * shelves the same way the official app does as you scroll; signed out
-     * it's empty and there's nothing more to fetch.
+     * shelves the same way the official app does as you scroll. Signed-out
+     * responses have no continuation; callers can switch to [homeFallback].
      */
     suspend fun home(): Result<HomeFeed> = call("home") {
         val home = Innertube.browse("FEmusic_home")
@@ -79,6 +91,42 @@ object YtMusicRepository {
         "FEmusic_new_releases",
         "FEmusic_explore",
     )
+
+    /** Local continuation namespace for catalogue-backed Home fallback pages. */
+    const val HOME_FALLBACK_TOKEN_PREFIX = "audify-home-fallback:"
+    private const val HOME_FALLBACK_PAGE_SIZE = 2
+
+    /**
+     * A bounded fallback over YouTube's own Moods & genres catalogue. The
+     * category labels and browse endpoints are parsed from the live catalogue;
+     * no genre is inferred from a track title, artist, or playlist name.
+     */
+    suspend fun homeFallback(token: String): Result<HomeFeed> = call("home:fallback") {
+        val offset = token.removePrefix(HOME_FALLBACK_TOKEN_PREFIX).toIntOrNull()
+            ?.takeIf { token.startsWith(HOME_FALLBACK_TOKEN_PREFIX) && it >= 0 }
+            ?: throw IllegalArgumentException("Invalid Home fallback continuation")
+        val categories = (homeFallbackCategoriesCache ?: InnertubeParser
+            .parseMoodAndGenres(Innertube.browse("FEmusic_moods_and_genres"))
+            .also { homeFallbackCategoriesCache = it })
+            .flatMap { it.items }
+        val page = categories.drop(offset).take(HOME_FALLBACK_PAGE_SIZE)
+        val categoryResults = page.map { category ->
+            // Reuse the Explore category cache when it has already been read.
+            // Preserve successful categories, but let a total outage trigger the
+            // caller's error/fallback state instead of pretending the catalogue is empty.
+            moodGenreShelves(category.browseId, category.params).map { shelves ->
+                shelves.map { shelf -> shelf.copy(discoveryCategory = category.title) }
+            }
+        }
+        val shelves = combineHomeFallbackCategoryResults(categoryResults).getOrThrow()
+        val nextOffset = offset + page.size
+        HomeFeed(
+            shelves = shelves,
+            continuation = if (nextOffset < categories.size) {
+                "$HOME_FALLBACK_TOKEN_PREFIX$nextOffset"
+            } else null,
+        )
+    }
 
     /**
      * More Home shelves past [home]'s first page, following FEmusic_home's

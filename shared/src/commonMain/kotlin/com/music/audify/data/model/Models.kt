@@ -447,6 +447,8 @@ data class HomeShelf(
     val subtitle: String = "",
     val moreBrowseId: String? = null,
     val moreParams: String? = null,
+    /** Exact category label supplied by YouTube's Moods & genres catalogue, when applicable. */
+    val discoveryCategory: String? = null,
 )
 
 /**
