@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
@@ -98,25 +99,24 @@ fun AccountProfileSelector(
                 .clickable(onClick = {}),
         ) {
             LazyColumn(modifier = Modifier.heightIn(max = (this@BoxWithConstraints.maxHeight - 68.dp).coerceAtLeast(0.dp))) {
-                item { Text(stringResource(R.string.switch_account), style = MaterialTheme.typography.titleLarge,
+                item(key = "account-selector:title") { Text(stringResource(R.string.switch_account), style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.padding(20.dp, 18.dp, 20.dp, 8.dp)) }
                 accounts.forEach { account ->
-                item {
+                item(key = "account-selector:${account.accountId}") {
                     Text(account.email.ifBlank { account.name.ifBlank { stringResource(R.string.accounts) } },
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(20.dp, 12.dp, 20.dp, 4.dp))
                 }
-                items(account.profiles.size) { index ->
-                    val profile = account.profiles[index]
+                items(account.profiles, key = { it.profileId }) { profile ->
                     ProfileRow(profile, account.accountId == activeAccountId && profile.profileId == activeProfileId,
                         managing, { onSelect(account, profile); onDismiss() }, { onRemoveAccount(account) })
                 }
                 }
-                item { SelectorAction(Icons.Rounded.Add, stringResource(R.string.add_account), onAddAccount) }
-                item { SelectorAction(Icons.Rounded.ManageAccounts, stringResource(R.string.manage_accounts)) { managing = !managing } }
-                item { SelectorAction(Icons.Rounded.Settings, stringResource(R.string.settings), onOpenSettings) }
+                item(key = "account-selector:add") { SelectorAction(Icons.Rounded.Add, stringResource(R.string.add_account), onAddAccount) }
+                item(key = "account-selector:manage") { SelectorAction(Icons.Rounded.ManageAccounts, stringResource(R.string.manage_accounts)) { managing = !managing } }
+                item(key = "account-selector:settings") { SelectorAction(Icons.Rounded.Settings, stringResource(R.string.settings), onOpenSettings) }
             }
         }
     }

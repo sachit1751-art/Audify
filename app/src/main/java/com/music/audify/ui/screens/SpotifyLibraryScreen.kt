@@ -84,7 +84,7 @@ fun SpotifyLibraryScreen(
         modifier = modifier.fillMaxSize(),
         contentPadding = contentPadding,
     ) {
-        item {
+        item(key = "spotify-library:title") {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
@@ -104,7 +104,7 @@ fun SpotifyLibraryScreen(
             }
         }
         if (cookie.isBlank()) {
-            item {
+            item(key = "spotify-library:login-required") {
                 Column(Modifier.padding(horizontal = 20.dp)) {
                     Text(
                         text = stringResource(R.string.spotify_connect_subtitle),
@@ -123,14 +123,14 @@ fun SpotifyLibraryScreen(
             }
         } else {
             if (loading) {
-                item {
+                item(key = "spotify-library:loading") {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
             }
             error?.let { message ->
-                item {
+                item(key = "spotify-library:error") {
                     Text(
                         text = message,
                         color = MaterialTheme.colorScheme.error,

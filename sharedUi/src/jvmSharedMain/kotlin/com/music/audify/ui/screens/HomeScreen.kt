@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.audify.ui.components.ShelfRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -94,6 +95,7 @@ import com.music.audify.data.model.HEADER_ART_PX
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.ShelfItem
+import com.music.audify.data.model.stableShelfComposeKeys
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
 import java.util.Locale
@@ -272,7 +274,7 @@ fun HomeScreen(
                 }
             }
             if (!signedIn && onSignIn != null) {
-                item {
+                item(key = "home:sign-in") {
                     SignInBanner(onSignIn = onSignIn, modifier = Modifier.padding(bottom = 8.dp))
                 }
             }
@@ -308,7 +310,7 @@ fun HomeScreen(
                         feedSkeleton(firstIsHero = leadHero)
                     }
                 }
-                is UiState.Error -> item {
+                is UiState.Error -> item(key = "home:error") {
                     MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
                 }
                 is UiState.Success -> {
@@ -515,6 +517,7 @@ private fun RecentShelf(
             onViewTypeToggle = onViewTypeToggle,
         )
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
         if (viewType == LibraryViewType.LIST) {
             BoxWithConstraints {
                 // The docked player leaves a tablet's Home pane narrower than
@@ -530,7 +533,10 @@ private fun RecentShelf(
                     contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(shelf.items.chunked(RECENT_TRACKS_PER_COLUMN)) { column ->
+                    items(
+                        shelf.items.chunked(RECENT_TRACKS_PER_COLUMN),
+                        key = { column -> column.joinToString("|") { it.videoId ?: it.browseId ?: it.title } },
+                    ) { column ->
                         Column(Modifier.width(columnWidth)) {
                             column.forEach { item ->
                                 RecentTrackRow(
@@ -552,7 +558,7 @@ private fun RecentShelf(
                     contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    items(shelf.items) { item ->
+                    itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
                         HeroCard(
                             item = item,
                             onClick = { onItemClick(item) },
@@ -1084,7 +1090,7 @@ private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?)
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            items(listOf("Start a session", "Join a session").withIndex().toList()) { (index, label) ->
+            items(listOf("Start a session", "Join a session").withIndex().toList(), key = { it.value }) { (index, label) ->
                 Box(
                     modifier = Modifier.width(300.dp).height(142.dp)
                         .clip(RoundedCornerShape(18.dp))
@@ -1354,6 +1360,7 @@ private fun HeroShelf(
     ) {
         SectionHeader(shelf.title, shelf.subtitle, emphasized = true)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
         // Measured rather than taken as a share of the parent, because the card
         // has a ceiling as well as a fraction — see [heroCardWidth]. A fixed
         // width is also the only one of the two the aspect ratio below can turn
@@ -1365,7 +1372,7 @@ private fun HeroShelf(
                 contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(shelf.items) { item ->
+                itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
                     HeroCard(
                         item = item,
                         onClick = { onItemClick(item) },
@@ -1533,12 +1540,13 @@ internal fun Shelf(
                     else -> shelf.title
                 }
                 SectionHeader(homeTitle, shelf.subtitle)
+                val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
                 ShelfRow(
                     contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     leadingCard?.let { card -> item(key = "leading") { card() } }
-                    items(shelf.items) { item ->
+                    itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
                         ShelfCard(
                             item = item,
                             onClick = { onItemClick(item) },

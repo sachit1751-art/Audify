@@ -43,6 +43,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -146,6 +147,7 @@ import com.music.audify.data.model.HEADER_ART_PX
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.ShelfItem
+import com.music.audify.data.model.stableShelfComposeKeys
 import com.music.audify.data.settings.SongSort
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.SubscriptionState
@@ -677,7 +679,7 @@ fun DetailScreen(
 
             when (val state = page.songs) {
                 is UiState.Loading -> detailSkeleton(isArtist)
-                is UiState.Error -> item { MessageState(state.message) }
+                is UiState.Error -> item(key = "detail:error") { MessageState(state.message) }
                 is UiState.Success -> if (folder != null && folderState != null) {
                     localFolderItems(
                         folder = folder,
@@ -696,7 +698,7 @@ fun DetailScreen(
                 } else if (isArtist) {
                     // An artist's full song list would bury the album shelves, so
                     // it pages sideways four at a time and stops at twenty.
-                    item {
+                    item(key = "detail:top-songs") {
                         val top = state.data.take(MAX_ARTIST_SONGS)
                         val isCurrentRow = playingRowMatcher(top, currentSong)
                         SectionHeading(
@@ -713,7 +715,7 @@ fun DetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 flingBehavior = rememberSnapFlingBehavior(lazyListState = topSongsState),
                             ) {
-                                items(top.chunked(SONGS_PER_COLUMN)) { column ->
+                                items(top.chunked(SONGS_PER_COLUMN), key = { column -> column.joinToString("|") { it.videoId } }) { column ->
                                     Column(Modifier.width(columnWidth)) {
                                         column.forEach { song ->
                                             CompactSongRow(
@@ -815,11 +817,12 @@ fun DetailScreen(
             }
 
             // Albums / Singles & EPs carousels (artist pages).
-            items(page.sections) { shelf ->
+            items(page.sections, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
                 val canShowAll = shelf.items.size > ARTIST_ROW_MAX_ITEMS
                 val displayItems = remember(shelf.items) {
                     if (canShowAll) shelf.items.take(ARTIST_ROW_MAX_ITEMS) else shelf.items
                 }
+                val displayItemKeys = remember(displayItems) { displayItems.stableShelfComposeKeys() }
                 Column(Modifier.padding(top = 22.dp)) {
                     SectionHeading(
                         title = shelf.title,
@@ -834,7 +837,7 @@ fun DetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         flingBehavior = rememberSnapFlingBehavior(lazyListState = carouselState),
                     ) {
-                        items(displayItems) { item ->
+                        itemsIndexed(displayItems, key = { index, _ -> displayItemKeys[index] }) { _, item ->
                             SectionCard(
                                 item = item,
                                 palette = palette,
@@ -2259,6 +2262,7 @@ private fun ArtistShelfGridPage(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
     val gridState = rememberLazyGridState()
     BoxWithConstraints(modifier.fillMaxSize().background(palette.background)) {
         val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
@@ -2275,7 +2279,7 @@ private fun ArtistShelfGridPage(
                 .fillMaxSize()
                 .padding(horizontal = PAGE_GUTTER),
         ) {
-            items(shelf.items, key = { it.browseId ?: it.title }) { item ->
+            gridItemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
                 SectionCard(
                     item = item,
                     palette = palette,

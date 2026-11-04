@@ -2,6 +2,7 @@
 // Project: AUDIFY
 package com.music.audify
 
+import android.app.ActivityManager
 import android.app.Application
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -17,6 +18,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import okhttp3.OkHttpClient
 import com.music.audify.auth.AuthStore
 import com.music.audify.data.DebugLog
+import com.music.audify.data.Http
 import com.music.audify.data.lyrics.LyricsTranslation
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.ui.player.AndroidPlayerHost
@@ -44,6 +46,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
+
+internal const val IMAGE_MEMORY_CACHE_HEAP_FRACTION = 0.25
+internal const val LOW_RAM_IMAGE_MEMORY_CACHE_HEAP_FRACTION = 0.15
+
+internal fun imageMemoryCacheHeapFraction(isLowRamDevice: Boolean): Double =
+    if (isLowRamDevice) LOW_RAM_IMAGE_MEMORY_CACHE_HEAP_FRACTION else IMAGE_MEMORY_CACHE_HEAP_FRACTION
 
 class AudifyApplication : Application(), SingletonImageLoader.Factory {
 
@@ -175,15 +183,16 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
     }
 
     /**
-     * Coil's own transport, separate from [Http][com.music.audify.data.Http]'s
-     * playback-tuned client.
+     * Coil-specific request client derived from the shared playback transport.
+     * It keeps Coil's identifying User-Agent while reusing Http's dispatcher
+     * and connection pool rather than opening another pool for artwork.
      *
      * Wikimedia (which serves signature art) answers generic clients with
      * HTTP 403 under its User-Agent policy, so every image request carries an
      * identifying agent. Anything else falls through to Coil's own fetchers.
      */
     private val coilHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        Http.client.newBuilder()
             .addInterceptor { chain ->
                 chain.proceed(
                     chain.request().newBuilder()
@@ -225,7 +234,12 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.20)
+                    .maxSizePercent(
+                        context,
+                        imageMemoryCacheHeapFraction(
+                            context.getSystemService(ActivityManager::class.java)?.isLowRamDevice == true,
+                        ),
+                    )
                     .build()
             }
             .diskCache {

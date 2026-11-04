@@ -34,6 +34,14 @@ private val discordJsonParser = Json { ignoreUnknownKeys = true }
 /**
  * Modified by Zion Huang
  */
+/** Runs work with a one-shot client and closes it on success, failure, or cancellation. */
+internal suspend fun <T> withOwnedHttpClient(closeClient: () -> Unit, block: suspend () -> T): T =
+    try {
+        block()
+    } finally {
+        closeClient()
+    }
+
 open class KizzyRPC(
     private val token: String,
     os: String = "Android",
@@ -170,30 +178,30 @@ open class KizzyRPC(
             superPropertiesBase64: String? = null,
         ): Result<UserInfo> = runCatching {
             val client = HttpClient()
-            val response = client.get("https://discord.com/api/v9/users/@me") {
-                header("Authorization", token)
-                header("User-Agent", userAgent)
-                if (superPropertiesBase64 != null) {
-                    header("X-Super-Properties", superPropertiesBase64)
+            withOwnedHttpClient(client::close) {
+                val response = client.get("https://discord.com/api/v9/users/@me") {
+                    header("Authorization", token)
+                    header("User-Agent", userAgent)
+                    if (superPropertiesBase64 != null) {
+                        header("X-Super-Properties", superPropertiesBase64)
+                    }
+                }.bodyAsText()
+                // kotlinx rather than org.json: this module is shared with the
+                // desktop, which has no Android JSON on its classpath.
+                val json = discordJsonParser.parseToJsonElement(response).jsonObject
+                fun field(name: String): String? =
+                    json[name]?.jsonPrimitive?.contentOrNull?.takeIf { it != "null" }
+                val id = field("id") ?: error("Discord returned no user id")
+                val username = field("username") ?: error("Discord returned no username")
+                val name = field("global_name") ?: username
+                val avatarHash = field("avatar").orEmpty()
+                val avatar = if (avatarHash.isNotEmpty()) {
+                    "https://cdn.discordapp.com/avatars/$id/$avatarHash.png"
+                } else {
+                    null
                 }
-            }.bodyAsText()
-            // kotlinx rather than org.json: this module is shared with the
-            // desktop, which has no Android JSON on its classpath.
-            val json = discordJsonParser.parseToJsonElement(response).jsonObject
-            fun field(name: String): String? =
-                json[name]?.jsonPrimitive?.contentOrNull?.takeIf { it != "null" }
-            val id = field("id") ?: error("Discord returned no user id")
-            val username = field("username") ?: error("Discord returned no username")
-            val name = field("global_name") ?: username
-            val avatarHash = field("avatar").orEmpty()
-            val avatar = if (avatarHash.isNotEmpty()) {
-                "https://cdn.discordapp.com/avatars/$id/$avatarHash.png"
-            } else {
-                null
+                UserInfo(id, username, name, avatar)
             }
-            client.close()
-
-            UserInfo(id, username, name, avatar)
         }
     }
 }

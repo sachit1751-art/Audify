@@ -2,6 +2,8 @@
 // Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.data.model.stableSongComposeKeys
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -285,10 +287,11 @@ internal fun LazyListScope.localFolderItems(
         if (folder.selectable && group.type != BrowseType.OTHER) state.select(group) else folder.onGroupLongPress(group)
     }
 
+    val songKeys = songs.stableSongComposeKeys()
     val isCurrentRow = playingRowMatcher(songs, currentSong)
     when (state.tab) {
         LocalFolderTab.SONGS -> if (grid) {
-            gridRows(songs.indices.toList(), columns, key = { "song-${songs[it].videoId}-$it" }) { index ->
+            gridRows(songs.indices.toList(), columns, key = { songKeys[it] }) { index ->
                 val song = songs[index]
                 SongGridCard(
                     song = song,
@@ -301,7 +304,7 @@ internal fun LazyListScope.localFolderItems(
                 )
             }
         } else {
-            itemsIndexed(songs, key = { index, song -> "song-${song.videoId}-$index" }) { index, song ->
+            itemsIndexed(songs, key = { index, _ -> songKeys[index] }) { index, song ->
                 SongRow(
                     song = song,
                     selected = song.videoId in state.selectedIds,

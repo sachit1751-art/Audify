@@ -38,6 +38,10 @@ import java.util.concurrent.atomic.AtomicLong
  * this app actually drives concurrently, so the queue is never the reason a
  * request was slow.
  */
+internal const val HTTP_POOL_MAX_IDLE_CONNECTIONS = 16
+internal const val HTTP_POOL_KEEP_ALIVE_MINUTES = 5L
+internal const val HTTP_MAX_REQUESTS_PER_HOST = 16
+
 object Http {
 
     // ---- Temporary data-usage instrumentation --------------------------
@@ -132,8 +136,8 @@ object Http {
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
-        .dispatcher(Dispatcher().apply { maxRequestsPerHost = 16 })
-        .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
+        .dispatcher(Dispatcher().apply { maxRequestsPerHost = HTTP_MAX_REQUESTS_PER_HOST })
+        .connectionPool(ConnectionPool(HTTP_POOL_MAX_IDLE_CONNECTIONS, HTTP_POOL_KEEP_ALIVE_MINUTES, TimeUnit.MINUTES))
         .addInterceptor(webDavInterceptor)
         .apply { if (USAGE_LOGGING_ENABLED) addNetworkInterceptor(usageInterceptor) }
         .build()

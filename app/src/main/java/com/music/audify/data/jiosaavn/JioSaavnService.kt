@@ -2,11 +2,12 @@
 // Project: AUDIFY
 package com.music.audify.data.jiosaavn
 
+import com.music.audify.data.Http
+
 import android.annotation.SuppressLint
 import android.util.Base64
 import com.music.audify.data.TrackLog
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
@@ -132,7 +133,8 @@ object JioSaavnService {
 
     // Note: Audify uses OkHttp engine for ktor
     private val client by lazy {
-        HttpClient(OkHttp) {
+        HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
+            engine { preconfigured = Http.client }
             install(ContentNegotiation) { json(json) }
             install(HttpTimeout) {
                 requestTimeoutMillis = 6_000

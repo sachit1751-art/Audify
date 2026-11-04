@@ -2,8 +2,9 @@
 // Project: AUDIFY
 package com.music.audify.data.scrobbling
 
+import com.music.audify.data.Http
+
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.forms.FormDataContent
@@ -65,7 +66,8 @@ object LastFM {
         }
 
     private val client by lazy {
-        HttpClient(OkHttp) {
+        HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
+            engine { preconfigured = Http.client }
             install(ContentNegotiation) {
                 json(json)
             }

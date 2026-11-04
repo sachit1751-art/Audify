@@ -69,7 +69,8 @@ import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.icons.AudifyIcons
 
 /**
- * Where a track goes: one of the account's playlists, or a new one.
+ * Where a track goes: one of the account's playlists, one stored on this
+ * device, or a new playlist. Guests only see and create device-local lists.
  *
  * Two panels in one sheet rather than a sheet that opens a dialog. Creating a
  * playlist here is nearly always in service of adding the track that opened
@@ -89,6 +90,7 @@ import com.music.audify.ui.icons.AudifyIcons
 fun PlaylistPickerSheet(
     playlists: List<UserPlaylist>,
     loading: Boolean,
+    signedIn: Boolean,
     onAdd: (List<UserPlaylist>) -> Unit,
     onCreate: (String, PlaylistPrivacy) -> Unit,
     modifier: Modifier = Modifier,
@@ -106,6 +108,7 @@ fun PlaylistPickerSheet(
             // form; the sheet's own dismiss is the way out.
             onBack = if (startCreating) null else ({ creating = false }),
             onCreate = onCreate,
+            signedIn = signedIn,
             modifier = modifier,
         )
         return
@@ -246,6 +249,7 @@ private fun PlaylistRow(playlist: UserPlaylist, selected: Boolean, onClick: () -
 private fun NewPlaylistForm(
     onBack: (() -> Unit)?,
     onCreate: (String, PlaylistPrivacy) -> Unit,
+    signedIn: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var name by remember { mutableStateOf("") }
@@ -350,20 +354,22 @@ private fun NewPlaylistForm(
             }
         }
 
-        SheetHeading(stringResource(R.string.who_can_see_it).uppercase(LocalLocale.current.platformLocale))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            PlaylistPrivacy.entries.forEach { option ->
-                PrivacyPill(
-                    icon = option.icon,
-                    label = option.label,
-                    selected = option == privacy,
-                    onClick = { privacy = option },
-                )
+        if (signedIn) {
+            SheetHeading(stringResource(R.string.who_can_see_it).uppercase(LocalLocale.current.platformLocale))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PlaylistPrivacy.entries.forEach { option ->
+                    PrivacyPill(
+                        icon = option.icon,
+                        label = option.label,
+                        selected = option == privacy,
+                        onClick = { privacy = option },
+                    )
+                }
             }
         }
 

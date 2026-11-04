@@ -104,12 +104,11 @@ import java.util.Locale
  * what the menu is opened for; the queue and navigation rows below it were
  * always the fallback for "I meant to do something with this song".
  *
- * Everything that writes to the account is hidden outright when [signedIn] is
- * false rather than shown and refused. The same goes for a track that is
- * playing from a local file or a finished download (`song.localUri != null`):
- * rating, playlists, downloading it again and sharing all assume a YouTube
- * identity the file doesn't carry, so those rows drop out regardless of
- * [signedIn].
+ * Account-writing actions are hidden outright when [signedIn] is false.
+ * Device-local playlist additions are separate and remain available without
+ * an account; remote playlist editing and ratings still require sign-in.
+ * Actions that need a remote track identity are hidden for local files
+ * (`song.localUri != null`).
  *
  * [showSleepTimer] and [onShare] are the player's extras: a sleep timer isn't a
  * property of some row in a list, so it only appears where it means something.
@@ -290,12 +289,6 @@ fun SongActionsSheet(
                 accent = palette.accent,
                 onClick = onToggleDislike,
             )
-            ActionRow(
-                icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
-                label = stringResource(R.string.add_to_playlist),
-                accent = palette.accent,
-                onClick = onAddToPlaylist,
-            )
             onRemoveFromPlaylist?.let {
                 ActionRow(
                     icon = Icons.Rounded.PlaylistRemove,
@@ -304,6 +297,20 @@ fun SongActionsSheet(
                     onClick = it,
                 )
             }
+            GroupSeparator(palette)
+        }
+
+        // Local playlists belong to the device, not a YouTube Music account.
+        // Keep this action available to guests and for cached tracks; the
+        // picker routes local playlist ids to LocalPlaylistStore and still
+        // requires sign-in before editing a remote playlist.
+        if (song.videoId.isNotBlank()) {
+            ActionRow(
+                icon = Icons.AutoMirrored.Rounded.PlaylistAdd,
+                label = stringResource(R.string.add_to_playlist),
+                accent = palette.accent,
+                onClick = onAddToPlaylist,
+            )
             GroupSeparator(palette)
         }
 

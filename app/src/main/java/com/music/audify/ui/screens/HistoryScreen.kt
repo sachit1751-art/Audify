@@ -2,6 +2,8 @@
 // Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.data.model.stableSongComposeKeys
+
 import com.music.audify.R
 
 import androidx.compose.foundation.layout.PaddingValues
@@ -66,11 +68,11 @@ fun HistoryScreen(
 
             is UiState.Success -> {
                 val songs = state.data
+                val songKeys = songs.stableSongComposeKeys()
                 val isCurrentRow = playingRowMatcher(songs, currentSong)
-                // The videoId alone is not a key here: the feed is deduplicated
-                // on it, but a list keyed on something that could repeat is one
-                // bad response away from a crash. The index makes it total.
-                itemsIndexed(songs) { index, song ->
+                // Duplicate video IDs receive occurrence suffixes, so keys stay
+                // unique without depending on a row's current position.
+                itemsIndexed(songs, songKeys) { index, song ->
                     SongRow(
                         song = song,
                         onClick = { onSongClick(songs, index) },
@@ -97,8 +99,9 @@ fun HistoryScreen(
 /** Keyed on both, for the reason given at the call site. */
 private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexed(
     songs: List<Song>,
+    keys: List<String>,
     row: @Composable (Int, Song) -> Unit,
 ) = items(
     count = songs.size,
-    key = { "${songs[it].videoId}:$it" },
+    key = { keys[it] },
 ) { index -> row(index, songs[index]) }

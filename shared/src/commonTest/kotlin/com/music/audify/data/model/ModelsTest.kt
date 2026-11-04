@@ -43,6 +43,30 @@ class ModelsTest {
     private fun song(id: String) = ShelfItem(id, "", null, id, null)
 
     @Test
+    fun shelfComposeKeysAreStableAcrossReorderingAndUniqueForDuplicates() {
+        val first = song("same")
+        val second = album("album")
+        val duplicate = song("same")
+        val original = listOf(first, second, duplicate)
+        val originalKeys = original.stableShelfComposeKeys()
+        assertEquals(3, originalKeys.toSet().size)
+        assertEquals(originalKeys[0], listOf(first, duplicate, second).stableShelfComposeKeys()[0])
+        assertEquals(originalKeys[1], listOf(second, first, duplicate).stableShelfComposeKeys()[0])
+    }
+
+    @Test
+    fun songComposeKeysAreStableAcrossReorderingAndUniqueForDuplicates() {
+        val first = Song(videoId = "same", title = "one", artist = "artist", thumbnailUrl = null)
+        val second = Song(videoId = "other", title = "two", artist = "artist", thumbnailUrl = null)
+        val duplicate = first.copy(title = "duplicate")
+        val original = listOf(first, second, duplicate)
+        val keys = original.stableSongComposeKeys()
+        assertEquals(3, keys.toSet().size)
+        assertEquals(keys[1], listOf(second, first, duplicate).stableSongComposeKeys()[0])
+        assertEquals(keys[0], listOf(first, duplicate, second).stableSongComposeKeys()[0])
+    }
+
+    @Test
     fun aReorderedReleaseShelfUnderAnotherTitleIsARepeat() {
         val albums = HomeShelf("Albums & singles", (1..10).map { album("a$it") })
         val reordered = HomeShelf("New albums & singles", (10 downTo 2).map { album("a$it") } + album("b"))

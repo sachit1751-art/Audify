@@ -201,7 +201,7 @@ fun TranslationLanguageDialog(
                 // language, so it has no name to match and filtering it in on a
                 // near-miss would be noise.
                 if (query.isBlank()) {
-                    item {
+                    item(key = "translation-language:app-default") {
                         LanguageChoiceRow(
                             label = stringResource(R.string.translation_language_app_default),
                             detail = stringResource(R.string.translation_language_subtitle),
@@ -231,7 +231,7 @@ fun TranslationLanguageDialog(
                     )
                 }
                 if (shown.isEmpty()) {
-                    item {
+                    item(key = "translation-language:no-match") {
                         Text(
                             text = stringResource(R.string.no_languages_match),
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),

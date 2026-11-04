@@ -164,7 +164,7 @@ private fun HeroShelfSkeleton() {
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 userScrollEnabled = false,
             ) {
-                items(2) {
+                items(2, key = { "skeleton-slot:$it" }) {
                     ShimmerBox(
                         modifier = Modifier.width(cardWidth).aspectRatio(HERO_CARD_RATIO),
                         shape = RoundedCornerShape(18.dp),
@@ -188,7 +188,7 @@ fun LazyListScope.recentlyPlayedSkeleton(listLayout: Boolean) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         userScrollEnabled = false,
                     ) {
-                        item {
+                        item(key = "skeleton:track-column") {
                             Column(Modifier.width(columnWidth)) {
                                 repeat(4) { index -> CompactSongRowSkeleton(index) }
                             }
@@ -203,7 +203,7 @@ fun LazyListScope.recentlyPlayedSkeleton(listLayout: Boolean) {
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         userScrollEnabled = false,
                     ) {
-                        items(2) {
+                        items(2, key = { "skeleton-slot:$it" }) {
                             ShimmerBox(
                                 modifier = Modifier.width(cardWidth).aspectRatio(HERO_CARD_RATIO),
                                 shape = RoundedCornerShape(18.dp),
@@ -243,7 +243,7 @@ fun ShelfSkeleton(index: Int = 0, cardWidth: Dp = SHELF_CARD_WIDTH, cardCorner: 
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             userScrollEnabled = false,
         ) {
-            items(3) { card ->
+            items(3, key = { "skeleton-card:$it" }) { card ->
                 Column(Modifier.width(cardWidth)) {
                     ShimmerBox(
                         modifier = Modifier.width(cardWidth).aspectRatio(1f),
@@ -308,7 +308,7 @@ fun ReplayCardRowSkeleton(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 userScrollEnabled = false,
             ) {
-                items(2) {
+                items(2, key = { "skeleton-slot:$it" }) {
                     ShimmerBox(
                         modifier = Modifier.width(minOf(292.dp, maxWidth * 0.86f)).height(144.dp),
                         shape = RoundedCornerShape(20.dp),
@@ -369,7 +369,7 @@ fun LazyListScope.detailSkeleton(isArtist: Boolean) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         userScrollEnabled = false,
                     ) {
-                        item {
+                        item(key = "skeleton:track-column") {
                             Column(Modifier.width(columnWidth)) {
                                 repeat(4) { index -> CompactSongRowSkeleton(index) }
                             }

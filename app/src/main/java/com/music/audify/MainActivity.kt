@@ -4734,6 +4734,7 @@ private fun AudifyApp(
                 PlaylistPickerSheet(
                     playlists = pickerPlaylists,
                     loading = playlistsLoading,
+                    signedIn = signedIn,
                     song = target,
                     startCreating = target == null,
                     onAdd = { picked ->

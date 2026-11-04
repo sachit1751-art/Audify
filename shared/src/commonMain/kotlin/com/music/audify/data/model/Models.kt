@@ -440,6 +440,30 @@ data class AccountChannel(
     val key: String get() = pageId ?: dataSyncId ?: name
 }
 
+/** Stable, duplicate-safe Compose keys for dynamically reordered shelf cards. */
+fun List<ShelfItem>.stableShelfComposeKeys(): List<String> {
+    val occurrences = HashMap<String, Int>()
+    return map { item ->
+        val identity = item.videoId?.takeIf(String::isNotBlank)?.let { "track:$it" }
+            ?: item.browseId?.takeIf(String::isNotBlank)?.let { "browse:$it" }
+            ?: "text:${item.title}:${item.subtitle}"
+        val occurrence = occurrences.getOrDefault(identity, 0)
+        occurrences[identity] = occurrence + 1
+        "$identity#$occurrence"
+    }
+}
+
+/** Stable, duplicate-safe Compose keys for track rows in dynamic feeds. */
+fun List<Song>.stableSongComposeKeys(): List<String> {
+    val occurrences = HashMap<String, Int>()
+    return map { song ->
+        val identity = "track:${song.videoId}"
+        val occurrence = occurrences.getOrDefault(identity, 0)
+        occurrences[identity] = occurrence + 1
+        "$identity#$occurrence"
+    }
+}
+
 data class HomeShelf(
     val title: String,
     val items: List<ShelfItem>,

@@ -92,7 +92,7 @@ fun ExploreScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 if (showTitle) {
-                    item {
+                    item(key = "explore:title") {
                         Text(
                             text = stringResource(Res.string.explore),
                             style = MaterialTheme.typography.displayLarge,
@@ -109,8 +109,8 @@ fun ExploreScreen(
                     }
                 }
                 when (state) {
-                    UiState.Loading -> item { ExploreSkeletonRows(columns) }
-                    is UiState.Error -> item {
+                    UiState.Loading -> item(key = "explore:loading") { ExploreSkeletonRows(columns) }
+                    is UiState.Error -> item(key = "explore:error") {
                         MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
                     }
                     is UiState.Success -> {
@@ -346,7 +346,7 @@ fun MoodGenrePlaylistsScreen(
         contentPadding = contentPadding,
         modifier = modifier.fillMaxSize(),
     ) {
-        item {
+        item(key = "explore-feed:title:$title") {
             Text(
                 text = title,
                 style = MaterialTheme.typography.displayLarge,
@@ -358,10 +358,10 @@ fun MoodGenrePlaylistsScreen(
         }
         when (state) {
             UiState.Loading -> feedSkeleton()
-            is UiState.Error -> item {
+            is UiState.Error -> item(key = "explore-feed:error") {
                 MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
             }
-            is UiState.Success -> items(state.data, key = { it.title }) { shelf ->
+            is UiState.Success -> items(state.data, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
                 Shelf(shelf = shelf, onItemClick = onItemClick)
             }
         }

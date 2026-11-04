@@ -31,7 +31,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -40,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -51,6 +54,7 @@ import com.music.audify.data.YtMusicRepository
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.LibraryPage
 import com.music.audify.data.model.ShelfItem
+import com.music.audify.data.model.stableShelfComposeKeys
 import com.music.audify.data.model.UiState
 import com.music.audify.data.settings.LibrarySort
 import com.music.audify.ui.AppUi
@@ -136,7 +140,7 @@ fun LibraryScreen(
             contentPadding = contentPadding,
         ) {
             if (showTitle) {
-                item {
+                item(key = "library:title") {
                     Text(
                         text = stringResource(Res.string.library),
                         style = MaterialTheme.typography.displayLarge,
@@ -182,7 +186,7 @@ fun LibraryScreen(
                         onShowAll = { onShowAll(emptyPlaylists) },
                     )
                 }
-                item {
+                item(key = "library:sign-in") {
                     MessageState(
                         message = stringResource(Res.string.library_sign_in_description),
                         actionLabel = stringResource(Res.string.sign_in),
@@ -194,7 +198,7 @@ fun LibraryScreen(
             }
             when (state) {
                 is UiState.Loading -> librarySkeleton()
-                is UiState.Error -> item {
+                is UiState.Error -> item(key = "library:error") {
                     MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
                 }
                 is UiState.Success -> {
@@ -380,6 +384,7 @@ internal fun LibraryGridShelf(
 ) {
     val leadingCount = if (leadingCard != null) 1 else 0
     val visibleItems = shelf.items.take((LIBRARY_ROW_MAX_ITEMS - leadingCount).coerceAtLeast(0))
+    val visibleItemKeys = remember(visibleItems) { visibleItems.stableShelfComposeKeys() }
     Column(Modifier.padding(bottom = 26.dp)) {
         SectionHeader(
             title = shelf.title,
@@ -391,7 +396,7 @@ internal fun LibraryGridShelf(
             horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
         ) {
             leadingCard?.let { card -> item(key = "leading") { card() } }
-            items(visibleItems) { item ->
+            itemsIndexed(visibleItems, key = { index, _ -> visibleItemKeys[index] }) { _, item ->
                 ShelfCard(
                     item = item,
                     onClick = { onItemClick(item) },
@@ -427,6 +432,7 @@ fun LibraryGridPage(
     // more deliberate signal than a pin and is left to reorder the whole grid,
     // pinned cards included.
     val sortedShelf = shelf.pinnedFirst(pinnedPlaylists).sortedForLibrary(librarySort)
+    val sortedItemKeys = remember(sortedShelf.items) { sortedShelf.items.stableShelfComposeKeys() }
     BoxWithConstraints(modifier.fillMaxSize()) {
         val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
         LazyVerticalGrid(
@@ -448,7 +454,7 @@ fun LibraryGridPage(
                     )
                 }
             }
-            items(sortedShelf.items, key = { it.browseId ?: it.title }) { item ->
+            gridItemsIndexed(sortedShelf.items, key = { index, _ -> sortedItemKeys[index] }) { _, item ->
                 ShelfCard(
                     item = item,
                     onClick = { onItemClick(item) },

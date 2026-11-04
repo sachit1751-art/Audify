@@ -2,6 +2,8 @@
 // Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.data.model.stableSongComposeKeys
+
 import com.music.audify.data.model.toSong
 import com.music.audify.ui.components.SwipeToQueueBox
 import com.music.audify.ui.components.TrackArtworkThumbnail
@@ -295,7 +297,7 @@ fun SearchScreen(
                     }
                 }
                 results == null -> if (history.isEmpty()) {
-                    item { MessageState(stringResource(Res.string.search_empty)) }
+                    item(key = "search:empty") { MessageState(stringResource(Res.string.search_empty)) }
                 } else {
                     recentSearches(
                         history = history,
@@ -309,7 +311,7 @@ fun SearchScreen(
                     )
                 }
                 results is UiState.Loading -> songListSkeleton(circular = filter == SearchFilter.ARTISTS)
-                results is UiState.Error -> item { MessageState(results.message) }
+                results is UiState.Error -> item(key = "search:error") { MessageState(results.message) }
                 results is UiState.Success -> {
                     val tracks = results.data
                         .mapNotNull { row -> when (row) {
@@ -458,8 +460,9 @@ private fun LazyListScope.librarySearchResults(
             }
         } else {
             val tracks = results.data
+            val trackKeys = tracks.stableSongComposeKeys()
             val isCurrentRow = playingRowMatcher(tracks, currentSong)
-            itemsIndexed(tracks, key = { index, song -> "${if (addons) "addon" else "library"}_${song.videoId}_$index" }) { index, song ->
+            itemsIndexed(tracks, key = { index, _ -> "${if (addons) "addon" else "library"}_${trackKeys[index]}" }) { index, song ->
                 SongRow(
                     song = song,
                     onClick = { onSongClick(tracks, index) },

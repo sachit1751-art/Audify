@@ -62,6 +62,7 @@ import com.music.audify.download.Downloads
 import android.util.LruCache
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -1025,11 +1026,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
         if (playlist.playlistId.startsWith("local:playlist:")) {
-            return if (com.music.audify.data.spotify.LocalPlaylistStore.addSongs(playlist.playlistId, listOf(song)) > 0) {
-                AddOutcome.ADDED
-            } else if (com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(playlist.playlistId)
-                    ?.songs?.any { it.videoId == song.videoId } == true
-            ) AddOutcome.ALREADY_THERE else AddOutcome.FAILED
+            return try {
+                if (com.music.audify.data.spotify.LocalPlaylistStore.addSongs(playlist.playlistId, listOf(song)) > 0) {
+                    AddOutcome.ADDED
+                } else if (com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(playlist.playlistId)
+                        ?.songs?.any { it.videoId == song.videoId } == true
+                ) AddOutcome.ALREADY_THERE else AddOutcome.FAILED
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                android.util.Log.w("MainViewModel", "Could not add song to local playlist ${playlist.playlistId}", failure)
+                AddOutcome.FAILED
+            }
         }
         if (!requireSignIn()) return AddOutcome.FAILED
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }
