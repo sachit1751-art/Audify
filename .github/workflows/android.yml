@@ -100,7 +100,9 @@ jobs:
         run: ./gradlew --no-daemon :app:lintProdRelease :tv:lintProdRelease :wearos:lintProdRelease
 
       - name: Build all production APK variants
-        run: ./gradlew --no-daemon :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease
+        # Serialize memory-heavy R8 workers so phone and TV shrinking do not
+        # compete for heap on the hosted runner.
+        run: ./gradlew --no-daemon --max-workers=1 :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease
 
       - name: Stage exactly four release APKs in the required order
         shell: bash
