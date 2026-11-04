@@ -143,19 +143,12 @@ jobs:
           BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           AAPT="$BUILD_TOOLS/aapt"
           APKSIGNER="$BUILD_TOOLS/apksigner"
-          REFERENCE_APK="$RUNNER_TEMP/audify-v1.8.7-reference.apk"
-          curl --fail --location --silent --show-error \
-            "https://github.com/${GITHUB_REPOSITORY}/releases/download/v1.8.7/Audify-1.8.7_arm64-v8a.apk" \
-            --output "$REFERENCE_APK"
-          "$APKSIGNER" verify --verbose "$REFERENCE_APK"
-          REFERENCE_CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$REFERENCE_APK" 2>&1)"
-          EXPECTED_CERT="$(printf '%s\n' "$REFERENCE_CERT_OUTPUT" | grep -Eio '[0-9a-f]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]' || true)"
-          test -n "$EXPECTED_CERT" || {
-            echo "::error::Could not extract the published v1.8.7 signing certificate SHA-256 digest. apksigner output follows:"
-            printf '%s\n' "$REFERENCE_CERT_OUTPUT"
-            exit 1
-          }
-          echo "Reference signing certificate (v1.8.7): $EXPECTED_CERT"
+          # v1.8.9 intentionally starts a new signing identity after the
+          # previous private key became unavailable. Pin its public
+          # certificate fingerprint so stale Actions secrets cannot silently
+          # publish another incompatible signing identity.
+          EXPECTED_CERT="4bde8155328a9a8659ce6b75d1a0df2e4811c0ccdc555a52ccb3df2a4be94e21"
+          echo "Expected new Audify signing certificate: $EXPECTED_CERT"
           for apk in \
             "dist/Audify-$VERSION_NAME.apk" \
             "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \
@@ -177,7 +170,7 @@ jobs:
             test -n "$cert"
             echo "APK signing certificate SHA-256 ($apk): $cert"
             if [ "$cert" != "$EXPECTED_CERT" ]; then
-              echo "::error::Signing certificate mismatch in $apk; it does not match the published v1.8.7 app."
+              echo "::error::Signing certificate mismatch in $apk; it does not match the approved v1.8.9 signing identity."
               exit 1
             fi
             echo "Verified: $apk ($expected_package, $VERSION_NAME/$VERSION_CODE)"
@@ -207,7 +200,7 @@ jobs:
             done
             echo "Verified universal native payload: $apk (armeabi-v7a, arm64-v8a, x86_64)"
           done
-          echo "All four APKs match the signing certificate of the published v1.8.7 app."
+          echo "All four APKs match the approved new Audify signing certificate."
 
       - name: Report dry-run completion
         if: ${{ inputs.dry_run == true }}
