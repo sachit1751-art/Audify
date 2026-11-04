@@ -297,7 +297,10 @@ private fun NewPlaylistForm(
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = stringResource(R.string.saved_to_youtube_music_account),
+                    text = stringResource(
+                        if (signedIn) R.string.playlist_saved_to_account
+                        else R.string.playlist_saved_on_device_subtitle,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -418,7 +418,7 @@ object AppSettings {
     val reduceDynamicBlur = MutableStateFlow(false)
 
     /** Progressive blur feathering at the top and bottom edges of scrollable content. */
-    val progressiveScrollEdgeBlur = MutableStateFlow(true)
+    val progressiveScrollEdgeBlur = MutableStateFlow(false)
 
     /** Real backdrop-sampled glass (blur, lens refraction) on the floating nav bar, Android 12+ only. */
     val liquidGlass = MutableStateFlow(false)
@@ -811,6 +811,8 @@ object AppSettings {
         prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         this.authStore = authStore
         com.music.audify.data.spotify.LocalPlaylistStore.init(context)
+        com.music.audify.data.stats.LocalLibraryStore.init(context)
+        com.music.audify.data.stats.AutomaticBackupScheduler.schedule(context)
         readAll()
         watchConnection(context)
     }
@@ -901,7 +903,7 @@ object AppSettings {
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
-        progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, true)
+        progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, false)
         liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, false)
         lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
         lyricsOffsetMs.value = prefs.getInt(KEY_LYRICS_OFFSET_MS, 0)

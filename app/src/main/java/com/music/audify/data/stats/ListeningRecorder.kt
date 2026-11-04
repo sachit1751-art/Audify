@@ -82,7 +82,10 @@ object ListeningRecorder {
             PLAY_FLOOR_MS
         }
         val counts = !playCounted && playedThisTrack >= threshold
-        if (counts) playCounted = true
+        if (counts) {
+            playCounted = true
+            LocalLibraryStore.recordPlay(enriched(song))
+        }
 
         ListeningStats.record(enriched(song), step, counts)
 

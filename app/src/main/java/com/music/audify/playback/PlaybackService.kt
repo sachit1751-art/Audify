@@ -3213,17 +3213,49 @@ class PlaybackService : MediaLibraryService() {
             LikeStatus.LIKE
         }
 
+        val song = player?.currentMediaItem?.takeIf { it.mediaId == videoId }?.let { item ->
+            val metadata = item.mediaMetadata
+            com.music.audify.data.model.Song(
+                videoId = videoId,
+                title = metadata.title?.toString().orEmpty(),
+                artist = metadata.artist?.toString().orEmpty(),
+                thumbnailUrl = metadata.artworkUri?.toString(),
+            )
+        }
+        song?.let { com.music.audify.data.stats.LocalLibraryStore.setFavorite(it, target == LikeStatus.LIKE) }
+
         // Match the player UI: update both surfaces immediately, then reconcile
-        // the optimistic state with YouTube in the background.
+        // the account copy in the background. The local copy remains authoritative.
         LikeState.set(videoId, target)
         refreshCustomLayouts()
         favoriteActionJob = scope.launch {
-            YtMusicRepository.rate(videoId, target)
-                .onFailure {
-                    LikeState.set(videoId, previous)
-                    refreshCustomLayouts()
-                    TrackLog.w("Audify", "notification favorite failed: ${it.message}", about = videoId)
-                }
+            if (song != null) {
+                com.music.audify.data.spotify.LocalPlaylistStore.syncFavorites(
+                    com.music.audify.data.stats.LocalLibraryStore.favorites.value,
+                )
+            }
+            val auth = com.music.audify.auth.AuthStore(this@PlaybackService)
+            val session = auth.activeSession
+            val profileId = auth.activeProfileId ?: session?.activeProfileId
+            YtMusicRepository.rate(videoId, target).fold(
+                onSuccess = {
+                    if (session != null && profileId != null) runCatching {
+                        com.music.audify.data.local.LocalFirstRepository.initialize(this@PlaybackService)
+                        com.music.audify.data.local.LocalFirstRepository.saveFavoriteSync(
+                            videoId, session.accountId, profileId, target,
+                        )
+                    }
+                },
+                onFailure = { failure ->
+                    TrackLog.w("Audify", "notification favorite sync failed: ${failure.message}", about = videoId)
+                    if (session != null && profileId != null) runCatching {
+                        com.music.audify.data.local.LocalFirstRepository.initialize(this@PlaybackService)
+                        com.music.audify.data.local.LocalFirstRepository.enqueueFavorite(
+                            session.accountId, profileId, videoId, target, song,
+                        )
+                    }
+                },
+            )
         }
     }
 

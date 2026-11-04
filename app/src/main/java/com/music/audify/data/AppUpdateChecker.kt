@@ -22,6 +22,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Call
 import java.io.File
 
 /**
@@ -43,6 +44,16 @@ object AppUpdateChecker {
         val apkUrl: String?,
         /** The release's own Markdown body, shown as this update's "what's new". */
         val notes: String?,
+        /** Old installations cannot be updated in place because the release certificate changed. */
+        val requiresManualMigration: Boolean,
+    )
+
+    data class LatestReleaseInfo(
+        val version: String,
+        val releaseUrl: String,
+        val apkUrl: String?,
+        val notes: String?,
+        val updateAvailable: Boolean,
     )
 
     private const val CACHE_SUBDIR = "updates"
@@ -54,6 +65,12 @@ object AppUpdateChecker {
 
     private val _available = MutableStateFlow<UpdateInfo?>(null)
     val available = _available.asStateFlow()
+
+    private val _latestRelease = MutableStateFlow<LatestReleaseInfo?>(null)
+    val latestRelease = _latestRelease.asStateFlow()
+
+    private val _checking = MutableStateFlow(false)
+    val checking = _checking.asStateFlow()
 
     /** Where this update's APK download currently stands, for the dialog's progress row. */
     sealed interface DownloadState {
@@ -70,21 +87,53 @@ object AppUpdateChecker {
     @Volatile
     private var downloadCancelled = false
 
-    suspend fun check() = withContext(Dispatchers.IO) {
-        runCatching {
+    @Volatile
+    private var activeDownloadCall: Call? = null
+
+    suspend fun check(): Boolean? = withContext(Dispatchers.IO) {
+        _checking.value = true
+        try {
+            runCatching {
             val request = Request.Builder().url(LATEST_RELEASE_URL).build()
             val body = Http.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) null else response.body?.string()
-            } ?: return@runCatching
-            val release = json.parseToJsonElement(body) as? JsonObject ?: return@runCatching
-            val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
-            val url = release["html_url"]?.jsonPrimitive?.contentOrNull ?: return@runCatching
+                check(response.isSuccessful) { "Update check failed: HTTP ${response.code}" }
+                response.body?.string() ?: error("Empty update response")
+            }
+            val release = json.parseToJsonElement(body) as? JsonObject
+                ?: error("Invalid update response")
+            val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull
+                ?: error("Release tag missing")
+            val url = release["html_url"]?.jsonPrimitive?.contentOrNull
+                ?: error("Release URL missing")
             val apkUrl = apkAssetUrl(release)
             val notes = release["body"]?.jsonPrimitive?.contentOrNull
             val latest = tag.removePrefix("v")
-            if (isNewer(latest, BuildConfig.VERSION_NAME)) {
-                _available.value = UpdateInfo(latest, url, apkUrl, notes)
+            val updateAvailable = isNewer(latest, BuildConfig.VERSION_NAME)
+            val latestInfo = LatestReleaseInfo(
+                version = latest,
+                releaseUrl = url,
+                apkUrl = apkUrl,
+                notes = notes,
+                updateAvailable = updateAvailable,
+            )
+            val result = if (updateAvailable) {
+                _available.value = UpdateInfo(
+                    version = latest,
+                    releaseUrl = url,
+                    apkUrl = apkUrl,
+                    notes = notes,
+                    requiresManualMigration = requiresManualMigration(BuildConfig.VERSION_NAME, latest),
+                )
+                true
+            } else {
+                _available.value = null
+                false
             }
+            _latestRelease.value = latestInfo
+            result
+            }.getOrNull()
+        } finally {
+            _checking.value = false
         }
     }
 
@@ -157,13 +206,18 @@ object AppUpdateChecker {
                 client = Http.client,
                 isCancelled = { downloadCancelled },
                 onProgress = { fraction -> _download.value = DownloadState.Downloading(fraction) },
+                onCallCreated = { activeDownloadCall = it },
             )
             if (!completed) {
+                target.delete()
                 _download.value = DownloadState.Idle
                 return@withContext
             }
             _download.value = DownloadState.Ready(target)
         }.onFailure { error ->
+            File(context.cacheDir, CACHE_SUBDIR).listFiles()
+                ?.filter { it.name == "audify-${info.version}.apk" }
+                ?.forEach { it.delete() }
             _download.value = if (downloadCancelled) {
                 DownloadState.Idle
             } else {
@@ -175,6 +229,7 @@ object AppUpdateChecker {
     /** Stops an in-flight download; the next read loop sees this and bails. */
     fun cancelDownload() {
         downloadCancelled = true
+        activeDownloadCall?.cancel()
     }
 
     /** Back to square one after a failure, so the dialog offers Download again. */
@@ -189,30 +244,49 @@ object AppUpdateChecker {
         client: OkHttpClient = Http.client,
         isCancelled: () -> Boolean = { false },
         onProgress: (Float) -> Unit = {},
+        onCallCreated: (Call?) -> Unit = {},
     ): Boolean {
         val request = Request.Builder().url(url).build()
-        client.newCall(request).execute().use { response ->
-            check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
-            val body = response.body ?: error("Empty download body")
-            val total = body.contentLength().takeIf { it > 0 }
+        val call = client.newCall(request)
+        onCallCreated(call)
+        try {
+            call.execute().use { response ->
+                check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
+                val body = response.body ?: error("Empty download body")
+                val total = body.contentLength().takeIf { it > 0 }
 
-            body.byteStream().use { input ->
-                target.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var readTotal = 0L
-                    while (true) {
-                        if (isCancelled()) return false
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        output.write(buffer, 0, read)
-                        readTotal += read
-                        total?.let { onProgress((readTotal.toFloat() / it).coerceIn(0f, 1f)) }
+                body.byteStream().use { input ->
+                    var cancelled = false
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var readTotal = 0L
+                        while (true) {
+                            if (isCancelled()) {
+                                cancelled = true
+                                break
+                            }
+                            val read = input.read(buffer)
+                            if (read == -1) break
+                            output.write(buffer, 0, read)
+                            readTotal += read
+                            total?.let { onProgress((readTotal.toFloat() / it).coerceIn(0f, 1f)) }
+                        }
+                    }
+                    if (cancelled) {
+                        target.delete()
+                        return false
                     }
                 }
             }
+        } finally {
+            onCallCreated(null)
         }
         return true
     }
+
+    /** v1.8.7 and older use the retired certificate and must be reinstalled manually. */
+    internal fun requiresManualMigration(current: String, latest: String): Boolean =
+        !isNewer(current, "1.8.7") && !isNewer("1.8.9", latest)
 
     /**
      * Hands a downloaded APK to the system installer.

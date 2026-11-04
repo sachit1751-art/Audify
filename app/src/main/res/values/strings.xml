@@ -4,6 +4,8 @@ Project: AUDIFY
 -->
 <resources>
     <string name="saved_to_youtube_music_account">Saved to YouTube Music when signed in; otherwise on this device</string>
+    <string name="playlist_saved_to_account" translatable="false">Saved to your YouTube Music account</string>
+    <string name="playlist_saved_on_device_subtitle" translatable="false">Saved on this device · No account needed</string>
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">Now playing</string>
 <string name="download_notification_title">Downloading</string>
@@ -119,6 +121,25 @@ Project: AUDIFY
     <string name="update_downloading_body">Downloading audify %1$s…</string>
     <string name="update_ready_body">audify %1$s is ready to install.</string>
     <string name="update_failed_body">Couldn’t download audify %1$s.</string>
+    <string name="update_manual_migration_body" translatable="false">Important: Audify’s signing certificate changed. If you have Audify 1.8.7 or older, a normal in-app update will not install. First back up any important data stored only in Audify. Open the v1.8.9 release below, download the correct APK for your device, uninstall your existing Audify app, then install the APK you downloaded. Do not try to install it over the old app. Release: https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9</string>
+    <string name="update_migration_complete_body" translatable="false">The signing certificate changed in v1.8.9, so Audify 1.8.7 and older had to be uninstalled before this version could be installed. Data stored only inside the old installation may not have carried over. If you made a backup, restore it from Audify’s backup tools. You can find this version and its downloads at: https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9</string>
+    <string name="update_manual_migration_title" translatable="false">You’re using the new Audify installation.</string>
+    <string name="open_v189_release" translatable="false">Open v1.8.9 release</string>
+    <string name="check_for_updates" translatable="false">Check for updates</string>
+    <string name="check_for_updates_subtitle" translatable="false">Check GitHub for the latest Audify version</string>
+    <string name="app_is_up_to_date" translatable="false">Audify is up to date.</string>
+    <string name="update_check_failed" translatable="false">Couldn’t check for updates. Check your internet connection.</string>
+    <string name="latest_version" translatable="false">Latest version</string>
+    <string name="latest_version_checking" translatable="false">Checking for the latest version…</string>
+    <string name="latest_version_unavailable" translatable="false">Latest version information is unavailable.</string>
+    <string name="latest_version_current" translatable="false">You’re on the latest version.</string>
+    <string name="latest_version_update_available" translatable="false">An update is available.</string>
+    <plurals name="latest_version_behind" translatable="false">
+        <item quantity="one">You’re %1$d version behind.</item>
+        <item quantity="other">You’re %1$d versions behind.</item>
+    </plurals>
+    <string name="latest_version_number" translatable="false">Latest release · v%1$s</string>
+    <string name="download_latest_version" translatable="false">Download latest version</string>
     <string name="download_now">Download Now</string>
     <string name="install_now">Install Now</string>
     <string name="later">Later</string>
@@ -169,8 +190,17 @@ Project: AUDIFY
     <string name="work_out_genres">Work out genres</string>
     <string name="export_data">Export data</string>
     <string name="export_data_subtitle">Settings and listening history, as one JSON file</string>
+    <string name="backup_reminder_due" translatable="false">No external backup in 30 days · Export a copy now</string>
+    <string name="backup_automatic_enabled" translatable="false">Weekly automatic device backups enabled · External copy recommended</string>
     <string name="import_data">Import data</string>
     <string name="import_data_subtitle">Replaces the settings and history on this device</string>
+    <string name="restore_preview_title" translatable="false">Review backup before restoring</string>
+    <string name="restore_preview_body" translatable="false">Favorites: %1$d\nListening history: %2$d\nPlaylists: %3$d\nListening-stat months: %4$d\nSettings: %5$d\n\nBackup version: %6$s\nCreated: %7$s\n\nRestoring replaces this device’s backed-up data.</string>
+    <string name="restore_backup" translatable="false">Restore backup</string>
+    <string name="youtube_sync_status" translatable="false">YouTube Music sync</string>
+    <string name="youtube_sync_complete" translatable="false">Everything queued for this device is synchronized</string>
+    <string name="youtube_sync_pending" translatable="false">%1$d changes waiting to synchronize</string>
+    <string name="youtube_sync_needs_review" translatable="false">%1$d pending · %2$d conflicts need review</string>
     <string name="import_backup_title">Import a backup?</string>
     <string name="choose_file">Choose file</string>
     <string name="top_artists">Top artists</string>
@@ -202,6 +232,8 @@ Project: AUDIFY
     <string name="appearance">Appearance</string>
     <string name="storage">Storage</string>
     <string name="your_data">Your data</string>
+    <string name="backup">Backup</string>
+    <string name="updates">Updates</string>
     <string name="miscellaneous">Miscellaneous</string>
 <string name="on_wifi">On Wi-Fi</string>
     <string name="on_mobile_data">On mobile data</string>

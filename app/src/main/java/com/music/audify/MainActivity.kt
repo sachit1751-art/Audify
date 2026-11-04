@@ -775,7 +775,30 @@ private fun AudifyApp(
     // doesn't bring it back — only a fresh launch does.
     var updateDialogShown by rememberSaveable { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var showMigrationNotice by rememberSaveable { mutableStateOf(false) }
+    val migrationNoticePreferences = remember(context) {
+        context.getSharedPreferences("audify_migration_notice", Context.MODE_PRIVATE)
+    }
+    val dismissMigrationNotice: () -> Unit = {
+        migrationNoticePreferences.edit().putBoolean("v1_8_9_seen", true).apply()
+        showMigrationNotice = false
+    }
     val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
+    val latestRelease by AppUpdateChecker.latestRelease.collectAsStateWithLifecycle()
+    val updateCheckInProgress by AppUpdateChecker.checking.collectAsStateWithLifecycle()
+
+    // A clean reinstall cannot know that 1.8.7 was previously present: Android
+    // removes the old app's private data when it is uninstalled. Show the
+    // migration instructions once on the first 1.8.9 launch instead, after
+    // onboarding, so the user sees them even after completing the manual swap.
+    LaunchedEffect(onboardingComplete) {
+        if (
+            onboardingComplete && BuildConfig.VERSION_NAME == "1.8.9" &&
+            !migrationNoticePreferences.getBoolean("v1_8_9_seen", false)
+        ) {
+            showMigrationNotice = true
+        }
+    }
 
     /**
      * The single gate both surfaces read, so the icon can't announce the update
@@ -784,8 +807,8 @@ private fun AudifyApp(
      */
     val updateNotice = updateAvailable
 
-    LaunchedEffect(updateNotice) {
-        if (updateNotice != null && !updateDialogShown) {
+    LaunchedEffect(updateNotice, showMigrationNotice) {
+        if (updateNotice != null && !updateDialogShown && !showMigrationNotice) {
             updateDialogShown = true
             showUpdateDialog = true
         }
@@ -2528,7 +2551,7 @@ private fun AudifyApp(
             autoplayEnabled = autoplayEnabled,
             signedIn = signedIn,
             likeStatus = likeStatuses[song.videoId] ?: LikeStatus.INDIFFERENT,
-            onToggleLike = { viewModel.toggleLike(song.videoId) },
+            onToggleLike = { viewModel.toggleLike(song.videoId, song) },
             // The service owns both the queue and the Shuffle state. Keeping
             // the toggle on that side prevents the UI from changing the icon
             // before its asynchronous reorder command has actually landed.
@@ -2734,6 +2757,7 @@ private fun AudifyApp(
         BackHandler(enabled = replayDrawable && replayStory != null && !showReplayShare) { replayStory = null }
         BackHandler(enabled = replayDrawable && showReplayShare) { showReplayShare = false }
         BackHandler(enabled = showUpdateDialog) { showUpdateDialog = false }
+        BackHandler(enabled = showMigrationNotice) { dismissMigrationNotice() }
         BackHandler(enabled = showListenBrainzLogin) { showListenBrainzLogin = false }
         BackHandler(enabled = showLastfmLogin) { showLastfmLogin = false }
         BackHandler(enabled = discordDialog != null) { discordDialog = null }
@@ -3027,6 +3051,20 @@ private fun AudifyApp(
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                                 onAppLanguage = { showAppLanguage = true },
                                 onEditSignatureApi = { editingSignatureApi = true },
+                                latestRelease = latestRelease,
+                                updateCheckInProgress = updateCheckInProgress,
+                                onCheckForUpdates = {
+                                    scope.launch {
+                                        if (AppUpdateChecker.check() == null) {
+                                            Toast.makeText(
+                                                context,
+                                                R.string.update_check_failed,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                    }
+                                },
+                                onDownloadLatest = { showUpdateDialog = updateAvailable != null },
                                 contentPadding = listPadding,
                             )
                         } else if (page != null) {
@@ -4473,7 +4511,9 @@ private fun AudifyApp(
             // page the account can actually edit, and only for a row that
             // carries the per-entry id a removal is expressed in.
             val editable = viewModel.editablePlaylist(detail?.browseId)
-                ?.takeIf { !fromPlayer && song.setVideoId != null }
+                ?.takeIf {
+                    !fromPlayer && (song.setVideoId != null || detail?.browseId?.startsWith("local:playlist:") == true)
+                }
             // Asked of the cache's index off the main thread as the menu opens,
             // so "Remove from cache" is only offered for a track it holds.
             // Re-asked when the cache changes, which is what drops the row
@@ -4519,7 +4559,7 @@ private fun AudifyApp(
                     },
                 // The sheet stays up for a rating: it shows the new state
                 // in place, and people often thumb a song and then queue it.
-                onToggleLike = { viewModel.toggleLike(song.videoId) },
+                onToggleLike = { viewModel.toggleLike(song.videoId, song) },
                 onToggleDislike = {
                     val previousStatus = viewModel.toggleDislike(song.videoId)
                     if (
@@ -4868,12 +4908,19 @@ private fun AudifyApp(
             // Compose. Both are read from collected state so this sheet actually
             // recomposes when the answer arrives.
             val ownedPlaylists by viewModel.playlistOwned.collectAsStateWithLifecycle()
-            val playlist = target.browseId
-                ?.takeIf { signedIn && ownedPlaylists[it] == true }
-                ?.let { id -> playlists.firstOrNull { it.browseId == id } }
             val localPlaylist = target.browseId
                 ?.takeIf { it.startsWith("local:playlist:") }
                 ?.let(com.music.audify.data.spotify.LocalPlaylistStore::getPlaylist)
+            val playlist = localPlaylist?.let { local ->
+                UserPlaylist(
+                    playlistId = local.browseId,
+                    title = local.title,
+                    subtitle = "${local.songs.size} songs · On this device",
+                    thumbnailUrl = local.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+                )
+            } ?: target.browseId
+                ?.takeIf { signedIn && ownedPlaylists[it] == true }
+                ?.let { id -> playlists.firstOrNull { it.browseId == id } }
             val remote = target.browseId?.startsWith("local:") == false
             // Spotify playlists saved on this device ("local:playlist:sp_local_…")
             // carry real YouTube video ids, so they download like a remote
@@ -4964,12 +5011,12 @@ private fun AudifyApp(
                         }
                     },
                 onSyncToYouTubeMusic = localPlaylist
-                    ?.takeIf { signedIn && it.youtubePlaylistId == null }
+                    ?.takeIf { signedIn }
                     ?.let { local ->
                         {
                             viewModel.syncLocalPlaylist(local.browseId) { synced, remoteBrowseId ->
                                 if (synced) {
-                                    showQueueNotice("Playlist synced to YouTube Music")
+                                    showQueueNotice("Playlist queued for YouTube Music sync")
                                     remoteBrowseId?.let { id -> viewModel.loadPlaylists() }
                                 } else {
                                     showQueueNotice(failedMessage)
@@ -5189,19 +5236,55 @@ private fun AudifyApp(
             }
         }
 
+        // ---- v1.8.9 signing migration notice (one-time after a clean install) ----
+        if (showMigrationNotice && onboardingComplete) {
+            UpdateAvailableDialog(
+                version = BuildConfig.VERSION_NAME,
+                notes = null,
+                requiresManualMigration = true,
+                migrationAlreadyInstalled = true,
+                hazeState = hazeState,
+                onDismiss = dismissMigrationNotice,
+                onDownload = {
+                    dismissMigrationNotice()
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            "https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9".toUri(),
+                        ),
+                    )
+                },
+                onCancelDownload = dismissMigrationNotice,
+                onInstall = dismissMigrationNotice,
+                onOpenReleasePage = {
+                    dismissMigrationNotice()
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            "https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9".toUri(),
+                        ),
+                    )
+                },
+            )
+        }
+
         // ---- Update available (once per launch; held until the welcome is done) ----
         if (showUpdateDialog && onboardingComplete) {
             updateNotice?.let { update ->
                 UpdateAvailableDialog(
                     version = update.version,
                     notes = update.notes,
+                    requiresManualMigration = update.requiresManualMigration,
                     hazeState = hazeState,
                     // A download in progress keeps running behind the closed
                     // sheet — only the sheet itself goes away. The top bar's
                     // update icon reopens it onto whatever state it reached.
                     onDismiss = { showUpdateDialog = false },
                     onDownload = {
-                        if (update.apkUrl != null) {
+                        if (update.requiresManualMigration) {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
+                            showUpdateDialog = false
+                        } else if (update.apkUrl != null) {
                             scope.launch { AppUpdateChecker.downloadApk(context) }
                         } else {
                             context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))

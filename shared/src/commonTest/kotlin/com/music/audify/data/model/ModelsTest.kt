@@ -15,6 +15,15 @@ class ModelsTest {
     }
 
     @Test
+    fun localPlaylistBrowseIdsAreNotPrefixedAsRemoteYouTubeIds() {
+        val local = UserPlaylist("local:playlist:device-123", "Offline", "2 songs", null)
+        val remote = UserPlaylist("PL123", "Remote", "2 songs", null)
+
+        assertEquals("local:playlist:device-123", local.browseId)
+        assertEquals("VLPL123", remote.browseId)
+    }
+
+    @Test
     fun artworkSizeHintIsSharedAcrossTargets() {
         assertEquals(
             "https://example.test/w720-h720.jpg",

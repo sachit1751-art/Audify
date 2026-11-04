@@ -95,6 +95,16 @@ class AppUpdateCheckerTest {
     }
 
     @Test
+    fun oldCertificateInstallationsRequireManualMigrationButNewerOnesDoNot() {
+        assertTrue(AppUpdateChecker.requiresManualMigration("1.8.7", "1.8.9"))
+        assertTrue(AppUpdateChecker.requiresManualMigration("1.8.6", "1.8.9"))
+        assertTrue(AppUpdateChecker.requiresManualMigration("1.8.7", "1.8.10"))
+        assertFalse(AppUpdateChecker.requiresManualMigration("1.8.8", "1.8.9"))
+        assertFalse(AppUpdateChecker.requiresManualMigration("1.8.9", "1.8.10"))
+        assertFalse(AppUpdateChecker.requiresManualMigration("1.8.7", "1.8.8"))
+    }
+
+    @Test
     fun failedDownloadCanBeRetriedAndProducesTheCompleteApk() {
         val server = MockWebServer()
         val directory = Files.createTempDirectory("audify-updater-test").toFile()
@@ -137,6 +147,7 @@ class AppUpdateCheckerTest {
                     isCancelled = { true },
                 ),
             )
+            assertFalse("A cancelled download must not leave a partial APK", target.exists())
         } finally {
             server.shutdown()
             directory.deleteRecursively()

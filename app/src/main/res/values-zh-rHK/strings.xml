@@ -1264,4 +1264,6 @@ Project: AUDIFY
 
     <string name="wear_os_your_watches">Your watches</string>
 
+    <string name="backup">備份</string>
+    <string name="updates">更新</string>
 </resources>

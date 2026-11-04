@@ -37,16 +37,31 @@ data class LocalPlaylist(
 object LocalPlaylistStore {
     private const val PREF_NAME = "audify_local_playlists"
     private const val KEY_PLAYLISTS = "playlists_json"
+    private const val KEY_SCHEMA_VERSION = "schema_version"
+    private const val SCHEMA_VERSION = 1
 
     private lateinit var prefs: SharedPreferences
 
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists = _playlists.asStateFlow()
     private val mutationMutex = Mutex()
+    const val FAVORITES_PLAYLIST_ID = "audify_favorites"
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        migrateStorageIfNeeded()
         load()
+    }
+
+    /** Stable SharedPreferences name plus an explicit schema marker for future format migrations. */
+    private fun migrateStorageIfNeeded() {
+        val version = prefs.getInt(KEY_SCHEMA_VERSION, 0)
+        require(version <= SCHEMA_VERSION) { "Local playlist data was created by a newer Audify build" }
+        if (version < SCHEMA_VERSION) {
+            check(prefs.edit().putInt(KEY_SCHEMA_VERSION, SCHEMA_VERSION).commit()) {
+                "Could not finalize local playlist storage migration"
+            }
+        }
     }
 
     private fun load() {
@@ -78,7 +93,10 @@ object LocalPlaylistStore {
                 }
                 list.add(LocalPlaylist(id, title, songs, obj.optString("youtubePlaylistId").takeIf { it.isNotBlank() && it != "null" }))
             }
-            _playlists.value = list
+            val normalized = list.distinctBy { it.id }.map { it.copy(songs = it.songs
+                .filter { song -> song.videoId.isNotBlank() }.distinctBy { song -> song.videoId }) }
+            if (normalized != list) persistDurably(normalized)
+            _playlists.value = normalized
         }
     }
 
@@ -101,6 +119,26 @@ object LocalPlaylistStore {
             )
         }
 
+    /** Keeps the device's Favorites collection reachable through the normal playlist UI. */
+    suspend fun syncFavorites(songs: List<Song>) = withContext(Dispatchers.IO) {
+        persistBeforePublish(
+            mutex = mutationMutex,
+            persist = {
+                checkInitialized()
+                val cleanSongs = songs.distinctBy { it.videoId }
+                val updated = if (cleanSongs.isEmpty()) {
+                    _playlists.value.filterNot { it.id == FAVORITES_PLAYLIST_ID }
+                } else {
+                    listOf(LocalPlaylist(FAVORITES_PLAYLIST_ID, "Favorites", cleanSongs)) +
+                        _playlists.value.filterNot { it.id == FAVORITES_PLAYLIST_ID }
+                }
+                if (updated != _playlists.value) persistDurably(updated)
+                updated to Unit
+            },
+            publish = { _playlists.value = it },
+        )
+    }
+
     suspend fun addSongs(id: String, songs: List<Song>): Int = withContext(Dispatchers.IO) {
         persistBeforePublish(
             mutex = mutationMutex,
@@ -117,6 +155,41 @@ object LocalPlaylistStore {
                 }
                 if (additions.isNotEmpty()) persistDurably(updated)
                 updated to additions.size
+            },
+            publish = { _playlists.value = it },
+        )
+    }
+
+    suspend fun removeSong(id: String, videoId: String): Boolean = withContext(Dispatchers.IO) {
+        persistBeforePublish(
+            mutex = mutationMutex,
+            persist = {
+                checkInitialized()
+                val cleanId = id.removePrefix("local:playlist:")
+                val updated = _playlists.value.map { playlist ->
+                    if (playlist.id == cleanId) playlist.copy(songs = playlist.songs.filterNot { it.videoId == videoId })
+                    else playlist
+                }
+                val changed = updated != _playlists.value
+                if (changed) persistDurably(updated)
+                updated to changed
+            },
+            publish = { _playlists.value = it },
+        )
+    }
+
+    suspend fun reorderSongs(id: String, songs: List<Song>): Boolean = withContext(Dispatchers.IO) {
+        persistBeforePublish(
+            mutex = mutationMutex,
+            persist = {
+                checkInitialized()
+                val cleanId = id.removePrefix("local:playlist:")
+                val updated = _playlists.value.map { playlist ->
+                    if (playlist.id == cleanId) playlist.copy(songs = songs) else playlist
+                }
+                val changed = updated != _playlists.value
+                if (changed) persistDurably(updated)
+                updated to changed
             },
             publish = { _playlists.value = it },
         )
@@ -174,6 +247,69 @@ object LocalPlaylistStore {
     fun getPlaylist(id: String): LocalPlaylist? {
         val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
         return _playlists.value.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
+    }
+
+    /** Raw, versioned-by-shape snapshot included in the user's explicit backup. */
+    fun exportSnapshot(): String {
+        checkInitialized()
+        return prefs.getString(KEY_PLAYLISTS, "[]") ?: "[]"
+    }
+
+    /** Validates the complete document before replacing the current local playlists. */
+    fun importSnapshot(raw: String) {
+        checkInitialized()
+        val array = JSONArray(raw)
+        val merged = linkedMapOf<String, LocalPlaylist>()
+        for (i in 0 until array.length()) {
+            val item = array.getJSONObject(i)
+            val id = item.getString("id").trim()
+            val title = item.getString("title").trim()
+            require(id.isNotBlank() && title.isNotBlank())
+            val songsArray = item.getJSONArray("songs")
+            require(songsArray.length() <= 100_000)
+            val songs = (0 until songsArray.length()).mapNotNull { index ->
+                val song = songsArray.optJSONObject(index) ?: return@mapNotNull null
+                val videoId = song.optString("videoId").takeIf(String::isNotBlank) ?: return@mapNotNull null
+                Song(
+                    videoId = videoId,
+                    title = song.optString("title"),
+                    artist = song.optString("artist"),
+                    thumbnailUrl = song.optString("thumbnailUrl").takeIf { it.isNotBlank() && it != "null" },
+                    durationText = song.optString("durationText").takeIf { it.isNotBlank() && it != "null" },
+                    artistId = song.optString("artistId").takeIf { it.isNotBlank() && it != "null" },
+                    albumId = song.optString("albumId").takeIf { it.isNotBlank() && it != "null" },
+                    albumName = song.optString("albumName").takeIf { it.isNotBlank() && it != "null" },
+                    isVideo = song.optBoolean("isVideo", false),
+                )
+            }.distinctBy { it.videoId }
+            val previous = merged[id]
+            merged[id] = if (previous == null) {
+                LocalPlaylist(id, title, songs, item.optString("youtubePlaylistId").takeIf { it.isNotBlank() && it != "null" })
+            } else {
+                previous.copy(songs = (previous.songs + songs).distinctBy { it.videoId })
+            }
+        }
+        val normalized = JSONArray().apply {
+            merged.values.forEach { playlist ->
+                put(JSONObject().apply {
+                    put("id", playlist.id)
+                    put("title", playlist.title)
+                    put("youtubePlaylistId", playlist.youtubePlaylistId)
+                    put("songs", JSONArray().apply {
+                        playlist.songs.forEach { song -> put(JSONObject().apply {
+                            put("videoId", song.videoId); put("title", song.title); put("artist", song.artist)
+                            put("thumbnailUrl", song.thumbnailUrl); put("durationText", song.durationText)
+                            put("artistId", song.artistId); put("albumId", song.albumId)
+                            put("albumName", song.albumName); put("isVideo", song.isVideo)
+                        }) }
+                    })
+                })
+            }
+        }
+        check(prefs.edit().putString(KEY_PLAYLISTS, normalized.toString()).commit()) {
+            "Could not restore local playlists"
+        }
+        load()
     }
 
     private fun checkInitialized() {

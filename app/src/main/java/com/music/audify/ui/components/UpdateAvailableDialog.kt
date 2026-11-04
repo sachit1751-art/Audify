@@ -91,6 +91,8 @@ private val NOTES_MAX_HEIGHT = 220.dp
 fun UpdateAvailableDialog(
     version: String,
     notes: String?,
+    requiresManualMigration: Boolean,
+    migrationAlreadyInstalled: Boolean = false,
     hazeState: HazeState,
     onDismiss: () -> Unit,
     onDownload: () -> Unit,
@@ -159,16 +161,36 @@ fun UpdateAvailableDialog(
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                 )
+
+                if (requiresManualMigration) {
+                    Text(
+                        text = stringResource(
+                            if (migrationAlreadyInstalled) {
+                                R.string.update_migration_complete_body
+                            } else {
+                                R.string.update_manual_migration_body
+                            },
+                        ),
+                        modifier = Modifier.padding(top = 12.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Start,
+                    )
+                }
                 Text(
-                    text = when (state) {
-                        is AppUpdateChecker.DownloadState.Downloading ->
-                            stringResource(R.string.update_downloading_body, version)
-                        is AppUpdateChecker.DownloadState.Ready ->
-                            stringResource(R.string.update_ready_body, version)
-                        is AppUpdateChecker.DownloadState.Failed ->
-                            stringResource(R.string.update_failed_body, version)
-                        else ->
-                            stringResource(R.string.update_available_body, version)
+                    text = if (requiresManualMigration) {
+                        stringResource(R.string.update_manual_migration_title)
+                    } else {
+                        when (state) {
+                            is AppUpdateChecker.DownloadState.Downloading ->
+                                stringResource(R.string.update_downloading_body, version)
+                            is AppUpdateChecker.DownloadState.Ready ->
+                                stringResource(R.string.update_ready_body, version)
+                            is AppUpdateChecker.DownloadState.Failed ->
+                                stringResource(R.string.update_failed_body, version)
+                            else ->
+                                stringResource(R.string.update_available_body, version)
+                        }
                     },
                     modifier = Modifier.padding(top = 4.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -252,16 +274,25 @@ fun UpdateAvailableDialog(
             }
 
             AlertRule()
-            when (state) {
-                is AppUpdateChecker.DownloadState.Downloading -> {
+            when {
+                requiresManualMigration -> {
+                    AlertAction(
+                        label = stringResource(R.string.open_v189_release),
+                        emphasised = true,
+                        onClick = onDownload,
+                    )
+                    AlertRule()
+                    AlertAction(label = stringResource(R.string.remind_me_later), emphasised = false, onClick = onDismiss)
+                }
+                state is AppUpdateChecker.DownloadState.Downloading -> {
                     AlertAction(label = stringResource(R.string.cancel), emphasised = false, onClick = onCancelDownload)
                 }
-                is AppUpdateChecker.DownloadState.Ready -> {
+                state is AppUpdateChecker.DownloadState.Ready -> {
                     AlertAction(label = stringResource(R.string.install_now), emphasised = true, onClick = onInstall)
                     AlertRule()
                     AlertAction(label = stringResource(R.string.later), emphasised = false, onClick = onDismiss)
                 }
-                is AppUpdateChecker.DownloadState.Failed -> {
+                state is AppUpdateChecker.DownloadState.Failed -> {
                     AlertAction(label = stringResource(R.string.try_again), emphasised = true, onClick = onDownload)
                     AlertRule()
                     AlertAction(label = stringResource(R.string.open_releases_page), emphasised = false, onClick = onOpenReleasePage)

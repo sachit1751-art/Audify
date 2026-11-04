@@ -93,6 +93,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.data.lyrics.translationLanguageName
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -105,6 +107,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -131,6 +135,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -158,6 +163,10 @@ import com.music.audify.data.NerdStats
 import com.music.audify.data.scrobbling.LastFM
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.AppUpdateChecker
+import com.halilibo.richtext.markdown.Markdown
+import com.halilibo.richtext.ui.RichTextStyle
+import com.halilibo.richtext.ui.material3.RichText
 import com.music.audify.data.settings.OutputPcmMode
 import com.music.audify.playback.AudioOutputStatus
 import com.music.audify.data.settings.AutomixPerformanceMode
@@ -202,6 +211,10 @@ fun SettingsScreen(
     onSpotifyCanvasAuth: () -> Unit,
     onAppLanguage: () -> Unit,
     onEditSignatureApi: () -> Unit,
+    latestRelease: AppUpdateChecker.LatestReleaseInfo?,
+    updateCheckInProgress: Boolean,
+    onCheckForUpdates: () -> Unit,
+    onDownloadLatest: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -262,6 +275,8 @@ fun SettingsScreen(
     val downloadQuality by AppSettings.downloadQuality.collectAsStateWithLifecycle()
     val wifiOnlyDownloads by AppSettings.wifiOnlyDownloads.collectAsStateWithLifecycle()
     val exportDownloads by AppSettings.exportDownloads.collectAsStateWithLifecycle()
+    val pendingYoutubeSync by com.music.audify.data.local.LocalFirstRepository.pendingCount.collectAsStateWithLifecycle()
+    val youtubeSyncConflicts by com.music.audify.data.local.LocalFirstRepository.conflictCount.collectAsStateWithLifecycle()
     val stopOnTaskRemoved by AppSettings.stopOnTaskRemoved.collectAsStateWithLifecycle()
     val hideVolumeBar by AppSettings.hideVolumeBar.collectAsStateWithLifecycle()
     val hideStatusBarInPlayer by AppSettings.hideStatusBarInPlayer.collectAsStateWithLifecycle()
@@ -324,6 +339,9 @@ fun SettingsScreen(
     var exportStatus by remember { mutableStateOf<String?>(null) }
     var importStatus by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf(false) }
+    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+    var importPreview by remember { mutableStateOf<Backup.Preview?>(null) }
+    var youtubeSyncDetails by remember { mutableStateOf<String?>(null) }
     var confirmClearSongCache by remember { mutableStateOf(false) }
     var showPerformanceWarning by remember { mutableStateOf(false) }
     var showPerformanceConfirmation by remember { mutableStateOf(false) }
@@ -374,18 +392,9 @@ fun SettingsScreen(
     ) { source ->
         if (source == null) return@rememberLauncherForActivityResult
         backupScope.launch {
-            importStatus = Backup.importFrom(context, source).fold(
-                onSuccess = {
-                    String.format(
-                        java.util.Locale.getDefault(),
-                        importSucceededFormat,
-                        context.countOfMonths(it.months),
-                        it.from,
-                    )
-                },
-                onFailure = {
-                    String.format(java.util.Locale.getDefault(), importFailedFormat, it.message ?: unknownErrorMessage)
-                },
+            Backup.preview(context, source).fold(
+                onSuccess = { preview -> pendingImportUri = source; importPreview = preview },
+                onFailure = { importStatus = String.format(java.util.Locale.getDefault(), importFailedFormat, it.message ?: unknownErrorMessage) },
             )
         }
     }
@@ -471,6 +480,16 @@ fun SettingsScreen(
             placeholder = stringResource(R.string.settings_search_hint),
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
         )
+
+        if (searchQuery.isBlank() && selectedCategory == stringResource(R.string.updates)) {
+            LatestVersionGroup(
+                latestRelease = latestRelease,
+                currentVersion = version,
+                checking = updateCheckInProgress,
+                onCheckForUpdates = onCheckForUpdates,
+                onDownload = onDownloadLatest,
+            )
+        }
 
         SearchableSettingsGroup(search) {
             val accountTitle = stringResource(R.string.account_integrations)
@@ -588,6 +607,8 @@ fun SettingsScreen(
                 stringResource(R.string.local_music) to Icons.Rounded.Folder,
                 stringResource(R.string.storage) to Icons.Rounded.Storage,
                 stringResource(R.string.your_data) to Icons.Rounded.History,
+                stringResource(R.string.backup) to Icons.Rounded.FileUpload,
+                stringResource(R.string.updates) to Icons.Rounded.Download,
                 stringResource(R.string.miscellaneous) to Icons.Rounded.Apps,
                 stringResource(R.string.language) to Icons.Rounded.Language,
                 stringResource(R.string.advanced_options) to Icons.Rounded.Extension,
@@ -1471,17 +1492,56 @@ fun SettingsScreen(
                     onClick = { AppSettings.setShowTimeAwareShelf(!showTimeAwareShelf) },
                 )
             }
+            val youtubeSyncTitle = stringResource(R.string.youtube_sync_status)
+            row(youtubeSyncTitle, "youtube", "sync", "account") {
+                val syncSubtitle = when {
+                    youtubeSyncConflicts > 0 -> stringResource(R.string.youtube_sync_needs_review, pendingYoutubeSync, youtubeSyncConflicts)
+                    pendingYoutubeSync > 0 -> stringResource(R.string.youtube_sync_pending, pendingYoutubeSync)
+                    else -> stringResource(R.string.youtube_sync_complete)
+                }
+                SettingsRow(
+                    icon = Icons.Rounded.Cloud,
+                    title = youtubeSyncTitle,
+                    subtitle = syncSubtitle,
+                    onClick = {
+                        backupScope.launch {
+                            val auth = com.music.audify.auth.AuthStore(context)
+                            val session = auth.activeSession
+                            val profileId = auth.activeProfileId ?: session?.activeProfileId
+                            youtubeSyncDetails = if (session == null || profileId == null) {
+                                "Sign in to YouTube Music to view account-specific sync status."
+                            } else {
+                                runCatching {
+                                    com.music.audify.data.local.LocalFirstRepository.initialize(context)
+                                    com.music.audify.data.local.LocalFirstRepository.syncStatusText(
+                                        session.accountId, profileId,
+                                    )
+                                }.getOrElse { "Could not load sync status: ${it.message ?: "Unknown error"}" }
+                            }
+                        }
+                    },
+                )
+            }
+        }
+
+        SearchableSettingsGroup(search, header = stringResource(R.string.backup)) {
             val exportDataTitle = stringResource(R.string.export_data)
-            row(exportDataTitle, "backup") {
+            row(exportDataTitle, "backup", "export") {
+                val lastBackup = Backup.lastExternalBackupAt(context)
+                val backupReminder = if (lastBackup == 0L || System.currentTimeMillis() - lastBackup > 30L * 24 * 60 * 60 * 1000) {
+                    stringResource(R.string.backup_reminder_due)
+                } else {
+                    stringResource(R.string.backup_automatic_enabled)
+                }
                 SettingsRow(
                     icon = Icons.Rounded.FileUpload,
                     title = exportDataTitle,
-                    subtitle = exportStatus ?: stringResource(R.string.export_data_subtitle),
+                    subtitle = exportStatus ?: "${stringResource(R.string.export_data_subtitle)} · $backupReminder",
                     onClick = { exportPicker.launch(Backup.suggestedName()) },
                 )
             }
             val importDataTitle = stringResource(R.string.import_data)
-            row(importDataTitle, "backup", "restore") {
+            row(importDataTitle, "backup", "restore", "import") {
                 SettingsRow(
                     icon = Icons.Rounded.FileDownload,
                     title = importDataTitle,
@@ -1877,6 +1937,51 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { confirmImport = false }) {
                     Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    importPreview?.let { preview ->
+        AlertDialog(
+            onDismissRequest = { importPreview = null; pendingImportUri = null },
+            title = { Text(stringResource(R.string.restore_preview_title)) },
+            text = {
+                Text(stringResource(
+                    R.string.restore_preview_body,
+                    preview.songs, preview.history, preview.playlists, preview.months, preview.settings,
+                    preview.from.ifBlank { "Unknown" }, preview.at.ifBlank { "Unknown" },
+                ))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val uri = pendingImportUri
+                    importPreview = null
+                    pendingImportUri = null
+                    if (uri != null) backupScope.launch {
+                        importStatus = Backup.importFrom(context, uri).fold(
+                            onSuccess = { String.format(java.util.Locale.getDefault(), importSucceededFormat, context.countOfMonths(it.months), it.from) },
+                            onFailure = { String.format(java.util.Locale.getDefault(), importFailedFormat, it.message ?: unknownErrorMessage) },
+                        )
+                    }
+                }) { Text(stringResource(R.string.restore_backup)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { importPreview = null; pendingImportUri = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    youtubeSyncDetails?.let { details ->
+        AlertDialog(
+            onDismissRequest = { youtubeSyncDetails = null },
+            title = { Text(stringResource(R.string.youtube_sync_status)) },
+            text = { Text(details) },
+            confirmButton = {
+                TextButton(onClick = { youtubeSyncDetails = null }) {
+                    Text(stringResource(R.string.close))
                 }
             },
         )
@@ -2450,6 +2555,87 @@ private fun DownloadQualitySheet(
             }
         }
     }
+}
+
+@Composable
+private fun LatestVersionGroup(
+    latestRelease: AppUpdateChecker.LatestReleaseInfo?,
+    currentVersion: String,
+    checking: Boolean,
+    onCheckForUpdates: () -> Unit,
+    onDownload: () -> Unit,
+) {
+    val status = when {
+        latestRelease == null && checking -> stringResource(R.string.latest_version_checking)
+        latestRelease == null -> stringResource(R.string.latest_version_unavailable)
+        !latestRelease.updateAvailable -> stringResource(R.string.latest_version_current)
+        else -> {
+            val distance = patchVersionsBehind(currentVersion, latestRelease.version)
+            if (distance != null) {
+                pluralStringResource(R.plurals.latest_version_behind, distance, distance)
+            } else {
+                stringResource(R.string.latest_version_update_available)
+            }
+        }
+    }
+
+    SettingsGroup(header = stringResource(R.string.latest_version), topSpacing = 12.dp) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = status,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Button(
+                onClick = if (latestRelease?.updateAvailable == true) onDownload else onCheckForUpdates,
+                enabled = !checking,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(
+                        if (latestRelease?.updateAvailable == true) R.string.download_latest_version
+                        else R.string.check_for_updates,
+                    ),
+                )
+            }
+            if (latestRelease != null) {
+                Text(
+                    text = stringResource(R.string.latest_version_number, latestRelease.version),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!latestRelease.notes.isNullOrBlank()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(
+                        text = stringResource(R.string.whats_new),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                        RichText(style = RichTextStyle.Default) {
+                            Markdown(latestRelease.notes)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Shows a numeric patch distance only when major and minor versions match. */
+private fun patchVersionsBehind(current: String, latest: String): Int? {
+    val currentParts = current.substringBefore('-').split('.').map { it.toIntOrNull() ?: return null }
+    val latestParts = latest.substringBefore('-').split('.').map { it.toIntOrNull() ?: return null }
+    if (currentParts.size < 3 || latestParts.size < 3) return null
+    if (currentParts[0] != latestParts[0] || currentParts[1] != latestParts[1]) return null
+    return (latestParts[2] - currentParts[2]).takeIf { it > 0 }
 }
 
 // ---- Building blocks --------------------------------------------------------

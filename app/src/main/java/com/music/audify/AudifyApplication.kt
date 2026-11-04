@@ -126,6 +126,10 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { com.music.audify.data.local.LocalFirstRepository.initialize(this@AudifyApplication) }
+                .onFailure { android.util.Log.e("Audify", "Local Room database initialization failed", it) }
+        }
         // Before anything resolves a track: an addon with `checkValidLossless`
         // is gated on this, and the gate reads "no" until it has looked.
         com.music.audify.playback.audio.LosslessOutput.init(this)

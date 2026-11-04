@@ -1233,4 +1233,6 @@ Project: AUDIFY
     <string name="spotify_import_language_hint">e.g. Punjabi, Marathi, Korean…</string>
 
     <string name="spotify_import_language_preference">Language preference</string>
+    <string name="backup">Backup</string>
+    <string name="updates">Aggiornamenti</string>
 </resources>

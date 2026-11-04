@@ -82,6 +82,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -108,6 +109,14 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** What the Search tab searches: YouTube Music, or the Local Music folder on this device. */
 enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
+
+private data class LocalLibrarySyncTrigger(
+    val accountId: String?,
+    val profileId: String?,
+    val signedIn: Boolean,
+    val favorites: List<Song>,
+    val playlists: List<com.music.audify.data.spotify.LocalPlaylist>,
+)
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -680,11 +689,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     /** Every rating known for this account: the library's, then this session's. */
     val likeStatuses: StateFlow<Map<String, LikeStatus>> =
-        combine(_library, LikeState.overrides) { library, overrides ->
+        combine(_library, LikeState.overrides, com.music.audify.data.stats.LocalLibraryStore.favorites) { library, overrides, localFavorites ->
             val liked = (library as? UiState.Success)?.data?.likedSongs
                 ?.associate { it.videoId to LikeStatus.LIKE }
                 .orEmpty()
-            liked + overrides
+            liked + localFavorites.associate { it.videoId to LikeStatus.LIKE } + overrides
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     fun likeStatusOf(videoId: String): LikeStatus =
@@ -698,14 +707,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * on a round trip before the heart fills reads as the tap not having
      * registered, and people tap again.
      */
-    fun setLike(videoId: String, status: LikeStatus) {
-        if (!requireSignIn()) return
+    fun setLike(videoId: String, status: LikeStatus, song: Song? = null) {
         val previous = likeStatusOf(videoId)
         if (previous == status) return
+        song?.let {
+            com.music.audify.data.stats.LocalLibraryStore.setFavorite(it, status == LikeStatus.LIKE)
+            viewModelScope.launch {
+                com.music.audify.data.spotify.LocalPlaylistStore.syncFavorites(
+                    com.music.audify.data.stats.LocalLibraryStore.favorites.value,
+                )
+            }
+        }
         LikeState.set(videoId, status)
+        if (!requireSignIn()) return
         viewModelScope.launch {
             YtMusicRepository.rate(videoId, status).fold(
                 onSuccess = {
+                    val accountId = _activeAccountId.value
+                    val profileId = _activeProfileId.value
+                    if (accountId != null && profileId != null) {
+                        runCatching {
+                            com.music.audify.data.local.LocalFirstRepository.initialize(getApplication())
+                            com.music.audify.data.local.LocalFirstRepository.saveFavoriteSync(
+                                videoId, accountId, profileId, status,
+                            )
+                        }.onFailure { android.util.Log.w("MainViewModel", "Could not persist favorite sync baseline", it) }
+                    }
                     // Liked Music is now out of date either way.
                     libraryStale = true
                     if (status != LikeStatus.LIKE) dropFromLikedLists(videoId)
@@ -715,8 +742,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         status == LikeStatus.INDIFFERENT
                     if (unliked) forgetFromLibrary(videoId)
                 },
-                onFailure = {
-                    LikeState.set(videoId, previous)
+                // Local favorites are authoritative on this device. A failed
+                // account write must not erase a guest's saved library item.
+                onFailure = { failure ->
+                    android.util.Log.w("MainViewModel", "YouTube Music like sync queued for $videoId", failure)
+                    val accountId = _activeAccountId.value
+                    val profileId = _activeProfileId.value
+                    if (accountId != null && profileId != null) {
+                        runCatching {
+                            com.music.audify.data.local.LocalFirstRepository.initialize(getApplication())
+                            com.music.audify.data.local.LocalFirstRepository.enqueueFavorite(
+                                accountId, profileId, videoId, status, song,
+                            )
+                        }.onFailure { android.util.Log.e("MainViewModel", "Could not persist favorite sync", it) }
+                    }
                 },
             )
         }
@@ -779,9 +818,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The heart: liked becomes neutral, anything else becomes liked. */
-    fun toggleLike(videoId: String) = setLike(
+    fun toggleLike(videoId: String, song: Song? = null) = setLike(
         videoId,
         if (likeStatusOf(videoId) == LikeStatus.LIKE) LikeStatus.INDIFFERENT else LikeStatus.LIKE,
+        song,
     )
 
     /** As [toggleLike], for the thumb-down. */
@@ -1157,31 +1197,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             onResult(false, null)
             return
         }
-        if (local.youtubePlaylistId != null) {
-            onResult(true, "VL${local.youtubePlaylistId}")
-            return
-        }
         viewModelScope.launch {
-            val ids = local.songs.map { it.videoId }.filter(String::isNotBlank).distinct()
-            YtMusicRepository.createPlaylist(local.title, PlaylistPrivacy.PRIVATE, ids.take(50)).fold(
-                onSuccess = { playlistId ->
-                    var failed = false
-                    ids.drop(50).chunked(50).forEach { chunk ->
-                        if (YtMusicRepository.addToPlaylist(playlistId, chunk).isFailure) failed = true
-                    }
-                    if (!failed && com.music.audify.data.spotify.LocalPlaylistStore.markSynced(local.id, playlistId)) {
-                        libraryStale = true
-                        setPlaylistOwned("VL$playlistId", true)
-                        onResult(true, "VL$playlistId")
-                    } else {
-                        onResult(false, null)
-                    }
-                },
-                onFailure = { failure ->
-                    android.util.Log.w("MainViewModel", "Local playlist sync failed: ${failure.message}", failure)
-                    onResult(false, null)
-                },
-            )
+            runCatching {
+                val session = authStore.activeSession ?: error("No active Google account")
+                val profileId = _activeProfileId.value ?: session.activeProfileId
+                    ?: error("No active YouTube profile")
+                com.music.audify.data.local.LocalFirstRepository.initialize(getApplication())
+                com.music.audify.data.local.LocalFirstRepository.enqueueLibrarySnapshot(session, profileId)
+            }.onSuccess {
+                onResult(true, null)
+            }.onFailure {
+                android.util.Log.e("MainViewModel", "Could not queue local playlist sync", it)
+                onResult(false, null)
+            }
         }
     }
 
@@ -1278,6 +1306,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * row out from under the reader rather than waiting for a re-fetch.
      */
     fun removeFromPlaylist(browseId: String, song: Song) {
+        if (browseId.startsWith("local:playlist:")) {
+            viewModelScope.launch {
+                if (browseId == "local:playlist:${com.music.audify.data.spotify.LocalPlaylistStore.FAVORITES_PLAYLIST_ID}") {
+                    com.music.audify.data.stats.LocalLibraryStore.setFavorite(song, false)
+                    com.music.audify.data.spotify.LocalPlaylistStore.syncFavorites(
+                        com.music.audify.data.stats.LocalLibraryStore.favorites.value,
+                    )
+                    LikeState.set(song.videoId, LikeStatus.INDIFFERENT)
+                    return@launch
+                }
+                if (com.music.audify.data.spotify.LocalPlaylistStore.removeSong(browseId, song.videoId)) {
+                    val remaining = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(browseId)?.songs.orEmpty()
+                    _detailStack.value = _detailStack.value.map { page ->
+                        if (page.browseId == browseId) page.copy(songs = UiState.Success(remaining)) else page
+                    }
+                }
+            }
+            return
+        }
         val setVideoId = song.setVideoId ?: return
         if (!requireSignIn()) return
         val playlistId = browseId.removePrefix("VL")
@@ -1390,10 +1437,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * showing the old name.
      */
     fun renamePlaylist(playlist: UserPlaylist, title: String) {
-        if (!requireSignIn()) return
+        if (playlist.playlistId == "local:playlist:${com.music.audify.data.spotify.LocalPlaylistStore.FAVORITES_PLAYLIST_ID}") return
         val name = title.trim()
         if (name.isBlank() || name == playlist.title) return
         viewModelScope.launch {
+            if (playlist.playlistId.startsWith("local:playlist:")) {
+                com.music.audify.data.spotify.LocalPlaylistStore.renamePlaylist(playlist.playlistId, name)
+                setPlaylistTitle(playlist, name)
+                return@launch
+            }
+            if (!requireSignIn()) return@launch
             YtMusicRepository.renamePlaylist(playlist.playlistId, name).fold(
                 onSuccess = {
                     setPlaylistTitle(playlist, name)
@@ -1409,6 +1462,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * see [YtMusicRepository.playlistEntries] for why not the open page's list.
      */
     fun loadPlaylistEntries(playlist: UserPlaylist, onResult: (Result<List<Song>>) -> Unit) {
+        if (playlist.playlistId.startsWith("local:playlist:")) {
+            val local = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(playlist.playlistId)
+            onResult(local?.let { Result.success(it.songs) } ?: Result.failure(IllegalStateException("Playlist not found")))
+            return
+        }
         if (!requireSignIn()) return onResult(Result.failure(IllegalStateException("signed out")))
         viewModelScope.launch {
             onResult(YtMusicRepository.playlistEntries(playlist.browseId))
@@ -1427,8 +1485,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         reordered: List<Song>,
         onResult: (Boolean) -> Unit = {},
     ) {
-        if (!requireSignIn()) return onResult(false)
+        if (playlist.playlistId == "local:playlist:${com.music.audify.data.spotify.LocalPlaylistStore.FAVORITES_PLAYLIST_ID}") {
+            onResult(false)
+            return
+        }
         viewModelScope.launch {
+            if (playlist.playlistId.startsWith("local:playlist:")) {
+                val saved = com.music.audify.data.spotify.LocalPlaylistStore.reorderSongs(
+                    playlist.playlistId,
+                    reordered,
+                )
+                if (saved) {
+                    _detailStack.value = _detailStack.value.map { page ->
+                        if (page.browseId == playlist.browseId) page.copy(songs = UiState.Success(reordered)) else page
+                    }
+                }
+                onResult(saved)
+                return@launch
+            }
+            if (!requireSignIn()) return@launch onResult(false)
             YtMusicRepository.reorderPlaylist(
                 playlist.playlistId,
                 current = original.mapNotNull { it.setVideoId },
@@ -1451,8 +1526,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun deletePlaylist(playlist: UserPlaylist) {
-        if (!requireSignIn()) return
+        if (playlist.playlistId == "local:playlist:${com.music.audify.data.spotify.LocalPlaylistStore.FAVORITES_PLAYLIST_ID}") return
         viewModelScope.launch {
+            if (playlist.playlistId.startsWith("local:playlist:")) {
+                com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist(playlist.playlistId)
+                _detailStack.value = _detailStack.value.filterNot { it.browseId == playlist.browseId }
+                navigator.onDetailStackShrunk(_detailStack.value.size)
+                return@launch
+            }
+            if (!requireSignIn()) return@launch
             YtMusicRepository.deletePlaylist(playlist.playlistId).fold(
                 onSuccess = {
                     _playlists.value = _playlists.value
@@ -1494,7 +1576,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * changes its mind about what a playlist is depending on where it is held.
      */
     fun editablePlaylist(browseId: String?): UserPlaylist? {
-        if (browseId == null || _playlistOwned.value[browseId] != true) return null
+        if (browseId == null) return null
+        com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(browseId)?.let { local ->
+            if (local.id == com.music.audify.data.spotify.LocalPlaylistStore.FAVORITES_PLAYLIST_ID) return null
+            return UserPlaylist(
+                playlistId = local.browseId,
+                title = local.title,
+                subtitle = "${local.songs.size} songs · On this device",
+                thumbnailUrl = local.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+            )
+        }
+        if (_playlistOwned.value[browseId] != true) return null
         return _playlists.value.firstOrNull { it.browseId == browseId }
     }
 
@@ -1576,9 +1668,41 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         startSearchPipeline()
         startSuggestPipeline()
         startTypeaheadMediaPipeline()
+        viewModelScope.launch {
+            com.music.audify.data.spotify.LocalPlaylistStore.syncFavorites(
+                com.music.audify.data.stats.LocalLibraryStore.favorites.value,
+            )
+        }
+        viewModelScope.launch {
+            combine(
+                com.music.audify.data.stats.LocalLibraryStore.favorites,
+                com.music.audify.data.spotify.LocalPlaylistStore.playlists,
+                _activeAccountId,
+                _activeProfileId,
+                _signedIn,
+            ) { favorites, playlists, accountId, profileId, signedIn ->
+                LocalLibrarySyncTrigger(accountId, profileId, signedIn, favorites, playlists)
+            }.distinctUntilChanged().collectLatest { trigger ->
+                if (!trigger.signedIn) return@collectLatest
+                val accountId = trigger.accountId ?: return@collectLatest
+                val profileId = trigger.profileId ?: return@collectLatest
+                val session = authStore.sessions.firstOrNull { it.accountId == accountId }
+                    ?: return@collectLatest
+                runCatching {
+                    com.music.audify.data.local.LocalFirstRepository.initialize(getApplication())
+                    com.music.audify.data.local.LocalFirstRepository.enqueueLibrarySnapshot(session, profileId)
+                }.onFailure {
+                    android.util.Log.e("MainViewModel", "Local library sync queue update failed", it)
+                }
+            }
+        }
         loadHome()
         loadExplore()
         if (_signedIn.value) {
+            viewModelScope.launch {
+                Innertube.ensureSessionScope()
+                syncLocalLibraryToAccount()
+            }
             loadLibrary()
             loadAccount()
             loadPlaylists()
@@ -2136,7 +2260,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun loadHistory() {
         if (!_signedIn.value) {
-            _history.value = UiState.Error(text(R.string.history_sign_in_required))
+            val local = com.music.audify.data.stats.LocalLibraryStore.history.value
+            _history.value = if (local.isEmpty()) UiState.Error(text(R.string.history_empty))
+                else UiState.Success(local)
             return
         }
         val identity = listenerKey()
@@ -2144,8 +2270,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val next = YtMusicRepository.history().fold(
                 onSuccess = { songs ->
-                    if (songs.isEmpty()) UiState.Error(text(R.string.history_empty))
-                    else UiState.Success(songs)
+                    val local = com.music.audify.data.stats.LocalLibraryStore.history.value
+                    val merged = (local + songs).distinctBy { it.videoId }
+                    if (merged.isEmpty()) UiState.Error(text(R.string.history_empty))
+                    else UiState.Success(merged)
                 },
                 onFailure = { UiState.Error(it.friendly()) },
             )
@@ -3679,11 +3807,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun reloadForAccount() {
         viewModelScope.launch {
             Innertube.ensureSessionScope()
+            syncLocalLibraryToAccount()
             loadHome()
             loadLibrary()
             loadAccount()
             loadPlaylists()
         }
+    }
+
+    /** Uploads local-only items after authentication; local copies are never removed. */
+    private suspend fun syncLocalLibraryToAccount() {
+        if (!_signedIn.value) return
+        val accountId = _activeAccountId.value ?: return
+        val profileId = _activeProfileId.value ?: return
+        val session = authStore.sessions.firstOrNull { it.accountId == accountId } ?: return
+        com.music.audify.data.local.LocalFirstRepository.initialize(getApplication())
+        com.music.audify.data.local.LocalFirstRepository.enqueueLibrarySnapshot(session, profileId)
     }
 
     fun signOut() {

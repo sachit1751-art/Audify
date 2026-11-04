@@ -666,7 +666,8 @@ data class UserPlaylist(
     val subtitle: String,
     val thumbnailUrl: String?,
 ) {
-    val browseId: String get() = "VL$playlistId"
+    /** Local playlists already carry their full browse id; remote ids need YouTube's VL prefix. */
+    val browseId: String get() = if (playlistId.startsWith("local:playlist:")) playlistId else "VL$playlistId"
 }
 
 /**

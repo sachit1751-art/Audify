@@ -87,6 +87,11 @@ android {
             "LISTEN_TOGETHER_SERVER",
             "\"${listenTogetherServer.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
         )
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf("room.schemaLocation" to "$projectDir/schemas")
+            }
+        }
         // Which release assets are this app's: the phone and TV APKs ship in
         // the same GitHub release, told apart by file name. See
         // AppUpdateChecker.apkAssetUrl.
@@ -386,6 +391,11 @@ dependencies {
 
     // Periodic, battery-aware checks that saved download files can still be opened.
     implementation("androidx.work:work-runtime-ktx:2.12.0")
+
+    // Structured local-first library and durable per-account sync state.
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    annotationProcessor("androidx.room:room-compiler:2.8.5")
 
     // ---- JS module execution: QuickJS VM for style source plugins ----
     // Held at InnerTubeX's version; the same VM runs QuickJsExecutor's module sources.

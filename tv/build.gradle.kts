@@ -101,6 +101,11 @@ android {
         // the updater installs the TV app here, never the phone app. See
         // AppUpdateChecker.apkAssetUrl.
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"AudifyTV-\"")
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += mapOf("room.schemaLocation" to "${rootProject.projectDir}/app/schemas")
+            }
+        }
     }
 
     splits {
@@ -315,6 +320,10 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.8.0")
     // Phone-source downloads include the shared offline file-verification worker.
     implementation("androidx.work:work-runtime-ktx:2.12.0")
+    // The TV variant compiles the shared phone source tree, including Room-backed local data.
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    annotationProcessor("androidx.room:room-compiler:2.8.5")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     // ---- Android TV (Compose for TV) ----
