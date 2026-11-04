@@ -12,7 +12,7 @@ Give listeners meaningful control over the now-playing presentation: a small set
 
 ## Existing foundation to verify
 
-`DESIGN.md` documents decomposed shared player components, artwork-aware theming, backdrop effects, and shared motion tokens. Reuse those owners and tokens. Do not create a parallel player or design system.
+`docs/DESIGN.md` documents decomposed shared player components, artwork-aware theming, backdrop effects, and shared motion tokens. Reuse those owners and tokens. Do not create a parallel player or design system.
 
 ## Scope
 
@@ -49,4 +49,4 @@ Inspect all player components, settings models, navigation/gesture modifiers, an
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. Do not introduce a second design system, schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Include accessibility and device verification in the handoff.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. Do not introduce a second design system, schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Include accessibility and device verification in the handoff.

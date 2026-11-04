@@ -48,4 +48,4 @@ Inspect older plans 025–068 for local indexing, metadata/tag editing, library 
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. Never silently rewrite user files. No schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. State format limitations and rollback steps.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. Never silently rewrite user files. No schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. State format limitations and rollback steps.

@@ -50,4 +50,4 @@ Search for existing audio-capture, microphone-permission, external-provider, pla
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. No background capture, schema/migration, version bump, translated-string edits, or commits/pushes without authorization. Report privacy/data-flow impact, provider terms, device tests, and rollback steps.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. No background capture, schema/migration, version bump, translated-string edits, or commits/pushes without authorization. Report privacy/data-flow impact, provider terms, device tests, and rollback steps.

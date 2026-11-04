@@ -50,4 +50,4 @@ Inspect Plan 02, `LYRICS_TRANSLATION.md`, all existing lyrics providers/parsers,
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. No schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Report provider limitations and unverified lyric timing explicitly.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. No schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Report provider limitations and unverified lyric timing explicitly.

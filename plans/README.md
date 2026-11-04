@@ -17,7 +17,7 @@ Feature-planning track started **2026-09-26**. Before executing a plan, run
 check whether the plan's in-scope files changed (each plan lists them) and report drift instead
 of blindly applying.
 
-**Repository context review (2026-11-04, HEAD `a135811c`):** latest published stable release is `1.8.7` (`v1.8.7`). Audify `1.8.9` (versionCode 37) is being validated by dry-run workflow [41835700383](https://github.com/sachit1751-art/Audify/actions/runs/41835700383); it is not published and must not be treated as a stable release. The production release build uses a 6 GiB Gradle heap and `--max-workers=1` for APK assembly after an R8 Java-heap OOM. Plans 01–14 and 069–074 remain planned/TODO unless their individual status is explicitly changed after source and test verification. Reconcile each plan against current source and tests before changing its status. This checkout has no root `CONTEXT.md` or `docs/adr/` directory; use `PRODUCT.md` and `DESIGN.md` as the current product/design context.
+**Repository context review (2026-11-04, HEAD `a135811c`):** latest published stable release is `1.8.7` (`v1.8.7`). Audify `1.8.9` (versionCode 37) is being validated by dry-run workflow [41835700383](https://github.com/sachit1751-art/Audify/actions/runs/41835700383); it is not published and must not be treated as a stable release. The production release build uses a 6 GiB Gradle heap and `--max-workers=1` for APK assembly after an R8 Java-heap OOM. Plans 01–14 and 069–074 remain planned/TODO unless their individual status is explicitly changed after source and test verification. Reconcile each plan against current source and tests before changing its status. This checkout has no root `CONTEXT.md` or `docs/adr/` directory; use `docs/PRODUCT.md` and `docs/DESIGN.md` as the current product/design context.
 
 Scope rules that apply to **every** plan (from the repo's AGENTS.md and project rules):
 
@@ -74,6 +74,6 @@ When you start a plan: mark it `in-progress`. When done criteria all pass: `done
 plan's summary into the archive table above, and delete the plan file. If an escape hatch
 fired: `blocked` and note why in the plan file. Executors update this file.
 
-Before starting any plan, read `PRODUCT.md` and `DESIGN.md`, then inspect any architecture-decision
+Before starting any plan, read `docs/PRODUCT.md` and `docs/DESIGN.md`, then inspect any architecture-decision
 records that actually exist in the checkout. Do not assume `CONTEXT.md` or `docs/adr/` exists; as
 of the 2026-11-01 review, neither path is present in this repository.

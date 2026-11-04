@@ -12,7 +12,7 @@ Evaluate and, if technically and legally viable, add optional headphone correcti
 
 ## Existing foundation to verify
 
-`PRODUCT.md` records audio normalization, playback quality controls, output selection, and audio diagnostics. The roadmap already includes output-specific EQ presets. This plan is specifically about measured headphone profiles/AutoEQ-style correction, not a duplicate EQ or preset implementation.
+`docs/PRODUCT.md` records audio normalization, playback quality controls, output selection, and audio diagnostics. The roadmap already includes output-specific EQ presets. This plan is specifically about measured headphone profiles/AutoEQ-style correction, not a duplicate EQ or preset implementation.
 
 ## Scope
 
@@ -49,4 +49,4 @@ Read the output-specific EQ plan and inspect the current audio pipeline/effect c
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. No schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Report which outputs were genuinely tested and which are unsupported.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. No schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Report which outputs were genuinely tested and which are unsupported.

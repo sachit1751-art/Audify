@@ -133,6 +133,8 @@ These are captures from the app — not concept mockups.
 
 Audify uses the Gradle wrapper. You do not need to install Gradle separately. Android Studio is optional, but the Android SDK is required.
 
+For a repeatable setup on a new Windows, macOS, or Linux machine, follow the [Development Environment Setup Guide](docs/DEVELOPMENT_ENVIRONMENT.md) and run the matching bootstrap script.
+
 ### Requirements
 
 - **JDK 21** for the current Gradle and Kotlin toolchain.
@@ -176,7 +178,7 @@ For local release signing, copy `keystore.properties.example` to `keystore.prope
 </details>
 ## Contributing
 
-Contributions, bug reports, and thoughtful suggestions are welcome. Before opening a pull request, read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). See [ADDITIONAL.md](ADDITIONAL.md) for further project documentation.
+Contributions, bug reports, and thoughtful suggestions are welcome. Before opening a pull request, read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). See [docs/ADDITIONAL.md](docs/ADDITIONAL.md) for further project documentation.
 
 Use the dedicated [bug report form](https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml) for reproducible problems, or the [tester feedback form](https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml) for suggestions and general feedback. Both forms ask for the context needed to investigate without requesting account credentials or private listening history. Remove personal information from screenshots and logs before sharing them.
 

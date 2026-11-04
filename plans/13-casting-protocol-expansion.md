@@ -47,4 +47,4 @@ Inspect current output selection, Cast integration, network permissions, Android
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. No broad network permission, schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Clearly distinguish tested receivers from theoretical protocol support.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. No broad network permission, schema/migration, version bump, translated-string edits, or unauthorized commits/pushes. Clearly distinguish tested receivers from theoretical protocol support.

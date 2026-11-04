@@ -62,4 +62,4 @@ Minification and resource shrinking remain enabled. The mitigation is not consid
 
 ## Updating this document
 
-After every release attempt, refresh the commit, run URL, exact failing/successful step, artifact status, and published-release status. Distinguish `in_progress`, `failed`, `dry-run succeeded`, `draft`, and `published`; do not infer one state from another. Update `PRODUCT.md`, `plans/README.md`, `docs/future updates/DISTRIBUTION.md`, and the version-specific release notes when the stable release changes.
+After every release attempt, refresh the commit, run URL, exact failing/successful step, artifact status, and published-release status. Distinguish `in_progress`, `failed`, `dry-run succeeded`, `draft`, and `published`; do not infer one state from another. Update `docs/PRODUCT.md`, `plans/README.md`, `docs/future updates/DISTRIBUTION.md`, and the version-specific release notes when the stable release changes.

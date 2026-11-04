@@ -33,7 +33,7 @@ This key is media identity, not necessarily queue-occurrence identity. The produ
 - Reorder list and gesture owner: `app/src/main/java/com/music/audify/ui/components/ReorderPlaylistPage.kt:260-366`.
 - Queue feedback: `app/src/main/java/com/music/audify/ui/components/QueueActionNotice.kt:42-55`.
 - Shared motion tokens: `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/motion/MotionTokens.kt:10-20`.
-- Design rule: queue rows represent queue occurrences, not just media IDs (`DESIGN.md`, Audio/player-specific design rules).
+- Design rule: queue rows represent queue occurrences, not just media IDs (`docs/DESIGN.md`, Audio/player-specific design rules).
 
 ## Steps
 

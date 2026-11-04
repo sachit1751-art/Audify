@@ -50,4 +50,4 @@ Inspect current search, playback, queue, downloads, source resolution, persisten
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. No version bump, schema/migration, translated-string edits, or unauthorized commits/pushes. A plan or prototype does not imply public podcast support.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. No version bump, schema/migration, translated-string edits, or unauthorized commits/pushes. A plan or prototype does not imply public podcast support.

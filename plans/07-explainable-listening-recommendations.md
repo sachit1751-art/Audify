@@ -16,7 +16,7 @@ Generic or repetitive recommendations do not help listeners decide what to play.
 
 ## Existing foundation to verify
 
-- `PRODUCT.md` records mood shortcuts and a time-aware discovery shelf based on feed content and on-device listening-hour patterns.
+- `docs/PRODUCT.md` records mood shortcuts and a time-aware discovery shelf based on feed content and on-device listening-hour patterns.
 - Listening aggregates and recap data exist, but a complete per-play event history is not established.
 - Identify current recommendation providers, ranking functions, saved/liked signals, skip signals, and available local data. Do not assume every signal exists or is reliable.
 
@@ -54,4 +54,4 @@ Read relevant older discovery plans (including any retained or historical plans 
 
 ## Project constraints and handoff
 
-Follow `plans/README.md`, `PRODUCT.md`, and `DESIGN.md`. Do not bump versions, alter database schemas/migrations, edit translated strings, or commit/push without explicit authorization. Report changed files, tests/results, device checks, limitations, privacy impact, and rollback steps.
+Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`. Do not bump versions, alter database schemas/migrations, edit translated strings, or commit/push without explicit authorization. Report changed files, tests/results, device checks, limitations, privacy impact, and rollback steps.

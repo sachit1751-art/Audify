@@ -24,6 +24,8 @@ When contributing:
 - Address review feedback promptly and keep discussions focused on technical merits.
 
 ## Development Setup
+
+For a fresh machine, use the [cross-platform environment setup guide](docs/DEVELOPMENT_ENVIRONMENT.md). It pins the SDK components and preserves machine-local credentials.
 The project requires the following tools:
 - **JDK**: JDK 21 to run the current Gradle/Kotlin build. The Android app's Java/Kotlin bytecode target remains JVM 17; that is not the required Gradle runtime JDK.
 - **Android SDK**: phone and TV use `compileSdk = 37`, `targetSdk = 36`, `minSdk = 26`; Wear OS uses `compileSdk = 37`, `targetSdk = 36`, `minSdk = 30`.
