@@ -1,6 +1,6 @@
-﻿# Audify 1.9.0
+# Audify 1.9.0
 
-Audify 1.9.0 expands Audify beyond mobile with the first Windows desktop release, while carrying forward the Android backup, local-library, and update improvements introduced in 1.8.10.
+Audify 1.9.0 expands the project across Android phones, Android TV, Wear OS, and Windows desktop. It also introduces a consistent first-run setup experience and a way to replay the welcome guide from Settings.
 
 ## What's new
 
@@ -15,13 +15,16 @@ Audify 1.9.0 expands Audify beyond mobile with the first Windows desktop release
 - **YouTube Music sync:** Account-scoped pending operations and safer synchronization handling from 1.8.10.
 - **Updates:** A dedicated Updates settings category and improved update checking, download cancellation, and incomplete-download cleanup.
 - **Appearance:** Progressive scroll-edge blur remains off by default, with an option to enable it in Appearance settings.
+- **Phone onboarding:** Added a guided setup flow for profile name, optional Google sign-in, and the initial music setup, with a replay option in Settings.
+- **Android TV onboarding:** Retains its TV-specific setup guide and Settings replay entry.
+- **Wear OS onboarding:** Added a watch-specific first-run guide and a replay entry under More.
+- **Consistent setup state:** Phone, desktop, and Wear OS persist onboarding completion so the welcome guide does not reappear on every launch.
 
 This release does not claim that the Android local-first migration or YouTube Music synchronization is complete. Those areas remain under active development and need broader real-device and account-switching validation.
 
 ## Desktop availability
 
 - **Windows x64:** `Audify-Setup.exe`
-- **Windows ARM64:** Not included in this release until a verified ARM64 installer is available.
 - **Linux and macOS:** The desktop codebase includes platform support, but downloadable builds are not yet part of this release.
 
 ## What's next for Android
@@ -38,10 +41,8 @@ Do not include passwords, authentication tokens, private listening history, or o
 
 ## Downloads
 
-- **Android phones:** `Audify-1.9.0.apk` (universal)
-- **Android phones (ARM64):** `Audify-1.9.0_arm64-v8a.apk`
+- **Android phones:** `Audify-1.9.0.apk` (universal; includes supported ABIs)
+- **Android phones (ARM64):** `Audify-1.9.0_arm64-v8a.apk` (smaller device-specific option)
 - **Android TV:** `AudifyTV-1.9.0.apk`
 - **Wear OS:** `AudifyWear-1.9.0.apk`
 - **Windows desktop:** `Audify-Setup.exe` (separate desktop installer asset)
-
-Use the SHA256SUMS file to verify downloaded APKs. The Android APKs continue to use the existing Audify release signing certificate.
