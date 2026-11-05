@@ -1,0 +1,47 @@
+﻿# Audify 1.9.0
+
+Audify 1.9.0 expands Audify beyond mobile with the first Windows desktop release, while carrying forward the Android backup, local-library, and update improvements introduced in 1.8.10.
+
+## What's new
+
+- **Windows desktop support:** Audify is now available as a native desktop app for Windows PCs, with a dedicated installer and desktop-sized interface.
+- **One Audify project across devices:** The desktop app joins the Android phone, Android TV, and Wear OS builds. Each platform has an interface suited to its form factor.
+- **Desktop app identity:** Added the Audify Windows application icon and aligned desktop package and installer versioning with the 1.9.0 release.
+
+## Android
+
+- **Backup and recovery:** Dedicated Backup settings, export/import, and automatic local-backup groundwork from 1.8.10.
+- **Local library:** Continued improvements to local favourites, listening history, playlists, and the Room database migration foundation.
+- **YouTube Music sync:** Account-scoped pending operations and safer synchronization handling from 1.8.10.
+- **Updates:** A dedicated Updates settings category and improved update checking, download cancellation, and incomplete-download cleanup.
+- **Appearance:** Progressive scroll-edge blur remains off by default, with an option to enable it in Appearance settings.
+
+This release does not claim that the Android local-first migration or YouTube Music synchronization is complete. Those areas remain under active development and need broader real-device and account-switching validation.
+
+## Desktop availability
+
+- **Windows x64:** `Audify-Setup.exe`
+- **Windows ARM64:** Not included in this release until a verified ARM64 installer is available.
+- **Linux and macOS:** The desktop codebase includes platform support, but downloadable builds are not yet part of this release.
+
+## What's next for Android
+
+Priorities under consideration include smarter two-way YouTube Music sync, conflict resolution for edits made on multiple devices, scheduled and user-controlled backup/restore, richer queue and playlist tools, Android Auto integration, and better offline download management. These are roadmap ideas, not features promised by this release.
+
+## Report a bug or share feedback
+
+- **Bug reports:** https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml
+- **General tester feedback:** https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml
+- **All releases:** https://github.com/sachit1751-art/Audify/releases
+
+Do not include passwords, authentication tokens, private listening history, or other personal information in reports. Redact sensitive details from screenshots and logs.
+
+## Downloads
+
+- **Android phones:** `Audify-1.9.0.apk` (universal)
+- **Android phones (ARM64):** `Audify-1.9.0_arm64-v8a.apk`
+- **Android TV:** `AudifyTV-1.9.0.apk`
+- **Wear OS:** `AudifyWear-1.9.0.apk`
+- **Windows desktop:** `Audify-Setup.exe` (separate desktop installer asset)
+
+Use the SHA256SUMS file to verify downloaded APKs. The Android APKs continue to use the existing Audify release signing certificate.
