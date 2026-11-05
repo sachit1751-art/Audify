@@ -1,0 +1,50 @@
+use std::env;
+use std::fs;
+use std::path::PathBuf;
+
+fn main() {
+    fonts();
+
+    #[cfg(windows)]
+    {
+        let icon = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../assets/windows/audify.ico"
+        );
+        println!("cargo:rerun-if-changed={icon}");
+        let mut resource = winresource::WindowsResource::new();
+        resource.set_icon(icon);
+        resource.set("ProductName", "Audify");
+        resource.set("FileDescription", "Audify");
+        resource.set("InternalName", "audify");
+        resource.set("OriginalFilename", "audify.exe");
+        resource.set("CompanyName", "Audify Contributors");
+        resource.set("LegalCopyright", "Copyright © 2026 Audify Contributors");
+        if let Err(error) = resource.compile() {
+            println!("cargo:warning=cannot embed the windows icon: {error}");
+        }
+    }
+}
+
+fn fonts() {
+    let assets = workspace().join("assets/fonts");
+
+    let faces = embed::folder(&assets, "ttf");
+    let embedded = embed::embedded(&faces, |item| format!("fonts/{}.ttf", item.name));
+    let source = format!("const FONTS: &[(&str, &[u8])] = {embedded};\n");
+
+    let out = PathBuf::from(env::var("OUT_DIR").expect("cargo sets the output")).join("fonts.rs");
+    fs::write(&out, source).expect("cannot write the font registry");
+    println!("cargo:rerun-if-changed=build.rs");
+}
+
+/// The workspace root, taken from the crate's own manifest directory without touching the
+/// filesystem, since `canonicalize` fails on a shared drive inside a Windows VM.
+fn workspace() -> PathBuf {
+    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("cargo names the crate"));
+    manifest
+        .ancestors()
+        .nth(2)
+        .expect("the crate lives two levels under the workspace")
+        .to_path_buf()
+}

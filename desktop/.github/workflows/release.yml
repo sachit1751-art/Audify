@@ -1,0 +1,851 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  # nightly.yml builds main through here. The input is the nightly's version number, and its
+  # presence publishes the build as the nightly prerelease instead of a tagged release.
+  workflow_call:
+    inputs:
+      nightly:
+        type: string
+        required: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_RELEASE_STRIP: symbols
+  RUST_BACKTRACE: 1
+  RUSTC_WRAPPER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+          - target: aarch64-apple-darwin
+            os: macos-15
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            arch: x64compatible
+            setup: Audify-Setup
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+            arch: arm64
+            setup: Audify-Setup-arm64
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: name the artifact
+        id: meta
+        shell: bash
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*) version="$GITHUB_REF_NAME" ;;
+            *) version="${GITHUB_SHA:0:7}" ;;
+          esac
+          if [ -n "$NIGHTLY" ]; then version=nightly; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config cmake mold \
+            libasound2-dev libfontconfig1-dev libfreetype-dev libsqlite3-dev \
+            libx11-dev libxcb1-dev libxcursor-dev libxi-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libvulkan-dev libdbus-1-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          cache-targets: false
+          cache-on-failure: true
+      # A nightly compiles its label in as the version the app shows. Other builds leave the
+      # variable unset, since an empty one would still count as set.
+      - name: build
+        shell: bash
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          if [ -n "$NIGHTLY" ]; then export AUDIFY_VERSION="$NIGHTLY"; fi
+          cargo build --release --locked --package audify --target "$TARGET"
+
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
+      - name: stage the executable
+        shell: bash
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          case "$RUNNER_OS" in
+            macOS)
+              cp \
+                "target/$TARGET/release/audify" \
+                "dist/audify-$TARGET"
+              ;;
+
+            Windows)
+              cp \
+                "target/$TARGET/release/audify.exe" \
+                "dist/audify-$VERSION-$TARGET.exe"
+              ;;
+
+            *)
+              cp \
+                "target/$TARGET/release/audify" \
+                "dist/audify-$VERSION-$TARGET"
+              ;;
+          esac
+
+      - name: install Inno Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: build the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          NIGHTLY: ${{ inputs.nightly }}
+          TARGET: ${{ matrix.target }}
+          AUDIFY_ARCH: ${{ matrix.arch }}
+          AUDIFY_SETUP: ${{ matrix.setup }}
+        run: |
+          $number = if ($env:NIGHTLY) { $env:NIGHTLY } else { $env:VERSION.TrimStart("v") }
+          if ($number -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
+            $number = "0.0.0"
+          }
+          $env:AUDIFY_VERSION = $number
+          $env:AUDIFY_EXE = (Resolve-Path "target/$env:TARGET/release/audify.exe").Path
+          $env:AUDIFY_DIST = (Resolve-Path "dist").Path
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "scripts/windows/audify.iss"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "${{ runner.os == 'macOS' && format('darwin-{0}', matrix.target) || format('release-{0}', matrix.target) }}"
+          path: dist/*
+          if-no-files-found: error
+
+  bundle:
+    name: macos app bundle
+    needs: build
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: name the artifact
+        id: meta
+        shell: bash
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              version="$GITHUB_REF_NAME"
+              number="${GITHUB_REF_NAME#v}"
+              ;;
+
+            *)
+              version="${GITHUB_SHA:0:7}"
+              number="0.0.0"
+              ;;
+          esac
+          # The bundle version has to stay numeric, so a nightly carries the release it follows.
+          if [ -n "$NIGHTLY" ]; then
+            version=nightly
+            number="${NIGHTLY%%-*}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: darwin-*
+          path: darwin
+          merge-multiple: true
+
+      - name: assemble the bundle
+        shell: bash
+        env:
+          NUMBER: ${{ steps.meta.outputs.number }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p \
+            Audify.app/Contents/MacOS \
+            Audify.app/Contents/Resources
+
+          lipo -create \
+            -output Audify.app/Contents/MacOS/audify \
+            darwin/audify-aarch64-apple-darwin \
+            darwin/audify-x86_64-apple-darwin
+          chmod +x Audify.app/Contents/MacOS/audify
+          lipo -info Audify.app/Contents/MacOS/audify
+
+          cp \
+            assets/macos/audify.icns \
+            Audify.app/Contents/Resources/
+
+          cp \
+            COPYING \
+            Audify.app/Contents/Resources/LICENSE
+
+          cp \
+            THIRD-PARTY.md \
+            Audify.app/Contents/Resources/
+
+          cp \
+            assets/fonts/LICENSE.txt \
+            Audify.app/Contents/Resources/LICENSE.Inter
+
+          mkdir -p Audify.app/Contents/Resources/icons
+          cp assets/icons/LICENSE Audify.app/Contents/Resources/icons/LICENSE
+          for licence in assets/icons/*/LICENSE; do
+            pack="$(basename "$(dirname "$licence")")"
+            cp "$licence" "Audify.app/Contents/Resources/icons/LICENSE.$pack"
+          done
+
+          sed \
+            "s/@VERSION@/$NUMBER/g" \
+            assets/macos/Info.plist \
+            > Audify.app/Contents/Info.plist
+
+          plutil -lint Audify.app/Contents/Info.plist
+
+      - name: sign the bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          codesign \
+            --force \
+            --sign - \
+            Audify.app
+
+          codesign \
+            --verify \
+            --strict \
+            --verbose=2 \
+            Audify.app
+
+      - name: create the disk image
+        shell: bash
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist staging
+          cp -R Audify.app staging/
+          ln -s /Applications staging/Applications
+          megabytes=$(du -ms staging | cut -f1)
+          hdiutil create \
+            -volname Audify \
+            -srcfolder staging \
+            -size "$((megabytes + 128))m" \
+            -ov \
+            -format UDZO \
+            "dist/audify-$VERSION-macos.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: dist/*
+          if-no-files-found: error
+
+  appimage:
+    name: "AppImage (${{ matrix.variant.arch }})"
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - arch: x86_64
+            target: x86_64-unknown-linux-gnu
+            runner: ubuntu-22.04
+          - arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-22.04-arm
+
+    runs-on: ${{ matrix.variant.runner }}
+
+    env:
+      # The runner images carry no libfuse2, so every AppImage tool has to unpack itself.
+      APPIMAGE_EXTRACT_AND_RUN: 1
+      ARCH: ${{ matrix.variant.arch }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: name the artifact
+        id: meta
+        shell: bash
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*)
+              version="$GITHUB_REF_NAME"
+              number="${GITHUB_REF_NAME#v}"
+              ;;
+
+            *)
+              version="${GITHUB_SHA:0:7}"
+              number=""
+              ;;
+          esac
+
+          # Only a stable tag or a nightly embeds where to update from. GitHub's latest release
+          # never points at a prerelease, so a beta would be offered an older stable build, and
+          # an untagged build would be offered a release it was never cut from. A nightly follows
+          # the nightly prerelease through its tag instead.
+          zsync="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}"
+          update=""
+          case "$number" in
+            "" | *-*) ;;
+            *) update="$zsync|latest|audify-*-$ARCH.AppImage.zsync" ;;
+          esac
+          if [ -n "$NIGHTLY" ]; then
+            version=nightly
+            number="$NIGHTLY"
+            update="$zsync|nightly|audify-*-$ARCH.AppImage.zsync"
+          fi
+
+          {
+            echo "version=$version"
+            echo "number=$number"
+            echo "update=$update"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-${{ matrix.variant.target }}
+          path: staged
+
+      # The libraries the executable links, so linuxdeploy can resolve and copy them. Its own
+      # excludelist decides which of them stay behind and come from the host instead.
+      - name: system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            patchelf file desktop-file-utils \
+            libasound2 libfontconfig1 libfreetype6 libsqlite3-0 \
+            libx11-6 libxcb1 libxcursor1 libxi6 \
+            libxkbcommon0 libxkbcommon-x11-0 libwayland-client0 \
+            libvulkan1 libdbus-1-3
+
+      - name: fetch the AppImage tools
+        run: |
+          set -euo pipefail
+          base=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous
+          curl -fsSL -o linuxdeploy "$base/linuxdeploy-$ARCH.AppImage"
+          base=https://github.com/AppImage/appimagetool/releases/download/continuous
+          curl -fsSL -o appimagetool "$base/appimagetool-$ARCH.AppImage"
+          chmod +x linuxdeploy appimagetool
+
+      - name: assemble the AppDir
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          NUMBER: ${{ steps.meta.outputs.number }}
+          UPDATE: ${{ steps.meta.outputs.update }}
+          TARGET: ${{ matrix.variant.target }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p AppDir/usr/bin
+          cp "staged/audify-$VERSION-$TARGET" AppDir/usr/bin/audify
+          chmod +x AppDir/usr/bin/audify
+
+          # Every asset is compiled into the executable, so the AppDir carries the desktop entry
+          # and the icons for the host's launcher and nothing else.
+          mkdir -p AppDir/usr/share/icons
+          cp -R assets/linux/icons/hicolor AppDir/usr/share/icons/
+
+          # The keys AppImage managers identify and version the app by go into a copy, so the
+          # entry the Flatpak and the distribution packages install stays as it is.
+          homepage="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          mkdir -p desktop
+          cp assets/linux/audify.desktop desktop/audify.desktop
+          {
+            echo "X-AppImage-Name=Audify"
+            echo "X-AppImage-Arch=$ARCH"
+            echo "X-AppImage-Homepage=$homepage"
+            if [ -n "$NUMBER" ]; then echo "X-AppImage-Version=$NUMBER"; fi
+            if [ -n "$UPDATE" ]; then echo "X-AppImage-UpdateURL=$homepage"; fi
+          } >> desktop/audify.desktop
+          desktop-file-validate desktop/audify.desktop
+
+          ./linuxdeploy \
+            --appdir AppDir \
+            --executable AppDir/usr/bin/audify \
+            --desktop-file desktop/audify.desktop \
+            --icon-file assets/linux/audify.svg
+
+          # appimagetool makes the image's own icon only from a PNG or XPM in the top level of the
+          # AppDir, and linuxdeploy puts the SVG there.
+          cp assets/linux/icons/hicolor/256x256/apps/audify.png AppDir/audify.png
+
+          # The Vulkan loader has to be the host's: it is what finds the host's ICD, and a loader
+          # this old paired with a current driver is how an AppImage stops starting.
+          rm -f AppDir/usr/lib/libvulkan.so.1*
+
+          mkdir -p AppDir/usr/share/doc/audify/icons
+          cp COPYING AppDir/usr/share/doc/audify/LICENSE
+          cp THIRD-PARTY.md AppDir/usr/share/doc/audify/
+          cp assets/fonts/LICENSE.txt AppDir/usr/share/doc/audify/LICENSE.Inter
+          cp assets/icons/LICENSE AppDir/usr/share/doc/audify/icons/LICENSE
+          for licence in assets/icons/*/LICENSE; do
+            pack="$(basename "$(dirname "$licence")")"
+            cp "$licence" "AppDir/usr/share/doc/audify/icons/LICENSE.$pack"
+          done
+
+      - name: build the AppImage
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          UPDATE: ${{ steps.meta.outputs.update }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          image="audify-$VERSION-$ARCH.AppImage"
+
+          # Given update information, appimagetool embeds it and writes the .zsync that
+          # AppImageUpdate diffs against beside the image, with a zsyncmake of its own.
+          # It also copies a VERSION it finds in its environment into X-AppImage-Version,
+          # which would put the tag's v prefix over the bare number the desktop file carries.
+          flags=()
+          if [ -n "$UPDATE" ]; then flags=(--updateinformation "$UPDATE"); fi
+          env -u VERSION ./appimagetool "${flags[@]}" AppDir "dist/$image"
+          if [ -f "$image.zsync" ]; then mv "$image.zsync" dist/; fi
+
+      - name: inspect the AppImage
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          NUMBER: ${{ steps.meta.outputs.number }}
+          UPDATE: ${{ steps.meta.outputs.update }}
+        run: |
+          set -euo pipefail
+          cd dist
+          image="audify-$VERSION-$ARCH.AppImage"
+          "./$image" --appimage-extract > /dev/null
+          test -x squashfs-root/usr/bin/audify
+          test -f squashfs-root/audify.desktop
+          grep -qx "X-AppImage-Arch=$ARCH" squashfs-root/audify.desktop
+          if [ -n "$NUMBER" ]; then
+            grep -qx "X-AppImage-Version=$NUMBER" squashfs-root/audify.desktop
+          fi
+          if [ -n "$UPDATE" ]; then
+            test -f "$image.zsync"
+            # The runtime answers nothing to this flag once it is told to extract and run.
+            test "$(env -u APPIMAGE_EXTRACT_AND_RUN "./$image" --appimage-updateinformation)" = "$UPDATE"
+          else
+            test ! -e "$image.zsync"
+          fi
+          test -f squashfs-root/usr/share/doc/audify/THIRD-PARTY.md
+          test ! -e squashfs-root/usr/lib/libvulkan.so.1
+          ldd squashfs-root/usr/bin/audify
+          rm -rf squashfs-root
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-appimage-${{ matrix.variant.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  # Build flatpak, see: https://github.com/flatpak/flatpak-github-actions
+  # A nightly skips the Flatpak, since the one repository it publishes to is the stable channel.
+  flatpak:
+    name: "Flatpak (${{ matrix.variant.arch }})"
+    if: ${{ !inputs.nightly }}
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+
+    runs-on: ${{ matrix.variant.runner }}
+
+    container:
+      # Use an image generated by Flathub to avoid re-installing the SDKs for every build,
+      # see: https://github.com/flathub-infra/actions-images
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: name the artifact
+        id: meta
+        shell: bash
+        run: |
+          case "$GITHUB_REF" in
+            refs/tags/*) version="$GITHUB_REF_NAME" ;;
+            *) version="${GITHUB_SHA:0:7}" ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install flatpak-cargo-generator
+        run: |
+          python3 -m pip install --break-system-packages flatpak-cargo-generator
+
+      - name: Generate Cargo Sources
+        run: |
+          chmod +x ./flatpak/generate-sources.sh
+          ./flatpak/generate-sources.sh
+
+      - name: Build Flatpak Bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          manifest-path: flatpak/flatpak-builder.yaml
+          bundle: audify-${{ steps.meta.outputs.version }}-${{ matrix.variant.arch }}.flatpak
+          arch: ${{ matrix.variant.arch }}
+          upload-artifact: true
+          artifact-name: flatpak-${{ matrix.variant.arch }}
+
+  flatpak-repo:
+    needs: flatpak
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: flatpak-*
+          path: bundles
+          merge-multiple: true
+
+      - name: system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak ostree
+
+      - name: import the signing key
+        id: key
+        env:
+          KEY: ${{ secrets.FLATPAK_GPG_KEY }}
+        run: |
+          set -euo pipefail
+          GNUPGHOME="$(mktemp -d)"
+          export GNUPGHOME
+          echo "$KEY" | gpg --batch --import
+          fingerprint="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')"
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: fetch the published repo
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch flatpak-repo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" site \
+            || mkdir site
+          rm -rf site/.git
+
+      - name: publish the bundles
+        env:
+          FINGERPRINT: ${{ steps.key.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          # Git cannot preserve OSTree's empty remote refs directory on the
+          # flatpak-repo branch, but static-delta generation expects it.
+          mkdir -p site/repo/tmp site/repo/refs/remotes
+          test -f site/repo/config || ostree init --repo=site/repo --mode=archive
+          for bundle in bundles/*.flatpak; do
+            flatpak build-import-bundle \
+              --gpg-sign="$FINGERPRINT" \
+              --gpg-homedir="$GNUPGHOME" \
+              site/repo "$bundle"
+          done
+          flatpak build-update-repo \
+            --title=Audify \
+            --generate-static-deltas \
+            --prune \
+            --prune-depth=3 \
+            --gpg-sign="$FINGERPRINT" \
+            --gpg-homedir="$GNUPGHOME" \
+            site/repo
+          rm -rf site/repo/tmp
+          cp -R flatpak/pages/. site/
+
+      - name: export the bundles
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: ./flatpak/export-bundles.sh site/repo "$VERSION" dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-flatpak
+          path: dist/*
+          if-no-files-found: error
+
+      - name: push the repo
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd site
+          git init -q -b flatpak-repo
+          git add -A
+          git \
+            -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "chore(flatpak): publish $VERSION"
+          git push --force "https://x-access-token:$TOKEN@github.com/$GITHUB_REPOSITORY" flatpak-repo
+
+  release:
+    needs: [build, bundle, appimage, flatpak, flatpak-repo]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: stage the licenses
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: ./scripts/licenses-tarball.sh "dist/audify-$VERSION-licenses.tar.gz"
+
+      - name: checksums
+        run: cd dist && shasum -a 256 * > SHA256SUMS
+
+      - name: release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$TAG" --jq .body > notes.md
+          printf '\n[Code signing policy](https://github.com/%s#code-signing-policy)\n' "$GITHUB_REPOSITORY" >> notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          body_path: notes.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
+
+  # The nightly prerelease is one release whose assets every nightly replaces. Its tag moves to a
+  # commit on top of the main it built, which adds nix/nightly.json so the flake at that tag
+  # installs the binaries beside it.
+  nightly:
+    needs: [build, bundle, appimage]
+    if: ${{ inputs.nightly }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: stage the licenses
+        run: ./scripts/licenses-tarball.sh dist/audify-nightly-licenses.tar.gz
+
+      - name: checksums
+        run: cd dist && shasum -a 256 * > SHA256SUMS
+
+      - name: record the assets for the flake
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          set -euo pipefail
+          sri() { echo "sha256-$(openssl dgst -sha256 -binary "dist/$1" | base64 -w0)"; }
+          jq -n \
+            --arg version "$NIGHTLY" \
+            --arg x86_64_linux "$(sri audify-nightly-x86_64-unknown-linux-gnu)" \
+            --arg aarch64_linux "$(sri audify-nightly-aarch64-unknown-linux-gnu)" \
+            --arg aarch64_darwin "$(sri audify-nightly-macos.dmg)" \
+            '{
+              version: $version,
+              tag: "nightly",
+              assets: {
+                "x86_64-linux": { target: "x86_64-unknown-linux-gnu", hash: $x86_64_linux },
+                "aarch64-linux": { target: "aarch64-unknown-linux-gnu", hash: $aarch64_linux },
+                "aarch64-darwin": { target: "macos", hash: $aarch64_darwin }
+              }
+            }' > nix/nightly.json
+          cat nix/nightly.json
+
+      - name: move the nightly tag
+        env:
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          set -euo pipefail
+          git add nix/nightly.json
+          git \
+            -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "chore(nix): point the flake at nightly $NIGHTLY"
+          git push --force origin HEAD:refs/tags/nightly
+
+      # Replacing the assets in place rather than recreating the release keeps watchers from
+      # being notified of a new release every night.
+      - name: publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NIGHTLY: ${{ inputs.nightly }}
+        run: |
+          set -euo pipefail
+          commit="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+          {
+            printf 'Audify %s, built from [`%s`](%s) on `main`.\n\n' "$NIGHTLY" "${GITHUB_SHA:0:7}" "$commit"
+            printf 'A nightly build has not been through the testing a release gets. '
+            printf 'Report what breaks in the issues and mention that it is the nightly.\n'
+          } > notes.md
+          if gh release view nightly > /dev/null 2>&1; then
+            gh release upload nightly dist/* --clobber
+            gh release edit nightly --prerelease --title "Nightly $NIGHTLY" --notes-file notes.md
+          else
+            gh release create nightly dist/* \
+              --verify-tag \
+              --prerelease \
+              --latest=false \
+              --title "Nightly $NIGHTLY" \
+              --notes-file notes.md
+          fi
+
+  announce:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/announce.yml
+    secrets: inherit
+    with:
+      tag: ${{ github.ref_name }}
+
+  # The nightly built before a release still carries the previous version number.
+  # Building the nightly again right away keeps nightly users from running behind the release.
+  refresh-nightly:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: dispatch the nightly
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run nightly.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+  # audify-bin is rendered from aur/audify-bin/PKGBUILD on every stable release, so the AUR
+  # repository only ever holds what this job pushed. It needs AUR_SSH_KEY, the key nightly.yml
+  # pushes audify-nightly-bin with, since one AUR account maintains both.
+  aur:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/') && !contains(github.ref_name, '-')
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: system dependencies
+        run: pacman -Syu --noconfirm --needed git openssh
+
+      - uses: actions/checkout@v5
+
+      - name: render and build the PKGBUILD
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          base="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          curl -fsSL "$base/releases/download/$TAG/SHA256SUMS" > sums
+          sum() { awk -v file="$1" '$2 == file { print $1 }' sums; }
+          source="$(curl -fsSL "$base/archive/refs/tags/$TAG.tar.gz" | sha256sum | cut -d ' ' -f 1)"
+          x86_64="$(sum "audify-$TAG-x86_64-unknown-linux-gnu")"
+          aarch64="$(sum "audify-$TAG-aarch64-unknown-linux-gnu")"
+          test -n "$x86_64"
+          test -n "$aarch64"
+
+          mkdir package
+          sed \
+            -e "s/@PKGVER@/${TAG#v}/" \
+            -e "s/@SHA256_SOURCE@/$source/" \
+            -e "s/@SHA256_X86_64@/$x86_64/" \
+            -e "s/@SHA256_AARCH64@/$aarch64/" \
+            aur/audify-bin/PKGBUILD > package/PKGBUILD
+          if grep -n '@[A-Z0-9_]*@' package/PKGBUILD; then exit 1; fi
+
+          # A package build downloads every source and checks it against its sum, so a PKGBUILD
+          # that would fail for users never reaches the AUR. makepkg refuses to run as root, and
+          # -d skips installing the runtime dependencies the build itself does not need.
+          useradd -m builder
+          chown -R builder package
+          su builder -c 'cd package && makepkg -f -d --noconfirm && makepkg --printsrcinfo > .SRCINFO'
+          cat package/.SRCINFO
+
+      - name: push to the AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          # The AUR's published ed25519 host key. ssh reads its known_hosts from the passwd home,
+          # which in a job container is not $HOME, so the file is named explicitly.
+          echo "aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN" \
+            > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/aur -o IdentitiesOnly=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+
+          git clone -q ssh://aur@aur.archlinux.org/audify-bin.git aur-repo
+          cp package/PKGBUILD package/.SRCINFO aur-repo/
+          cd aur-repo
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "::notice::the AUR package is already at ${TAG#v}"
+            exit 0
+          fi
+          git \
+            -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "upgpkg: audify-bin ${TAG#v}-1"
+          git push origin HEAD:master

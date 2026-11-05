@@ -1,0 +1,142 @@
+name: Bug report
+description: Report something that is broken
+labels: [bug, needs triage]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A log turns a bug report into a fix. Audify writes one to
+        `~/.local/state/audify/audify.log` on Linux, `~/Library/Caches/audify/audify.log` on macOS
+        and `%LOCALAPPDATA%\audify\audify.log` on Windows. Reproduce the problem first, then attach
+        the tail of that file. `AUDIFY_LOG=debug` on the command line makes it more detailed.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happens
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      description: Where the music you were playing or browsing comes from. Pick every one that shows the problem.
+      multiple: true
+      options:
+        - Apple Music
+        - Spotify
+        - YouTube Music
+        - Deezer
+        - Tidal
+        - Subsonic or Navidrome
+        - Local files
+        - Not tied to a provider
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Audify version
+      description: The first line of the log file names it.
+      placeholder: 0.29.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - Flatpak
+        - AUR
+        - Nix
+        - Homebrew
+        - macOS disk image
+        - Windows installer
+        - Built from source
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: os-detail
+    attributes:
+      label: Distribution or OS version
+      placeholder: CachyOS, macOS 15.3, Windows 11 24H2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: session
+    attributes:
+      label: Session type
+      description: Linux only.
+      options:
+        - Wayland
+        - X11
+        - Not on Linux
+    validations:
+      required: true
+
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop or compositor
+      description: Linux only.
+      placeholder: KDE, GNOME, Hyprland, niri
+    validations:
+      required: false
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU and Vulkan driver
+      description: Anything visual needs this. `vulkaninfo --summary` on Linux prints the driver.
+      placeholder: AMD RX 7800 XT, RADV / Mesa 25.2
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: The tail of audify.log covering the moment it went wrong. Do not paste a screenshot of it.
+      render: text
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues
+          required: true
+        - label: I am running the latest release
+          required: true

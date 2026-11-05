@@ -58,3 +58,9 @@ AGENTS.md
 
 # Animation reference captures and comparison evidence
 .reanimate/
+
+# Audify Desktop
+desktop/build/
+desktop/.gradle/
+desktop/target/
+desktop/dist/
