@@ -3237,6 +3237,7 @@ private fun AudifyApp(
                                 onSongClick = ::playDetailSongs,
                                 onSongLongPress = { openSongMenu(withAlbum(it)) },
                                 onSongSwipe = { onSongSwipe(withAlbum(it)) },
+                                onRetry = viewModel::retryDetail,
                                 onShuffle = { songs ->
                                     if (songs.isNotEmpty()) {
                                         // Shuffle goes on first so the queue is built shuffled
