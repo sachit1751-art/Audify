@@ -36,6 +36,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
@@ -172,7 +173,7 @@ private fun MoodGenreCard(
             .aspectRatio(1.42f)
             .clip(MOOD_CARD_SHAPE)
             .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
     )
 }
 
