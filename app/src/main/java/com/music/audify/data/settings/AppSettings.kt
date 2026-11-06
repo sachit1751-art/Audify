@@ -1282,6 +1282,11 @@ object AppSettings {
         prefs.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
     }
 
+    fun replayOnboarding() {
+        onboardingComplete.value = false
+        prefs.edit { putBoolean(KEY_ONBOARDING_COMPLETE, false) }
+    }
+
     fun setStopOnTaskRemoved(value: Boolean) {
         stopOnTaskRemoved.value = value
         prefs.edit { putBoolean(KEY_STOP_ON_TASK_REMOVED, value) }

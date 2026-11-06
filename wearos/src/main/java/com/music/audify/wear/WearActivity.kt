@@ -41,6 +41,7 @@ class WearActivity : ComponentActivity() {
     private val model: WearViewModel by viewModels()
 
     private val ambient = mutableStateOf(Ambient())
+    private val onboardingComplete = mutableStateOf(false)
 
     /**
      * Always-on. The activity stays up when the screen dims instead of handing
@@ -72,6 +73,8 @@ class WearActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val onboardingPrefs = getSharedPreferences("audify_wear_setup", MODE_PRIVATE)
+        onboardingComplete.value = onboardingPrefs.getBoolean("complete", false)
         lifecycle.addObserver(ambientObserver)
         // For the watch-face icon while the phone plays. Asked once; a "no"
         // only costs that icon — the app itself works the same.
@@ -101,7 +104,18 @@ class WearActivity : ComponentActivity() {
         setContent {
             AudifyWearTheme {
                 CompositionLocalProvider(LocalAmbient provides ambient.value) {
-                    WearApp(model.link)
+                    WearApp(
+                        link = model.link,
+                        showOnboarding = !onboardingComplete.value,
+                        onOnboardingComplete = {
+                            onboardingPrefs.edit().putBoolean("complete", true).apply()
+                            onboardingComplete.value = true
+                        },
+                        onReplayOnboarding = {
+                            onboardingPrefs.edit().putBoolean("complete", false).apply()
+                            onboardingComplete.value = false
+                        },
+                    )
                 }
             }
         }

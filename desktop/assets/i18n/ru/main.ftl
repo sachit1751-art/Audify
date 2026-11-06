@@ -1031,7 +1031,7 @@ settings-group-streaming = Стриминг
 settings-group-spotify-connect = Spotify Connect
 settings-group-sessions = Сессии
 settings-sessions-button = Показывать кнопку сессий
-settings-sessions-official = Использовать официальный сервер Audify Sessions
+settings-sessions-official = Использовать сервер Audify Sessions (пока недоступен)
 settings-sessions-server = Адрес сервера
 settings-sessions-server-hint = wss://sessions.example.com
 settings-sessions-save = Сохранить
@@ -1414,3 +1414,4 @@ response-graph-readout = { $frequency } · { $direction ->
         [down] -{ $gain }
        *[flat] { $gain }
     } дБ
+toast-session-server-unavailable = Сессии отключены, пока сервер Audify недоступен. Чтобы использовать эту функцию, укажите собственный сервер в настройках.

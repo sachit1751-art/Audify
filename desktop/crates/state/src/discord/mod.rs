@@ -25,7 +25,7 @@ const MAX_TEXT_UTF16_UNITS: usize = 128;
 /// What the status says when it names the music rather than a service.
 const MUSIC: &str = "Music";
 /// Where the Audify button sends a friend who presses it.
-const AUDIFY_URL: &str = "https://sonorahq.org";
+const AUDIFY_URL: &str = "https://github.com/sachit1751-art/Audify";
 
 struct Attached {
     _discord: Entity<Discord>,

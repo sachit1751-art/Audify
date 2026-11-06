@@ -51,7 +51,7 @@ val lastfmSecret: String = (
 val listenTogetherServer: String = (
     localProps.getProperty("LISTEN_TOGETHER_SERVER")
         ?: System.getenv("LISTEN_TOGETHER_SERVER")
-        ?: "https://audify-listen-together.onrender.com"
+        ?: "https://audify-listen-together-qdbd.onrender.com"
     ).trim().trimEnd('/')
 
 // See the root build.gradle.kts: one version for the phone and its watch app.
@@ -481,6 +481,26 @@ val verifyDevInstall = tasks.register("verifyDevInstall") {
     }
 }
 tasks.matching { it.name == "installDevDebug" }.configureEach { finalizedBy(verifyDevInstall) }
+
+// Give locally built production phone APKs the same Audify identity as the
+// release assets. The release workflow still selects the universal and ARM64
+// files by their ABI suffixes, then assigns the public versioned asset names.
+tasks.matching { it.name == "assembleProdRelease" }.configureEach {
+    doLast {
+        val outputDir = layout.buildDirectory.dir("outputs/apk/prod/release").get().asFile
+        outputDir.listFiles { file -> file.isFile && file.name.startsWith("app-prod-") && file.name.endsWith("-release.apk") }
+            ?.forEach { source ->
+                val target = source.resolveSibling(source.name.replaceFirst("app-prod-", "Audify-prod-"))
+                if (target.exists() && !target.delete()) {
+                    throw GradleException("Cannot replace existing APK ${target.name}")
+                }
+                if (!source.renameTo(target)) {
+                    throw GradleException("Cannot rename ${source.name} to ${target.name}")
+                }
+                logger.lifecycle("Renamed production APK: ${target.name}")
+            }
+    }
+}
 
 /*
  * The watch app rides inside the phone app, so "Audify for Wear OS" in

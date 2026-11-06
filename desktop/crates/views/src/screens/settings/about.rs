@@ -6,7 +6,7 @@ use gpui::prelude::*;
 use gpui::{AnyElement, Context, FontWeight, SharedString, div, img};
 use i18n::t;
 use state::Channel;
-use ui::{ActiveTheme as _, Avatar, Switch, Text};
+use ui::{ActiveTheme as _, Avatar, Button, Switch, Text};
 
 use super::rows::{outward, segmented};
 use super::{Group, SettingsView, Slot, group_heading};
@@ -61,7 +61,7 @@ impl SettingsView {
         let channel = state::updates_itself().then_some(Slot::Channel);
         vec![
             Group::untitled().rows(
-                [Slot::Version, Slot::Updates]
+                [Slot::Version, Slot::Updates, Slot::Onboarding]
                     .into_iter()
                     .chain(channel)
                     .chain([Slot::Log, Slot::License, Slot::Source]),
@@ -86,6 +86,22 @@ impl SettingsView {
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.settings
                         .update(cx, |settings, cx| settings.set_check_updates(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    pub(super) fn onboarding_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        self.row(
+            "Replay welcome guide".into(),
+            Button::new("replay-welcome-guide")
+                .label("Replay")
+                .small()
+                .outline()
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.settings.update(cx, |settings, cx| {
+                        settings.set_onboarding_complete(false, cx)
+                    });
                 }))
                 .into_any_element(),
         )

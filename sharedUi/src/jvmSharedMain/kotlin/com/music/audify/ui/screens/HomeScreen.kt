@@ -78,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cached
 import androidx.compose.material.icons.rounded.Close
@@ -159,13 +160,6 @@ internal fun keepListeningCardWidth(available: Dp): Dp {
     return (usable - KEEP_LISTENING_COLUMN_SPACING * (columns - 1)) / columns
 }
 
-data class WeeklyRecapCardData(
-    val minutes: String,
-    val plays: String,
-    val topSong: String?,
-    val topArtist: String?,
-)
-
 private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Boolean {
     song ?: return { false }
     // The card that was played, when the shelf holds it, and only that one —
@@ -212,9 +206,6 @@ fun HomeScreen(
     leadHero: Boolean = true,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
-    weeklyRecap: WeeklyRecapCardData? = null,
-    onWeeklyRecapClick: (() -> Unit)? = null,
-    onWeeklyRecapDismiss: (() -> Unit)? = null,
     timeAwareShelf: HomeShelf? = null,
     onSearchClick: (() -> Unit)? = null,
     onCastClick: (() -> Unit)? = null,
@@ -286,15 +277,6 @@ fun HomeScreen(
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,
                         isPlaying = isPlaying,
-                    )
-                }
-            }
-            if (weeklyRecap != null && onWeeklyRecapClick != null) {
-                item(key = "weekly-listening-recap") {
-                    WeeklyRecapCard(
-                        recap = weeklyRecap,
-                        onClick = onWeeklyRecapClick,
-                        onDismiss = onWeeklyRecapDismiss,
                     )
                 }
             }
@@ -380,59 +362,6 @@ fun HomeScreen(
             onOpenPipeline = null,
             onOpenCast = { onCastClick?.invoke() },
         )
-    }
-}
-
-@Composable
-private fun WeeklyRecapCard(
-    recap: WeeklyRecapCardData,
-    onClick: () -> Unit,
-    onDismiss: (() -> Unit)?,
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, top = 16.dp, end = 8.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(Res.string.weekly_recap_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(Res.string.weekly_recap_summary, recap.minutes, recap.plays),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                recap.topSong?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(stringResource(Res.string.weekly_recap_top_song, it), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                recap.topArtist?.let {
-                    Text(stringResource(Res.string.weekly_recap_top_artist, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(Res.string.weekly_recap_open),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            if (onDismiss != null) {
-                Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Close, contentDescription = stringResource(Res.string.weekly_recap_dismiss), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                }
-            }
-        }
     }
 }
 
@@ -1479,16 +1408,23 @@ internal fun Shelf(
                     emphasized = true,
                 )
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val columns = quickPickColumns(maxWidth)
-                    val rows = shelf.items.take(if (columns >= 3) columns * 4 else 4).chunked(columns)
-                    Column(Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER)) {
-                        rows.forEach { rowItems ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            ) {
-                                rowItems.forEach { item ->
-                                    Column(Modifier.weight(1f)) {
+                    val contentWidth = (maxWidth - PAGE_GUTTER * 2).coerceAtLeast(1.dp)
+                    // Keep the reference's two-column density where each row
+                    // can still show its title. Narrow windows use one column
+                    // rather than squeezing artwork, metadata and overflow
+                    // into an unusable strip.
+                    val columnCount = if (contentWidth >= 420.dp) 2 else 1
+                    val pages = shelf.items.chunked(columnCount * 4)
+                    ShelfRow(
+                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
+                        itemsIndexed(pages, key = { index, page ->
+                            "quick-picks-page-$index-${page.firstOrNull()?.videoId.orEmpty()}"
+                        }) { _, page ->
+                            if (columnCount == 1) {
+                                Column(Modifier.width(contentWidth)) {
+                                    page.forEach { item ->
                                         QuickPickTrackRow(
                                             item = item,
                                             onClick = { onItemClick(item) },
@@ -1498,7 +1434,25 @@ internal fun Shelf(
                                         )
                                     }
                                 }
-                                repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                            } else {
+                                Row(
+                                    modifier = Modifier.width(contentWidth),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    listOf(page.take(4), page.drop(4)).forEach { columnItems ->
+                                        Column(Modifier.weight(1f)) {
+                                            columnItems.forEach { item ->
+                                                QuickPickTrackRow(
+                                                    item = item,
+                                                    onClick = { onItemClick(item) },
+                                                    onLongPress = onItemLongPress?.let { { it(item) } },
+                                                    isCurrent = isCurrentItem(item),
+                                                    isPlaying = isCurrentItem(item) && isPlaying,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1507,29 +1461,23 @@ internal fun Shelf(
             shelf.title.equals("Listen again", ignoreCase = true) ||
                 shelf.title.equals("Keep listening", ignoreCase = true) -> {
                 SectionHeader("Keep listening", shelf.subtitle, emphasized = true)
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val spacing = KEEP_LISTENING_COLUMN_SPACING
-                    val columns = keepListeningColumns(maxWidth)
-                    shelf.items.chunked(columns).forEach { rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER),
-                            horizontalArrangement = Arrangement.spacedBy(spacing),
-                        ) {
-                            rowItems.forEach { item ->
-                                ShelfCard(
-                                    item = item,
-                                    onClick = { onItemClick(item) },
-                                    onLongPress = onItemLongPress?.let { { it(item) } },
-                                    modifier = Modifier.weight(1f),
-                                    isCurrent = isCurrentItem(item),
-                                    isPlaying = isCurrentItem(item) && isPlaying,
-                                    titleMaxLines = 3,
-                                    subtitleMaxLines = 2,
-                                )
-                            }
-                            repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                        Spacer(Modifier.height(18.dp))
+                val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
+                ShelfRow(
+                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    itemsIndexed(shelf.items, key = { index, _ -> "keep-listening-${itemKeys[index]}" }) { _, item ->
+                        ShelfCard(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onLongPress = onItemLongPress?.let { { it(item) } },
+                            modifier = Modifier.width(KEEP_LISTENING_MIN_CARD_WIDTH),
+                            isCurrent = isCurrentItem(item),
+                            isPlaying = isCurrentItem(item) && isPlaying,
+                            titleMaxLines = 2,
+                            subtitleMaxLines = 2,
+                            readableMetadata = true,
+                        )
                     }
                 }
             }
@@ -1541,19 +1489,44 @@ internal fun Shelf(
                 }
                 SectionHeader(homeTitle, shelf.subtitle)
                 val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
-                ShelfRow(
-                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    leadingCard?.let { card -> item(key = "leading") { card() } }
-                    itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
-                        ShelfCard(
-                            item = item,
-                            onClick = { onItemClick(item) },
-                            onLongPress = onItemLongPress?.let { { it(item) } },
-                            isCurrent = isCurrentItem(item),
-                            isPlaying = isCurrentItem(item) && isPlaying,
-                        )
+                if (shelf.title.contains("video", ignoreCase = true)) {
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val contentWidth = (maxWidth - PAGE_GUTTER * 2).coerceAtLeast(1.dp)
+                        val videoCardWidth = (contentWidth * 0.82f)
+                            .coerceAtLeast(220.dp)
+                            .coerceAtMost(380.dp)
+                            .coerceAtMost(contentWidth)
+                        ShelfRow(
+                            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
+                                MusicVideoCard(
+                                    item = item,
+                                    onClick = { onItemClick(item) },
+                                    onLongPress = onItemLongPress?.let { { it(item) } },
+                                    modifier = Modifier.width(videoCardWidth),
+                                    isCurrent = isCurrentItem(item),
+                                    isPlaying = isCurrentItem(item) && isPlaying,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    ShelfRow(
+                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        leadingCard?.let { card -> item(key = "leading") { card() } }
+                        itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
+                            ShelfCard(
+                                item = item,
+                                onClick = { onItemClick(item) },
+                                onLongPress = onItemLongPress?.let { { it(item) } },
+                                isCurrent = isCurrentItem(item),
+                                isPlaying = isCurrentItem(item) && isPlaying,
+                            )
+                        }
                     }
                 }
             }
@@ -1568,15 +1541,16 @@ private fun QuickPickTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean,
     isPlaying: Boolean,
+    modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onLongPress)
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(76.dp)) {
+        Box(Modifier.size(52.dp)) {
             AsyncImage(
                 model = item.thumbnailUrl.artworkAt(ROW_ART_PX),
                 contentDescription = null,
@@ -1587,24 +1561,76 @@ private fun QuickPickTrackRow(
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
         }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(9.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = localizeCardSubtitle(item.subtitle),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
         if (onLongPress != null) RowMoreButton(onClick = onLongPress)
+    }
+}
+
+/** Landscape artwork stays inside its 16:9 viewport; unlike square playlist covers it is never cropped. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MusicVideoCard(
+    item: ShelfItem,
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    isCurrent: Boolean = false,
+    isPlaying: Boolean = false,
+) {
+    Column(
+        modifier = modifier
+            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .contextClick(onLongPress),
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF11141C)),
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = item.thumbnailUrl,
+                contentDescription = "Music video: ${item.title}",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+            if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (item.subtitle.isNotBlank()) {
+            Text(
+                text = localizeCardSubtitle(item.subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -1713,6 +1739,8 @@ internal fun ShelfCard(
     isPlaying: Boolean = false,
     titleMaxLines: Int = 1,
     subtitleMaxLines: Int = 1,
+    /** Higher-contrast, explicit line metrics for dense Keep Listening album grids. */
+    readableMetadata: Boolean = false,
 ) {
     Column(
         modifier = modifier
@@ -1785,7 +1813,7 @@ internal fun ShelfCard(
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(if (readableMetadata) 12.dp else 10.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1801,20 +1829,42 @@ internal fun ShelfCard(
             }
             Text(
                 text = item.title,
-                style = MaterialTheme.typography.titleMedium,
+                style = if (readableMetadata) {
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 17.sp,
+                        lineHeight = 22.sp,
+                        letterSpacing = 0.sp,
+                    )
+                } else {
+                    MaterialTheme.typography.titleMedium
+                },
                 color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
+                softWrap = true,
             )
         }
         val displaySubtitle = localizeCardSubtitle(item.subtitle)
         Text(
             text = displaySubtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = if (readableMetadata) {
+                MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    letterSpacing = 0.sp,
+                )
+            } else {
+                MaterialTheme.typography.bodyMedium
+            },
+            color = if (readableMetadata) {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
             maxLines = subtitleMaxLines,
             overflow = TextOverflow.Ellipsis,
+            softWrap = true,
         )
     }
 }

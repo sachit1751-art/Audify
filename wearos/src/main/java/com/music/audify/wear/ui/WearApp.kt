@@ -50,13 +50,21 @@ private const val OUTPUT = "output"
 
 /** Player at the root; Up Next and More swipe away back to it, as every watch app does. */
 @Composable
-fun WearApp(link: PhoneLink) {
+fun WearApp(
+    link: PhoneLink,
+    showOnboarding: Boolean = false,
+    onOnboardingComplete: () -> Unit = {},
+    onReplayOnboarding: () -> Unit = {},
+) {
     val nav = rememberSwipeDismissableNavController()
     val ambient = LocalAmbient.current
     val np by link.nowPlaying.collectAsStateWithLifecycle()
     val showAmbient = ambient.active && np != null
     // No pill behind the clock: the mesh runs right up to the bezel.
     AppScaffold(timeText = { TimeText(backgroundColor = Color.Transparent) }) {
+        if (showOnboarding) {
+            WearOnboarding(onFinish = onOnboardingComplete)
+        } else {
         // Kept composed under the ambient player so waking up lands exactly
         // where it was. Alpha 0 is skipped at draw time, so it costs nothing
         // while the always-on screen is up.
@@ -87,7 +95,12 @@ fun WearApp(link: PhoneLink) {
                 )
             }
             composable(MORE) {
-                MoreScreen(np = np, link = link, onOpenOutput = { nav.navigate(OUTPUT) })
+                MoreScreen(
+                    np = np,
+                    link = link,
+                    onOpenOutput = { nav.navigate(OUTPUT) },
+                    onReplayOnboarding = onReplayOnboarding,
+                )
             }
             composable(OUTPUT) {
                 // Straight back to the player once a choice is made.
@@ -96,6 +109,7 @@ fun WearApp(link: PhoneLink) {
         }
         }
         np?.takeIf { showAmbient }?.let { AmbientPlayer(it, ambient) }
+        }
     }
 }
 
@@ -196,7 +210,7 @@ private fun Message(title: String, body: String, action: String, onAction: () ->
 
 /** The phone app's primary button: white, black label, fully rounded. */
 @Composable
-private fun Pill(text: String, onClick: () -> Unit) {
+internal fun Pill(text: String, onClick: () -> Unit) {
     Box(
         Modifier
             .heightIn(min = 48.dp)

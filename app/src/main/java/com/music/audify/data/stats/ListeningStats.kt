@@ -461,6 +461,24 @@ object ListeningStats {
         return months().mapNotNull { read(it.toString()) }
     }
 
+    /** Permanently removes every local listening-stat bucket and its cached summary. */
+    suspend fun clearAll() = withContext(Dispatchers.IO) {
+        if (!ready) return@withContext
+        writeLock.withLock {
+            synchronized(lock) {
+                open = null
+                dirty = false
+                directory.listFiles()?.forEach { file ->
+                    check(file.delete() || !file.exists()) {
+                        "Could not delete listening data file ${file.name}"
+                    }
+                }
+                version++
+                cached = null
+            }
+        }
+    }
+
     /**
      * Replaces everything held with [buckets].
      *

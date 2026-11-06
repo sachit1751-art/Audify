@@ -15,7 +15,7 @@ use state::{
 #[cfg(any(target_os = "linux", target_os = "freebsd"))]
 use ui::WindowFrame;
 use ui::{
-    ActiveTheme as _, Dismiss, Entrance, INPUT_CONTEXT, Look, Stillness, Theme, ThemeKind,
+    ActiveTheme as _, Button, Dismiss, Entrance, INPUT_CONTEXT, Look, Stillness, Theme, ThemeKind,
     clear_listing,
 };
 
@@ -105,6 +105,7 @@ pub struct Root {
     shells: Shells,
     view: RootView,
     signing_in: bool,
+    show_onboarding: bool,
     toolbar: Option<Entity<Toolbar>>,
     pending: Option<Focus>,
     navigation_transition: Option<Task<()>>,
@@ -328,6 +329,7 @@ impl Root {
             },
             view: RootView::Workspace,
             signing_in: false,
+            show_onboarding: !Audify::global(cx).settings.read(cx).onboarding_complete(),
             toolbar: None,
             pending: None,
             navigation_transition: None,
@@ -371,6 +373,15 @@ impl Root {
             #[cfg(any(target_os = "linux", target_os = "freebsd"))]
             decorations: Audify::global(cx).settings.read(cx).window_decorations(),
         };
+        let onboarding_settings = Audify::global(cx).settings.clone();
+        cx.observe(&onboarding_settings, |this, settings, cx| {
+            let show = !settings.read(cx).onboarding_complete();
+            if this.show_onboarding != show {
+                this.show_onboarding = show;
+                cx.notify();
+            }
+        })
+        .detach();
         root.show(start, cx);
         root
     }
@@ -1253,6 +1264,51 @@ impl Render for Root {
                 |this| this.child(div().flex().flex_1().min_h_0().child(self.login.clone())),
                 |this| this.child(shell),
             );
+        let root = root.when(self.show_onboarding, |this| {
+            this.child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .bg(theme.background)
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .items_center()
+                            .gap_4()
+                            .w(gpui::px(520.))
+                            .p_8()
+                            .rounded_xl()
+                            .bg(theme.overlay)
+                            .child(div().text_size(theme.text(ui::Text::Display)).font_weight(gpui::FontWeight::BOLD).child("Welcome to Audify"))
+                            .child(div().text_size(theme.text(ui::Text::Body)).text_color(theme.muted_foreground).text_center().child("Your music, together in one desktop player. Explore your library, connect a music service, or add folders with local music from Settings."))
+                            .child(div().flex().flex_row().gap_2().child(
+                                Button::new("onboarding-get-started")
+                                    .label("Get started")
+                                    .primary()
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.show_onboarding = false;
+                                        let settings = Audify::global(cx).settings.clone();
+                                        settings.update(cx, |settings, cx| settings.set_onboarding_complete(true, cx));
+                                        cx.notify();
+                                    })),
+                            ).child(
+                                Button::new("onboarding-skip")
+                                    .label("Skip")
+                                    .ghost()
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.show_onboarding = false;
+                                        let settings = Audify::global(cx).settings.clone();
+                                        settings.update(cx, |settings, cx| settings.set_onboarding_complete(true, cx));
+                                        cx.notify();
+                                    })),
+                            )),
+                    ),
+            )
+        });
         #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         let root = root.child(WindowFrame::new());
         root

@@ -48,6 +48,10 @@ import java.util.Locale
 
 /** Snapshot of playback state, driven by the MediaController. */
 data class PlayerState(
+    /** Explicit current-media identity. Null means there is no supported current item. */
+    val playable: PlayableMedia? = null,
+    /** Full typed physical queue; unlike [queue], this does not erase media kinds. */
+    val queueItems: List<PlayableMedia> = emptyList(),
     val song: Song? = null,
     val isPlaying: Boolean = false,
     /**
@@ -316,7 +320,7 @@ fun rememberPlayerState(controller: MediaController?): PlayerState {
         // the converted queue until its timeline actually changes; playback,
         // buffering, repeat and metadata events do not require another O(n)
         // walk over a large playlist.
-        var queueSnapshot = emptyList<Song>()
+        var queueSnapshot = emptyList<PlayableMedia>()
 
         // Set when the timeline change was the *contents* changing, which is the
         // only kind this has to convert again.
@@ -338,24 +342,26 @@ fun rememberPlayerState(controller: MediaController?): PlayerState {
             val item = player.currentMediaItem
             if (rebuildQueue) {
                 queueSnapshot = (0 until player.mediaItemCount)
-                    .map { player.getMediaItemAt(it).toSong() }
+                    .map { player.getMediaItemAt(it).toPlayableMedia() }
             } else if (refreshCurrentQueueItem && item != null) {
                 val index = player.currentMediaItemIndex
                 if (index in queueSnapshot.indices) {
-                    queueSnapshot = queueSnapshot.toMutableList().also { it[index] = item.toSong() }
+                    queueSnapshot = queueSnapshot.toMutableList().also { it[index] = item.toPlayableMedia() }
                 }
             }
             // Synced here too, so seeking while paused or buffering still moves
             // the scrubber (the poll loop only runs on play).
             position.report(player.currentPosition.coerceAtLeast(0L))
             state = state.copy(
-                song = item?.toSong(),
+                playable = item?.let { runCatching { it.toPlayableMedia() }.getOrNull() },
+                queueItems = queueSnapshot,
+                song = item?.toSongOrNull(),
                 isPlaying = player.isPlaying,
                 durationMs = player.duration.coerceAtLeast(0L),
                 error = error,
                 isLoading = player.playbackState == Player.STATE_BUFFERING,
                 repeatMode = player.repeatMode,
-                queue = queueSnapshot,
+                queue = queueSnapshot.mapNotNull { (it as? PlayableMedia.Music)?.song },
                 queueIndex = player.currentMediaItemIndex,
                 hasPrevious = player.hasPreviousMediaItem(),
                 hasNext = player.hasNextMediaItem(),
@@ -380,7 +386,7 @@ fun rememberPlayerState(controller: MediaController?): PlayerState {
                         val item = window.mediaItem
                         val entryId = item.mediaMetadata.extras?.getString(EXTRA_QUEUE_ENTRY_ID)
                             ?: mediaItemEntryIds[item]
-                        if (item.mediaId != queueSnapshot[i].videoId ||
+                        if (item.mediaId != queueSnapshot[i].stableId ||
                             (entryId != null && entryId != queueSnapshot[i].queueEntryId)
                         ) {
                             queueChanged = true
@@ -439,7 +445,7 @@ fun rememberPlayerState(controller: MediaController?): PlayerState {
  * service. A field dropped here disappears as soon as a Song passes through
  * Media3, because controllers and service helpers read it back through this.
  */
-fun MediaItem.toSong() = Song(
+private fun MediaItem.toMusicSong() = Song(
     videoId = mediaId,
     title = mediaMetadata.title?.toString().orEmpty(),
     artist = mediaMetadata.artist?.toString().orEmpty(),
@@ -467,6 +473,111 @@ fun MediaItem.toSong() = Song(
     localUri = mediaMetadata.extras?.getString(EXTRA_LOCAL_URI),
     localPath = mediaMetadata.extras?.getString(EXTRA_LOCAL_PATH),
 )
+
+/** True only when the item carries Audify's explicit podcast marker. */
+val MediaItem.isPodcastEpisode: Boolean
+    get() = mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND) == MEDIA_KIND_PODCAST
+
+/**
+ * Typed conversion at the Media3 boundary. Items written before the kind marker
+ * existed remain music for backwards compatibility; unknown future kinds fail closed.
+ */
+fun MediaItem.toPlayableMedia(): PlayableMedia {
+    return when (mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND)) {
+        null, MEDIA_KIND_MUSIC -> PlayableMedia.Music(toMusicSong())
+        MEDIA_KIND_PODCAST -> {
+            val extras = requireNotNull(mediaMetadata.extras) { "Podcast item is missing metadata" }
+            PlayableMedia.Podcast(
+                PodcastEpisodeRef(
+                    feedId = requireNotNull(extras.getString(EXTRA_PODCAST_FEED_ID)),
+                    episodeId = requireNotNull(extras.getString(EXTRA_PODCAST_EPISODE_ID)),
+                    enclosureUri = requireNotNull(
+                        localConfiguration?.uri ?: extras.getString(EXTRA_PODCAST_ENCLOSURE_URI)?.toUri(),
+                    ) {
+                        "Podcast item is missing its enclosure URI"
+                    },
+                    mimeType = extras.getString(EXTRA_PODCAST_MIME_TYPE),
+                    showTitle = mediaMetadata.artist?.toString().orEmpty(),
+                    episodeTitle = mediaMetadata.title?.toString().orEmpty(),
+                    description = extras.getString(EXTRA_PODCAST_DESCRIPTION),
+                    artworkUri = mediaMetadata.artworkUri,
+                    durationMs = extras.getLong(EXTRA_PODCAST_DURATION_MS, -1L).takeIf { it >= 0L },
+                ),
+                queueEntryId = extras.getString(EXTRA_QUEUE_ENTRY_ID),
+                queueTier = this.queueTier,
+            )
+        }
+        else -> error("Unsupported Audify media kind: ${mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND)}")
+    }
+}
+
+/** Music-only compatibility conversion. Podcast and unknown items never become fake Songs. */
+fun MediaItem.toSongOrNull(): Song? = when (mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND)) {
+    MEDIA_KIND_PODCAST -> null
+    null, MEDIA_KIND_MUSIC -> toMusicSong()
+    else -> null
+}
+
+/** Legacy call sites remain source-compatible but now fail closed for non-music items. */
+fun MediaItem.toSong(): Song = requireNotNull(toSongOrNull()) {
+    "MediaItem $mediaId is not a supported music Song"
+}
+
+/** Builds a Media3 item without routing podcast enclosures through music URI construction. */
+fun PlayableMedia.toMediaItem(queueMetadata: QueueEntryMetadata): MediaItem = when (this) {
+    is PlayableMedia.Music -> song.copy(
+        queueTier = queueMetadata.tier,
+        queueEntryId = queueMetadata.queueEntryId,
+    ).toMediaItem()
+    is PlayableMedia.Podcast -> {
+        val episode = episode
+        val extras = bundleOf(
+            EXTRA_MEDIA_KIND to MEDIA_KIND_PODCAST,
+            EXTRA_PODCAST_FEED_ID to episode.feedId,
+            EXTRA_PODCAST_EPISODE_ID to episode.episodeId,
+            EXTRA_PODCAST_MIME_TYPE to episode.mimeType,
+            EXTRA_PODCAST_DESCRIPTION to episode.description,
+            EXTRA_PODCAST_ENCLOSURE_URI to episode.enclosureUri.toString(),
+            EXTRA_PODCAST_DURATION_MS to (episode.durationMs ?: -1L),
+            EXTRA_QUEUE_TIER to queueMetadata.tier.name,
+            EXTRA_QUEUE_ENTRY_ID to queueMetadata.queueEntryId,
+            EXTRA_CANONICAL_INDEX to queueMetadata.canonicalIndex,
+        )
+        MediaItem.Builder()
+            .setMediaId(episode.stableId)
+            .setUri(episode.enclosureUri)
+            .setMimeType(episode.mimeType)
+            .setCustomCacheKey(PODCAST_CACHE_KEY_PREFIX + episode.stableId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(episode.episodeTitle)
+                    .setArtist(episode.showTitle)
+                    .setDescription(episode.description)
+                    .setArtworkUri(episode.artworkUri)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_PODCAST_EPISODE)
+                    .setIsPlayable(true)
+                    .setIsBrowsable(false)
+                    .setExtras(extras)
+                    .build(),
+            )
+            .build()
+            .also { item ->
+                mediaItemEntryIds[item] = queueMetadata.queueEntryId
+                mediaItemTiers[item] = queueMetadata.tier
+                queueMetadata.canonicalIndex?.let { mediaItemCanonicalIndices[item] = it }
+            }
+    }
+}
+
+private const val EXTRA_MEDIA_KIND = "audify.mediaKind"
+private const val MEDIA_KIND_MUSIC = "music"
+private const val MEDIA_KIND_PODCAST = "podcast"
+private const val EXTRA_PODCAST_FEED_ID = "audify.podcast.feedId"
+private const val EXTRA_PODCAST_EPISODE_ID = "audify.podcast.episodeId"
+private const val EXTRA_PODCAST_MIME_TYPE = "audify.podcast.mimeType"
+private const val EXTRA_PODCAST_DESCRIPTION = "audify.podcast.description"
+private const val EXTRA_PODCAST_ENCLOSURE_URI = "audify.podcast.enclosureUri"
+private const val EXTRA_PODCAST_DURATION_MS = "audify.podcast.durationMs"
 
 internal val mediaItemTiers = java.util.Collections.synchronizedMap(java.util.WeakHashMap<MediaItem, QueueTier>())
 internal val mediaItemEntryIds = java.util.Collections.synchronizedMap(java.util.WeakHashMap<MediaItem, String>())
@@ -744,15 +855,9 @@ fun Song.toMediaItem(): MediaItem {
             // back a null duration and later matching loses the `&d=` it
             // depends on.
             .apply {
-                if (queueTier != QueueTier.CONTEXT || queueEntryId != null || fromAutoplay ||
-                    offlineUri != null || durationText != null ||
-                    artistId != null || albumId != null || setVideoId != null ||
-                    isExplicit != null || isVideo || isVideoOrigin || radioName != null ||
-                    sourceQuality != null ||
-                    playbackSource != null || playbackSourceType != null || playbackSourceId != null
-                ) {
-                    setExtras(
-                        bundleOf(
+                setExtras(
+                    bundleOf(
+                            EXTRA_MEDIA_KIND to MEDIA_KIND_MUSIC,
                             EXTRA_QUEUE_TIER to queueTier.name,
                             EXTRA_QUEUE_ENTRY_ID to queueEntryId,
                             EXTRA_FROM_AUTOPLAY to fromAutoplay,
@@ -771,9 +876,8 @@ fun Song.toMediaItem(): MediaItem {
                             EXTRA_VIDEO_ORIGIN to isVideoOrigin,
                             EXTRA_SOURCE_QUALITY to sourceQuality,
                             EXTRA_SOURCE_HI_RES to sourceHiRes,
-                        ),
-                    )
-                }
+                    ),
+                )
             }
             .build(),
     )
@@ -908,6 +1012,19 @@ suspend fun MediaController.playSongs(songs: List<Song>, startIndex: Int) {
         mediaItems
     }
     setMediaItems(items, queueStartIndex(startIndex, items.size, shuffled), 0L)
+    prepare()
+    play()
+}
+
+/** Installs an already-composed mixed-media physical queue without invoking music shuffle algorithms. */
+suspend fun MediaController.playMediaItems(items: List<MediaItem>, startIndex: Int) {
+    if (items.isEmpty()) return
+    sendCustomCommand(
+        SessionCommand(ACTION_CLEAR_BOUNDED_CONTEXT, Bundle.EMPTY),
+        Bundle.EMPTY,
+    ).await()
+    QueueShuffle.setCanonicalContext(emptyList())
+    setMediaItems(items, startIndex.coerceIn(items.indices), 0L)
     prepare()
     play()
 }

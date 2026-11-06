@@ -62,6 +62,14 @@ object LocalLibraryStore {
     fun exportFavorites(): List<Song> = _favorites.value.toList()
     fun exportHistory(): List<Song> = _history.value.toList()
 
+    /** Clears only the recently played library shelf; favourites are preserved. */
+    @Synchronized
+    fun clearHistory() {
+        checkInitialized()
+        persist(HISTORY, emptyList())
+        _history.value = emptyList()
+    }
+
     @Synchronized
     fun importLibrary(favorites: List<Song>, history: List<Song>) {
         checkInitialized()

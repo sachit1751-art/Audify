@@ -1060,7 +1060,7 @@ settings-group-streaming = Streaming
 settings-group-spotify-connect = Spotify Connect
 settings-group-sessions = Sessions
 settings-sessions-button = Show the Sessions button
-settings-sessions-official = Use the official Audify Sessions server
+settings-sessions-official = Use the Audify-hosted Sessions server (currently unavailable)
 settings-sessions-server = Server address
 settings-sessions-server-hint = wss://sessions.example.com
 settings-sessions-save = Save
@@ -1434,3 +1434,4 @@ response-graph-readout = { $frequency } · { $direction ->
         [down] -{ $gain }
        *[flat] { $gain }
     } dB
+toast-session-server-unavailable = Sessions are disabled until an Audify server is available. Configure your own server in Settings to use this feature.

@@ -671,6 +671,8 @@ class PlaybackService : MediaLibraryService() {
 
     /** Last sampled position of the playing track, in seconds. */
     private var lastPositionSeconds = 0L
+    /** The episode whose progress is currently owned by the podcast repository. */
+    private var activePodcastEpisode: PodcastEpisodeRef? = null
 
     /** When the current track was chosen, for the time-to-first-audio log. */
     private var trackSelectedAt: Long? = null
@@ -892,6 +894,8 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            val podcast = exoPlayer.currentMediaItem?.takeIf { it.isPodcastEpisode }
+                ?.let { runCatching { it.toPlayableMedia() as? PlayableMedia.Podcast }.getOrNull() }
             // The only number that describes what a listener actually
             // waits through. Every other timing in this app measures one
             // leg of getting a track started — a resolve, a client walk, an
@@ -914,20 +918,20 @@ class PlaybackService : MediaLibraryService() {
                 audibleMediaId = exoPlayer.currentMediaItem?.mediaId
                 consecutiveErrorSkips = 0
             }
-            if (isPlaying) registerCurrentPlay()
+            if (isPlaying && podcast == null) registerCurrentPlay()
             // Nothing to read ahead for while paused, and a pause is often
             // the last thing that happens before the process goes idle.
-            if (isPlaying) prefetchAround(exoPlayer) else cancelPrefetch()
-            if (isPlaying) lookForBetterCopy(exoPlayer)
+            if (isPlaying && podcast == null) prefetchAround(exoPlayer) else cancelPrefetch()
+            if (isPlaying && podcast == null) lookForBetterCopy(exoPlayer)
             savePlaybackState(exoPlayer)
             // Not strictly needed for the glyph — onPlayWhenReadyChanged has
             // already flipped that — but this is where hasNext/hasPrevious and
             // the artwork are known to be settled.
             publishWidgetState()
 
-            val song = exoPlayer.currentMediaItem?.toSong()
+            val song = exoPlayer.currentMediaItem?.toSongOrNull()
             val durationMs = exoPlayer.duration.takeIf { it > 0 }
-            scrobbleManager?.onPlayerStateChanged(isPlaying, song, durationMs)
+            if (podcast == null) scrobbleManager?.onPlayerStateChanged(isPlaying, song, durationMs)
 
             // The listening record has to be told a pause happened, not merely
             // stop being told about play: its sampler measures the gap between
@@ -953,7 +957,7 @@ class PlaybackService : MediaLibraryService() {
             // refreshing it. Discord's countdown runs on its own clock from the
             // timestamps it was given, so a presence left up while paused goes
             // on advancing through a song that has stopped — and finishes it.
-            if (isPlaying) {
+            if (isPlaying && podcast == null) {
                 pushDiscordPresence(exoPlayer)
                 startLyricsTicker()
             } else {
@@ -993,7 +997,9 @@ class PlaybackService : MediaLibraryService() {
             // The only place the *reason* can be read. A party has to tell a
             // pause the listener asked for from one another app imposed, and
             // [Player] does not keep the answer around to be asked later.
-            partySync?.onPlayWhenReadyChanged(playWhenReady, reason)
+            if (player?.hasPodcastInQueue() != true) {
+                partySync?.onPlayWhenReadyChanged(playWhenReady, reason)
+            }
         }
 
         /**
@@ -1042,7 +1048,9 @@ class PlaybackService : MediaLibraryService() {
             // A receiver, if it is the speaker, is put on whatever became
             // current — or it is the one that moved, and this is the phone
             // catching up, which [CastPlayback] tells apart by track.
-            speakers.onLocalTransition(mediaItem, reason)
+            val podcastTransition = mediaItem?.isPodcastEpisode == true
+            val mixedPodcastQueue = exoPlayer.hasPodcastInQueue()
+            if (!podcastTransition) speakers.onLocalTransition(mediaItem, reason)
 
             // No crossfade case to allow for here any more. A blended advance
             // never reaches this callback — the incoming track starts as the
@@ -1057,22 +1065,29 @@ class PlaybackService : MediaLibraryService() {
             )
             // Prune consumed USER_QUEUE entries when playback enters CONTEXT,
             // keeping the timeline clean and ensuring REPEAT_MODE_ALL loops only CONTEXT items.
-            QueueCoordinator.consumePlayedUserQueue(exoPlayer)
+            if (!mixedPodcastQueue) QueueCoordinator.consumePlayedUserQueue(exoPlayer)
 
             // The queue moving on by itself. Nobody pressed anything, but it
             // is still this device deciding what the party plays next, and no
             // other path reports it: an automatic advance never passes through
             // the session wrapper. A skip does pass through it, and is reported
             // there; publishing is debounced, so being told twice costs nothing.
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+            if (!mixedPodcastQueue && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 partySync?.onLocalIntent()
             }
-            autoplayLoadJob?.cancel()
-            autoplayLoadJob = null
-            autoplaySeed = null
-            loadAutoplayForCurrentTrack()
-            loadLyricsForCurrentTrack()
-            if (exoPlayer.isPlaying) startLyricsTicker()
+            if (podcastTransition) {
+                autoplayLoadJob?.cancel()
+                autoplayLoadJob = null
+                autoplaySeed = null
+                stopLyricsTicker()
+            } else {
+                autoplayLoadJob?.cancel()
+                autoplayLoadJob = null
+                autoplaySeed = null
+                loadAutoplayForCurrentTrack()
+                loadLyricsForCurrentTrack()
+                if (exoPlayer.isPlaying) startLyricsTicker()
+            }
             refreshCustomLayouts()
         }
 
@@ -1088,6 +1103,10 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            if (exoPlayer.currentMediaItem?.isPodcastEpisode == true) {
+                TrackLog.w("Audify", "podcast playback failed: ${error.errorCodeName}", about = exoPlayer.currentMediaItem?.mediaId)
+                return
+            }
             recoverFrom(error, exoPlayer)
         }
 
@@ -1099,6 +1118,22 @@ class PlaybackService : MediaLibraryService() {
             val exoPlayer = player ?: return
             if (state == Player.STATE_ENDED) {
                 SleepTimer.cancel()
+                val podcast = exoPlayer.currentMediaItem
+                    ?.takeIf { it.isPodcastEpisode }
+                    ?.let { runCatching { it.toPlayableMedia() as? PlayableMedia.Podcast }.getOrNull() }
+                if (podcast != null) {
+                    PodcastPlaybackBridge.repository?.onPlaybackCompleted(
+                        podcast.episode,
+                        exoPlayer.currentPosition.coerceAtLeast(0L),
+                        exoPlayer.duration.takeIf { it > 0L },
+                    )
+                    activePodcastEpisode = null
+                    lastPositionSeconds = 0L
+                    listenBrainzSong = null
+                    listenBrainzStartMs = 0L
+                    listenBrainzDurationMs = null
+                    return
+                }
                 // The queue ran dry, so no transition will ever close the last
                 // track out. Without this its history entry keeps whatever
                 // watchtime the 30-second sampler happened to have reported and
@@ -1129,8 +1164,10 @@ class PlaybackService : MediaLibraryService() {
         override fun onRepeatModeChanged(repeatMode: Int) {
             val previous = lastRepeatMode
             lastRepeatMode = repeatMode
-            speakers.onLocalRepeatChanged(repeatMode)
+            val hasPodcast = player?.hasPodcastInQueue() == true
+            if (!hasPodcast) speakers.onLocalRepeatChanged(repeatMode)
             player?.let { WearBridge.republish(this@PlaybackService, it) }
+            if (hasPodcast) return
             // Repeat-one makes the "next" track this one again.
             player?.let { activeLoudness().nextMediaId = nextMediaIdOf(it) }
             // Repeat-all loops the queue as it stands; AutoPlay's tracks are the
@@ -1176,13 +1213,14 @@ class PlaybackService : MediaLibraryService() {
             // stage switches to that track on its own at the boundary.
             activeLoudness().nextMediaId = nextMediaIdOf(exoPlayer)
             if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-                speakers.onLocalQueueChanged()
+                val containsPodcast = exoPlayer.hasPodcastInQueue()
+                if (!containsPodcast) speakers.onLocalQueueChanged()
                 saveQueueSnapshot(exoPlayer)
                 refreshCustomLayouts()
                 // Queue edits can remove AutoPlay's whole tail while leaving
                 // its old seed memoized. Detect that state at its source and
                 // make the current track eligible for a fresh load.
-                refreshAutoplayIfQueueEmpty()
+                if (!containsPodcast) refreshAutoplayIfQueueEmpty()
             }
         }
     }
@@ -1699,16 +1737,20 @@ class PlaybackService : MediaLibraryService() {
         val defaultDataSourceFactory = SmbDataSource.RoutingFactory(
             DefaultDataSource.Factory(this, resolvingFactory),
         )
-        AudioCache.setUpstream(defaultDataSourceFactory)
+        val podcastAwareDataSourceFactory = PodcastRoutingDataSource.Factory(
+            musicFactory = defaultDataSourceFactory,
+            podcastFactory = OkHttpDataSource.Factory(PodcastNetworkPolicy.client),
+        )
+        AudioCache.setUpstream(podcastAwareDataSourceFactory)
         // DsdExtractorsFactory: the stock extractors plus DSF/DFF, which Media3
         // cannot open at all. A DSD file leaves the extractor as float PCM.
         mediaSourceFactory = DefaultMediaSourceFactory(
-            AudioCache.playbackFactory(defaultDataSourceFactory),
+            AudioCache.playbackFactory(podcastAwareDataSourceFactory),
             DsdExtractorsFactory(),
         )
             .setLoadErrorHandlingPolicy(PermanentAwareLoadErrorPolicy())
         // The watch, when it is the speaker, reads tracks through this same chain.
-        WearBridge.attachStreams(AudioCache.playbackFactory(defaultDataSourceFactory))
+        WearBridge.attachStreams(AudioCache.playbackFactory(podcastAwareDataSourceFactory))
 
         configuredFloatOutput = shouldEnableFloatOutput()
         val exoPlayer = buildPlayer(
@@ -1766,6 +1808,18 @@ class PlaybackService : MediaLibraryService() {
         } else {
             MediaWidgetSnapshot.save(this, MediaWidgetSnapshot.EMPTY)
             MediaWidget.refresh(this)
+            // The podcast store may finish opening after the playback service.
+            // Keep the typed snapshot on disk and retry once its repository is
+            // attached, but never replace a queue the listener started meanwhile.
+            if (LastPlayed.hasPendingPodcastSnapshot()) {
+                scope.launch {
+                    PodcastPlaybackBridge.repositoryFlow.first { it != null }
+                    if (exoPlayer.mediaItemCount == 0 && restoreBoundedQueueOrLast(exoPlayer)) {
+                        publishWidgetState()
+                        refreshCustomLayouts()
+                    }
+                }
+            }
         }
         // History pings fire once a track is actually audible — both when
         // playback starts and when the queue moves on while already playing.
@@ -1835,9 +1889,9 @@ class PlaybackService : MediaLibraryService() {
     private fun newSessionPlayer(player: Player, crossfade: CrossfadeController) = SessionPlayer(
         player,
         crossfade,
-        onUserIntent = { partySync?.onLocalIntent() },
-        deferPlayToParty = { partySync?.shouldDeferPlay() == true },
-        lockedTransport = { playing -> partySync?.onLockedTransport(playing) == true },
+        onUserIntent = { if (!player.hasPodcastInQueue()) partySync?.onLocalIntent() },
+        deferPlayToParty = { !player.hasPodcastInQueue() && partySync?.shouldDeferPlay() == true },
+        lockedTransport = { playing -> !player.hasPodcastInQueue() && partySync?.onLockedTransport(playing) == true },
         cast = speakers,
     ) { lastPublishedSubtitle }
 
@@ -1924,7 +1978,8 @@ class PlaybackService : MediaLibraryService() {
      * against, and a local file or a download has no YouTube identity to rate.
      */
     private fun canLike(item: MediaItem?): Boolean =
-        item != null && SignedIn.state(this).value && item.toSong().localUri == null
+        item != null && SignedIn.state(this).value &&
+            item.toSongOrNull()?.localUri == null && item.toSongOrNull() != null
 
     /** Favorite and Shuffle: the only actions shown on the phone notification. */
     private fun notificationButtons(): List<CommandButton> {
@@ -1940,7 +1995,7 @@ class PlaybackService : MediaLibraryService() {
             .setDisplayName("Favorite")
             .build()
         val shuffleEnabled = QueueShuffle.enabled.value
-        val shuffle = CommandButton.Builder(
+        val shuffle = if (player?.hasPodcastInQueue() == true) null else CommandButton.Builder(
             if (shuffleEnabled) {
                 CommandButton.ICON_SHUFFLE_ON
             } else {
@@ -1955,7 +2010,7 @@ class PlaybackService : MediaLibraryService() {
 
     /** Adds Radio/Revert for controllers with room for them, e.g. Android Auto. */
     private fun carButtons(): List<CommandButton> {
-        val current = player?.currentMediaItem?.toSong()
+        val current = player?.currentMediaItem?.toSongOrNull()
         val station = current
             ?.takeIf { it.canStartStation() }
             ?.let {
@@ -2011,7 +2066,7 @@ class PlaybackService : MediaLibraryService() {
     private fun startStationFromSession() {
         val originalPlayer = player ?: return
         val currentItem = originalPlayer.currentMediaItem ?: return
-        val seed = currentItem.toSong().takeIf { it.canStartStation() } ?: return
+        val seed = currentItem.toSongOrNull()?.takeIf { it.canStartStation() } ?: return
         val originalManualQueue = (0 until originalPlayer.mediaItemCount)
             .map { originalPlayer.getMediaItemAt(it) }
             .filterNot { it.fromAutoplay }
@@ -2095,8 +2150,8 @@ class PlaybackService : MediaLibraryService() {
             return
         }
 
-        val sourceSong = currentItem.toSong()
-        val targetSong = targetMediaItem.toSong()
+        val sourceSong = currentItem.toSongOrNull() ?: return
+        val targetSong = targetMediaItem.toSongOrNull() ?: return
         val smartAlignEnabled = AppSettings.smartVersionAlignment.value
 
         versionSwapJob?.cancel()
@@ -2478,7 +2533,7 @@ class PlaybackService : MediaLibraryService() {
         val activePlayer = player ?: return
         val index = activePlayer.currentMediaItemIndex
         if (index !in 0 until activePlayer.mediaItemCount) return
-        val song = activePlayer.currentMediaItem?.toSong() ?: return
+        val song = activePlayer.currentMediaItem?.toSongOrNull() ?: return
         if (!song.hasYouTubeOriginal() ||
             song.localUri != null ||
             OriginalVersion.isPinned(song.videoId)
@@ -2505,7 +2560,7 @@ class PlaybackService : MediaLibraryService() {
         val activePlayer = player ?: return
         val index = activePlayer.currentMediaItemIndex
         if (index !in 0 until activePlayer.mediaItemCount) return
-        val song = activePlayer.currentMediaItem?.toSong() ?: return
+        val song = activePlayer.currentMediaItem?.toSongOrNull() ?: return
 
         val targetVideoId = args.getString("targetVideoId")
         val targetIsVideo = args.getBoolean("targetIsVideo", false)
@@ -2943,6 +2998,7 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun loadAutoplayForCurrentTrack() {
         val exoPlayer = player ?: return
+        if (exoPlayer.currentMediaItem?.isPodcastEpisode == true) return
         val party = ListenTogether.state.value
         if (!autoplayEnabled(party) ||
             exoPlayer.repeatMode == Player.REPEAT_MODE_ALL ||
@@ -2953,7 +3009,8 @@ class PlaybackService : MediaLibraryService() {
         if (boundedContextWindow != null && !boundedAutoplayEligible(exoPlayer)) {
             return
         }
-        val current = exoPlayer.currentMediaItem?.toSong() ?: return
+        if ((0 until exoPlayer.mediaItemCount).any { exoPlayer.getMediaItemAt(it).isPodcastEpisode }) return
+        val current = exoPlayer.currentMediaItem?.toSongOrNull() ?: return
         if (AppSettings.dontRepeatSuggestions.value) sessionSongHistory += current
         // In a party the server's queue is the one being topped up, and this
         // player's copy of it lags behind by however long reconcile is held off
@@ -2980,7 +3037,7 @@ class PlaybackService : MediaLibraryService() {
                     return@launch
                 }
                 val queueSongs = (0 until activePlayer.mediaItemCount)
-                    .map { activePlayer.getMediaItemAt(it).toSong() } +
+                    .mapNotNull { activePlayer.getMediaItemAt(it).toSongOrNull() } +
                     activeParty.queue.items.takeIf { activeParty.inParty }.orEmpty().map { it.toSong() }
                 val existing = if (AppSettings.dontRepeatSuggestions.value) {
                     queueSongs + sessionSongHistory
@@ -3029,7 +3086,7 @@ class PlaybackService : MediaLibraryService() {
                         // case — so check against what is queued now, not the
                         // snapshot the batch was picked against.
                         val queuedNow = (0 until latestPlayer.mediaItemCount)
-                            .map { latestPlayer.getMediaItemAt(it).toSong() }
+                            .mapNotNull { latestPlayer.getMediaItemAt(it).toSongOrNull() }
                         val room = MAX_QUEUED_AUTOPLAY -
                             (latestPlayer.currentMediaItemIndex + 1 until latestPlayer.mediaItemCount)
                                 .count { latestPlayer.getMediaItemAt(it).fromAutoplay }
@@ -3106,6 +3163,7 @@ class PlaybackService : MediaLibraryService() {
     /** Re-arms AutoPlay when an external queue edit exposes an empty tail. */
     private fun refreshAutoplayIfQueueEmpty() {
         val exoPlayer = player ?: return
+        if (exoPlayer.hasPodcastInQueue()) return
         if (!autoplayQueueNeedsRefresh(
                 enabled = autoplayEnabled(ListenTogether.state.value),
                 repeatAll = exoPlayer.repeatMode == Player.REPEAT_MODE_ALL,
@@ -3161,6 +3219,7 @@ class PlaybackService : MediaLibraryService() {
     /** Clears the queue's AutoPlay tail for the duration of repeat-all, keeping it to put back. */
     private fun stashAutoplayTracks() {
         val exoPlayer = player ?: return
+        if (exoPlayer.hasPodcastInQueue()) return
         // Only ever taken once per stretch of repeat-all: cycling
         // OFF -> ALL -> ONE -> OFF sets the mode three times, and the second
         // and third of those must not overwrite a full stash with the empty
@@ -3182,6 +3241,7 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun restoreAutoplayTracks() {
         val exoPlayer = player ?: return
+        if (exoPlayer.hasPodcastInQueue()) return
         val stashed = repeatAllStash
         val seed = repeatAllStashSeed
         repeatAllStash = emptyList()
@@ -3446,6 +3506,29 @@ class PlaybackService : MediaLibraryService() {
         alreadyAudible: Boolean = false,
     ) {
         val exoPlayer = player ?: return
+        activePodcastEpisode?.let { previousEpisode ->
+            if (mediaItem?.mediaId != previousEpisode.stableId || previousEnded) {
+                val positionMs = (lastPositionSeconds * 1000L).coerceAtLeast(0L)
+                if (previousEnded) {
+                    PodcastPlaybackBridge.repository?.onPlaybackCompleted(
+                        previousEpisode,
+                        positionMs,
+                        previousEpisode.durationMs,
+                    )
+                } else {
+                    PodcastPlaybackBridge.repository?.onPlaybackProgress(
+                        previousEpisode,
+                        positionMs,
+                        previousEpisode.durationMs,
+                    )
+                }
+                activePodcastEpisode = null
+            }
+        }
+        if (mediaItem?.isPodcastEpisode == true) {
+            onPodcastBecameCurrent(mediaItem, previousEnded, reason, alreadyAudible, exoPlayer)
+            return
+        }
         syncBoundedContextCursor(exoPlayer, mediaItem)
         if (boundedContextWindow != null && !ListenTogether.state.value.inParty) {
             saveBoundedContextSnapshot(exoPlayer)
@@ -3641,6 +3724,58 @@ class PlaybackService : MediaLibraryService() {
         publishWidgetState()
         loadLyricsForCurrentTrack()
         if (exoPlayer.isPlaying) startLyricsTicker()
+    }
+
+    /** Podcast transition lifecycle; deliberately excludes every music-only subsystem. */
+    private fun onPodcastBecameCurrent(
+        mediaItem: MediaItem,
+        previousEnded: Boolean,
+        reason: Int,
+        alreadyAudible: Boolean,
+        exoPlayer: ExoPlayer,
+    ) {
+        val podcast = mediaItem.toPlayableMedia() as? PlayableMedia.Podcast ?: return
+        activePodcastEpisode = podcast.episode
+        currentAudioInputFormat = null
+        measuredBitrateCache.clear()
+        AudioOutputStatus.onTrackTransition()
+        activeTrackIsDolbyAtmos = false
+        NerdStats.current.value = null
+        applySpatialAudioEnabled()
+
+        // Close the outgoing music listen before the podcast starts. Podcast
+        // listening is not submitted to music history or scrobble providers.
+        PlaybackTracker.onTrackChanged(lastPositionSeconds)
+        lastPositionSeconds = 0L
+        scrobbleManager?.onSongStop()
+        ListeningRecorder.onStopped()
+        val previousSong = listenBrainzSong
+        if (previousSong != null && previousEnded && listenBrainzStartMs > 0L) {
+            submitListenBrainzFinished(previousSong, listenBrainzStartMs, listenBrainzDurationMs)
+        }
+        listenBrainzSong = null
+        listenBrainzStartMs = 0L
+        listenBrainzDurationMs = null
+
+        val mediaId = mediaItem.mediaId
+        recoveries.clear()
+        retryingMediaId = null
+        trackSelectedAt = if (alreadyAudible) null else SystemClock.elapsedRealtime()
+        if (alreadyAudible) audibleMediaId = mediaId
+        TrackLog.onTrackStarted(mediaId)
+        TrackLog.d("Audify", "podcast episode selected (reason=$reason)", about = mediaId)
+        PodcastPlaybackBridge.repository?.onPlaybackStarted(podcast.episode)
+
+        // Do not run music cache, queue-context, loudness, source-upgrade,
+        // Automix, lyrics, radio, stats, or scrobbling paths for this item.
+        cancelStaleUpgradeJob()
+        cancelPrefetch()
+        serviceLyrics = null
+        stopLyricsTicker()
+        savePlaybackState(exoPlayer)
+        publishWidgetState()
+        WearBridge.republish(this, exoPlayer)
+        refreshCustomLayouts()
     }
 
     /** The background hunt for a better copy of whatever is playing. */
@@ -4338,6 +4473,7 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun lookForBetterCopy(player: ExoPlayer) {
         val item = player.currentMediaItem ?: return
+        if (item.isPodcastEpisode) return
         val mediaId = item.mediaId
         val uri = item.localConfiguration?.uri
         val alreadyPending = QualityUpgrade.isPending(mediaId)
@@ -5806,8 +5942,8 @@ class PlaybackService : MediaLibraryService() {
         val range = LastPlayed.window(player.mediaItemCount, player.currentMediaItemIndex)
         if (range.isEmpty()) return
         persistedQueueStart = range.first
-        LastPlayed.saveQueue(
-            songs = range.map { player.getMediaItemAt(it).toSong() },
+        LastPlayed.savePlayableQueue(
+            playables = range.map { player.getMediaItemAt(it).toPlayableMedia() },
             index = player.currentMediaItemIndex - range.first,
         )
         saveBoundedContextSnapshot(player)
@@ -5825,8 +5961,8 @@ class PlaybackService : MediaLibraryService() {
         }
         val range = LastPlayed.window(player.mediaItemCount, player.currentMediaItemIndex)
         persistedQueueStart = range.first
-        LastPlayed.saveQueueImmediately(
-            songs = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toSong() },
+        LastPlayed.savePlayableQueueImmediately(
+            playables = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toPlayableMedia() },
             index = player.currentMediaItemIndex,
             positionMs = player.currentPosition,
         )
@@ -5843,6 +5979,9 @@ class PlaybackService : MediaLibraryService() {
         val currentIndex = player.currentMediaItemIndex.coerceIn(0, player.mediaItemCount - 1)
         val range = LastPlayed.window(player.mediaItemCount, currentIndex)
         if (range.isEmpty()) return
+        // The bounded-context document is a music-only logical queue. A mixed
+        // physical queue is restored from LastPlayed's typed snapshot instead.
+        if (range.any { player.getMediaItemAt(it).isPodcastEpisode }) return
         val entries = range.map { index ->
             val item = player.getMediaItemAt(index)
             BoundedContextPersistence.Entry(
@@ -5895,7 +6034,18 @@ class PlaybackService : MediaLibraryService() {
     private fun restoreLastQueue(player: ExoPlayer): Boolean {
         val last = LastPlayed.load() ?: return false
         persistedQueueStart = 0
-        player.setMediaItems(last.songs.map { it.toMediaItem() }, last.index, last.positionMs)
+        val items = last.playables.map { playable ->
+            when (playable) {
+                is PlayableMedia.Music -> playable.song.toMediaItem()
+                is PlayableMedia.Podcast -> playable.toMediaItem(
+                    QueueEntryMetadata(
+                        queueEntryId = playable.queueEntryId ?: UUID.randomUUID().toString(),
+                        tier = playable.queueTier,
+                    ),
+                )
+            }
+        }
+        player.setMediaItems(items, last.index, last.positionMs)
         return true
     }
 
@@ -5904,6 +6054,12 @@ class PlaybackService : MediaLibraryService() {
      * LastPlayed physical snapshot when the new record is absent or unsafe.
      */
     private fun restoreBoundedQueueOrLast(player: ExoPlayer): Boolean {
+        // A mixed queue is authoritative over the music-only bounded context.
+        // Do not restore a logical Song projection that would drop podcast rows.
+        if (LastPlayed.load()?.playables?.any { it is PlayableMedia.Podcast } == true) {
+            clearBoundedContext()
+            return restoreLastQueue(player)
+        }
         val persisted = BoundedContextPersistence.load()
         if (persisted != null && restoreBoundedQueue(player, persisted)) return true
         if (persisted != null) BoundedContextPersistence.clearImmediately()
@@ -6010,7 +6166,31 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun publishWidgetState(playing: Boolean? = null) {
         val exoPlayer = player ?: return
-        val song = exoPlayer.currentMediaItem?.toSong() ?: return
+        val item = exoPlayer.currentMediaItem ?: return
+        val song = item.toSongOrNull() ?: run {
+            val podcast = runCatching { item.toPlayableMedia() as? PlayableMedia.Podcast }.getOrNull()
+            if (podcast != null) {
+                MediaWidgetSnapshot.save(
+                    this,
+                    MediaWidgetSnapshot(
+                        mediaId = podcast.stableId,
+                        title = podcast.title,
+                        artist = podcast.artist,
+                        artworkUrl = podcast.artworkUri?.toString(),
+                        isPlaying = playing ?: exoPlayer.playWhenReady,
+                        hasPrevious = exoPlayer.hasPreviousMediaItem(),
+                        hasNext = exoPlayer.hasNextMediaItem(),
+                        isLiked = false,
+                        canLike = false,
+                        shuffleEnabled = false,
+                    ),
+                )
+                MediaWidget.refresh(this)
+                val reported: Player = mediaSession?.player ?: exoPlayer
+                WearBridge.publish(this, MediaWidgetSnapshot.load(this), reported, playing)
+            }
+            return
+        }
         // LikeState only knows ratings this process has seen: a fresh service
         // started from the widget or a restart has none until something seeds
         // it. Unknown is not "not liked", so keep what was last published for
@@ -6076,6 +6256,10 @@ class PlaybackService : MediaLibraryService() {
      * tracks is more than it does anything with, but it decides that, not this.
      */
     private fun prefetchAround(player: ExoPlayer) {
+        if ((0 until player.mediaItemCount).any { player.getMediaItemAt(it).isPodcastEpisode }) {
+            cancelPrefetch()
+            return
+        }
         val nextIndex = player.nextMediaItemIndex
         val upcomingSongs = if (nextIndex != C.INDEX_UNSET) {
             val end = (nextIndex + AudioCache.QUEUE_DEPTH - 1).coerceAtMost(player.mediaItemCount - 1)
@@ -6157,23 +6341,30 @@ class PlaybackService : MediaLibraryService() {
                 val player = this@PlaybackService.player
                 if (player != null && player.isPlaying) {
                     lastPositionSeconds = player.currentPosition / 1000
-                    player.currentMediaItem?.mediaId?.let {
-                        PlaybackTracker.onProgress(it, lastPositionSeconds)
+                    val currentItem = player.currentMediaItem
+                    val podcast = currentItem?.takeIf { it.isPodcastEpisode }
+                        ?.let { runCatching { it.toPlayableMedia() as? PlayableMedia.Podcast }.getOrNull() }
+                    if (podcast != null) {
+                        PodcastPlaybackBridge.repository?.onPlaybackProgress(
+                            podcast.episode,
+                            player.currentPosition.coerceAtLeast(0L),
+                            player.duration.takeIf { it > 0L },
+                        )
+                    } else {
+                        currentItem?.mediaId?.let { PlaybackTracker.onProgress(it, lastPositionSeconds) }
+                        currentItem?.toSongOrNull()?.let { ListeningRecorder.onSample(it, player.duration) }
                     }
                     // The device's own listening record — see [ListeningRecorder],
                     // which counts wall-clock time between ticks rather than
                     // reading the position. This loop is the only place in the app
                     // that ticks exactly while audio is coming out, which is what
                     // makes it the right place to count from.
-                    player.currentMediaItem?.toSong()?.let {
-                        ListeningRecorder.onSample(it, player.duration)
-                    }
                     // Only two primitive preference values. Queue JSON is
                     // written from onTimelineChanged, never from this loop.
                     savePlaybackState(player)
                     // The renderer can settle on its format a moment after the
                     // track change, which no callback of ours follows up on.
-                    publishNerdStats()
+                    if (podcast == null) publishNerdStats()
                     // The backstop for the second look. The callbacks that
                     // start it fire at moments a track may not be resolved
                     // yet — the resolve happens on the loader thread when the
@@ -6181,7 +6372,7 @@ class PlaybackService : MediaLibraryService() {
                     // is after its own transition has been and gone. Cheap to
                     // repeat: it returns immediately unless the track is
                     // pending and nothing is already looking.
-                    lookForBetterCopy(player)
+                    if (podcast == null) lookForBetterCopy(player)
                 }
                 delay(PROGRESS_SAMPLE_MS)
             }
@@ -6996,7 +7187,7 @@ class PlaybackService : MediaLibraryService() {
                     if (exoPlayer.isPlaying) {
                         manager.onPlayerStateChanged(
                             isPlaying = true,
-                            song = exoPlayer.currentMediaItem?.toSong(),
+                            song = exoPlayer.currentMediaItem?.toSongOrNull(),
                             durationMs = exoPlayer.duration.takeIf { it > 0 },
                         )
                     }
@@ -7161,7 +7352,10 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun pushDiscordPresence(exoPlayer: ExoPlayer) {
         val rpc = discordRpc ?: return
-        val song = exoPlayer.currentMediaItem?.toSong() ?: return
+        val song = exoPlayer.currentMediaItem?.toSongOrNull() ?: run {
+            clearDiscordPresence()
+            return
+        }
         // Read on the main thread, before the push is handed to IO: by the time
         // a coroutine gets to run, the queue may have moved on, and ExoPlayer's
         // state is only legal to read from the thread it was built on.
@@ -7385,7 +7579,7 @@ class PlaybackService : MediaLibraryService() {
         ?.any(::isBluetoothAudioOutput) == true
 
     private fun loadLyricsForCurrentTrack() {
-        val currentSong = player?.currentMediaItem?.toSong() ?: run {
+        val currentSong = player?.currentMediaItem?.toSongOrNull() ?: run {
             serviceLyrics = null
             stopLyricsTicker()
             return
@@ -7446,7 +7640,18 @@ class PlaybackService : MediaLibraryService() {
 
     private fun updateLyricSubtitle() {
         val exoPlayer = player ?: return
-        val currentSong = exoPlayer.currentMediaItem?.toSong() ?: return
+        val currentItem = exoPlayer.currentMediaItem ?: return
+        val currentSong = currentItem.toSongOrNull()
+        if (currentSong == null) {
+            val podcast = runCatching { currentItem.toPlayableMedia() as? PlayableMedia.Podcast }.getOrNull()
+                ?: return
+            val subtitle = podcast.artist
+            if (subtitle != lastPublishedSubtitle) {
+                lastPublishedSubtitle = subtitle
+                exoPlayer.playlistMetadata = exoPlayer.mediaMetadata.buildUpon().setSubtitle(subtitle).build()
+            }
+            return
+        }
         val lines = serviceLyrics
         // Keep media-session / notification subtitles on the same user-adjusted
         // lyric clock as the in-app player. Positive offsets delay the lyrics.
@@ -8019,6 +8224,22 @@ class PlaybackService : MediaLibraryService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
+            val podcastCurrent = session.player.hasPodcastInQueue()
+            val musicOnlyCommand = customCommand.customAction in setOf(
+                ACTION_TOGGLE_AUTOPLAY,
+                ACTION_TOGGLE_SHUFFLE,
+                ACTION_START_STATION,
+                ACTION_BEGIN_RADIO_QUEUE,
+                ACTION_REVERT_TO_ORIGINAL,
+                ACTION_SWAP_TO_VERSION,
+                ACTION_UPGRADE_QUALITY,
+                ACTION_SWAP_VERSION,
+                ACTION_TOGGLE_FAVORITE,
+                ACTION_QUEUE_DRAG,
+            )
+            if (podcastCurrent && musicOnlyCommand) {
+                return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+            }
             when (customCommand.customAction) {
                 ACTION_START_BOUNDED_CONTEXT -> startBoundedContext(args)
                 ACTION_CLEAR_BOUNDED_CONTEXT -> clearBoundedContext()
@@ -8579,8 +8800,9 @@ class PlaybackService : MediaLibraryService() {
                         if (cached != null) {
                             resolved.add(cached.toMediaItem())
                         } else {
-                            val song = item.toSong()
-                            resolved.add(song.toMediaItem())
+                            val song = item.toSongOrNull()
+                            if (song != null) resolved.add(song.toMediaItem())
+                            else if (item.isPodcastEpisode) resolved.add(item)
                         }
                     }
                 }

@@ -314,19 +314,19 @@ impl Listening {
         self.saving.is_some()
     }
 
-    /// The server sessions go through: the one `AUDIFY_SESSION_SERVER` names, else the
-    /// listener's own when they turned the official one off and gave an address that reads,
-    /// else the official one.
-    fn server(&self, cx: &App) -> String {
+    /// The server sessions go through. There is no Audify-operated public server yet, so only an
+    /// explicitly configured development server or a user-saved server may be used.
+    fn server(&self, cx: &App) -> Option<String> {
         if let Ok(forced) = std::env::var(server::VARIABLE) {
-            return forced;
+            if !forced.trim().is_empty() {
+                return Some(forced);
+            }
         }
         let settings = self.settings.read(cx);
         if settings.sessions_official() {
-            return server::OFFICIAL.to_owned();
+            return None;
         }
-        server::socket(settings.sessions_server())
-            .map_or_else(|| server::OFFICIAL.to_owned(), |url| url.to_string())
+        server::socket(settings.sessions_server()).map(|url| url.to_string())
     }
 
     fn reject(&mut self, cx: &mut Context<Self>) {
@@ -378,7 +378,9 @@ impl Listening {
     }
 
     fn connect(&mut self, first: Request, cx: &mut Context<Self>) {
-        let url = self.server(cx);
+        let Some(url) = self.server(cx) else {
+            return Toasts::show(Outcome::Info, "toast-session-server-unavailable", cx);
+        };
         let (link, heard) = Link::open(&self.io, url, first);
         self.link = Some(link);
         self.asking = true;

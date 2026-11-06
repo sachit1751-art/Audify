@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -226,9 +227,16 @@ internal fun Modifier.miniPlayerGestures(
     // recomposing it.
     val lift = remember { mutableFloatStateOf(0f) }
     val settle = remember { arrayOfNulls<Job>(1) }
+    // Horizontal swipes are acknowledged by a short, autonomous slide rather
+    // than making the bar track the finger. The offset is capped in the
+    // gesture coroutine and springs back after the queue action is dispatched.
+    val horizontalOffset = remember { mutableFloatStateOf(0f) }
+    val horizontalSettle = remember { arrayOfNulls<Job>(1) }
     return pointerInput(Unit) {
         val trackThreshold = TRACK_SWIPE_THRESHOLD.toPx()
         val liftEase = PULL_LIFT_EASE.toPx()
+        // A deliberate, bounded slide: 30% of the mini-player's own width.
+        val maxHorizontalSlide = size.width * 0.30f
         val maxVelocity = viewConfiguration.maximumFlingVelocity
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
@@ -265,8 +273,33 @@ internal fun Modifier.miniPlayerGestures(
                 val crossed = dragged <= -trackThreshold || dragged >= trackThreshold
                 when {
                     currentLocked -> if (crossed) currentOnBlocked()
-                    dragged <= -trackThreshold -> currentOnNext()
-                    dragged >= trackThreshold -> currentOnPrevious()
+                    dragged <= -trackThreshold || dragged >= trackThreshold -> {
+                        val direction = if (dragged < 0f) -1f else 1f
+                        // Never stack or restart slide animations: one gesture
+                        // owns one short out-and-back timeline.
+                        if (horizontalSettle[0]?.isActive != true) {
+                            horizontalSettle[0] = scope.launch {
+                                var dispatched = false
+                                animate(
+                                    initialValue = 0f,
+                                    targetValue = 0f,
+                                    animationSpec = keyframes {
+                                        durationMillis = 320
+                                        0f at 0
+                                        (direction * maxHorizontalSlide) at 140
+                                        0f at 320
+                                    },
+                                ) { value, state ->
+                                    horizontalOffset.floatValue = value
+                                    if (!dispatched && abs(value) >= maxHorizontalSlide * 0.98f) {
+                                        dispatched = true
+                                        if (direction < 0f) currentOnNext() else currentOnPrevious()
+                                    }
+                                }
+                                horizontalOffset.floatValue = 0f
+                            }
+                        }
+                    }
                 }
                 return@awaitEachGesture
             }
@@ -307,7 +340,10 @@ internal fun Modifier.miniPlayerGestures(
                 ) { value, _ -> lift.floatValue = value }
             }
         }
-    }.graphicsLayer { translationY = -lift.floatValue }
+    }.graphicsLayer {
+        translationX = horizontalOffset.floatValue
+        translationY = -lift.floatValue
+    }
 }
 
 /**

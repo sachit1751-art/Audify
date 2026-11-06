@@ -1,0 +1,11 @@
+{
+  "title": "Choose the onboarding composition",
+  "question": "The visual identity stays Audify: dark-first, editorial, artwork-aware, and native to Android. Which composition should carry the complete four-stage onboarding?",
+  "options": [
+    {"id":"assigned","label":"Moonlit listening lane","kicker":"THE ROLL","lineage":"A moon-shadow bazaar translated into one clear vertical listening route","thesis":"A calm, continuous path connects discovery, personal audio, and shared sessions.","palette":["#090B12","#F2F3F7","#E6C17A"],"materials":["blue-black ground","layered tonal stops","one moon-white active marker"],"viewport":"The Audify mark leads a vertical lane of three capabilities; each stop reads as a real feature, not a decorative card.","risk":"The metaphor must stay subtle; literal market imagery would distract from the music.","html":".impeccable/mocks/decision/assigned.html","htmlFrame":"390x844"},
+    {"id":"challenger-ascii","label":"Signal field","lineage":"A live scene rendered as typewriter characters","thesis":"A compact signal field makes discovery, local playback, and shared listening feel connected.","palette":["#050807","#F0F4EF","#8BE0B2"],"materials":["phosphor-green signal","strict text field","black ground"],"viewport":"A single signal trace leads into three precise capability labels; the rest of the flow keeps the same compact signal language.","risk":"A monospace-first identity would conflict with Audify's established SF Pro typography and could look like a terminal costume.","html":".impeccable/mocks/decision/challenger-ascii.html","htmlFrame":"390x844"},
+    {"id":"challenger-darkroom","label":"Darkroom sequence","lineage":"A printing darkroom under amber safelight","thesis":"The setup unfolds as a deliberate develop sequence, with each choice visible before it is made.","palette":["#100D0A","#F1EEE8","#D69A55"],"materials":["warm near-black ground","silver tonal marks","safelight amber"],"viewport":"A listening waveform is revealed through a restrained exposure strip, with the four onboarding stages shown as one clear process.","risk":"A warm amber palette could pull the onboarding away from Audify's neutral dark identity if overused.","html":".impeccable/mocks/decision/challenger-darkroom.html","htmlFrame":"390x844"}
+  ],
+  "reroll": {"registers":["safer","bolder"]},
+  "steer": true
+}

@@ -21,7 +21,7 @@ As the case with any network request, hosting and network infrastructure (Cloudf
 
 When you use Spotify, Apple Music, YouTube Music, Deezer, Tidal, lyrics providers, or other online integrations, Audify communicates with those third-party services as necessary to provide the requested functionality.
 
-Data handled by those services is subject to their respective privacy policies and terms. This derivative retains a small number of optional upstream Sonora project endpoints, including the community theme catalog, playback-key FAQ, Discord profile link, and Sessions server (`sonorahq.org` / `sessions.sonorahq.org`). Those endpoints are operated separately from this Audify repository and may receive the requests needed for those features.
+Data handled by those services is subject to their respective privacy policies and terms. The optional Sessions feature currently connects to a separately operated server at `sessions.sonorahq.org`; that server may receive the connection metadata and session traffic required to provide the feature. The server is not operated by this Audify repository. The desktop app's Discord link, theme link, and Spotify account-help link point to their respective Audify or provider destinations.
 
 ## Spotify Connect
 

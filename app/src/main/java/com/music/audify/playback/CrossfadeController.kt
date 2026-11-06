@@ -904,6 +904,11 @@ class CrossfadeController(
         val nextIndex = player.nextMediaItemIndex
         if (nextIndex == C.INDEX_UNSET) return
         val nextItem = player.getMediaItemAt(nextIndex)
+        if (currentItem.isPodcastEpisode || nextItem.isPodcastEpisode) {
+            AppSettings.smartTransitionWindow.value = null
+            AppSettings.smartMixInProgress.value = false
+            return
+        }
         // Even a manual catalogue match is still video-origin. AutoMix's
         // analysis and cueing are deliberately never applied to either side
         // of a transition involving a video row.
@@ -1071,6 +1076,7 @@ class CrossfadeController(
         val nextIndex = player.nextMediaItemIndex
         if (nextIndex == C.INDEX_UNSET) return
         val nextItem = player.getMediaItemAt(nextIndex)
+        if (currentItem.isPodcastEpisode || nextItem.isPodcastEpisode) return
         if (currentItem.isVideoOrigin || nextItem.isVideoOrigin) return
         requestAnalysis(currentItem, duration)
         requestAnalysis(nextItem, nextItemDurationMs(nextIndex, nextItem))
@@ -1205,6 +1211,9 @@ class CrossfadeController(
         if (out === into) return false
         val nextIndex = out.nextMediaItemIndex
         if (nextIndex == C.INDEX_UNSET) return false
+        if (out.currentMediaItem?.isPodcastEpisode == true || out.getMediaItemAt(nextIndex).isPodcastEpisode) {
+            return false
+        }
         // The last blend's stretch, if it is somehow still easing off: this
         // player is about to be the outgoing side of a new one.
         endEase(clickless = false)

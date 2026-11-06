@@ -6,10 +6,7 @@ use std::time::Duration;
 use anyhow::{Context as _, Result, bail};
 use reqwest::Url;
 
-/// The official server.
-pub(crate) const OFFICIAL: &str = "wss://sessions.sonorahq.org/ws";
-/// Points the app at another server whatever the settings say, as one run locally while working
-/// on it.
+/// Points the app at a server explicitly supplied for development or testing.
 pub(crate) const VARIABLE: &str = "AUDIFY_SESSION_SERVER";
 /// How long a health check waits for an answer.
 const PATIENCE: Duration = Duration::from_secs(6);

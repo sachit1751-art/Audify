@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -14,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
@@ -93,6 +95,8 @@ fun TopFadeBlur(
      */
     pageColor: Color,
     modifier: Modifier = Modifier,
+    /** Cross-fades against the bottom edge treatment as the page scrolls. */
+    alpha: Float = 1f,
     /**
      * A wash laid over the blur to keep the bar's glyphs readable.
      *
@@ -109,13 +113,20 @@ fun TopFadeBlur(
     scrimColor: Color,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
-    // The bar fills itself solid instead when blur is reduced, so this has
-    // nothing left to do.
-    if (reduceDynamicBlur) return
+    val progressiveScrollEdgeBlur by AppSettings.progressiveScrollEdgeBlur.collectAsStateWithLifecycle()
+    // Respect both the global reduced-blur preference and the user's specific
+    // progressive-edge preference. The top and bottom edges are one setting.
+    if (reduceDynamicBlur || !progressiveScrollEdgeBlur) return
 
-    val height = topBarHeight() + FADE_RUN
+    // Start at the top of the window and fade through the status bar, top bar,
+    // and its content gap. Starting this layer below the bar creates a visible
+    // horizontal seam across artwork because the blur has a hard layer edge.
+    // The gradient reaches zero before the first content row begins.
+    val height = topBarHeight() + TopBarContentGap + FADE_RUN
+    val fadeModifier = modifier
+        .graphicsLayer { this.alpha = alpha.coerceIn(0f, 1f) }
     Box(
-        modifier = modifier
+        modifier = fadeModifier
             .fillMaxWidth()
             .height(height)
             .hazeBlur(
@@ -150,7 +161,7 @@ fun TopFadeBlur(
         )
     }
     Box(
-        modifier = modifier
+        modifier = fadeModifier
             .fillMaxWidth()
             .height(height)
             .background(scrim),

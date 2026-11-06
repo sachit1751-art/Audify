@@ -116,8 +116,10 @@ fun AudifyTheme(
         AppFontChoice.SERIF -> FontFamily.Serif
     }
     val adaptiveFontScale = when {
-        windowWidth >= 840.dp -> 1.18f
-        windowWidth >= 600.dp -> 1.12f
+        windowWidth >= 840.dp -> 1.24f
+        windowWidth >= 600.dp -> 1.18f
+        windowWidth >= 480.dp -> 1.12f
+        windowWidth >= 360.dp -> 1.06f
         else -> 1f
     }
     CompositionLocalProvider(

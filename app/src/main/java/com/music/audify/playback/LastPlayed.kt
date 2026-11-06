@@ -7,6 +7,7 @@ import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import com.music.audify.data.model.Song
+import com.music.audify.data.TrackLog
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -19,7 +20,10 @@ import kotlinx.serialization.json.Json
  */
 object LastPlayed {
 
-    class Snapshot(val songs: List<Song>, val index: Int, val positionMs: Long)
+    class Snapshot(val playables: List<PlayableMedia>, val index: Int, val positionMs: Long) {
+        /** Music-only compatibility projection for callers that still require Songs. */
+        val songs: List<Song> get() = playables.mapNotNull { (it as? PlayableMedia.Music)?.song }
+    }
 
     private lateinit var prefs: SharedPreferences
     private val json = Json { ignoreUnknownKeys = true }
@@ -37,14 +41,20 @@ object LastPlayed {
 
     /** Persist at most 25 previous entries, the current one, and 50 upcoming entries. */
     fun saveQueue(songs: List<Song>, index: Int) {
-        if (songs.isEmpty()) {
+        savePlayableQueue(songs.map(PlayableMedia::Music), index)
+    }
+
+    /** Persist the bounded physical queue without erasing media kind. */
+    fun savePlayableQueue(playables: List<PlayableMedia>, index: Int) {
+        if (playables.isEmpty()) {
             clear()
             return
         }
-        val safeIndex = index.coerceIn(songs.indices)
-        val bounds = window(songs.size, safeIndex)
+        val safeIndex = index.coerceIn(playables.indices)
+        val bounds = window(playables.size, safeIndex)
         val stored = StoredQueue(
-            tracks = songs.subList(bounds.first, bounds.last + 1).map { StoredTrack.from(it) },
+            version = SNAPSHOT_VERSION,
+            tracks = playables.subList(bounds.first, bounds.last + 1).map { StoredTrack.from(it) },
         )
         val encoded = runCatching {
             json.encodeToString(StoredQueue.serializer(), stored)
@@ -61,14 +71,20 @@ object LastPlayed {
      * that boundary would be worse than the small cost of a synchronous write.
      */
     fun saveQueueImmediately(songs: List<Song>, index: Int, positionMs: Long) {
-        if (songs.isEmpty()) {
+        savePlayableQueueImmediately(songs.map(PlayableMedia::Music), index, positionMs)
+    }
+
+    /** Synchronous physical queue boundary, retaining typed podcast identity. */
+    fun savePlayableQueueImmediately(playables: List<PlayableMedia>, index: Int, positionMs: Long) {
+        if (playables.isEmpty()) {
             clearImmediately()
             return
         }
-        val safeIndex = index.coerceIn(songs.indices)
-        val bounds = window(songs.size, safeIndex)
+        val safeIndex = index.coerceIn(playables.indices)
+        val bounds = window(playables.size, safeIndex)
         val stored = StoredQueue(
-            tracks = songs.subList(bounds.first, bounds.last + 1).map { StoredTrack.from(it) },
+            version = SNAPSHOT_VERSION,
+            tracks = playables.subList(bounds.first, bounds.last + 1).map { StoredTrack.from(it) },
         )
         val encoded = runCatching {
             json.encodeToString(StoredQueue.serializer(), stored)
@@ -89,13 +105,21 @@ object LastPlayed {
             }
     }
 
+    /** True when a durable podcast queue is waiting for its local repository to become available. */
+    fun hasPendingPodcastSnapshot(): Boolean {
+        if (PodcastPlaybackBridge.repository != null) return false
+        val raw = prefs.getString(KEY_QUEUE, null) ?: return false
+        val stored = runCatching { json.decodeFromString<StoredQueue>(raw) }.getOrNull() ?: return false
+        return stored.tracks.any { it.kind == "podcast" }
+    }
+
     fun load(): Snapshot? {
         val raw = prefs.getString(KEY_QUEUE, null) ?: return null
         val stored = runCatching { json.decodeFromString<StoredQueue>(raw) }.getOrNull()
             ?: return null
+        if (stored.version != LEGACY_SNAPSHOT_VERSION && stored.version != SNAPSHOT_VERSION) return null
         if (stored.tracks.isEmpty()) return null
-        val songs = stored.tracks.map(StoredTrack::toSong)
-        val index = if (prefs.contains(KEY_INDEX)) {
+        val requestedIndex = if (prefs.contains(KEY_INDEX)) {
             prefs.getInt(KEY_INDEX, 0)
         } else {
             stored.legacyIndex ?: 0
@@ -105,10 +129,33 @@ object LastPlayed {
         } else {
             stored.legacyPositionMs ?: 0L
         }
+        // The feed repository is installed after its local store is ready. Do
+        // not turn a temporarily unavailable repository into a music-only
+        // restore: leave the durable mixed snapshot untouched so the caller can
+        // retry once the repository has been attached. A present repository
+        // returning no matching episode still means that entry is genuinely gone.
+        if (stored.tracks.any { it.kind == "podcast" } && PodcastPlaybackBridge.repository == null) {
+            return null
+        }
+        val decoded = stored.tracks.mapIndexedNotNull { originalIndex, track ->
+            track.toPlayableMedia()?.let { originalIndex to it }
+        }
+        val skipped = stored.tracks.size - decoded.size
+        if (skipped > 0) {
+            TrackLog.w("Audify", "Skipped $skipped queue item(s) that could not be restored from the local podcast catalogue")
+        }
+        if (decoded.isEmpty()) return null
+        val selected = decoded.indexOfFirst { it.first == requestedIndex }
+        val next = if (selected >= 0) selected else decoded.indexOfFirst { it.first > requestedIndex }
+        val resolvedIndex = when {
+            selected >= 0 -> selected
+            next >= 0 -> next
+            else -> decoded.lastIndex
+        }
         return Snapshot(
-            songs = songs,
-            index = index.coerceIn(songs.indices),
-            positionMs = positionMs.coerceAtLeast(0L),
+            playables = decoded.map { it.second },
+            index = resolvedIndex,
+            positionMs = if (selected >= 0) positionMs.coerceAtLeast(0L) else 0L,
         )
     }
 
@@ -123,6 +170,8 @@ object LastPlayed {
 
     @Serializable
     private data class StoredQueue(
+        /** Snapshot format version; missing on legacy music-only queues. */
+        val version: Int = LEGACY_SNAPSHOT_VERSION,
         val tracks: List<StoredTrack>,
         /** Compatibility with queue snapshots written before scalar state was separated. */
         val index: Int? = null,
@@ -135,6 +184,8 @@ object LastPlayed {
 
     @Serializable
     private data class StoredTrack(
+        /** Missing on legacy snapshots, which are therefore interpreted as music. */
+        val kind: String = "music",
         val id: String,
         val title: String,
         val artist: String,
@@ -152,6 +203,12 @@ object LastPlayed {
         val source: String? = null,
         val sourceType: String? = null,
         val sourceId: String? = null,
+        val feedId: String? = null,
+        val episodeId: String? = null,
+        val enclosure: String? = null,
+        val mimeType: String? = null,
+        val description: String? = null,
+        val durationMs: Long? = null,
     ) {
         fun toSong(): Song {
             val resolvedTier = when (tier) {
@@ -183,7 +240,27 @@ object LastPlayed {
         }
 
         companion object {
+            fun from(playable: PlayableMedia): StoredTrack = when (playable) {
+                is PlayableMedia.Music -> from(playable.song)
+                is PlayableMedia.Podcast -> StoredTrack(
+                    kind = "podcast",
+                    id = playable.stableId,
+                    title = playable.title,
+                    artist = playable.artist,
+                    artwork = playable.artworkUri?.toString(),
+                    tier = playable.queueTier.name,
+                    entryId = playable.queueEntryId,
+                    feedId = playable.episode.feedId,
+                    episodeId = playable.episode.episodeId,
+                    enclosure = playable.episode.enclosureUri.toString(),
+                    mimeType = playable.episode.mimeType,
+                    description = playable.episode.description,
+                    durationMs = playable.episode.durationMs,
+                )
+            }
+
             fun from(song: Song) = StoredTrack(
+                kind = "music",
                 id = song.videoId,
                 title = song.title,
                 artist = song.artist,
@@ -203,9 +280,31 @@ object LastPlayed {
                 sourceId = song.playbackSourceId,
             )
         }
+
+        fun toPlayableMedia(): PlayableMedia? {
+            return when (kind) {
+                "music" -> PlayableMedia.Music(toSong())
+                "podcast" -> {
+                    val feed = feedId ?: return null
+                    val episode = episodeId ?: return null
+                    val canonical = PodcastPlaybackBridge.resolve(feed, episode) ?: return null
+                    if (canonical.stableId != id) return null
+                    PlayableMedia.Podcast(
+                        episode = canonical,
+                        queueEntryId = entryId,
+                        queueTier = tier?.let {
+                            runCatching { com.music.audify.data.model.QueueTier.valueOf(it) }.getOrNull()
+                        } ?: com.music.audify.data.model.QueueTier.USER_QUEUE,
+                    )
+                }
+                else -> null
+            }
+        }
     }
 
     private const val KEEP_AHEAD = 50
+    private const val LEGACY_SNAPSHOT_VERSION = 0
+    private const val SNAPSHOT_VERSION = 1
     private const val PREFS_NAME = "audify_last_played"
     private const val KEY_QUEUE = "queue"
     private const val KEY_INDEX = "index"

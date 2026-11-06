@@ -57,7 +57,8 @@ import com.music.audify.data.settings.AudioQuality
 import com.music.audify.playback.AudioCache
 import com.music.audify.playback.AudioRouting
 import com.music.audify.playback.toMediaItem
-import com.music.audify.playback.toSong
+import com.music.audify.playback.toSongOrNull
+import com.music.audify.playback.isPodcastEpisode
 import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -1098,7 +1099,11 @@ internal class WatchSpeaker(
         val last = (index + AHEAD).coerceAtMost(player.mediaItemCount - 1)
         return (index..last).mapNotNullTo(ArrayList()) { i ->
             val item = player.getMediaItemAt(i)
-            val uri = item.localConfiguration?.uri ?: item.toSong().toMediaItem().localConfiguration?.uri
+            // The watch's queue protocol is music-only. Keep podcast metadata
+            // on the shared session, but never send an enclosure URL for the
+            // watch to fetch outside the phone's redirect/DNS policy.
+            if (item.isPodcastEpisode) return@mapNotNullTo null
+            val uri = item.localConfiguration?.uri ?: item.toSongOrNull()?.toMediaItem()?.localConfiguration?.uri
                 ?: return@mapNotNullTo null
             DataMap().apply {
                 putString(P.KEY_MEDIA_ID, item.mediaId)

@@ -204,6 +204,7 @@ import com.music.audify.playback.OriginalVersion
 import com.music.audify.playback.PlayerDeepLink
 import com.music.audify.playback.QueueBuilder
 import com.music.audify.playback.QueueCoordinator
+import com.music.audify.playback.TypedQueueComposer
 import com.music.audify.playback.QueueCoordinator.asQueueEntry
 import com.music.audify.playback.QueueShuffle
 import com.music.audify.playback.QueueSource
@@ -217,10 +218,13 @@ import com.music.audify.playback.fromAutoplay
 import com.music.audify.playback.hasYouTubeOriginal
 import com.music.audify.playback.loadAutoplayTracks
 import com.music.audify.playback.playSongs
+import com.music.audify.playback.playMediaItems
 import com.music.audify.playback.playBoundedContext
 import com.music.audify.playback.contextEntryKey
 import com.music.audify.playback.toMediaItem
 import com.music.audify.playback.toSong
+import com.music.audify.playback.toSongOrNull
+import com.music.audify.playback.isPodcastEpisode
 import com.music.audify.playback.toDirectYouTubeMediaItem
 import com.music.audify.playback.toggleAutoplay
 import com.music.audify.playback.toggleShuffle
@@ -272,6 +276,8 @@ import com.music.audify.data.sources.SourceKind
 import com.music.audify.data.sources.SourceRegistry
 import com.music.audify.ui.components.ListenBrainzTokenAlert
 import com.music.audify.ui.components.MiniPlayer
+import com.music.audify.ui.components.PodcastMiniPlayer
+import com.music.audify.ui.components.PodcastNowPlayingScreen
 import com.music.audify.ui.components.QueueActionNotice
 import com.music.audify.ui.components.QueueActionNoticeHost
 import com.music.audify.ui.components.TopBarAccountButton
@@ -283,6 +289,7 @@ import com.music.audify.sharedui.resources.search_addons_hint
 import com.music.audify.sharedui.resources.search_library_hint
 import com.music.audify.ui.components.TopBarDownloadButton
 import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
+import com.music.audify.ui.components.TopFadeBlur
 import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.optimizedHazeEffect
 import com.music.audify.ui.components.TopBarContentGap
@@ -332,7 +339,6 @@ import com.music.audify.data.LocalGroups
 import com.music.audify.data.settings.LibraryViewType
 import com.music.audify.data.settings.LocalMusicSort
 import com.music.audify.ui.screens.HomeScreen
-import com.music.audify.ui.screens.WeeklyRecapCardData
 import com.music.audify.ui.screens.LibraryGridPage
 import com.music.audify.ui.screens.LibraryScreen
 import com.music.audify.ui.screens.MoodGenrePlaylistsScreen
@@ -345,10 +351,7 @@ import com.music.audify.ui.replay.ReplayShareSheet
 import com.music.audify.ui.replay.ReplayStories
 import com.music.audify.ui.replay.ReplayStoryPage
 import com.music.audify.ui.replay.rememberReplayState
-import com.music.audify.ui.replay.rememberWeeklyRecap
-import com.music.audify.ui.replay.shouldShowWeeklyRecap
 import com.music.audify.data.stats.ReplayPeriod
-import com.music.audify.ui.replay.formatListening
 import com.music.audify.ui.replay.replayCount
 import com.music.audify.ui.theme.AudifyTheme
 import com.music.audify.ui.theme.rememberArtworkPalette
@@ -748,6 +751,9 @@ private fun AudifyApp(
     val visibleEntry = navigator.visibleEntry(detailStack.size)
     /** The route on screen, or null when a release page or a tab is. */
     val route = visibleEntry?.route
+    // Settings categories are in-screen subpages. The global top-bar Back
+    // button must close one before it pops Settings back to the Library tab.
+    var settingsCategoryBackHandler by remember { mutableStateOf<(() -> Unit)?>(null) }
     /**
      * The release page at the top of its stack, whether or not a route
      * covers it. Most things want [detail] — the one actually on screen.
@@ -1463,8 +1469,10 @@ private fun AudifyApp(
         scope.launch {
             if (refusedByHost()) return@launch
             val c = controller ?: return@launch
-            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
+            val currentItems = (0 until c.mediaItemCount).map(c::getMediaItemAt)
+            val hasPodcast = currentItems.any { it.isPodcastEpisode }
+            val currentTimeline = if (hasPodcast) emptyList() else player.queue.takeIf { it.size == c.mediaItemCount }
+                ?: currentItems.map { it.toSong() }
             val currentIndex = c.currentMediaItemIndex
 
             if (ListenTogether.state.value.inParty) {
@@ -1488,7 +1496,12 @@ private fun AudifyApp(
                 // receiver can follow its existing queue semantics. The bounded
                 // service path is local-player-only; the service repeats this
                 // guard for commands that race a newly connected receiver.
-                if (boundedContext && !CastController.state.value.casting) {
+                if (hasPodcast) {
+                    val typedQueue = withContext(Dispatchers.Default) {
+                        TypedQueueComposer.buildContextQueue(currentItems, currentIndex, songs, index, source)
+                    }
+                    c.playMediaItems(typedQueue.items, typedQueue.startIndex)
+                } else if (boundedContext && !CastController.state.value.casting) {
                     c.playBoundedContext(songs, index, source, continuationToken)
                 } else {
                     val result = QueueCoordinator.buildContextQueue(
@@ -1595,16 +1608,25 @@ private fun AudifyApp(
         scope.launch {
             if (refusedByHost()) return@launch
             val c = controller ?: return@launch
-            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
+            val currentItems = (0 until c.mediaItemCount).map(c::getMediaItemAt)
+            val hasPodcast = currentItems.any { it.isPodcastEpisode }
+            val currentTimeline = if (hasPodcast) emptyList() else player.queue.takeIf { it.size == c.mediaItemCount }
+                ?: currentItems.map { it.toSong() }
             val currentIndex = c.currentMediaItemIndex
-            val oneOffQueue = QueueCoordinator.buildOneOffQueue(
-                currentTimeline = currentTimeline,
-                currentIndex = currentIndex,
-                tappedSong = song,
-                source = source,
-            )
-            c.playSongs(oneOffQueue, 0)
+            if (hasPodcast) {
+                val typedQueue = withContext(Dispatchers.Default) {
+                    TypedQueueComposer.buildOneOffQueue(currentItems, currentIndex, song, source)
+                }
+                c.playMediaItems(typedQueue.items, typedQueue.startIndex)
+            } else {
+                val oneOffQueue = QueueCoordinator.buildOneOffQueue(
+                    currentTimeline = currentTimeline,
+                    currentIndex = currentIndex,
+                    tappedSong = song,
+                    source = source,
+                )
+                c.playSongs(oneOffQueue, 0)
+            }
             // Start radio in the mini-player; the user opens the full view by tapping it.
         }
     }
@@ -1699,21 +1721,27 @@ private fun AudifyApp(
             // The end of what the user queued, not the end of the queue: a song
             // asked for by name outranks whatever AutoPlay lined up behind it.
             controller?.let {
+                val currentItems = (0 until it.mediaItemCount).map(it::getMediaItemAt)
+                val hasPodcast = currentItems.any { item -> item.isPodcastEpisode }
                 if (ListenTogether.state.value.inParty) {
+                    if (hasPodcast) {
+                        showQueueNotice(resources.getString(R.string.podcast_party_unsupported))
+                        return@launch
+                    }
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
                         showQueueNotice(partyQueueFullMessage)
                         return@launch
                     }
                 }
-                val current = it.currentMediaItem?.toSong()
-                val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
-                    ?: (0 until it.mediaItemCount).map { idx -> it.getMediaItemAt(idx).toSong() }
-                val at = QueueCoordinator.findUserQueueInsertionIndex(
-                    timeline = timeline,
-                    currentIndex = it.currentMediaItemIndex,
-                    isNext = false,
-                )
+                val current = it.currentMediaItem?.toSongOrNull()
+                val at = if (hasPodcast) {
+                    TypedQueueComposer.findUserQueueInsertionIndex(currentItems, it.currentMediaItemIndex, isNext = false)
+                } else {
+                    val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
+                        ?: currentItems.map { item -> item.toSong() }
+                    QueueCoordinator.findUserQueueInsertionIndex(timeline, it.currentMediaItemIndex, isNext = false)
+                }
                 val queued = song.copy(
                     radioName = current?.radioName,
                     playbackSource = current?.playbackSource ?: queueLabel,
@@ -1729,21 +1757,27 @@ private fun AudifyApp(
         scope.launch {
             if (refusedByHost()) return@launch
             controller?.let {
+                val currentItems = (0 until it.mediaItemCount).map(it::getMediaItemAt)
+                val hasPodcast = currentItems.any { item -> item.isPodcastEpisode }
                 if (ListenTogether.state.value.inParty) {
+                    if (hasPodcast) {
+                        showQueueNotice(resources.getString(R.string.podcast_party_unsupported))
+                        return@launch
+                    }
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
                         showQueueNotice(partyQueueFullMessage)
                         return@launch
                     }
                 }
-                val current = it.currentMediaItem?.toSong()
-                val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
-                    ?: (0 until it.mediaItemCount).map { idx -> it.getMediaItemAt(idx).toSong() }
-                val at = QueueCoordinator.findUserQueueInsertionIndex(
-                    timeline = timeline,
-                    currentIndex = it.currentMediaItemIndex,
-                    isNext = true,
-                )
+                val current = it.currentMediaItem?.toSongOrNull()
+                val at = if (hasPodcast) {
+                    TypedQueueComposer.findUserQueueInsertionIndex(currentItems, it.currentMediaItemIndex, isNext = true)
+                } else {
+                    val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
+                        ?: currentItems.map { item -> item.toSong() }
+                    QueueCoordinator.findUserQueueInsertionIndex(timeline, it.currentMediaItemIndex, isNext = true)
+                }
                 val queued = song.copy(
                     radioName = current?.radioName,
                     playbackSource = current?.playbackSource ?: queueLabel,
@@ -1842,7 +1876,13 @@ private fun AudifyApp(
                     // never gets round to it.
                     play(songs, 0)
                 } else {
+                    val currentItems = (0 until c.mediaItemCount).map(c::getMediaItemAt)
+                    val hasPodcast = currentItems.any { item -> item.isPodcastEpisode }
                     val toAdd = if (ListenTogether.state.value.inParty) {
+                        if (hasPodcast) {
+                            showQueueNotice(resources.getString(R.string.podcast_party_unsupported))
+                            return@launch
+                        }
                         val upcoming = (c.mediaItemCount - (c.currentMediaItemIndex + 1)).coerceAtLeast(0)
                         val slotsLeft = (25 - upcoming).coerceAtLeast(0)
                         if (slotsLeft <= 0) {
@@ -1853,26 +1893,25 @@ private fun AudifyApp(
                     } else {
                         songs
                     }
-                    val timeline = player.queue.takeIf { q -> q.size == c.mediaItemCount }
-                        ?: (0 until c.mediaItemCount).map { idx -> c.getMediaItemAt(idx).toSong() }
-                    val at = QueueCoordinator.findUserQueueInsertionIndex(
-                        timeline = timeline,
-                        currentIndex = c.currentMediaItemIndex,
-                        isNext = next,
-                    )
-                    val current = c.currentMediaItem?.toSong()
-                    c.addMediaItems(
-                        at,
+                    val current = c.currentMediaItem?.toSongOrNull()
+                    val at = if (hasPodcast) {
+                        TypedQueueComposer.findUserQueueInsertionIndex(currentItems, c.currentMediaItemIndex, next)
+                    } else {
+                        val timeline = player.queue.takeIf { q -> q.size == c.mediaItemCount }
+                            ?: currentItems.map { item -> item.toSong() }
+                        QueueCoordinator.findUserQueueInsertionIndex(timeline, c.currentMediaItemIndex, next)
+                    }
+                    val newItems = withContext(Dispatchers.Default) {
                         toAdd.map {
                             it.copy(
                                 radioName = current?.radioName,
                                 playbackSource = current?.playbackSource ?: queueLabel,
-                                playbackSourceType = current?.playbackSourceType
-                                    ?: PlaybackSourceType.QUEUE,
+                                playbackSourceType = current?.playbackSourceType ?: PlaybackSourceType.QUEUE,
                                 playbackSourceId = current?.playbackSourceId,
                             ).asQueueEntry(QueueTier.USER_QUEUE).toMediaItem()
-                        },
-                    )
+                        }
+                    }
+                    c.addMediaItems(at, newItems)
                     val message = resources.getQuantityString(
                         if (next) R.plurals.songs_will_play_next else R.plurals.songs_added_to_queue,
                         toAdd.size,
@@ -2316,7 +2355,7 @@ private fun AudifyApp(
     // under the status bar inset, and that inset varies by device and by window,
     // so a fixed number only ever lines up on the one device it was picked on.
     // See [topBarContentPadding].
-    val fallbackBottomChrome = if (player.song != null) 210.dp else 140.dp
+    val fallbackBottomChrome = if (player.playable != null) 210.dp else 140.dp
     val measuredBottomChrome = with(LocalDensity.current) { floatingBarsHeight.intValue.toDp() }
     val listPadding = PaddingValues(
         top = topBarContentPadding(),
@@ -2351,24 +2390,6 @@ private fun AudifyApp(
     val (replay, setReplayPeriod) = rememberReplayState(replayOpen)
     val replayCards = remember(replay.summary) {
         replay.summary?.takeUnless { it.isEmpty }?.cards(context).orEmpty()
-    }
-    val weeklyRecapEnabled by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
-    val weeklyRecapSeenWeek by AppSettings.weeklyRecapSeenWeek.collectAsStateWithLifecycle()
-    val currentWeekStart = remember { java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY).toEpochDay() }
-    val weeklyRecapSummary = rememberWeeklyRecap(
-        active = selectedTab == TAB_HOME && route == null && detail == null && weeklyRecapEnabled,
-    )
-    val weeklyRecapCard = remember(weeklyRecapSummary, weeklyRecapEnabled, weeklyRecapSeenWeek, currentWeekStart) {
-        weeklyRecapSummary?.takeIf {
-            shouldShowWeeklyRecap(weeklyRecapEnabled, !it.isEmpty, weeklyRecapSeenWeek, currentWeekStart)
-        }?.let {
-            WeeklyRecapCardData(
-                minutes = formatListening(context, it.totalMs),
-                plays = context.replayCount(it.totalPlays, R.plurals.replay_play_count),
-                topSong = it.songs.firstOrNull()?.song?.title,
-                topArtist = it.artists.firstOrNull()?.title,
-            )
-        }
     }
     val timeAwareShelfEnabled by AppSettings.showTimeAwareShelf.collectAsStateWithLifecycle()
     val timeAwareShelfTitles = mapOf(
@@ -2443,6 +2464,7 @@ private fun AudifyApp(
             albumName = current.albumName ?: extra.albumName,
         )
     }
+    val playerPodcast = (player.playable as? com.music.audify.playback.PlayableMedia.Podcast)?.episode
     // The three-dot menu snapshots the track into songActions when it's opened,
     // so a menu opened before the lookup above resolves would otherwise be
     // stuck without album/artist rows even after the ids come in. Keep it in
@@ -2547,15 +2569,23 @@ private fun AudifyApp(
             hasPrevious = player.hasPrevious,
             hasNext = player.hasNext,
             repeatMode = player.repeatMode,
-            shuffleEnabled = shuffleEnabled,
-            autoplayEnabled = autoplayEnabled,
+            shuffleEnabled = shuffleEnabled && player.queueItems.none {
+                it is com.music.audify.playback.PlayableMedia.Podcast
+            },
+            autoplayEnabled = autoplayEnabled && player.queueItems.none {
+                it is com.music.audify.playback.PlayableMedia.Podcast
+            },
             signedIn = signedIn,
             likeStatus = likeStatuses[song.videoId] ?: LikeStatus.INDIFFERENT,
             onToggleLike = { viewModel.toggleLike(song.videoId, song) },
             // The service owns both the queue and the Shuffle state. Keeping
             // the toggle on that side prevents the UI from changing the icon
             // before its asynchronous reorder command has actually landed.
-            onToggleShuffle = { controller?.toggleShuffle() },
+            onToggleShuffle = {
+                if (player.queueItems.any { it is com.music.audify.playback.PlayableMedia.Podcast }) {
+                    showQueueNotice(resources.getString(R.string.podcast_music_controls_unsupported))
+                } else controller?.toggleShuffle()
+            },
             onCycleRepeat = {
                 controller?.let {
                     val next = when (it.repeatMode) {
@@ -2576,7 +2606,9 @@ private fun AudifyApp(
             onToggleAutoplay = {
                 // PlaybackService owns the setting and queue extension so
                 // this path and the notification use exactly one loader.
-                controller?.toggleAutoplay()
+                if (player.queueItems.any { it is com.music.audify.playback.PlayableMedia.Podcast }) {
+                    showQueueNotice(resources.getString(R.string.podcast_music_controls_unsupported))
+                } else controller?.toggleAutoplay()
             },
             onJumpTo = { index ->
                 controller?.let { c ->
@@ -3043,6 +3075,10 @@ private fun AudifyApp(
                                     replayLandingPage = ReplayStoryPage.INTRO
                                     navigator.push(AppRoute.Replay)
                                 },
+                                onReplayOnboarding = {
+                                    AppSettings.replayOnboarding()
+                                    navigator.clear()
+                                },
                                 onLyricsSources = { showLyricsSources = true },
                                 onTranslationLanguage = { showTranslationLanguage = true },
                                 onSources = { navigator.push(AppRoute.Sources) },
@@ -3065,6 +3101,7 @@ private fun AudifyApp(
                                     }
                                 },
                                 onDownloadLatest = { showUpdateDialog = updateAvailable != null },
+                                onCategoryBackHandlerChanged = { settingsCategoryBackHandler = it },
                                 contentPadding = listPadding,
                             )
                         } else if (page != null) {
@@ -3323,16 +3360,7 @@ private fun AudifyApp(
                                 onLoadMore = viewModel::loadMoreHome,
                                 loadingMore = homeLoadingMore,
                                 recentlyPlayedLoading = homeRecentlyPlayedLoading,
-                                weeklyRecap = weeklyRecapCard,
                                 timeAwareShelf = timeAwareShelf,
-                                onWeeklyRecapClick = {
-                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekStart)
-                                    setReplayPeriod(ReplayPeriod.THIS_WEEK)
-                                    navigator.push(AppRoute.Replay)
-                                },
-                                onWeeklyRecapDismiss = {
-                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekStart)
-                                },
                                 onSearchClick = {
                                     navigator.clear()
                                     viewModel.closeMoodGenre()
@@ -3701,11 +3729,12 @@ private fun AudifyApp(
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
-                ProgressiveScrollEdgeBlur(
+                TopFadeBlur(
                     hazeState = hazeState,
                     pageColor = chromePageColor,
-                    edge = ScrollBlurEdge.Top,
+                    scrimColor = chromePageColor,
                     modifier = Modifier.align(Alignment.TopCenter),
+                    alpha = topFadeAlpha,
                 )
 
                 BottomFadeScrim(
@@ -3713,7 +3742,7 @@ private fun AudifyApp(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .rotate(180f)
-                        .graphicsLayer { alpha = topFadeAlpha },
+                        .graphicsLayer { alpha = 1f - topFadeAlpha },
                 )
 
                 FrostedTopBar(
@@ -3762,6 +3791,8 @@ private fun AudifyApp(
                     // The same step the back gesture takes — see [goBack] —
                     // offered on anything pushed over a tab.
                     onBack = when {
+                        route == AppRoute.Settings && settingsCategoryBackHandler != null ->
+                            ({ settingsCategoryBackHandler?.invoke(); Unit })
                         detail != null && detailActiveShelf != null -> ({ detailActiveShelf = null })
                         route != null || detail != null || selectedMoodGenre != null -> goBack
                         else -> null
@@ -4056,7 +4087,7 @@ private fun AudifyApp(
 
                 // Drawn before the bars so their own glass reads on top of it.
                 BottomFadeScrim(
-                    withMiniPlayer = player.song != null,
+                    withMiniPlayer = player.playable != null,
                     // Not the wash: by the foot of the screen the page has finished
                     // easing out of it and into this, so this is what is actually
                     // under the tab bar.
@@ -4101,6 +4132,24 @@ private fun AudifyApp(
                         .onSizeChanged { floatingBarsHeight.intValue = it.height },
                 ) {
                     QueueActionNoticeHost(queueNotice)
+                    playerPodcast?.let { episode ->
+                        PodcastMiniPlayer(
+                            episode = episode,
+                            isPlaying = player.isPlaying,
+                            isLoading = playPauseBusy,
+                            onPlayPause = { togglePlayPause() },
+                            onNext = { controller?.seekToNextMediaItem() },
+                            onPrevious = { controller?.seekToPrevious() },
+                            onExpand = if (reducePlayerMotion) {
+                                { showNowPlaying = true }
+                            } else {
+                                playerSheetMotion::open
+                            },
+                            controlsLocked = controlsLocked,
+                            onBlockedControl = showHostOnlyNotice,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     // Liquid glass replaces the two stacked bars with the single
                     // component they are stacked to imitate: the now playing
                     // controls dock into the tab bar rather than riding above it,
@@ -4168,6 +4217,25 @@ private fun AudifyApp(
                         )
                         Spacer(Modifier.height(8.dp))
                     }
+                    if (playerSong == null) playerPodcast?.let { episode ->
+                        PodcastMiniPlayer(
+                            episode = episode,
+                            isPlaying = player.isPlaying,
+                            isLoading = playPauseBusy,
+                            onPlayPause = { togglePlayPause() },
+                            onNext = { controller?.seekToNextMediaItem() },
+                            onPrevious = { controller?.seekToPrevious() },
+                            onExpand = if (reducePlayerMotion) {
+                                { showNowPlaying = true }
+                            } else {
+                                playerSheetMotion::open
+                            },
+                            controlsLocked = controlsLocked,
+                            onBlockedControl = showHostOnlyNotice,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                     FloatingBottomBar(
                         tabs = tabs,
                         selectedIndex = if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2),
@@ -4179,7 +4247,7 @@ private fun AudifyApp(
 
         }
 
-        val playerRaised = showNowPlaying && playerSong != null
+        val playerRaised = showNowPlaying && player.playable != null
 
         // ---- Now Playing ----
         if (playerRaised) {
@@ -4307,7 +4375,25 @@ private fun AudifyApp(
                         },
                 ) {
                     CompositionLocalProvider(LocalPlayerDock provides activeDock) {
-                        nowPlaying(playerSong)
+                        if (playerSong != null) {
+                            nowPlaying(playerSong)
+                        } else {
+                            playerPodcast?.let { episode ->
+                                PodcastNowPlayingScreen(
+                                    episode = episode,
+                                    isPlaying = player.isPlaying,
+                                    isLoading = playPauseBusy,
+                                    positionMs = player.position.positionMs,
+                                    durationMs = player.durationMs,
+                                    onPlayPause = { togglePlayPause() },
+                                    onNext = { controller?.seekToNextMediaItem() },
+                                    onPrevious = { controller?.seekToPrevious() },
+                                    onSeek = { target -> controller?.seekTo(target.coerceAtLeast(0L)) },
+                                    queueItems = player.queueItems,
+                                    queueIndex = player.queueIndex,
+                                )
+                            }
+                        }
                     }
                 }
             }

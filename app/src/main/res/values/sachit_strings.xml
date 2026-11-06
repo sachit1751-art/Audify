@@ -4,6 +4,8 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
+    <string name="podcast_party_unsupported" translatable="false">Podcasts cannot be queued in Listen Together yet.</string>
+    <string name="podcast_music_controls_unsupported" translatable="false">Shuffle, radio, and AutoPlay are unavailable while a podcast is in the queue.</string>
     <string name="playlist_saved_on_device" translatable="false">\'%1$s\' was saved on this device.</string>
     <string name="playlist_import_partial" translatable="false">\'%1$s\' was created with %2$d of %3$d songs. %4$d songs could not be added.</string>
     <string name="font_choice" translatable="false">App font</string>

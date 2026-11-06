@@ -55,7 +55,8 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | AutoEQ-style headphone profiles and output-aware tuning | **Proposal - reconcile with existing output preset plan and audio pipeline** |
 | [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Provider fallback, correction/import, translation, and romanization | **Proposal - reconcile with lyrics plans and existing translation foundation** |
 | [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | Evaluate FCast and DLNA support | **Research proposal - architecture and maintenance gate before implementation** |
-| [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions, episodes, and playback workflows | **Proposal - separate product surface; explicit scope decision required** |
+| [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions, episodes, and playback workflows | **Blocked - product scope approved; Plan 15 playback foundation must be implemented and verified** |
+| [15 - Typed playable-media boundary](15-typed-playable-media.md) | Safe multi-type Media3 identity, queue and restoration foundation | **Architecture designed - implementation not started; prerequisite for 14** |
 | [069 - Artwork-to-detail continuity](069-artwork-to-detail-continuity.md) | Spatial continuity from album/playlist cover to detail hero | **TODO - high visual impact; implement before player micro-polish** |
 | [070 - Playback-state transitions](070-playback-state-transitions.md) | Play/pause, buffering and track identity feedback | **TODO - high-frequency interaction; use authoritative playback state** |
 | [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity and edit feedback | **TODO - high priority; duplicate-track correctness prerequisite** |

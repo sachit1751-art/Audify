@@ -101,6 +101,12 @@ object SearchHistory {
 
     fun clear() = save(emptyList())
 
+    /** Clears both the main search suggestions and Addons search terms. */
+    fun clearAll() {
+        clear()
+        clearAddonQueries()
+    }
+
     private fun save(value: List<SearchHistoryEntity>) {
         _recent.value = value
         prefs.edit {putString(KEY_HISTORY, json.encodeToString(serializer, value))}

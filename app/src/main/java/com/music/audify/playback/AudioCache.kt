@@ -1125,7 +1125,9 @@ object AudioCache {
 
             override fun open(dataSpec: DataSpec): Long {
                 val scheme = dataSpec.uri.scheme
-                activeDs = if (scheme == "file" || scheme == "content") {
+                activeDs = if (scheme == "file" || scheme == "content" ||
+                    dataSpec.key?.startsWith(PODCAST_CACHE_KEY_PREFIX) == true
+                ) {
                     upstreamDs
                 } else {
                     cacheDs

@@ -39,6 +39,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -46,6 +48,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +68,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -80,22 +87,17 @@ import com.music.audify.sharedui.resources.ic_google_g
 import com.music.audify.sharedui.resources.ic_logo
 import org.jetbrains.compose.resources.painterResource
 import com.music.audify.ui.icons.AudifyIcons
-import com.music.audify.ui.player.MeshGradientBackground
-import com.music.audify.ui.player.MESH_CYCLE_MILLIS
-import com.music.audify.ui.player.MeshPalette
-import com.music.audify.ui.player.WelcomeMeshPalettes
-import com.music.audify.ui.player.cyclingMeshPalette
 
 /**
- * The two welcome pages: a name for Listen Together, then the YouTube sign-in.
+ * Welcome, profile name, optional Google sign-in, and a short music setup guide.
  *
  * Shown once — to new installs and, because the flag it sets is new, to anyone
  * updating from a build without it. The second page is skipped for an account
  * that is already signed in; asking somebody to connect what is connected
  * reads as the app having forgotten them.
  *
- * Always drawn dark, whatever the theme, for the same reason Replay is: the
- * mesh is colour, and white type is what sits on colour.
+ * A single dark listening lane connects the four steps. Sign-in remains
+ * optional, and the user can leave setup from any step.
  */
 @Composable
 fun OnboardingScreen(
@@ -108,51 +110,32 @@ fun OnboardingScreen(
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var page by rememberSaveable { mutableIntStateOf(PAGE_NAME) }
+    var page by rememberSaveable { mutableIntStateOf(PAGE_WELCOME) }
     var name by rememberSaveable { mutableStateOf(initialName) }
     val focusManager = LocalFocusManager.current
 
-    BackHandler(enabled = page == PAGE_CONNECT) { page = PAGE_NAME }
+    BackHandler(enabled = page != PAGE_WELCOME) {
+        page = when (page) {
+            PAGE_NAME -> PAGE_WELCOME
+            PAGE_CONNECT -> PAGE_NAME
+            else -> if (signedIn) PAGE_NAME else PAGE_CONNECT
+        }
+    }
     // "Sign in with Google" goes through the app's own sign-in WebView, raised
     // over this page; the account landing is what ends the welcome.
     LaunchedEffect(signedIn, page) {
-        if (signedIn && page == PAGE_CONNECT) onFinish()
+        if (signedIn && page == PAGE_CONNECT) page = PAGE_MUSIC
     }
-
-    // The mesh never settles on one palette: each crossfade is as long as the
-    // hold, so one runs straight into the next.
-    val palette = cyclingMeshPalette(if (page == PAGE_NAME) WelcomeMeshPalettes else ConnectPalettes)
 
     Box(
         modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color(0xFF090B12))
             // Swallows every touch the pages don't, so nothing reaches the app
             // laid out underneath — and a tap on the backdrop puts the keyboard
             // away, which is where a thumb goes to dismiss one.
             .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
     ) {
-        MeshGradientBackground(
-            palette = palette,
-            trackKey = page,
-            continuous = true,
-            driftMillis = 6_000,
-            colorFadeMillis = MESH_CYCLE_MILLIS,
-        )
-        // The mesh carries its own light scrim for a player's controls; two
-        // full-width buttons and a paragraph want the foot of it a shade deeper.
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Black.copy(alpha = 0.05f),
-                        0.55f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.45f),
-                    ),
-                ),
-        )
-
         AnimatedContent(
             targetState = page,
             transitionSpec = {
@@ -169,41 +152,196 @@ fun OnboardingScreen(
                 .systemBarsPadding()
                 .imePadding(),
         ) { shown ->
-            OnboardingPage {
+            OnboardingPage(
+                page = shown,
+                onSkip = onFinish,
+            ) {
                 when (shown) {
+                    PAGE_WELCOME -> WelcomePage(onNext = { page = PAGE_NAME })
                     PAGE_NAME -> NamePage(
                         name = name,
                         onNameChange = { name = it.take(NAME_LIMIT) },
+                        onBack = { page = PAGE_WELCOME },
                         onNext = next@{
                             val chosen = name.trim()
                             if (chosen.isEmpty()) return@next
                             focusManager.clearFocus()
                             onNameChosen(chosen)
-                            if (signedIn) onFinish() else page = PAGE_CONNECT
+                            if (signedIn) page = PAGE_MUSIC else page = PAGE_CONNECT
                         },
                     )
-                    else -> ConnectPage(
+                    PAGE_CONNECT -> ConnectPage(
                         onBack = { page = PAGE_NAME },
                         onSignIn = onSignIn,
-                        onSkip = onFinish,
+                        onSkip = { page = PAGE_MUSIC },
                     )
+                    else -> MusicSetupPage(onBack = { page = if (signedIn) PAGE_NAME else PAGE_CONNECT }, onFinish = onFinish)
                 }
             }
         }
     }
 }
 
+@Composable
+private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit) {
+    Spacer(Modifier.height(24.dp))
+    BackButton(onBack)
+    Spacer(Modifier.height(24.dp))
+    Title("Your music. Your way.")
+    Spacer(Modifier.height(12.dp))
+    Text(
+        text = "You’re ready to listen. Add the rest when it makes sense for you.",
+        style = MaterialTheme.typography.bodyLarge,
+        fontSize = 17.sp,
+        lineHeight = 23.sp,
+        color = Color.White.copy(alpha = 0.78f),
+    )
+    Spacer(Modifier.height(30.dp))
+    LaneStop(Icons.Rounded.LibraryMusic, "ON THIS DEVICE", "Find and play audio files from the Library tab.", active = true)
+    LaneStop(Icons.Rounded.MusicNote, "MUSIC SERVICES", "Connect supported sources later in Settings → Sources.")
+    LaneStop(Icons.Rounded.Groups, "LISTEN TOGETHER", "Start a shared session whenever you want company.", last = true)
+    Spacer(Modifier.height(30.dp))
+    PillButton(label = "Start listening", onClick = onFinish, primary = true)
+    Spacer(Modifier.height(24.dp))
+}
+
+/** First-run introduction: a concise product overview before asking for details. */
+@Composable
+private fun ColumnScope.WelcomePage(onNext: () -> Unit) {
+    Spacer(Modifier.height(30.dp))
+    Image(
+        painter = painterResource(Res.drawable.ic_logo),
+        contentDescription = "Audify",
+        modifier = Modifier
+            .size(width = 64.dp, height = 48.dp),
+    )
+    Spacer(Modifier.height(26.dp))
+    Text(
+        text = "Follow the\nmusic.",
+        style = MaterialTheme.typography.displayLarge.copy(
+            fontSize = 42.sp,
+            lineHeight = 44.sp,
+            letterSpacing = (-1.5).sp,
+        ),
+        fontWeight = FontWeight.Bold,
+        color = Color.White,
+        textAlign = TextAlign.Start,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        text = "Discover new tracks, play music from your device, and listen with friends.",
+        style = MaterialTheme.typography.bodyLarge,
+        color = Color.White.copy(alpha = 0.76f),
+        lineHeight = 22.sp,
+        textAlign = TextAlign.Start,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Spacer(Modifier.height(30.dp))
+    LaneStop(Icons.Rounded.MusicNote, "DISCOVER", "Search songs, albums, artists, playlists and recommendations.", active = true)
+    LaneStop(Icons.Rounded.LibraryMusic, "YOUR LIBRARY", "Keep playlists, liked music, local files and downloads close.")
+    LaneStop(Icons.Rounded.Groups, "LISTEN TOGETHER", "Create a shared session and invite friends to join.", last = true)
+    Spacer(Modifier.height(28.dp))
+    PillButton(label = "Get started", onClick = onNext, primary = true)
+    Spacer(Modifier.height(24.dp))
+}
+
+@Composable
+private fun ColumnScope.LaneStop(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    active: Boolean = false,
+    last: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            modifier = Modifier.width(34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier
+                    .padding(top = 2.dp)
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(if (active) Color(0xFF3A3428) else Color(0xFF191D29)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = if (active) Color(0xFFE6C17A) else Color(0xFFB6BBC9), modifier = Modifier.size(18.dp))
+            }
+            if (!last) {
+                Box(
+                    Modifier
+                        .width(1.dp)
+                        .height(22.dp)
+                        .background(Color(0xFF45404A)),
+                )
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = if (active) Color(0xFFE6C17A) else Color.White, letterSpacing = 1.1.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = Color(0xFFB2B7C4), lineHeight = 20.sp)
+        }
+    }
+}
+
 /** The column every page is laid out in, capped so a tablet doesn't stretch it. */
 @Composable
-private fun OnboardingPage(content: @Composable ColumnScope.() -> Unit) {
+private fun OnboardingPage(page: Int, onSkip: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .widthIn(max = 520.dp)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp),
-            content = content,
-        )
+        ) {
+            OnboardingHeader(page = page, onSkip = onSkip)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun OnboardingHeader(page: Int, onSkip: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text("AUDIFY", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.2.sp, color = Color(0xFFF2F3F7))
+        Box(
+            Modifier
+                .height(48.dp)
+                .clip(CircleShape)
+                .clickable(role = Role.Button, onClick = onSkip)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("SKIP SETUP", style = MaterialTheme.typography.labelMedium, color = Color(0xFFB2B7C4), letterSpacing = 0.6.sp)
+        }
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 12.dp)
+            .semantics { contentDescription = "Step ${page + 1} of 4" },
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        repeat(4) { index ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(2.dp)
+                    .clip(CircleShape)
+                    .background(if (index <= page) Color(0xFFE6C17A) else Color(0xFF343847)),
+            )
+        }
     }
 }
 
@@ -212,6 +350,7 @@ private fun OnboardingPage(content: @Composable ColumnScope.() -> Unit) {
 private fun ColumnScope.NamePage(
     name: String,
     onNameChange: (String) -> Unit,
+    onBack: () -> Unit,
     onNext: () -> Unit,
 ) {
     // With the keyboard up there is room for the title or the logo, not both;
@@ -223,7 +362,7 @@ private fun ColumnScope.NamePage(
         exit = fadeOut() + shrinkVertically(),
     ) {
         Column {
-            Spacer(Modifier.height(56.dp))
+            Spacer(Modifier.height(28.dp))
             Image(
                 painter = painterResource(Res.drawable.ic_logo),
                 contentDescription = null,
@@ -231,10 +370,12 @@ private fun ColumnScope.NamePage(
             )
         }
     }
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(16.dp))
+    BackButton(onBack)
+    Spacer(Modifier.height(20.dp))
     Title(stringResource(R.string.onboarding_title))
 
-    Spacer(Modifier.weight(1f))
+    Spacer(Modifier.height(36.dp))
 
     Text(
         text = stringResource(R.string.onboarding_name_prompt),
@@ -252,14 +393,14 @@ private fun ColumnScope.NamePage(
         color = Color.White.copy(alpha = 0.55f),
         modifier = Modifier.padding(horizontal = 4.dp),
     )
-    Spacer(Modifier.height(28.dp))
+    Spacer(Modifier.height(24.dp))
     PillButton(
         label = stringResource(R.string.onboarding_next),
         onClick = onNext,
         enabled = name.isNotBlank(),
         primary = true,
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(24.dp))
 }
 
 @Composable
@@ -270,21 +411,39 @@ private fun ColumnScope.ConnectPage(
 ) {
     Spacer(Modifier.height(16.dp))
     BackButton(onBack)
-    Spacer(Modifier.height(20.dp))
-    Title(stringResource(R.string.onboarding_connect_title))
-    Spacer(Modifier.height(14.dp))
+    Spacer(Modifier.height(24.dp))
+    Title("Sign in")
+    Spacer(Modifier.height(10.dp))
     Text(
-        text = stringResource(R.string.onboarding_connect_body),
+        text = "Connect YouTube Music to bring your library and account features into Audify. It’s optional; local music works without an account.",
         style = MaterialTheme.typography.bodyLarge,
         fontSize = 17.sp,
         lineHeight = 23.sp,
         color = Color.White.copy(alpha = 0.72f),
     )
 
-    Spacer(Modifier.weight(1f))
+    Spacer(Modifier.height(24.dp))
+    SignInBenefit("Playlists and liked songs", "Access music saved to your YouTube Music account.")
+    Spacer(Modifier.height(14.dp))
+    SignInBenefit("Supported personalized content", "See account-based mixes and recommendations where available.")
+    Spacer(Modifier.height(14.dp))
+    SignInBenefit("Account features in one place", "Use supported YouTube Music library features inside Audify.")
+    Spacer(Modifier.height(14.dp))
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.72f), modifier = Modifier.size(19.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "Google handles your sign-in. Your Google password is entered on Google's page, not in Audify.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.68f),
+            lineHeight = 18.sp,
+        )
+    }
+
+    Spacer(Modifier.height(28.dp))
 
     PillButton(
-        label = stringResource(R.string.onboarding_sign_in_google),
+        label = "Continue with Google",
         onClick = onSignIn,
         primary = true,
         leading = {
@@ -301,18 +460,36 @@ private fun ColumnScope.ConnectPage(
         onClick = onSkip,
         primary = false,
     )
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(24.dp))
 }
 
-/** Replay's heading, scaled up: the one line each page exists to say. */
+@Composable
+private fun SignInBenefit(title: String, description: String) {
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(
+            imageVector = Icons.Rounded.Check,
+            contentDescription = null,
+            tint = Color(0xFFFFB4AB),
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Spacer(Modifier.height(3.dp))
+            Text(description, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.72f), lineHeight = 20.sp)
+        }
+    }
+}
+
+/** A restrained headline that remains legible at the user's chosen font scale. */
 @Composable
 private fun Title(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.displayLarge.copy(
-            fontSize = 40.sp,
-            lineHeight = 44.sp,
-            letterSpacing = (-1.2).sp,
+            fontSize = 36.sp,
+            lineHeight = 40.sp,
+            letterSpacing = (-1.0).sp,
         ),
         color = Color.White,
     )
@@ -368,9 +545,7 @@ private fun NameField(value: String, onValueChange: (String) -> Unit, onDone: ()
 }
 
 /**
- * A full-width capsule. Primary is white on the mesh, the way Apple Music's
- * own welcome sheet does it; secondary is the same shape in frosted white, so
- * the pair reads as a choice rather than a button and an afterthought.
+ * Full-width action with a clear tonal distinction between primary and skip.
  */
 @Composable
 private fun PillButton(
@@ -393,8 +568,8 @@ private fun PillButton(
                 scaleY = scale
                 this.alpha = alpha
             }
-            .clip(CircleShape)
-            .background(if (primary) Color.White else Color.White.copy(alpha = 0.16f))
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .background(if (primary) Color(0xFFF2F3F7) else Color(0xFF202431))
             .clickable(
                 interactionSource = interaction,
                 indication = null,
@@ -414,7 +589,7 @@ private fun PillButton(
             style = MaterialTheme.typography.titleMedium,
             fontSize = 17.sp,
             fontWeight = FontWeight.W700,
-            color = if (primary) Color.Black else Color.White,
+            color = if (primary) Color(0xFF090B12) else Color(0xFFF2F3F7),
             textAlign = TextAlign.Center,
             maxLines = 1,
         )
@@ -442,16 +617,10 @@ private fun BackButton(onClick: () -> Unit) {
     }
 }
 
-private const val PAGE_NAME = 0
-private const val PAGE_CONNECT = 1
+private const val PAGE_WELCOME = 0
+private const val PAGE_NAME = 1
+private const val PAGE_CONNECT = 2
+private const val PAGE_MUSIC = 3
 
 /** Long enough for a full name; the party server keeps the first 80. */
 private const val NAME_LIMIT = 40
-
-/** The account page keeps leaning into YouTube's red while it moves. */
-private val ConnectPalettes = listOf(
-    MeshPalette(listOf(Color(0xFFFF1E3C), Color(0xFFC2185B), Color(0xFFFF8F3D), Color(0xFF4A1C8C))),
-    MeshPalette(listOf(Color(0xFFE53935), Color(0xFFFF6E40), Color(0xFFAD1457), Color(0xFF311B92))),
-    MeshPalette(listOf(Color(0xFFFF3D00), Color(0xFFD81B60), Color(0xFF8E24AA), Color(0xFFB71C1C))),
-    MeshPalette(listOf(Color(0xFFF50057), Color(0xFFFF9100), Color(0xFFC51162), Color(0xFF4527A0))),
-)

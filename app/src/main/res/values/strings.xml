@@ -231,7 +231,7 @@ Project: AUDIFY
     <string name="playback">Playback</string>
     <string name="appearance">Appearance</string>
     <string name="storage">Storage</string>
-    <string name="your_data">Your data</string>
+    <string name="your_data">Privacy &amp; data</string>
     <string name="backup">Backup</string>
     <string name="updates">Updates</string>
     <string name="miscellaneous">Miscellaneous</string>

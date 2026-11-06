@@ -342,6 +342,8 @@ struct Values {
     /// Whether the listener put Audify offline, so it shows and plays only what was downloaded
     /// until they go online again.
     offline_mode: bool,
+    /// Whether the first-run introduction has been completed.
+    onboarding_complete: bool,
     equalizer: bool,
     /// The ten band gains an older Audify saved. Read once to seed the profiles when there are
     /// none, never written back, and read leniently like the keys that replaced it.
@@ -583,6 +585,7 @@ impl Default for Values {
             gapless: true,
             keep_tracks: true,
             offline_mode: false,
+            onboarding_complete: false,
             cache_gb: crate::vault::CACHE_GB,
             equalizer: false,
             equalizer_bands: Vec::new(),
@@ -972,6 +975,10 @@ impl AppSettings {
 
     pub fn offline_mode(&self) -> bool {
         self.values.offline_mode
+    }
+
+    pub fn onboarding_complete(&self) -> bool {
+        self.values.onboarding_complete
     }
 
     /// Whether Audify shows up as a Spotify Connect device while a Spotify account is signed in.
@@ -1557,6 +1564,11 @@ impl AppSettings {
 
     pub fn set_offline_mode(&mut self, offline_mode: bool, cx: &mut Context<Self>) {
         self.values.offline_mode = offline_mode;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_onboarding_complete(&mut self, complete: bool, cx: &mut Context<Self>) {
+        self.values.onboarding_complete = complete;
         self.schedule_save(cx);
     }
 

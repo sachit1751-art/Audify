@@ -19,6 +19,10 @@ Audify 1.9.0 expands the project across Android phones, Android TV, Wear OS, and
 - **Android TV onboarding:** Retains its TV-specific setup guide and Settings replay entry.
 - **Wear OS onboarding:** Added a watch-specific first-run guide and a replay entry under More.
 - **Consistent setup state:** Phone, desktop, and Wear OS persist onboarding completion so the welcome guide does not reappear on every launch.
+- **Home discovery layout:** Reworked Quick Picks into compact, horizontally paged song groups. It uses two columns on wider screens and switches to one readable column on narrow screens.
+- **Music video shelves:** Added dedicated horizontal video cards with landscape thumbnails displayed without cropping, plus title and artist/details beneath each thumbnail.
+- **Listening and discovery rails:** Keep Listening now uses a horizontal carousel, while playlist, genre, mood, and other discovery shelves retain distinct artwork-led horizontal browsing.
+- **Responsive home spacing:** Home shelf and card sizing adapts to the available content width, preserving readable song details and avoiding squeezed layouts on smaller screens.
 
 This release does not claim that the Android local-first migration or YouTube Music synchronization is complete. Those areas remain under active development and need broader real-device and account-switching validation.
 
@@ -36,8 +40,6 @@ Priorities under consideration include smarter two-way YouTube Music sync, confl
 - **Bug reports:** https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml
 - **General tester feedback:** https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml
 - **All releases:** https://github.com/sachit1751-art/Audify/releases
-
-Do not include passwords, authentication tokens, private listening history, or other personal information in reports. Redact sensitive details from screenshots and logs.
 
 ## Downloads
 

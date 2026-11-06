@@ -40,6 +40,9 @@ object PartyPersonalQueueStash {
     /** Stash directly from a live player. */
     fun stashFromPlayer(player: Player): Boolean {
         if (!::prefs.isInitialized) return false
+        // Listen Together's personal queue stash is deliberately music-only.
+        // A mixed physical queue stays local rather than losing podcast rows.
+        if (player.hasPodcastInQueue()) return false
         if (player.mediaItemCount == 0) {
             // Player is empty; check if LastPlayed holds a restorable personal queue
             val fallback = LastPlayed.load()
@@ -55,7 +58,7 @@ object PartyPersonalQueueStash {
             return false
         }
         val songs = (0 until player.mediaItemCount).mapNotNull { idx ->
-            player.getMediaItemAt(idx).toSong().takeUnless { it.isDeviceFile() }
+            player.getMediaItemAt(idx).toSongOrNull()?.takeUnless { it.isDeviceFile() }
         }
         if (songs.isEmpty()) return false
         val safeIndex = player.currentMediaItemIndex.coerceIn(0, songs.size - 1)

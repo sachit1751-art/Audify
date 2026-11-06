@@ -1,10 +1,10 @@
 ﻿# Audify Desktop
 
-Audify Desktop is a rebranded derivative of [Sonora](https://github.com/sonorahq/sonora), a native Rust music client built with GPUI. The Sonora implementation is retained as the application foundation; this fork changes the product identity and repository-facing metadata rather than replacing its functionality.
+Audify Desktop is a native Rust music client built with GPUI. It incorporates an existing open-source application foundation and is maintained here under the Audify product identity.
 
 ## License
 
-This derivative is distributed under **GNU General Public License v3.0 or later**. See [`COPYING`](COPYING). Original Sonora copyright notices, author/contributor credits, and third-party license notices are retained. Distribution must comply with the GPL, including providing the complete corresponding source code and preserving applicable notices and license texts.
+Audify Desktop is distributed under **GNU General Public License v3.0 or later**. See [`COPYING`](COPYING). Required upstream copyright notices, author/contributor credits, and third-party license notices are retained. Distribution must comply with the GPL, including providing the complete corresponding source code and preserving applicable notices and license texts.
 
 ## Build on Windows
 

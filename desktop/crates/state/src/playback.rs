@@ -116,7 +116,7 @@ const LISTED_FILES: usize = 5;
 /// room for a skip that has not been heard yet.
 const SIGNALS: usize = 4;
 /// The FAQ entry on why Spotify may refuse an account the keys to its audio.
-const KEYS_FAQ: &str = "https://sonorahq.org/faq#spotify-playback-keys";
+const KEYS_FAQ: &str = "https://developer.spotify.com/dashboard";
 
 /// A track the engine was asked to fetch ahead, and whether it was also lined up to follow the
 /// current one gaplessly.

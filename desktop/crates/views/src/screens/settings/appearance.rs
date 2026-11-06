@@ -15,7 +15,7 @@ use super::{Group, SettingsView, Slot, TYPEFACES};
 use crate::shared::popups::matches_query;
 
 /// The website's gallery of themes people made, whose install buttons hand a theme to Audify.
-const COMMUNITY_THEMES: &str = "https://sonorahq.org/themes";
+const COMMUNITY_THEMES: &str = "https://github.com/sachit1751-art/Audify/discussions";
 /// How large a pack's sample glyphs draw on its card.
 const SAMPLE: Pixels = px(14.);
 const TYPEFACE_LIMIT: usize = 200;

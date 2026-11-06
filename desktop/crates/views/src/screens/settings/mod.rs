@@ -152,6 +152,7 @@ enum Slot {
     AdaptiveMenu,
     Version,
     Updates,
+    Onboarding,
     Channel,
     Log,
     License,
@@ -689,7 +690,7 @@ impl SettingsView {
     )]
     fn slot_meta(&self, slot: Slot, cx: &App) -> Option<(SharedString, SharedString)> {
         let meta = match slot {
-            Slot::Folders => return None,
+            Slot::Folders | Slot::Onboarding => return None,
             Slot::Startup => (t!("settings-startup"), t!("settings-startup-detail")),
             Slot::Entries => (t!("settings-entries"), t!("settings-entries-detail")),
             Slot::Language => (t!("settings-language"), t!("settings-language-detail")),
@@ -1029,6 +1030,7 @@ impl SettingsView {
             },
             Slot::Version => self.version_row(),
             Slot::Updates => self.updates_row(cx),
+            Slot::Onboarding => self.onboarding_row(cx),
             Slot::Channel => self.channel_row(cx),
             Slot::Log => self.log_row(cx),
             Slot::License => self.license_row(cx),

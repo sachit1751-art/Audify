@@ -118,12 +118,6 @@ These are captures from the app — not concept mockups.
 - **Scrobbling** — Send listening history to Last.fm and ListenBrainz.
 - **External sources** — Configure supported source modules, including optional high-resolution audio sources.
 
-### Across Devices
-
-- **Android** — The full mobile listening experience.
-- **Android TV** — A dedicated interface and build for television devices.
-- **Wear OS** — A companion build for supported watches.
-
     </td>
   </tr>
 </table>
@@ -190,6 +184,10 @@ Audify is an independent third-party audio client. It is not associated with or 
 - **Third-party availability:** External services can change or restrict their interfaces at any time. Features that depend on them may stop working or vary by region.
 - **User responsibility:** You are responsible for complying with applicable laws and the terms governing the services and content you access.
 - **Trademarks:** Product names and trademarks belong to their respective owners.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=outertune/outertune&type=Date)](https://www.star-history.com/#outertune/outertune&Date)
 
 ## License
 

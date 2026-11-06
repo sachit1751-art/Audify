@@ -89,6 +89,7 @@ import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.data.lyrics.translationLanguageName
@@ -109,6 +110,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -163,6 +165,7 @@ import com.music.audify.data.NerdStats
 import com.music.audify.data.scrobbling.LastFM
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.settings.SearchHistory
 import com.music.audify.data.AppUpdateChecker
 import com.halilibo.richtext.markdown.Markdown
 import com.halilibo.richtext.ui.RichTextStyle
@@ -177,6 +180,8 @@ import com.music.audify.data.settings.DownloadQuality
 import com.music.audify.data.settings.ThemeMode
 import com.music.audify.data.settings.AppFontChoice
 import com.music.audify.data.stats.Backup
+import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.stats.LocalLibraryStore
 import com.music.audify.playback.AudioCache
 import com.music.audify.ui.player.fullBleedArtworkAvailable
 import kotlinx.coroutines.launch
@@ -203,6 +208,7 @@ fun SettingsScreen(
     onAccountScrobbling: () -> Unit,
     onEqualizer: () -> Unit,
     onOpenReplay: () -> Unit,
+    onReplayOnboarding: () -> Unit,
     onLyricsSources: () -> Unit,
     onTranslationLanguage: () -> Unit,
     onSources: () -> Unit,
@@ -215,6 +221,7 @@ fun SettingsScreen(
     updateCheckInProgress: Boolean,
     onCheckForUpdates: () -> Unit,
     onDownloadLatest: () -> Unit,
+    onCategoryBackHandlerChanged: ((() -> Unit)?) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -317,7 +324,6 @@ fun SettingsScreen(
     val listenBrainzToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
 
     val replayGenres by AppSettings.replayGenres.collectAsStateWithLifecycle()
-    val showWeeklyRecapCard by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
     val showTimeAwareShelf by AppSettings.showTimeAwareShelf.collectAsStateWithLifecycle()
 
     // Read here so the row can say "In a party · ABC123" rather than making
@@ -329,6 +335,21 @@ fun SettingsScreen(
     // Saveable so a search survives a trip into one of the pages it found.
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    // A category is an in-screen subpage. Consume Back here before the app-level
+    // navigator can pop Settings and return to the previously selected tab.
+    BackHandler(enabled = selectedCategory != null) {
+        selectedCategory = null
+        searchQuery = ""
+    }
+    SideEffect {
+        onCategoryBackHandlerChanged(
+            if (selectedCategory != null) {
+                { selectedCategory = null; searchQuery = "" }
+            } else {
+                null
+            },
+        )
+    }
     var picking by remember { mutableStateOf<QualityTarget?>(null) }
     var pickingDownloadQuality by remember { mutableStateOf(false) }
     var pickingAutomixPerformance by remember { mutableStateOf(false) }
@@ -343,6 +364,7 @@ fun SettingsScreen(
     var importPreview by remember { mutableStateOf<Backup.Preview?>(null) }
     var youtubeSyncDetails by remember { mutableStateOf<String?>(null) }
     var confirmClearSongCache by remember { mutableStateOf(false) }
+    var confirmClearListeningData by remember { mutableStateOf(false) }
     var showPerformanceWarning by remember { mutableStateOf(false) }
     var showPerformanceConfirmation by remember { mutableStateOf(false) }
     val backupScope = rememberCoroutineScope()
@@ -470,16 +492,15 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
         )
-        SearchField(
-            query = searchQuery,
-            onQueryChange = {
-                searchQuery = it
-                if (it.isNotBlank()) selectedCategory = null
-            },
-            onSubmit = {},
-            placeholder = stringResource(R.string.settings_search_hint),
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
-        )
+        if (selectedCategory == null) {
+            SearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onSubmit = {},
+                placeholder = stringResource(R.string.settings_search_hint),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
+            )
+        }
 
         if (searchQuery.isBlank() && selectedCategory == stringResource(R.string.updates)) {
             LatestVersionGroup(
@@ -606,7 +627,7 @@ fun SettingsScreen(
                 stringResource(R.string.performance) to Icons.Rounded.BarChart,
                 stringResource(R.string.local_music) to Icons.Rounded.Folder,
                 stringResource(R.string.storage) to Icons.Rounded.Storage,
-                stringResource(R.string.your_data) to Icons.Rounded.History,
+                stringResource(R.string.your_data) to Icons.Rounded.VisibilityOff,
                 stringResource(R.string.backup) to Icons.Rounded.FileUpload,
                 stringResource(R.string.updates) to Icons.Rounded.Download,
                 stringResource(R.string.miscellaneous) to Icons.Rounded.Apps,
@@ -1422,6 +1443,33 @@ fun SettingsScreen(
         }
 
         SearchableSettingsGroup(search, header = stringResource(R.string.your_data)) {
+            row("Clear search history", "recent searches", "privacy", "search terms", "addons") {
+                SettingsRow(
+                    icon = Icons.Rounded.DeleteSweep,
+                    title = "Clear search history",
+                    subtitle = "Remove recent searches saved on this device.",
+                    onClick = {
+                        SearchHistory.clearAll()
+                        Toast.makeText(context, "Search history cleared", Toast.LENGTH_SHORT).show()
+                    },
+                )
+            }
+            row("Clear listening history and stats", "listening history", "replay stats", "plays", "privacy") {
+                SettingsRow(
+                    icon = Icons.Rounded.History,
+                    title = "Clear listening history & stats",
+                    subtitle = "Remove recently played tracks and all Replay listening statistics.",
+                    onClick = { confirmClearListeningData = true },
+                )
+            }
+            row("Replay welcome guide", "onboarding", "welcome", "setup") {
+                SettingsRow(
+                    icon = Icons.Rounded.Person,
+                    title = "Replay welcome guide",
+                    subtitle = "Review your profile, sign-in, and music setup steps.",
+                    onClick = onReplayOnboarding,
+                )
+            }
             val replayTitle = stringResource(R.string.replay)
             row(replayTitle, "stats", "history", "wrapped") {
                 SettingsRow(
@@ -1452,25 +1500,6 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setReplayGenres(!replayGenres) },
-                )
-            }
-            val weeklyRecapTitle = stringResource(R.string.weekly_recap_setting)
-            row(weeklyRecapTitle, "weekly", "recap", "replay") {
-                SettingsRow(
-                    icon = Icons.Rounded.BarChart,
-                    title = weeklyRecapTitle,
-                    subtitle = stringResource(R.string.weekly_recap_setting_subtitle),
-                    trailing = {
-                        Switch(
-                            checked = showWeeklyRecapCard,
-                            onCheckedChange = AppSettings::setShowWeeklyRecapCard,
-                            colors = SwitchDefaults.colors(
-                                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                                checkedBorderColor = MaterialTheme.colorScheme.primary,
-                            ),
-                        )
-                    },
-                    onClick = { AppSettings.setShowWeeklyRecapCard(!showWeeklyRecapCard) },
                 )
             }
             val timeAwareShelfTitle = stringResource(R.string.time_aware_shelf_setting)
@@ -1820,6 +1849,10 @@ fun SettingsScreen(
                 withLink(LinkAnnotation.Url("https://github.com/sachit1751-art", linkStyles)) {
                     append("Developer")
                 }
+                append("  ")
+                withLink(LinkAnnotation.Url("https://audify-music.vercel.app", linkStyles)) {
+                    append("Website")
+                }
                 append("\n~YouTube Music & Listen Together Backend")
             },
             style = MaterialTheme.typography.labelSmall,
@@ -1910,6 +1943,38 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmClearSongCache = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    if (confirmClearListeningData) {
+        AlertDialog(
+            onDismissRequest = { confirmClearListeningData = false },
+            title = { Text("Clear listening history and stats?") },
+            text = {
+                Text("This permanently removes your recently played list and all listening statistics used by Replay. Your favourites, playlists, downloads and search history will remain unchanged.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClearListeningData = false
+                    backupScope.launch {
+                        runCatching {
+                            LocalLibraryStore.clearHistory()
+                            ListeningStats.clearAll()
+                        }.onSuccess {
+                            Toast.makeText(context, "Listening history and stats cleared", Toast.LENGTH_SHORT).show()
+                        }.onFailure {
+                            Toast.makeText(context, "Could not clear listening data: ${it.message ?: "Unknown error"}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }) {
+                    Text("Clear listening data")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearListeningData = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -2703,22 +2768,22 @@ private fun SettingsCategoryCard(
             .clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(42.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
         }
         Spacer(Modifier.width(10.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
@@ -2729,7 +2794,7 @@ private fun SettingsCategoryCard(
             Icons.Rounded.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(17.dp),
+            modifier = Modifier.size(19.dp),
         )
     }
 }
