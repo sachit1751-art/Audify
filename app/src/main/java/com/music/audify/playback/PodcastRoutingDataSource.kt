@@ -7,6 +7,7 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 /** Routes marked podcast requests around the music resolver and music cache. */
 class PodcastRoutingDataSource private constructor(
     private val music: DataSource,
