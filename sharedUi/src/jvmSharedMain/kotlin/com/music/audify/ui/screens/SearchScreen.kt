@@ -326,6 +326,11 @@ fun SearchScreen(
                         } }
                     val isCurrentRow = playingRowMatcher(tracks, currentSong)
                     val topResult = results.data.filterIsInstance<SearchResult.TopTrack>().firstOrNull()
+                    if (results.data.isEmpty()) {
+                        item(key = "search:no-results") {
+                            MessageState(stringResource(Res.string.search_no_results, query.trim()))
+                        }
+                    }
                     if (filter == SearchFilter.ALL && topResult != null) {
                         item(key = "search:top-result:${topResult.song.videoId}") {
                             SwipeToQueueBox(
