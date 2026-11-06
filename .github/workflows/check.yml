@@ -36,9 +36,9 @@ jobs:
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
           LISTEN_TOGETHER_SERVER: ${{ secrets.LISTEN_TOGETHER_SERVER }}
         run: |
-          printf 'LASTFM_API_KEY=%s\\n' "$LASTFM_API_KEY" > local.properties
-          printf 'LASTFM_SECRET=%s\\n' "$LASTFM_SECRET" >> local.properties
-          printf 'LISTEN_TOGETHER_SERVER=%s\\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
+          printf 'LASTFM_API_KEY=%s\n' "$LASTFM_API_KEY" > local.properties
+          printf 'LASTFM_SECRET=%s\n' "$LASTFM_SECRET" >> local.properties
+          printf 'LISTEN_TOGETHER_SERVER=%s\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
 
       # Fork PRs receive no secrets; Android Gradle Plugin generates a temporary
       # debug key for them. Trusted builds can use the stable local debug key.
