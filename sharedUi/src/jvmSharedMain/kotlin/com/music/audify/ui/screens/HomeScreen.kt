@@ -729,7 +729,7 @@ private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: ((
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() }),
+            .clickable(enabled = onClick != null, role = Role.Button, onClick = { onClick?.invoke() }),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
