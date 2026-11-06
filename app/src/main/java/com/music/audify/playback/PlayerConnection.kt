@@ -524,6 +524,7 @@ fun MediaItem.toSong(): Song = requireNotNull(toSongOrNull()) {
 }
 
 /** Builds a Media3 item without routing podcast enclosures through music URI construction. */
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 fun PlayableMedia.toMediaItem(queueMetadata: QueueEntryMetadata): MediaItem = when (this) {
     is PlayableMedia.Music -> song.copy(
         queueTier = queueMetadata.tier,
