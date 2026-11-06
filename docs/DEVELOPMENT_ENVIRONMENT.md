@@ -6,19 +6,19 @@ Audify's build toolchain is pinned by the repository: JDK 21, Gradle 9.7.0 (Grad
 
 1. Install **Android Studio** and **Eclipse Temurin JDK 21**. During Android Studio's first-run setup, install the Android SDK. In **SDK Manager → SDK Tools**, enable **Android SDK Command-line Tools (latest)**.
 2. Clone this repository and open PowerShell in its root folder.
-3. Run:
+3. Run the one-command setup, test, and debug-build flow:
 
    ```powershell
    Set-ExecutionPolicy -Scope Process Bypass
-   .\scripts\setup.ps1 -AcceptLicenses
+   .\scripts\first-run.ps1 -AcceptLicenses
    ```
 
-   The script detects the SDK, installs the exact project SDK packages through `sdkmanager`, and creates/updates the ignored `local.properties`. Existing API keys and settings in that file are preserved.
-4. Validate the toolchain and compile:
+   This runs the SDK bootstrap, all configured unit/JVM test gates, then builds the phone, TV, and Wear OS dev/prod debug APKs. The setup step detects the SDK, installs the exact project SDK packages through `sdkmanager`, and creates/updates the ignored `local.properties`. Existing API keys and settings in that file are preserved.
+4. To also build the production release APK using the signing files already tracked in this repository:
 
    ```powershell
    .\gradlew.bat --version
-   .\gradlew.bat :app:assembleDevDebug
+   .\scripts\first-run.ps1 -AcceptLicenses -Release
    ```
 
 ## macOS / Linux
@@ -43,13 +43,13 @@ The repository's GitHub Actions secrets stay in GitHub when you change PCs; they
 - **Private and not in Git:** `keystore.properties`, `.jks`/`.keystore` files, Last.fm API credentials, and other secrets. Back these up in an encrypted password manager or encrypted offline storage. Restore them to the repository root on a new PC. Never commit or upload the signing key. GitHub Actions production signing is separately configured through repository Actions secrets.
 - **Optional local API settings:** add `LASTFM_API_KEY`, `LASTFM_SECRET`, and `LISTEN_TOGETHER_SERVER` to the ignored `local.properties`. Environment variables with the same names are also supported.
 
-A fresh clone can build debug variants without release-signing files. A locally signed production build needs the original release keystore and matching credentials; generating a new key is not a replacement for the existing Play signing key.
+This repository currently includes its release keystore and `keystore.properties`, so a fresh clone receives the same signing material and does not need a separate restore step. **Security warning:** these files and credentials have been exposed in a public repository. GitHub account access controls who can push to your repository; they do not stop anyone who already downloaded the signing files from signing an APK with the same certificate. This can enable convincing malicious sideloaded APKs and may affect update trust. The `-Release` option uses the existing tracked credentials because that is the current project configuration; do not interpret a successful build as proof that the signing identity is safe.
 
 ## Recovery checklist when changing PCs
 
 1. Install Android Studio + JDK 21.
-2. Clone repo; run the bootstrap script.
-3. Restore private signing and API configuration from your secure backup if needed.
+2. Clone repo; run `scripts/first-run.ps1 -AcceptLicenses` (or `-Release` when private signing material is provisioned).
+3. The current tracked signing files are included in the clone. Restore only machine-local API configuration if needed.
 4. Run the Gradle wrapper build/test commands. Gradle and dependency caches are downloaded automatically.
 
 No absolute paths, SDK installation directories, Gradle installations, or credentials are meant to be shared through Git.
