@@ -19,6 +19,8 @@ of blindly applying.
 
 **Repository context review (2026-11-04, HEAD `a135811c`):** latest published stable release is `1.8.7` (`v1.8.7`). Audify `1.8.9` (versionCode 37) is being validated by dry-run workflow [41835700383](https://github.com/sachit1751-art/Audify/actions/runs/41835700383); it is not published and must not be treated as a stable release. The production release build uses a 6 GiB Gradle heap and `--max-workers=1` for APK assembly after an R8 Java-heap OOM. Plans 01–14 and 069–074 remain planned/TODO unless their individual status is explicitly changed after source and test verification. Reconcile each plan against current source and tests before changing its status. This checkout has no root `CONTEXT.md` or `docs/adr/` directory; use `docs/PRODUCT.md` and `docs/DESIGN.md` as the current product/design context.
 
+**Feature audit (2026-11-06, baseline `2ac1c21eff38f718ab5127b6e99a42e4656d68ca`):** Plan 075 adds AUDIFY-owned Shared Playlists. The source audit found existing device-local and YouTube Music playlist paths, but no persistent collaborative playlist service. The Listen Together Go service uses an in-memory PartyStore and accepts client-submitted user identity that it does not independently verify; its party token is scoped to a transient party/device membership. Plan 075 therefore blocks implementation on verified AUDIFY identity, durable transactional storage, and portable provider-aware track references. Audit was read-only through GitHub; local uncommitted changes, deployed infrastructure, and runtime/device behavior were not verified.
+
 Scope rules that apply to **every** plan (from the repo's AGENTS.md and project rules):
 
 - Never bump the app version (`versionCode` / `versionName` in `app/build.gradle.kts`).
@@ -63,6 +65,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [072 - Settings and expandable continuity](072-settings-expandable-continuity.md) | Interruptible expansion and settings state feedback | **TODO - medium priority; preserve immediate controls** |
 | [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | Apply Reduce Motion consistently across TV transitions | **TODO - accessibility fix; TV preference currently misses hard-coded transitions** |
 | [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | TalkBack, hit bounds, rotary, state semantics and ambient behavior | **TODO - high priority; device verification required** |
+| [075 - Collaborative Playlists](075-collaborative-playlists.md) | AUDIFY-owned persistent shared playlists, invitations, membership and collaborative editing | **Planned - source audit complete; blocked on verified identity, durable storage and portable track identity** |
 
 ## Completed and archived
 
