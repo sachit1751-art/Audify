@@ -2,75 +2,73 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
+
 <p align="center">
   <img src="audify_banner.svg" alt="Audify — discover, listen and make music yours" width="100%">
 </p>
 
+<h1 align="center">Your music. Your space. Your way.</h1>
+
 <p align="center">
-  <strong>An open-source music player for Android, Android TV and Wear OS.</strong>
-  <br>
-  Discover music, manage your library, download for offline listening, and shape the way you listen.
+  An open-source music player for Android, Android TV and Wear OS.<br>
+  Discover music, build your library, and make every listening session your own.
 </p>
 
 <p align="center">
-  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/github/v/release/sachit1751-art/Audify?label=latest%20stable" alt="Latest stable release"></a>
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/github/v/release/sachit1751-art/Audify?label=latest%20stable" alt="Latest stable release"></a>
   <a href="https://github.com/sachit1751-art/Audify/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sachit1751-art/Audify" alt="GPL-3.0 license"></a>
   <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/github/downloads/sachit1751-art/Audify/total?label=downloads" alt="GitHub downloads"></a>
 </p>
 
 <p align="center">
-  <strong><a href="https://github.com/sachit1751-art/Audify/releases/latest">Download the latest stable APK</a></strong>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/sachit1751-art/Audify/releases">View all builds</a>
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>↓ Download Audify</strong></a>
 </p>
 
 <p align="center">
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="48"></a>
-  &nbsp;&nbsp;
-  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/badge/Get%20it%20on-GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="Get it on GitHub" height="48"></a>
-  &nbsp;&nbsp;
-  <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store" height="48"></a>
-</p>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="44"></a>
+  &nbsp;
+  <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store" height="44"></a>
+  &nbsp;
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/badge/Get%20it%20on-GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="Get the latest release on GitHub" height="44"></a>
 </p>
 
 <p align="center">
-  <a href="#screenshots">Screenshots</a> &middot;
-  <a href="#features">Features</a> &middot;
-  <a href="#build-from-source">Build from source</a> &middot;
-  <a href="#contributing">Contributing</a>
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#platforms">Platforms</a> ·
+  <a href="#build-from-source">Build</a> ·
+  <a href="#community">Community</a>
 </p>
-
-Audify brings music discovery, library management, local playback, offline downloads, synchronized lyrics, and detailed playback controls into one customizable app. Listen on your phone, use the dedicated Android TV experience, or control playback from the Wear OS companion.
-
-Audify is free and open-source software distributed under the GNU General Public License v3.0.
 
 > **Independent project:** Audify is a third-party client. It is not affiliated with, endorsed by, or sponsored by Google or YouTube.
 
 ## Screenshots
 
-These are captures from the app — not concept mockups.
+See Audify as it actually looks. These are captures from the app, not concept mockups.
 
 <table>
   <tr>
-    <td align="center" width="25%">
-      <img src="docs/audit-artifacts/screenshots/audify-tab-explore.png" alt="Audify music discovery and Explore screen" width="220">
-      <br><strong>Explore</strong>
-      <br><sub>Find music and browse recommendations.</sub>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/screenshots/audify-tab-explore.png" alt="Audify Explore screen showing music discovery" width="100%">
+      <strong>Explore</strong><br>
+      <sub>Discover music and browse recommendations.</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/audit-artifacts/screenshots/audify-tab-library.png" alt="Audify music library screen" width="220">
-      <br><strong>Library</strong>
-      <br><sub>Keep saved music and playlists organised.</sub>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/screenshots/audify-tab-library.png" alt="Audify Library screen showing saved music" width="100%">
+      <strong>Your library</strong><br>
+      <sub>Keep saved music and playlists organised.</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/audit-artifacts/screenshots/audify-lyrics-expanded.png" alt="Audify expanded synchronized lyrics screen" width="220">
-      <br><strong>Now playing</strong>
-      <br><sub>Follow along with timed lyrics.</sub>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/screenshots/audify-lyrics-expanded.png" alt="Audify expanded synchronized lyrics screen" width="100%">
+      <strong>Now playing</strong><br>
+      <sub>Follow along with synchronized lyrics.</sub>
     </td>
-    <td align="center" width="25%">
-      <img src="docs/audit-artifacts/screenshots/audify-lyrics-seek.png" alt="Audify lyric-based playback seeking screen" width="220">
-      <br><strong>Lyric seek</strong>
-      <br><sub>Jump to a moment through the lyrics.</sub>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/screenshots/audify-lyrics-seek.png" alt="Audify lyric-based playback seeking screen" width="100%">
+      <strong>Lyrics navigation</strong><br>
+      <sub>Move through a track using its timed lyrics.</sub>
     </td>
   </tr>
 </table>
@@ -81,64 +79,97 @@ These are captures from the app — not concept mockups.
   <tr>
     <td width="50%" valign="top">
 
-### Playback
+### 🎧 Playback & audio
 
-- **Background playback** — Keep listening while using other apps.
-- **Gapless playback** — Move between tracks with minimal interruption.
-- **Crossfade** — Blend consecutive tracks with an adjustable transition duration.
-- **Automix (Beta)** — DJ-style transitions with beat matching and tempo stretching.
-- **Playback controls** — Adjust speed, skip silence, set a sleep timer, and use your device's system equalizer.
-- **Audio quality** — Configure streaming quality separately for Wi-Fi and mobile data, with supported high-resolution output options.
-- **Output selection** — Choose available audio outputs and inspect the active audio pipeline.
-
-### Discovery & Library
-
-- **Music discovery** — Search for songs, albums, artists, and playlists through YouTube Music.
-- **Google account** — Sign in to access supported personalized content.
-- **Playlist management** — Create and organize playlists, edit supported playlist details, and manage the listening queue.
-- **Local music** — Browse and play audio files stored on your device, including selected folders.
+- Background and gapless playback.
+- Adjustable crossfade and Automix (Beta), including beat matching and tempo stretching.
+- Playback speed, skip silence and sleep timer.
+- System equalizer support, streaming quality controls and audio-output selection.
 
     </td>
     <td width="50%" valign="top">
 
-### Experience
+### 🔎 Music discovery
 
-- **Synchronized lyrics** — Follow line- and word-level timing from supported lyric providers.
-- **Lyrics navigation** — Seek through a track using its timed lyrics.
-- **Animated artwork** — View motion artwork and album art on the now-playing screen.
-- **Dynamic theming** — Let the interface draw colors from the currently playing artwork.
-- **Material 3 design** — Customize the look and feel with a modern interface and translucent visual elements.
-- **Scroll-edge blur** — Independently enable or disable progressive top and bottom blur in Settings.
+- Search songs, albums, artists and playlists through YouTube Music.
+- Sign in with a Google account for supported personalized content.
+- Browse recommendations and explore music.
 
-### Downloads & Services
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
 
-- **Offline listening** — Download tracks with metadata for local playback.
-- **Spotify integration** — Import supported playlist exports and access supported Spotify library features.
-- **Discord Rich Presence** — Share the currently playing track and playback progress.
-- **Scrobbling** — Send listening history to Last.fm and ListenBrainz.
-- **External sources** — Configure supported source modules, including optional high-resolution audio sources.
+### 📚 Library & playlists
+
+- Create and organise playlists and edit supported playlist details.
+- Manage the listening queue.
+- Browse and play audio stored on your device, including selected folders.
+- Import supported Spotify playlist exports and access supported Spotify library features.
+
+    </td>
+    <td width="50%" valign="top">
+
+### ✨ Lyrics & personalisation
+
+- Synchronized line- and word-level lyrics from supported providers.
+- Seek through tracks using timed lyrics.
+- Animated artwork and dynamic colour theming.
+- Material 3 interface and optional progressive scroll-edge blur.
+
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+
+### ☁️ Offline listening & connected services
+
+- Download supported tracks with metadata for offline listening.
+- Discord Rich Presence for currently playing tracks and playback progress.
+- Last.fm and ListenBrainz scrobbling.
+- Configurable external source modules, including optional high-resolution audio sources.
 
     </td>
   </tr>
 </table>
+## Platforms
+
+| Platform | Experience |
+| --- | --- |
+| **Android phones and tablets** | Full music discovery, library management, playback, lyrics and downloads. |
+| **Android TV** | A dedicated TV experience for browsing and listening on a larger screen. |
+| **Wear OS** | A companion experience for supported watch-based playback controls. |
+
+## Community
+
+- **Questions and ideas:** [GitHub Discussions](https://github.com/sachit1751-art/Audify/discussions)
+- **Report a bug:** [Open a bug report](https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml)
+- **Tester feedback:** [Share feedback](https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml)
+- **Contribute code:** Read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
+- **More project docs:** [Documentation index](docs/ADDITIONAL.md)
+
+When reporting an issue, include clear reproduction steps and relevant app details. Remove personal information from screenshots and logs. Never share account credentials, tokens, or private listening data.
+
+## Build from source
 
 <details>
-<summary><strong>Build from source</strong></summary>
+<summary><strong>Requirements and development setup</strong></summary>
 
-Audify uses the Gradle wrapper. You do not need to install Gradle separately. Android Studio is optional, but the Android SDK is required.
+Audify uses the Gradle wrapper; a separate Gradle installation is not required. Android Studio is optional, but the Android SDK is required.
 
-For a repeatable setup on a new Windows, macOS, or Linux machine, follow the [Development Environment Setup Guide](docs/DEVELOPMENT_ENVIRONMENT.md). On Windows, `scripts/first-run.ps1 -AcceptLicenses` bootstraps the SDK, runs the unit/JVM test gates, and builds phone, TV, and Wear OS debug APKs in one flow.
+For a repeatable setup on Windows, macOS or Linux, follow the [Development Environment Setup Guide](docs/DEVELOPMENT_ENVIRONMENT.md). On Windows, `scripts/first-run.ps1 -AcceptLicenses` bootstraps the SDK, runs the unit/JVM test gates, and builds phone, TV and Wear OS debug APKs in one flow.
 
-### Requirements
+- **JDK 21**
+- **Android SDK Platform 37** and the Android build tools required by the project
+- **Android NDK 28.2.13676358**
+- Internet access for first-time Gradle and dependency downloads
 
-- **JDK 21** for the current Gradle and Kotlin toolchain.
-- **Android SDK Platform 37** and the Android build tools required by the project.
-- **Android NDK 28.2.13676358** for native components.
-- Internet access for Gradle and dependency downloads on the first build.
+Current toolchain: **Gradle 9.7.0**, **Android Gradle Plugin 9.3.1**, **Kotlin 2.4.21**, and **Compose Multiplatform 1.12.2**. Phone and TV builds compile against API 37, target API 36 and support API 26+. Wear OS compiles against API 37, targets API 36 and supports API 30+.
 
-The current build uses **Gradle 9.7.0**, **Android Gradle Plugin 9.3.1**, **Kotlin 2.4.21**, and **Compose Multiplatform 1.12.2**. Phone and TV builds compile against Android API 37, target API 36, and support API 26 and newer. The Wear OS build also compiles against API 37, targets API 36, and supports API 30 and newer.
+</details>
 
-### Build APKs
+<details>
+<summary><strong>Build APKs</strong></summary>
 
 On Windows, build the production release variants with:
 
@@ -146,7 +177,7 @@ On Windows, build the production release variants with:
 build-apks.bat
 ```
 
-Or build individual variants with the Gradle wrapper:
+Or use the Gradle wrapper for an individual target:
 
 ```bash
 # Android phone
@@ -165,30 +196,33 @@ For a development build, use the corresponding `assembleDevDebug` task, for exam
 ./gradlew :app:assembleDevDebug
 ```
 
-### Release signing
+</details>
 
-For local release signing, copy `keystore.properties.example` to `keystore.properties` and add your own signing configuration. Keep your keystore and credentials private; the local properties file is gitignored. CI release signing requires the repository's configured secrets.
+<details>
+<summary><strong>Local release signing</strong></summary>
+
+Copy `keystore.properties.example` to `keystore.properties` and add your own signing configuration. Keep your keystore and credentials private; the local properties file is gitignored. CI release signing requires the repository's configured secrets.
 
 </details>
-## Contributing
 
-Contributions, bug reports, and thoughtful suggestions are welcome. Before opening a pull request, read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md). See [docs/ADDITIONAL.md](docs/ADDITIONAL.md) for further project documentation.
+## About and legal
 
-Use the dedicated [bug report form](https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml) for reproducible problems, or the [tester feedback form](https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml) for suggestions and general feedback. Both forms ask for the context needed to investigate without requesting account credentials or private listening history. Remove personal information from screenshots and logs before sharing them.
+Audify is free and open-source software distributed under the [GNU General Public License v3.0](LICENSE). Product names and trademarks belong to their respective owners.
 
-## Legal and third-party services
+Audify does not host or upload music. It accesses local media and third-party services through their available interfaces. External services may change, restrict access or vary by region; features that depend on them may consequently change or stop working. You are responsible for following applicable laws and service terms.
 
-Audify is an independent third-party audio client. It is not associated with or endorsed by Google LLC, YouTube, YouTube Music, Deezer, Telegram, or their parent companies.
-
-- **Media hosting:** Audify does not host or upload music. It accesses local media and third-party services through their available interfaces.
-- **Third-party availability:** External services can change or restrict their interfaces at any time. Features that depend on them may stop working or vary by region.
-- **User responsibility:** You are responsible for complying with applicable laws and the terms governing the services and content you access.
-- **Trademarks:** Product names and trademarks belong to their respective owners.
+Audify is an independent third-party client and is not associated with or endorsed by Google LLC, YouTube, YouTube Music, Deezer, Telegram or their parent companies.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=outertune/outertune&type=Date)](https://www.star-history.com/#outertune/outertune&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=sachit1751-art/Audify&type=Date)](https://www.star-history.com/#sachit1751-art/Audify&Date)
 
-## License
+---
 
-Audify is distributed under the [GNU General Public License v3.0](LICENSE). See the license text for the terms governing use, modification, and redistribution.
+<p align="center">
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>Get Audify</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/sachit1751-art/Audify/discussions">Join the discussion</a>
+  &nbsp;·&nbsp;
+  <a href="LICENSE">GPL-3.0</a>
+</p>

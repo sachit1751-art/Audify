@@ -25,59 +25,63 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 
 - Never bump the app version (`versionCode` / `versionName` in `app/build.gradle.kts`).
 - Never touch the database schema or Room migrations.
-- String edits go only in `app/src/main/res/values/sachit_strings.xml` (English). Never
-  edit translated `sachit_strings.xml` / `strings.xml` files in `values-*`.
+- String edits go only in `app/src/main/res/values/sachit_strings.xml` (English). Never edit translated resources in `values-*`.
 - No commits, pushes, or merges unless a human explicitly authorized them per-plan.
-- No changes to README/markdown files except inside `plans/` and the top-level planning docs (audit, matrix, ideas, design system, roadmap).
-- Build/verify with JDK 21 (`~/.gradle/jdks/eclipse_adoptium-21-*` is auto-provisioned if no
-  standalone JDK 21 is installed):
-
+- No changes to README/markdown files except inside `plans/` and the top-level planning docs.
+- Build/verify with JDK 21:
   ```bash
   ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain   # app JVM/Robolectric tests
+  ./gradlew :app:testFossDebugUnitTest --console=plain
   ./gradlew :app:assembleFossDebug --console=plain
   ```
 
 ## Active plans
 
-Only plan files currently present in this directory are listed below. Plans removed from this directory remain recoverable in git history; their removal is preserved as part of the current working-tree changes. Do not recreate removed plans unless explicitly requested. Where two retained plans cover the same feature area, reconcile them before implementation.
+Only plan files currently present in this directory are listed below. Plans removed from this directory remain recoverable in git history; reconcile overlapping plans before implementation.
 
 | Plan | Feature | Status / relationship |
 |---|---|---|
-| [01 - Artist new-release notifications](01-artist-new-release-notifications.md) | Followed-artist release alerts | **Not started - earlier baseline plan; reconcile with 04** |
-| [02 - Accessibility-first lyrics](02-accessibility-first-lyrics.md) | Accessible lyrics presentation | **Not started - retained plan; reconcile against current lyrics implementation** |
-| [03 - Complete playlist importer](03-selected-02-playlist-importer.md) | Playlist import and portability | **Planned - reconcile with existing importer and partial historical plan 038** |
-| [04 - Artist release alerts](04-selected-06-artist-release-alerts.md) | Robust followed-artist release alerts | **Planned - newer hardened extension of 01; use one unified implementation scope** |
-| [05 - Advanced search filters](05-selected-13-advanced-search-filters.md) | Capability-aware search filters | **Planned - provider capability audit required** |
-| [06 - AUDIFY Statistics: Personal Music Intelligence](06-selected-17-statistics-dashboard.md) | Eight-stage roadmap: data audit, trustworthy listening metrics, core dashboard, explainable music intelligence, historical comparisons, personal reports, UX refinement, and release verification | **Planned - not started; aggregate-first, no unsupported per-play precision; storage/schema changes require separate approval** |
-| [07 - Explainable listening recommendations](07-explainable-listening-recommendations.md) | Listening-aware recommendations and discovery controls | **Proposal - audit existing Home shelves and available signals first** |
-| [08 - Music recognition](08-music-recognition.md) | Foreground music recognition and recognition history | **Proposal - external provider, privacy, permission, and battery review required** |
-| [09 - Player Studio](09-player-studio.md) | Player layouts, backgrounds, gestures, and motion controls | **Proposal - extend existing player components; no parallel design system** |
-| [10 - Local metadata intelligence](10-local-metadata-intelligence.md) | Rich local tags, extraction, and library reconciliation | **Proposal - reconcile with older local-library plans before implementation** |
-| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | AutoEQ-style headphone profiles and output-aware tuning | **Proposal - reconcile with existing output preset plan and audio pipeline** |
-| [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Provider fallback, correction/import, translation, and romanization | **Proposal - reconcile with lyrics plans and existing translation foundation** |
-| [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | Evaluate FCast and DLNA support | **Research proposal - architecture and maintenance gate before implementation** |
-| [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions, episodes, and playback workflows | **Blocked - product scope approved; Plan 15 playback foundation must be implemented and verified** |
-| [15 - Typed playable-media boundary](15-typed-playable-media.md) | Safe multi-type Media3 identity, queue and restoration foundation | **Architecture designed - implementation not started; prerequisite for 14** |
-| [069 - Artwork-to-detail continuity](069-artwork-to-detail-continuity.md) | Spatial continuity from album/playlist cover to detail hero | **TODO - high visual impact; implement before player micro-polish** |
-| [070 - Playback-state transitions](070-playback-state-transitions.md) | Play/pause, buffering and track identity feedback | **TODO - high-frequency interaction; use authoritative playback state** |
-| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity and edit feedback | **TODO - high priority; duplicate-track correctness prerequisite** |
-| [072 - Settings and expandable continuity](072-settings-expandable-continuity.md) | Interruptible expansion and settings state feedback | **TODO - medium priority; preserve immediate controls** |
-| [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | Apply Reduce Motion consistently across TV transitions | **TODO - accessibility fix; TV preference currently misses hard-coded transitions** |
-| [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | TalkBack, hit bounds, rotary, state semantics and ambient behavior | **TODO - high priority; device verification required** |
-| [075 - Collaborative Playlists](075-collaborative-playlists.md) | AUDIFY-owned persistent shared playlists, invitations, membership and collaborative editing | **Planned - source audit complete; blocked on verified identity, durable storage and portable track identity** |
+| [01 - Artist new-release notifications](01-artist-new-release-notifications.md) | Followed-artist release alerts | **Not started - reconcile with 04** |
+| [02 - Accessibility-first lyrics](02-accessibility-first-lyrics.md) | Accessible lyrics presentation | **Not started - reconcile against current lyrics implementation** |
+| [03 - Complete playlist importer](03-selected-02-playlist-importer.md) | Playlist import and portability | **Planned - canonical import pipeline; reconcile with 078** |
+| [04 - Artist release alerts](04-selected-06-artist-release-alerts.md) | Robust followed-artist release alerts | **Planned - unified scope with 01** |
+| [05 - Advanced search filters](05-selected-13-advanced-search-filters.md) | Capability-aware search filters | **Planned - provider audit required** |
+| [06 - AUDIFY Statistics](06-selected-17-statistics-dashboard.md) | Personal music intelligence | **Planned - aggregate-first; schema changes require approval** |
+| [07 - Explainable listening recommendations](07-explainable-listening-recommendations.md) | Listening-aware recommendations | **Proposal - ranking owner; radio extension in 079** |
+| [08 - Music recognition](08-music-recognition.md) | Foreground recognition and history | **Proposal - provider/privacy/battery review required** |
+| [09 - Player Studio](09-player-studio.md) | Player layouts, backgrounds, gestures, motion | **Proposal - extend existing player components** |
+| [10 - Local metadata intelligence](10-local-metadata-intelligence.md) | Rich local tags and reconciliation | **Proposal - reconcile older plans** |
+| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | Output-aware tuning | **Proposal - reconcile audio pipeline** |
+| [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Lyrics fallback, correction, translation | **Proposal - reconcile lyrics foundation** |
+| [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | FCast and DLNA research | **Research proposal** |
+| [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions and playback | **Blocked - Plan 15 prerequisite** |
+| [15 - Typed playable-media boundary](15-typed-playable-media.md) | Multi-type Media3 identity foundation | **Designed - implementation not started** |
+| [069 - Artwork-to-detail continuity](069-artwork-to-detail-continuity.md) | Artwork-to-detail transition | **TODO** |
+| [070 - Playback-state transitions](070-playback-state-transitions.md) | Playback feedback | **TODO** |
+| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity | **TODO** |
+| [072 - Settings and expandable continuity](072-settings-expandable-continuity.md) | Settings state feedback | **TODO** |
+| [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | TV motion accessibility | **TODO** |
+| [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | Wear OS accessibility | **TODO** |
+| [075 - Collaborative Playlists](075-collaborative-playlists.md) | Persistent shared playlists | **Planned - blocked on verified identity, durable storage and portable track IDs** |
+| [076 - Smart Playlists](076-smart-playlists.md) | Rule-based auto-updating playlists | **Proposal - signal audit required** |
+| [077 - Android Auto](077-android-auto.md) | Car-safe browse and playback | **Proposal - automotive integration audit required** |
+| [078 - Cross-service Music Migration](078-cross-service-music-migration.md) | Import supported service exports | **Proposal - companion to 03; 03 owns import pipeline** |
+| [079 - Smart Music Radio](079-smart-music-radio.md) | Endless seed-based listening | **Proposal - companion to 07; 07 owns ranking** |
+| [080 - Home Screen Widgets and Quick Settings](080-home-widgets-quick-settings.md) | External playback controls | **Proposal - reuse MediaSession state** |
+| [081 - Library Backup and Restore](081-library-backup-restore.md) | Portable Audify-owned data | **Proposal - data boundary audit required** |
+| [082 - Listening Challenges](082-listening-challenges.md) | Optional private discovery prompts | **Proposal - verified local signals only** |
+| [083 - Shareable Music Cards](083-shareable-music-cards.md) | Shareable music artwork cards | **Proposal - rights/deep-link audit required** |
 
 ## Completed and archived
 
 Plans are removed from `plans/` once fully implemented and verified. Record kept here; the
-full plan text is in git history (delete commits reference these hashes).
+full plan text is in git history.
 
 ## How to update status
 
-When you start a plan: mark it `in-progress`. When done criteria all pass: `done`, move the
-plan's summary into the archive table above, and delete the plan file. If an escape hatch
-fired: `blocked` and note why in the plan file. Executors update this file.
+When a plan starts, mark it `in-progress`. When all done criteria pass, mark it `done`, move
+its summary into the archive table, and delete the plan file. If an escape hatch fires, mark it
+`blocked` and explain why. Executors update this file.
 
-Before starting any plan, read `docs/PRODUCT.md` and `docs/DESIGN.md`, then inspect any architecture-decision
-records that actually exist in the checkout. Do not assume `CONTEXT.md` or `docs/adr/` exists; as
-of the 2026-11-01 review, neither path is present in this repository.
+Before starting a plan, read `docs/PRODUCT.md` and `docs/DESIGN.md`, then inspect any architecture-decision
+records that actually exist. Do not assume `CONTEXT.md` or `docs/adr/` exists.
