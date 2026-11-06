@@ -10,7 +10,7 @@ Project: AUDIFY
 <h1 align="center">Your music. Your space. Your way.</h1>
 
 <p align="center">
-  An open-source music player for Android, Android TV and Wear OS.<br>
+  An open-source music player for Android, Android TV, Wear OS and desktop.<br>
   Discover music, build your library, and make every listening session your own.
 </p>
 
@@ -139,6 +139,7 @@ See Audify as it actually looks. These are captures from the app, not concept mo
 | **Android phones and tablets** | Full music discovery, library management, playback, lyrics and downloads. |
 | **Android TV** | A dedicated TV experience for browsing and listening on a larger screen. |
 | **Wear OS** | A companion experience for supported watch-based playback controls. |
+| **Desktop (Windows, macOS and Linux)** | A native Rust desktop music client with platform-specific builds. See the [desktop project guide](desktop/README.md) for setup and build instructions. |
 
 ## Community
 
@@ -164,7 +165,9 @@ For a repeatable setup on Windows, macOS or Linux, follow the [Development Envir
 - **Android NDK 28.2.13676358**
 - Internet access for first-time Gradle and dependency downloads
 
-Current toolchain: **Gradle 9.7.0**, **Android Gradle Plugin 9.3.1**, **Kotlin 2.4.21**, and **Compose Multiplatform 1.12.2**. Phone and TV builds compile against API 37, target API 36 and support API 26+. Wear OS compiles against API 37, targets API 36 and supports API 30+.
+Current Android toolchain: **Gradle 9.7.0**, **Android Gradle Plugin 9.3.1**, **Kotlin 2.4.21**, and **Compose Multiplatform 1.12.2**. Phone and TV builds compile against API 37, target API 36 and support API 26+. Wear OS compiles against API 37, targets API 36 and supports API 30+.
+
+Desktop is a separate native Rust/GPUI application. Its toolchain, platform dependencies and build steps are documented in [`desktop/README.md`](desktop/README.md).
 
 </details>
 
@@ -195,6 +198,20 @@ For a development build, use the corresponding `assembleDevDebug` task, for exam
 ```bash
 ./gradlew :app:assembleDevDebug
 ```
+
+</details>
+
+<details>
+<summary><strong>Build the desktop app</strong></summary>
+
+The desktop client lives in `desktop/` and uses the Rust toolchain pinned in `desktop/rust-toolchain.toml`.
+
+```bash
+cd desktop
+cargo build --release --locked --package audify
+```
+
+This builds the native desktop executable for the host platform. For required system libraries, Windows installer creation, packaging and platform-specific instructions, follow the [desktop build guide](desktop/README.md).
 
 </details>
 
