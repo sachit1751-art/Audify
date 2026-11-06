@@ -35,6 +35,7 @@ class PodcastRoutingDataSource private constructor(
 
     override fun close() = active.close()
 
+    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     class Factory(
         private val musicFactory: DataSource.Factory,
         private val podcastFactory: DataSource.Factory,
