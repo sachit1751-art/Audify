@@ -10,7 +10,10 @@ Audify 1.9.0 expands the project across Android phones, Android TV, Wear OS, and
 
 ## Android
 
-- **Backup and recovery:** Dedicated Backup settings, export/import, and automatic local-backup groundwork from 1.8.10.
+- **Backup and recovery:** Refined the dedicated Backup settings with separate, timestamped status for the last completed on-device snapshot and the last external export. The screen now explains what is included and reminds users to keep an external copy for device-loss recovery.
+- **Safer backup files:** Automatic snapshots are written through a temporary file and finalized only after the complete contents are synced, with retention limited to the five newest snapshots. Snapshots stay in app no-backup storage rather than silently entering Android cloud/device-transfer backups.
+- **Backup size protection:** Preview, import, and export now enforce the same 32 MB limit. Oversized files are rejected while streaming instead of being fully loaded first, and exports too large for a later restore are refused.
+- **Backup verification:** Added regression coverage for the exact size boundary, oversized input rejection, export-size validation, and atomic snapshot finalization. Credentials remain excluded from exported backups.
 - **Local library:** Continued improvements to local favourites, listening history, playlists, and the Room database migration foundation.
 - **YouTube Music sync:** Account-scoped pending operations and safer synchronization handling from 1.8.10.
 - **Updates:** A dedicated Updates settings category and improved update checking, download cancellation, and incomplete-download cleanup.

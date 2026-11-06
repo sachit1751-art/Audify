@@ -1556,16 +1556,30 @@ fun SettingsScreen(
         SearchableSettingsGroup(search, header = stringResource(R.string.backup)) {
             val exportDataTitle = stringResource(R.string.export_data)
             row(exportDataTitle, "backup", "export") {
-                val lastBackup = Backup.lastExternalBackupAt(context)
-                val backupReminder = if (lastBackup == 0L || System.currentTimeMillis() - lastBackup > 30L * 24 * 60 * 60 * 1000) {
-                    stringResource(R.string.backup_reminder_due)
-                } else {
-                    stringResource(R.string.backup_automatic_enabled)
+                val backupStatus = remember(context, exportStatus) {
+                    val formatter = java.text.DateFormat.getDateTimeInstance(
+                        java.text.DateFormat.MEDIUM,
+                        java.text.DateFormat.SHORT,
+                        java.util.Locale.getDefault(),
+                    )
+                    val automaticAt = Backup.lastAutomaticBackupAt(context)
+                    val externalAt = Backup.lastExternalBackupAt(context)
+                    val automatic = if (automaticAt > 0L) {
+                        context.getString(R.string.sachit_backup_automatic_last, formatter.format(java.util.Date(automaticAt)))
+                    } else {
+                        context.getString(R.string.sachit_backup_automatic_pending)
+                    }
+                    val external = if (externalAt > 0L && System.currentTimeMillis() - externalAt in 0..(30L * 24 * 60 * 60 * 1000)) {
+                        context.getString(R.string.sachit_backup_external_last, formatter.format(java.util.Date(externalAt)))
+                    } else {
+                        context.getString(R.string.sachit_backup_external_due)
+                    }
+                    "$automatic\n$external"
                 }
                 SettingsRow(
                     icon = Icons.Rounded.FileUpload,
                     title = exportDataTitle,
-                    subtitle = exportStatus ?: "${stringResource(R.string.export_data_subtitle)} · $backupReminder",
+                    subtitle = exportStatus ?: "${stringResource(R.string.sachit_backup_export_scope)}\n$backupStatus",
                     onClick = { exportPicker.launch(Backup.suggestedName()) },
                 )
             }

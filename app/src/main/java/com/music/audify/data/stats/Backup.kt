@@ -17,6 +17,9 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.io.File
+import java.io.ByteArrayOutputStream
+import java.io.FileOutputStream
+import java.io.InputStream
 
 /**
  * The whole of what this app knows about you, as one JSON file you own.
@@ -60,16 +63,18 @@ object Backup {
     /** Writes a private, atomic snapshot for scheduled recovery. */
     suspend fun createAutomatic(context: Context): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
-            val directory = File(context.filesDir, "automatic_backups")
+            // Keep scheduled snapshots on this install only. The user-owned
+            // export is the portable copy; these recovery snapshots must not
+            // silently enter Android cloud backup or device-transfer payloads.
+            val directory = File(context.noBackupFilesDir, "automatic_backups")
             check(directory.exists() || directory.mkdirs()) { "Could not create backup directory" }
             val file = buildBackupFile()
             val bytes = json.encodeToString(BackupFile.serializer(), file).toByteArray()
+            validateBackupSize(bytes.size)
             val stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
                 .withZone(java.time.ZoneOffset.UTC).format(Instant.now())
             val target = File(directory, "audify-auto-$stamp.json")
-            val temporary = File(directory, "${target.name}.tmp")
-            temporary.writeBytes(bytes)
-            check(temporary.renameTo(target)) { "Could not finalize automatic backup" }
+            writeBackupAtomically(directory, target.name, bytes)
             // Keep the newest five complete snapshots; never delete before the new one is safe.
             directory.listFiles { candidate -> candidate.name.endsWith(".json") }
                 .orEmpty().sortedByDescending { it.lastModified() }.drop(5).forEach { it.delete() }
@@ -88,10 +93,8 @@ object Backup {
     /** Parses and validates a selected backup without mutating app data. */
     suspend fun preview(context: Context, source: Uri): Result<Preview> = withContext(Dispatchers.IO) {
         runCatching {
-            val text = context.contentResolver.openInputStream(source)?.use { input ->
-                input.readBytes().also { require(it.size <= MAX_BACKUP_BYTES) { "Backup file is too large" } }
-                    .decodeToString()
-            } ?: error("Couldn't open that file")
+            val text = context.contentResolver.openInputStream(source)?.use(::readBoundedBackup)
+                ?: error("Couldn't open that file")
             val file = decodeAndValidate(text)
             Preview(
                 songs = file.favorites.distinctBy { it.videoId }.size,
@@ -122,6 +125,7 @@ object Backup {
         runCatching {
             val file = buildBackupFile()
             val text = json.encodeToString(BackupFile.serializer(), file)
+            validateBackupSize(text.toByteArray().size)
             context.contentResolver.openOutputStream(target, "wt")
                 ?.use { it.write(text.toByteArray()) }
                 ?: error("Couldn't open that file for writing")
@@ -144,7 +148,7 @@ object Backup {
     suspend fun importFrom(context: Context, source: Uri): Result<Summary> = withContext(Dispatchers.IO) {
         runCatching {
             val text = context.contentResolver.openInputStream(source)
-                ?.use { it.readBytes().decodeToString() }
+                ?.use(::readBoundedBackup)
                 ?: error("Couldn't open that file")
             val file = decodeAndValidate(text)
 
@@ -197,6 +201,45 @@ object Backup {
     private const val LAST_BACKUP_AT = "last_automatic_backup_at"
     private const val LAST_EXTERNAL_BACKUP_AT = "last_external_backup_at"
     private const val MAX_BACKUP_BYTES = 32 * 1024 * 1024
+
+    internal fun validateBackupSize(size: Int, maxBytes: Int = MAX_BACKUP_BYTES) {
+        require(size in 0..maxBytes) { "Backup exceeds the ${maxBytes / (1024 * 1024)} MB restore limit" }
+    }
+
+    /** Read at most the accepted backup size, including on the restore path. */
+    internal fun readBoundedBackup(input: InputStream, maxBytes: Int = MAX_BACKUP_BYTES): String {
+        require(maxBytes > 0) { "Backup size limit must be positive" }
+        val output = ByteArrayOutputStream(minOf(maxBytes, 8 * 1024))
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            if (count == 0) continue
+            total += count
+            require(total <= maxBytes) { "Backup file is too large" }
+            output.write(buffer, 0, count)
+        }
+        return output.toByteArray().decodeToString()
+    }
+
+    /** Finalize a private snapshot only after its complete contents reach disk. */
+    internal fun writeBackupAtomically(directory: File, targetName: String, bytes: ByteArray): File {
+        require(targetName.isNotBlank() && '/' !in targetName && '\\' !in targetName)
+        check(directory.exists() || directory.mkdirs()) { "Could not create backup directory" }
+        val target = File(directory, targetName)
+        val temporary = File(directory, "$targetName.tmp")
+        try {
+            FileOutputStream(temporary).use { output ->
+                output.write(bytes)
+                output.fd.sync()
+            }
+            check(temporary.renameTo(target)) { "Could not finalize automatic backup" }
+            return target
+        } finally {
+            temporary.delete()
+        }
+    }
 
     /**
      * Bump when the shape below stops being readable by an older build. A file

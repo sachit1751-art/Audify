@@ -68,4 +68,9 @@ Project: AUDIFY
     <string name="share_feedback_subtitle" translatable="false">Suggest improvements or share your experience using Audify</string>
     <string name="could_not_open_feedback" translatable="false">Could not open the feedback form.</string>
     <string name="wear_os_update_busy" translatable="false">Another watch update is in progress</string>
+    <string name="sachit_backup_export_scope" translatable="false">Favorites, playlists, listening history, statistics and supported settings. Credentials are excluded.</string>
+    <string name="sachit_backup_automatic_last" translatable="false">On-device automatic backup · %1$s</string>
+    <string name="sachit_backup_automatic_pending" translatable="false">On-device automatic backup · No completed snapshot yet</string>
+    <string name="sachit_backup_external_last" translatable="false">External copy exported · %1$s</string>
+    <string name="sachit_backup_external_due" translatable="false">External copy recommended · Export to protect against device loss</string>
 </resources>
