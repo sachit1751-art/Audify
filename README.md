@@ -25,11 +25,11 @@ Project: AUDIFY
 </p>
 
 <p align="center">
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify">Obtainium</a>
-  &nbsp;·&nbsp;
-  <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify">Orion Store</a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/sachit1751-art/Audify/releases">All releases</a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Fsachit1751-art%2FAudify"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="44"></a>
+  &nbsp;
+  <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store" height="44"></a>
+  &nbsp;
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/badge/Get%20it%20on-GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="Get the latest release on GitHub" height="44"></a>
 </p>
 
 <p align="center">
@@ -75,33 +75,63 @@ See Audify as it actually looks. These are captures from the app, not concept mo
 
 ## Features
 
-### Playback that adapts to you
-- Background and gapless playback.
-- Adjustable crossfade and Automix (Beta) with beat matching and tempo stretching.
-- Playback speed, skip silence, sleep timer and system equalizer support.
-- Streaming quality controls and available audio-output selection.
+<table>
+  <tr>
+    <td width="50%" valign="top">
 
-### Discover and organise music
+### 🎧 Playback & audio
+
+- Background and gapless playback.
+- Adjustable crossfade and Automix (Beta), including beat matching and tempo stretching.
+- Playback speed, skip silence and sleep timer.
+- System equalizer support, streaming quality controls and audio-output selection.
+
+    </td>
+    <td width="50%" valign="top">
+
+### 🔎 Music discovery
+
 - Search songs, albums, artists and playlists through YouTube Music.
 - Sign in with a Google account for supported personalized content.
-- Create and organise playlists, edit supported details, and manage the queue.
+- Browse recommendations and explore music.
 
-### Your library, online or offline
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+
+### 📚 Library & playlists
+
+- Create and organise playlists and edit supported playlist details.
+- Manage the listening queue.
 - Browse and play audio stored on your device, including selected folders.
-- Download supported tracks with metadata for offline listening.
 - Import supported Spotify playlist exports and access supported Spotify library features.
 
-### Lyrics and listening experience
+    </td>
+    <td width="50%" valign="top">
+
+### ✨ Lyrics & personalisation
+
 - Synchronized line- and word-level lyrics from supported providers.
 - Seek through tracks using timed lyrics.
-- Animated artwork, dynamic colour theming and a Material 3 interface.
-- Optional progressive scroll-edge blur controls.
+- Animated artwork and dynamic colour theming.
+- Material 3 interface and optional progressive scroll-edge blur.
 
-### Connected services
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
+
+### ☁️ Offline listening & connected services
+
+- Download supported tracks with metadata for offline listening.
 - Discord Rich Presence for currently playing tracks and playback progress.
 - Last.fm and ListenBrainz scrobbling.
 - Configurable external source modules, including optional high-resolution audio sources.
 
+    </td>
+  </tr>
+</table>
 ## Platforms
 
 | Platform | Experience |
