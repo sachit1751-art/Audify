@@ -24,7 +24,9 @@ jobs:
       - run: go vet ./... && go test ./...
         working-directory: backend
 
+  # Disabled by default until an Audify-specific target is configured.
   deploy:
+    if: ${{ vars.AUDIFY_BACKEND_DEPLOY_ENABLED == 'true' }}
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -34,23 +36,24 @@ jobs:
           KEY: ${{ secrets.ORACLE_DEPLOY_KEY }}
           HOST: ${{ secrets.ORACLE_HOST }}
           KNOWN_HOSTS: ${{ secrets.ORACLE_KNOWN_HOSTS }}
+          DEPLOY_COMMAND: ${{ secrets.AUDIFY_DEPLOY_COMMAND }}
+          HEALTH_URL: ${{ secrets.AUDIFY_BACKEND_HEALTH_URL }}
         run: |
-          if [ -z "$KEY" ] || [ -z "$HOST" ] || [ -z "$KNOWN_HOSTS" ]; then
-            echo "Oracle deployment skipped: ORACLE_DEPLOY_KEY, ORACLE_HOST and ORACLE_KNOWN_HOSTS must all be configured."
+          if [ -z "$KEY" ] || [ -z "$HOST" ] || [ -z "$KNOWN_HOSTS" ] || [ -z "$DEPLOY_COMMAND" ] || [ -z "$HEALTH_URL" ]; then
+            echo "Audify deployment skipped: configure ORACLE_DEPLOY_KEY, ORACLE_HOST, ORACLE_KNOWN_HOSTS, AUDIFY_DEPLOY_COMMAND and AUDIFY_BACKEND_HEALTH_URL."
             echo "deployed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          # The key is pinned to /usr/local/sbin/bitchord-deploy on the VM.
-          ssh -i ~/.ssh/deploy deploy@"$HOST"
+          ssh -i ~/.ssh/deploy deploy@"$HOST" "$DEPLOY_COMMAND"
           echo "deployed=true" >> "$GITHUB_OUTPUT"
       - name: Health check
         if: steps.deploy.outputs.deployed == 'true'
         run: |
           for i in $(seq 1 12); do
-            curl -fsS https://api.bitchord.kushagrasingh.in/healthz && exit 0
+            curl -fsS "$HEALTH_URL" && exit 0
             sleep 5
           done
           exit 1
