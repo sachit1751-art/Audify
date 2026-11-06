@@ -78,16 +78,16 @@ jobs:
               exit 1
             fi
           done
-          printf 'LASTFM_API_KEY=%s\\n' "$LASTFM_API_KEY" > local.properties
-          printf 'LASTFM_SECRET=%s\\n' "$LASTFM_SECRET" >> local.properties
-          printf 'LISTEN_TOGETHER_SERVER=%s\\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
+          printf 'LASTFM_API_KEY=%s\n' "$LASTFM_API_KEY" > local.properties
+          printf 'LASTFM_SECRET=%s\n' "$LASTFM_SECRET" >> local.properties
+          printf 'LISTEN_TOGETHER_SERVER=%s\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
           printf '%s' "$KEYSTORE" | base64 --decode > audify-release.jks
           test -s audify-release.jks
           {
-            printf 'storeFile=audify-release.jks\\n'
-            printf 'storePassword=%s\\n' "$KEYSTORE_PASSWORD"
-            printf 'keyAlias=%s\\n' "$KEY_ALIAS"
-            printf 'keyPassword=%s\\n' "$KEY_PASSWORD"
+            printf 'storeFile=audify-release.jks\n'
+            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
           } > keystore.properties
           chmod 600 audify-release.jks keystore.properties
 
@@ -168,7 +168,7 @@ jobs:
             mapfile -d '' -t matches < <(find "$source_dir" -maxdepth 1 -type f -name "$pattern" -print0 | sort -z)
             if [ "${#matches[@]}" -ne 1 ]; then
               echo "::error::Expected exactly one $pattern in $source_dir; found ${#matches[@]}"
-              printf '%s\\n' "${matches[@]}"
+              printf '%s\n' "${matches[@]}"
               exit 1
             fi
             cp "${matches[0]}" "dist/$destination"
@@ -180,10 +180,10 @@ jobs:
           copy_one wearos/build/outputs/apk/prod/release '*-universal-release.apk' "AudifyWear-$VERSION_NAME.apk"
 
           test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 4
-          printf '%s\\n' \\
-            "1. Audify Phone — Universal" \\
-            "2. Audify Phone — ARM64" \\
-            "3. Audify Android TV — Universal" \\
+          printf '%s\n' \
+            "1. Audify Phone — Universal" \
+            "2. Audify Phone — ARM64" \
+            "3. Audify Android TV — Universal" \
             "4. Audify Wear OS — Universal"
 
       - name: Verify package IDs, versions and production signatures
@@ -194,10 +194,10 @@ jobs:
           AAPT="$BUILD_TOOLS/aapt"
           APKSIGNER="$BUILD_TOOLS/apksigner"
           EXPECTED_CERT="4bde8155328a9a8659ce6b75d1a0df2e4811c0ccdc555a52ccb3df2a4be94e21"
-          for apk in \\
-            "dist/Audify-$VERSION_NAME.apk" \\
-            "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \\
-            "dist/AudifyTV-$VERSION_NAME.apk" \\
+          for apk in \
+            "dist/Audify-$VERSION_NAME.apk" \
+            "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \
+            "dist/AudifyTV-$VERSION_NAME.apk" \
             "dist/AudifyWear-$VERSION_NAME.apk"; do
             test -s "$apk"
             case "$apk" in
@@ -211,7 +211,7 @@ jobs:
             }
             "$APKSIGNER" verify --verbose "$apk"
             CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$apk" 2>&1)"
-            cert="$(printf '%s\\n' "$CERT_OUTPUT" | grep -Eio '[0-9a-f]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]' || true)"
+            cert="$(printf '%s\n' "$CERT_OUTPUT" | grep -Eio '[0-9a-f]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]' || true)"
             test -n "$cert"
             echo "APK signing certificate SHA-256 ($apk): $cert"
             if [ "$cert" != "$EXPECTED_CERT" ]; then
@@ -225,10 +225,10 @@ jobs:
             local apk="$1"
             local abi="$2"
             local entry
-            for entry in \\
-              "lib/$abi/libffmpegJNI.so" \\
-              "lib/$abi/libaudify_analysis.so" \\
-              "lib/$abi/libaudify_dsd.so" \\
+            for entry in \
+              "lib/$abi/libffmpegJNI.so" \
+              "lib/$abi/libaudify_analysis.so" \
+              "lib/$abi/libaudify_dsd.so" \
               "lib/$abi/libaudify_dst.so"; do
               if ! unzip -Z1 "$apk" | grep -Fx "$entry" >/dev/null; then
                 echo "::error::Universal APK $apk is missing required native library $entry"
