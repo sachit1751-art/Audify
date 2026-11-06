@@ -165,6 +165,7 @@ Project: AUDIFY
     <string name="saved_to_youtube_music">Saved to YouTube Music</string>
     <string name="search">Search</string>
     <string name="search_empty">Search millions of songs on YouTube Music.</string>
+    <string name="search_no_results">No results for “%1$s”. Try a different search.</string>
     <string name="search_hint">Artists, Songs, Lyrics and More</string>
     <string name="search_library_empty">Search the songs in your Local Music folder.</string>
     <string name="search_library_hint">Songs, Artists and Albums</string>
