@@ -3516,6 +3516,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
+    /** Reopens the visible detail page in place after its loading state failed. */
+    fun retryDetail() {
+        val page = _detailStack.value.lastOrNull() ?: return
+        if (!closeDetail()) return
+        openDetail(page.browseId, page.title, page.subtitle, page.thumbnailUrl, page.type)
+    }
+
     /**
      * Loads the channel list, unless it is already in hand.
      *
