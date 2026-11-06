@@ -130,6 +130,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -226,6 +227,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val locale = LocalLocale.current.platformLocale
     val exportSucceededFormat = stringResource(R.string.export_succeeded)
     val exportFailedFormat = stringResource(R.string.export_failed)
@@ -1556,7 +1558,7 @@ fun SettingsScreen(
         SearchableSettingsGroup(search, header = stringResource(R.string.backup)) {
             val exportDataTitle = stringResource(R.string.export_data)
             row(exportDataTitle, "backup", "export") {
-                val backupStatus = remember(context, exportStatus) {
+                val backupStatus = remember(context, resources, exportStatus) {
                     val formatter = java.text.DateFormat.getDateTimeInstance(
                         java.text.DateFormat.MEDIUM,
                         java.text.DateFormat.SHORT,
@@ -1565,14 +1567,14 @@ fun SettingsScreen(
                     val automaticAt = Backup.lastAutomaticBackupAt(context)
                     val externalAt = Backup.lastExternalBackupAt(context)
                     val automatic = if (automaticAt > 0L) {
-                        context.getString(R.string.sachit_backup_automatic_last, formatter.format(java.util.Date(automaticAt)))
+                        resources.getString(R.string.sachit_backup_automatic_last, formatter.format(java.util.Date(automaticAt)))
                     } else {
-                        context.getString(R.string.sachit_backup_automatic_pending)
+                        resources.getString(R.string.sachit_backup_automatic_pending)
                     }
                     val external = if (externalAt > 0L && System.currentTimeMillis() - externalAt in 0..(30L * 24 * 60 * 60 * 1000)) {
-                        context.getString(R.string.sachit_backup_external_last, formatter.format(java.util.Date(externalAt)))
+                        resources.getString(R.string.sachit_backup_external_last, formatter.format(java.util.Date(externalAt)))
                     } else {
-                        context.getString(R.string.sachit_backup_external_due)
+                        resources.getString(R.string.sachit_backup_external_due)
                     }
                     "$automatic\n$external"
                 }
