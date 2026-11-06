@@ -1295,4 +1295,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">Резервное копирование</string>
     <string name="updates">Обновления</string>
+    <string name="smart_playlists">Умные плейлисты</string>
+    <string name="auto_empty_albums_title">Альбомы недоступны</string>
+    <string name="auto_empty_albums_subtitle">Проверьте подключение и повторите попытку</string>
 </resources>

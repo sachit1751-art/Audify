@@ -149,6 +149,8 @@ Project: AUDIFY
     <string name="explore">Explore</string>
     <string name="explore_empty">Nothing to show right now. Try again.</string>
     <string name="library">Library</string>
+    <string name="smart_playlists">Smart Playlists</string>
+    <string name="smart_playlists_subtitle">Playlists that update from your listening.</string>
     <string name="library_sign_in_description">Sign in to your Google account to see your liked songs, playlists, and YouTube Music history.</string>
     <string name="new_playlist">New playlist</string>
     <string name="on_device">On Device</string>

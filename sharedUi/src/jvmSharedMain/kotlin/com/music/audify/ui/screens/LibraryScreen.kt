@@ -38,6 +38,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
@@ -125,6 +127,8 @@ fun LibraryScreen(
     deviceEmptyText: String,
     /** The big "Library" heading; the desktop's pages carry none. */
     showTitle: Boolean = true,
+    /** Opens the rule-based playlists page, which is implemented by the host app. */
+    onSmartPlaylists: (() -> Unit)? = null,
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
     val onDevice = stringResource(Res.string.on_device)
@@ -137,7 +141,12 @@ fun LibraryScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding,
+            // The root Library heading needs less lead-in than Home's immersive
+            // wordmark; recover 8dp without moving the pinned top chrome.
+            contentPadding = PaddingValues(
+                top = (contentPadding.calculateTopPadding() - if (showTitle) 8.dp else 0.dp).coerceAtLeast(0.dp),
+                bottom = contentPadding.calculateBottomPadding(),
+            ),
         ) {
             if (showTitle) {
                 item(key = "library:title") {
@@ -150,6 +159,40 @@ fun LibraryScreen(
                 }
             }
             item(key = "replay") { replay() }
+            if (onSmartPlaylists != null) {
+                item(key = "smart-playlists") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.Button, onClick = onSmartPlaylists)
+                            .padding(horizontal = PAGE_GUTTER, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                            Text(
+                                text = stringResource(Res.string.smart_playlists),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = stringResource(Res.string.smart_playlists_subtitle),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = PAGE_GUTTER),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                    )
+                }
+            }
             if (links.isNotEmpty()) {
                 item(key = "links") { LibraryLinkList(links = links, onClick = onShelfItemClick) }
             }

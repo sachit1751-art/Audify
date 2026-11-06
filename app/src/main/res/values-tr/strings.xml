@@ -1227,4 +1227,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">Yedekleme</string>
     <string name="updates">Güncellemeler</string>
+    <string name="smart_playlists">Akıllı Çalma Listeleri</string>
+    <string name="auto_empty_albums_title">Kullanılabilir albüm yok</string>
+    <string name="auto_empty_albums_subtitle">Bağlantınızı kontrol edip tekrar deneyin</string>
 </resources>

@@ -129,4 +129,12 @@ class AppNavigatorTest {
         assertTrue(navigator.pop())
         assertTrue(navigator.visibleRoute() is AppRoute.LibraryShowAll)
     }
+
+    @Test
+    fun smartPlaylistsRouteReturnsToLibraryTab() {
+        navigator.push(AppRoute.SmartPlaylists)
+        assertEquals(AppRoute.SmartPlaylists, navigator.visibleRoute())
+        assertTrue(navigator.pop())
+        assertNull(navigator.visibleRoute())
+    }
 }

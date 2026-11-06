@@ -1028,6 +1028,13 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            if (mediaItem?.hasSupportedPlayableKind == false) {
+                TrackLog.w("Audify", "Rejected unsupported media kind at playback transition", about = mediaItem.mediaId)
+                exoPlayer.pause()
+                cancelPrefetch()
+                refreshCustomLayouts()
+                return
+            }
             // A quality swap replaces the playing item, which Media3
             // reports here as a playlist change — indistinguishable, from
             // this callback's point of view, from the queue moving on. It
@@ -1103,6 +1110,16 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            if (exoPlayer.currentMediaItem?.hasSupportedPlayableKind == false) {
+                TrackLog.w(
+                    "Audify",
+                    "Ignored playback recovery for unsupported media kind",
+                    error,
+                    about = exoPlayer.currentMediaItem?.mediaId,
+                )
+                exoPlayer.pause()
+                return
+            }
             if (exoPlayer.currentMediaItem?.isPodcastEpisode == true) {
                 TrackLog.w("Audify", "podcast playback failed: ${error.errorCodeName}", about = exoPlayer.currentMediaItem?.mediaId)
                 return
@@ -3506,6 +3523,11 @@ class PlaybackService : MediaLibraryService() {
         alreadyAudible: Boolean = false,
     ) {
         val exoPlayer = player ?: return
+        if (mediaItem?.hasSupportedPlayableKind == false) {
+            TrackLog.w("Audify", "Rejected unsupported media kind before music transition handling", about = mediaItem.mediaId)
+            exoPlayer.pause()
+            return
+        }
         activePodcastEpisode?.let { previousEpisode ->
             if (mediaItem?.mediaId != previousEpisode.stableId || previousEnded) {
                 val positionMs = (lastPositionSeconds * 1000L).coerceAtLeast(0L)
@@ -3927,6 +3949,7 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun recoverFrom(error: PlaybackException, player: ExoPlayer) {
         val item = player.currentMediaItem ?: return
+        if (!item.hasSupportedPlayableKind || item.isPodcastEpisode) return
         val mediaId = item.mediaId
         val uri = item.localConfiguration?.uri
         val position = player.currentPosition.coerceAtLeast(0L)
@@ -5981,7 +6004,11 @@ class PlaybackService : MediaLibraryService() {
         if (range.isEmpty()) return
         // The bounded-context document is a music-only logical queue. A mixed
         // physical queue is restored from LastPlayed's typed snapshot instead.
-        if (range.any { player.getMediaItemAt(it).isPodcastEpisode }) return
+        if (range.any {
+                val item = player.getMediaItemAt(it)
+                item.isPodcastEpisode || !item.hasSupportedPlayableKind
+            }
+        ) return
         val entries = range.map { index ->
             val item = player.getMediaItemAt(index)
             BoundedContextPersistence.Entry(
@@ -6256,7 +6283,11 @@ class PlaybackService : MediaLibraryService() {
      * tracks is more than it does anything with, but it decides that, not this.
      */
     private fun prefetchAround(player: ExoPlayer) {
-        if ((0 until player.mediaItemCount).any { player.getMediaItemAt(it).isPodcastEpisode }) {
+        if ((0 until player.mediaItemCount).any {
+                val item = player.getMediaItemAt(it)
+                item.isPodcastEpisode || !item.hasSupportedPlayableKind
+            }
+        ) {
             cancelPrefetch()
             return
         }
@@ -8338,6 +8369,7 @@ class PlaybackService : MediaLibraryService() {
                 MEDIA_MORE_ID -> listOf(
                     createFolderItem(MEDIA_DOWNLOADS_ID, getString(R.string.downloads), folderType = MediaMetadata.FOLDER_TYPE_MIXED),
                     createFolderItem(MEDIA_LOCAL_MUSIC_ID, getString(R.string.local_music), folderType = MediaMetadata.FOLDER_TYPE_MIXED),
+                    createFolderItem(MEDIA_ALBUMS_ID, getString(R.string.albums), folderType = MediaMetadata.FOLDER_TYPE_ALBUMS, isGrid = true),
                 )
                 MEDIA_RECENTS_ID -> {
                     val snapshot = snapshotRecents()
@@ -8461,6 +8493,35 @@ class PlaybackService : MediaLibraryService() {
                         ),
                     )
                 }
+                MEDIA_ALBUMS_ID -> {
+                    if (com.music.audify.data.innertube.Innertube.cookie == null) {
+                        listOf(createLoginPromptItem())
+                    } else {
+                        val albums = try {
+                            withTimeoutOrNull(3_000L) {
+                                YtMusicRepository.libraryAlbums().getOrNull().orEmpty()
+                            } ?: emptyList()
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                        albums.mapNotNull { album ->
+                            val browseId = album.browseId ?: return@mapNotNull null
+                            createGridPlaylistItem(
+                                mediaId = "browse:$browseId",
+                                title = album.title,
+                                subtitle = album.subtitle,
+                                artworkUrl = album.thumbnailUrl,
+                                folderType = MediaMetadata.FOLDER_TYPE_ALBUMS,
+                            )
+                        }.ifEmpty {
+                            listOf(createInfoItem(
+                                "msg:empty_albums",
+                                getString(R.string.auto_empty_albums_title),
+                                getString(R.string.auto_empty_albums_subtitle),
+                            ))
+                        }
+                    }
+                }
                 else -> {
                     when {
                         parentId.startsWith("playlist:") -> {
@@ -8531,6 +8592,7 @@ class PlaybackService : MediaLibraryService() {
                 MEDIA_LIKED_ID -> createFolderItem(MEDIA_LIKED_ID, getString(R.string.auto_liked), folderType = MediaMetadata.FOLDER_TYPE_PLAYLISTS)
                 MEDIA_DOWNLOADS_ID -> createFolderItem(MEDIA_DOWNLOADS_ID, getString(R.string.downloads))
                 MEDIA_LOCAL_MUSIC_ID -> createFolderItem(MEDIA_LOCAL_MUSIC_ID, getString(R.string.local_music))
+                MEDIA_ALBUMS_ID -> createFolderItem(MEDIA_ALBUMS_ID, getString(R.string.albums), folderType = MediaMetadata.FOLDER_TYPE_ALBUMS, isGrid = true)
                 "msg:login_required" -> createLoginPromptItem()
                 else -> {
                     if (mediaId.startsWith("msg:")) {
@@ -8687,7 +8749,42 @@ class PlaybackService : MediaLibraryService() {
 
         private suspend fun resolveMediaItems(mediaItems: List<MediaItem>): List<MediaItem> {
             val resolved = mutableListOf<MediaItem>()
+            var rejectedUnsupportedKind = false
             for (item in mediaItems) {
+                if (!item.hasSupportedPlayableKind) {
+                    rejectedUnsupportedKind = true
+                    TrackLog.w("Audify", "Rejected unsupported media kind from a MediaSession controller", about = item.mediaId)
+                    continue
+                }
+                if (item.isPodcastEpisode) {
+                    val supplied = runCatching {
+                        item.toPlayableMedia() as? PlayableMedia.Podcast
+                    }.getOrNull()
+                    val canonical = supplied?.episode?.let { episode ->
+                        PodcastPlaybackBridge.resolve(episode.feedId, episode.episodeId)
+                    }
+                    if (supplied == null || canonical == null ||
+                        canonical.stableId != supplied.stableId ||
+                        canonical.enclosureUri != supplied.episode.enclosureUri
+                    ) {
+                        rejectedUnsupportedKind = true
+                        TrackLog.w("Audify", "Rejected podcast item not present in the local episode catalogue", about = item.mediaId)
+                        continue
+                    }
+                    val entryId = item.queueEntryId ?: UUID.randomUUID().toString()
+                    resolved += PlayableMedia.Podcast(
+                        episode = canonical,
+                        queueEntryId = entryId,
+                        queueTier = QueueTier.USER_QUEUE,
+                    ).toMediaItem(
+                        QueueEntryMetadata(
+                            queueEntryId = entryId,
+                            tier = QueueTier.USER_QUEUE,
+                            canonicalIndex = item.canonicalIndex,
+                        ),
+                    )
+                    continue
+                }
                 val id = item.mediaId
                 val searchQuery = item.requestMetadata.searchQuery
                 when {
@@ -8807,7 +8904,7 @@ class PlaybackService : MediaLibraryService() {
                     }
                 }
             }
-            return if (resolved.isEmpty()) mediaItems else resolved
+            return if (resolved.isEmpty() && !rejectedUnsupportedKind) mediaItems else resolved
         }
     }
 
@@ -9044,6 +9141,7 @@ class PlaybackService : MediaLibraryService() {
         const val FOREIGN_CACHE_KEEP_AHEAD = 3
         const val MEDIA_DOWNLOADS_ID = "downloads"
         const val MEDIA_LOCAL_MUSIC_ID = "local_music"
+        const val MEDIA_ALBUMS_ID = "albums"
         const val MAX_AUTO_PAGE_SIZE = 50
         const val MAX_AUTO_SEARCH_QUERY_CHARS = 200
         const val MAX_AUTO_SEARCH_CACHE_ENTRIES = 20

@@ -903,9 +903,11 @@ object YtMusicRepository {
      */
     const val PLAYLISTS_SHELF = "Playlists"
 
+    private const val LIBRARY_ALBUMS = "FEmusic_liked_albums"
+
     private val LIBRARY_FEEDS = listOf(
         PLAYLISTS_SHELF to LIBRARY_PLAYLISTS,
-        "Albums" to "FEmusic_liked_albums",
+        "Albums" to LIBRARY_ALBUMS,
         "Artists" to "FEmusic_library_corpus_track_artists",
         "Subscriptions" to "FEmusic_library_corpus_artists",
         "Podcasts" to "FEmusic_library_non_music_audio_list",
@@ -972,6 +974,11 @@ object YtMusicRepository {
      */
     suspend fun libraryPlaylists(): Result<List<ShelfItem>> = call("libraryPlaylists") {
         InnertubeParser.parseLibraryItems(Innertube.browse(LIBRARY_PLAYLISTS))
+    }
+
+    /** Saved albums only, for compact external browse clients such as Android Auto. */
+    suspend fun libraryAlbums(): Result<List<ShelfItem>> = call("libraryAlbums") {
+        libraryItemsPaged(LIBRARY_ALBUMS)
     }
 
     /** Creates a playlist, optionally seeded with [videoIds]; returns its id. */

@@ -24,6 +24,7 @@ sealed interface AppRoute {
     data object WearOs : AppRoute
     data object Equalizer : AppRoute
     data object Replay : AppRoute
+    data object SmartPlaylists : AppRoute
     data object History : AppRoute
     data object Discord : AppRoute
     data object Spotify : AppRoute

@@ -90,8 +90,56 @@ class AndroidAutoMediaLibraryTest {
     }
 
     @Test
+    fun testMoreFolderExposesOfflineCollections() = runBlocking {
+        val children = withContext(Dispatchers.Main) {
+            mediaBrowser.getChildren("more", 0, 20, null).get(10, TimeUnit.SECONDS)
+        }
+        assertNotNull(children.value)
+        assertEquals(listOf("downloads", "local_music", "albums"), children.value!!.map { it.mediaId })
+        children.value!!.forEach { assertTrue(it.mediaMetadata.isBrowsable == true) }
+    }
+
+    @Test
+    fun testAlbumsFolderReturnsARecoverableSignedOutState() = runBlocking {
+        val children = withContext(Dispatchers.Main) {
+            mediaBrowser.getChildren("albums", 0, 20, null).get(10, TimeUnit.SECONDS)
+        }
+        assertNotNull(children.value)
+        assertEquals("msg:login_required", children.value!!.single().mediaId)
+    }
+
+    @Test
+    fun testReconnectCanBrowseTheSameLibraryRoot() = runBlocking {
+        withContext(Dispatchers.Main) { mediaBrowser.release() }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        val latch = CountDownLatch(1)
+        var reconnected: MediaBrowser? = null
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val future = MediaBrowser.Builder(context, token).buildAsync()
+            future.addListener(
+                {
+                    reconnected = future.get()
+                    latch.countDown()
+                },
+                { command -> command.run() },
+            )
+        }
+        assertTrue("MediaBrowser reconnect timed out", latch.await(10, TimeUnit.SECONDS))
+        val browser = reconnected ?: throw AssertionError("MediaBrowser did not reconnect")
+        try {
+            val root = withContext(Dispatchers.Main) {
+                browser.getLibraryRoot(null).get(10, TimeUnit.SECONDS)
+            }
+            assertEquals("root", root.value?.mediaId)
+        } finally {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { browser.release() }
+        }
+    }
+
+    @Test
     fun testGetItem() = runBlocking {
-        for (id in listOf("quick_picks", "recents", "playlists", "liked", "more")) {
+        for (id in listOf("quick_picks", "recents", "playlists", "liked", "more", "albums")) {
             val itemResult = withContext(Dispatchers.Main) {
                 mediaBrowser.getItem(id).get(10, TimeUnit.SECONDS)
             }
@@ -124,29 +172,9 @@ class AndroidAutoMediaLibraryTest {
 
     @Test
     fun testSearchAndGetSearchResult() = runBlocking {
-        val searchLatch = CountDownLatch(1)
-        var resultCount = 0
-
-        val listener = object : MediaBrowser.Listener {
-            override fun onSearchResultChanged(
-                browser: MediaBrowser,
-                query: String,
-                itemCount: Int,
-                params: androidx.media3.session.MediaLibraryService.LibraryParams?,
-            ) {
-                if (query == "Adele") {
-                    resultCount = itemCount
-                    searchLatch.countDown()
-                }
-            }
-        }
-
         withContext(Dispatchers.Main) {
-            mediaBrowser.search("Adele", null)
+            mediaBrowser.search("Adele", null).get(10, TimeUnit.SECONDS)
         }
-
-        // Wait for search result notification
-        searchLatch.await(10, TimeUnit.SECONDS)
 
         val results = withContext(Dispatchers.Main) {
             mediaBrowser.getSearchResult("Adele", 0, 10, null).get(10, TimeUnit.SECONDS)

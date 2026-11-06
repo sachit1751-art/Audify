@@ -9,11 +9,15 @@ import java.io.IOException
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.X509TrustManager
 
 /** Network policy for untrusted RSS enclosure URLs and every HTTP redirect hop. */
 object PodcastNetworkPolicy {
 
-    private val safeDns = Dns { hostname ->
+    private val safeDns = Dns(::resolvePublicAddresses)
+
+    internal fun resolvePublicAddresses(hostname: String): List<InetAddress> {
         val addresses = try {
             Dns.SYSTEM.lookup(hostname)
         } catch (error: Exception) {
@@ -22,23 +26,40 @@ object PodcastNetworkPolicy {
         if (addresses.isEmpty() || addresses.any { !isPublicAddress(it) }) {
             throw IOException("Podcast enclosure host resolves to a non-public address")
         }
-        addresses
+        return addresses
     }
 
     /** Dedicated client: redirects are followed only after each hop passes DNS and URL checks. */
-    val client: OkHttpClient = OkHttpClient.Builder()
-        .dns(safeDns)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(false)
-        .retryOnConnectionFailure(false)
-        .addNetworkInterceptor { chain ->
-            validateUrl(chain.request().url)
-            chain.proceed(chain.request())
+    val client: OkHttpClient = createClient()
+
+    /** Internal TLS/DNS injection seam for the local HTTPS playback and redirect tests. */
+    internal fun createClient(
+        dns: Dns = safeDns,
+        sslSocketFactory: SSLSocketFactory? = null,
+        trustManager: X509TrustManager? = null,
+    ): OkHttpClient {
+        require((sslSocketFactory == null) == (trustManager == null)) {
+            "A test TLS socket factory and trust manager must be supplied together"
         }
-        .build()
+        return OkHttpClient.Builder()
+            .dns(dns)
+            .apply {
+                if (sslSocketFactory != null && trustManager != null) {
+                    sslSocketFactory(sslSocketFactory, trustManager)
+                }
+            }
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(false)
+            .retryOnConnectionFailure(false)
+            .addNetworkInterceptor { chain ->
+                validateUrl(chain.request().url)
+                chain.proceed(chain.request())
+            }
+            .build()
+    }
 
     internal fun validateUrl(url: HttpUrl) {
         if (url.scheme != "https" || url.host.isBlank() ||

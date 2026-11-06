@@ -1227,4 +1227,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">备份</string>
     <string name="updates">更新</string>
+    <string name="smart_playlists">智能播放列表</string>
+    <string name="auto_empty_albums_title">没有可用的专辑</string>
+    <string name="auto_empty_albums_subtitle">请检查网络连接后重试</string>
 </resources>

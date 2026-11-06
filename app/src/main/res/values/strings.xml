@@ -57,6 +57,8 @@ Project: AUDIFY
     <string name="auto_empty_quick_picks_subtitle">Check your connection and try again</string>
     <string name="auto_empty_playlists_title">No playlists available</string>
     <string name="auto_empty_playlists_subtitle">Check your connection and try again</string>
+    <string name="auto_empty_albums_title">No albums available</string>
+    <string name="auto_empty_albums_subtitle">Check your connection and try again</string>
     <string name="auto_empty_liked_title">No liked songs</string>
     <string name="auto_empty_liked_subtitle">Tap the heart on a song to save it here</string>
     <string name="auto_empty_offline_title">No offline songs</string>
@@ -186,6 +188,7 @@ Project: AUDIFY
     <string name="spatial_audio_atmos_subtitle">Paused for this track — Dolby Atmos is already spatial</string>
     <string name="animated_cover_cellular">Play animated cover over cellular</string>
     <string name="replay">Replay</string>
+    <string name="smart_playlists">Smart Playlists</string>
     <string name="replay_subtitle">Your top songs, artists, albums and genres</string>
     <string name="work_out_genres">Work out genres</string>
     <string name="export_data">Export data</string>

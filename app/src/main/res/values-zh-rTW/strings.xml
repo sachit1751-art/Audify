@@ -1189,4 +1189,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">備份</string>
     <string name="updates">更新</string>
+    <string name="smart_playlists">智慧播放清單</string>
+    <string name="auto_empty_albums_title">沒有可用的專輯</string>
+    <string name="auto_empty_albums_subtitle">請檢查網路連線後重試</string>
 </resources>
