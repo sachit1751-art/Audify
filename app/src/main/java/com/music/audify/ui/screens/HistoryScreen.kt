@@ -68,27 +68,33 @@ fun HistoryScreen(
 
             is UiState.Success -> {
                 val songs = state.data
-                val songKeys = songs.stableSongComposeKeys()
-                val isCurrentRow = playingRowMatcher(songs, currentSong)
-                // Duplicate video IDs receive occurrence suffixes, so keys stay
-                // unique without depending on a row's current position.
-                itemsIndexed(songs, songKeys) { index, song ->
-                    SongRow(
-                        song = song,
-                        onClick = { onSongClick(songs, index) },
-                        onLongPress = { onSongLongPress(song) },
-                        onSwipeToQueue = { onSongSwipe(song) },
-                        isCurrent = isCurrentRow(song),
-                        isPlaying = isCurrentRow(song) && isPlaying,
-                        searchPlayingStyle = true,
-                        activeTint = PlayingAccent,
-                    )
-                    if (index < songs.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
-                            thickness = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                if (songs.isEmpty()) {
+                    item(key = "history:empty") {
+                        MessageState(stringResource(R.string.history_empty))
+                    }
+                } else {
+                    val songKeys = songs.stableSongComposeKeys()
+                    val isCurrentRow = playingRowMatcher(songs, currentSong)
+                    // Duplicate video IDs receive occurrence suffixes, so keys stay
+                    // unique without depending on a row's current position.
+                    itemsIndexed(songs, songKeys) { index, song ->
+                        SongRow(
+                            song = song,
+                            onClick = { onSongClick(songs, index) },
+                            onLongPress = { onSongLongPress(song) },
+                            onSwipeToQueue = { onSongSwipe(song) },
+                            isCurrent = isCurrentRow(song),
+                            isPlaying = isCurrentRow(song) && isPlaying,
+                            searchPlayingStyle = true,
+                            activeTint = PlayingAccent,
                         )
+                        if (index < songs.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            )
+                        }
                     }
                 }
             }
