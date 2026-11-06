@@ -1558,11 +1558,11 @@ fun SettingsScreen(
         SearchableSettingsGroup(search, header = stringResource(R.string.backup)) {
             val exportDataTitle = stringResource(R.string.export_data)
             row(exportDataTitle, "backup", "export") {
-                val backupStatus = remember(context, resources, exportStatus) {
+                val backupStatus = remember(context, resources, locale, exportStatus) {
                     val formatter = java.text.DateFormat.getDateTimeInstance(
                         java.text.DateFormat.MEDIUM,
                         java.text.DateFormat.SHORT,
-                        java.util.Locale.getDefault(),
+                        locale,
                     )
                     val automaticAt = Backup.lastAutomaticBackupAt(context)
                     val externalAt = Backup.lastExternalBackupAt(context)
