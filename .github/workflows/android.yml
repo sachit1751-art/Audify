@@ -29,6 +29,7 @@ jobs:
   build:
     name: Build and verify production APKs
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -53,7 +54,7 @@ jobs:
           echo "Building Audify $VERSION_NAME (versionCode $VERSION_CODE)"
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: "21"
           distribution: temurin
@@ -77,31 +78,80 @@ jobs:
               exit 1
             fi
           done
-          printf 'LASTFM_API_KEY=%s\n' "$LASTFM_API_KEY" > local.properties
-          printf 'LASTFM_SECRET=%s\n' "$LASTFM_SECRET" >> local.properties
-          printf 'LISTEN_TOGETHER_SERVER=%s\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
-          printf '%s' "$KEYSTORE" | base64 -d > audify-release.jks
+          printf 'LASTFM_API_KEY=%s\\n' "$LASTFM_API_KEY" > local.properties
+          printf 'LASTFM_SECRET=%s\\n' "$LASTFM_SECRET" >> local.properties
+          printf 'LISTEN_TOGETHER_SERVER=%s\\n' "$LISTEN_TOGETHER_SERVER" >> local.properties
+          printf '%s' "$KEYSTORE" | base64 --decode > audify-release.jks
           test -s audify-release.jks
           {
-            printf 'storeFile=audify-release.jks\n'
-            printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
-            printf 'keyAlias=%s\n' "$KEY_ALIAS"
-            printf 'keyPassword=%s\n' "$KEY_PASSWORD"
+            printf 'storeFile=audify-release.jks\\n'
+            printf 'storePassword=%s\\n' "$KEYSTORE_PASSWORD"
+            printf 'keyAlias=%s\\n' "$KEY_ALIAS"
+            printf 'keyPassword=%s\\n' "$KEY_PASSWORD"
           } > keystore.properties
           chmod 600 audify-release.jks keystore.properties
+
+      - name: Validate signing credentials before the Gradle build
+        shell: bash
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          EXPECTED_CERT: 4bde8155328a9a8659ce6b75d1a0df2e4811c0ccdc555a52ccb3df2a4be94e21
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/VerifyAudifySigning.java" <<'JAVA'
+          import java.nio.file.Files;
+          import java.nio.file.Path;
+          import java.security.Key;
+          import java.security.KeyStore;
+          import java.security.MessageDigest;
+          import java.security.PrivateKey;
+          import java.util.HexFormat;
+
+          public class VerifyAudifySigning {
+              public static void main(String[] args) {
+                  try {
+                      KeyStore store = KeyStore.getInstance("JKS");
+                      try (var input = Files.newInputStream(Path.of("audify-release.jks"))) {
+                          store.load(input, System.getenv("KEYSTORE_PASSWORD").toCharArray());
+                      }
+                      String alias = System.getenv("KEY_ALIAS");
+                      if (!store.containsAlias(alias)) {
+                          throw new IllegalStateException("The configured key alias does not exist in the keystore.");
+                      }
+                      Key key = store.getKey(alias, System.getenv("KEY_PASSWORD").toCharArray());
+                      if (!(key instanceof PrivateKey)) {
+                          throw new IllegalStateException("The configured alias does not contain an accessible private key.");
+                      }
+                      byte[] encoded = store.getCertificate(alias).getEncoded();
+                      String fingerprint = HexFormat.of().formatHex(
+                          MessageDigest.getInstance("SHA-256").digest(encoded)
+                      );
+                      if (!fingerprint.equalsIgnoreCase(System.getenv("EXPECTED_CERT"))) {
+                          throw new IllegalStateException("The signing certificate does not match the approved Audify release identity.");
+                      }
+                      System.out.println("Signing keystore, alias, passwords and approved certificate verified.");
+                  } catch (Exception error) {
+                      System.err.println("Signing preflight failed: " + error.getMessage());
+                      System.exit(1);
+                  }
+              }
+          }
+          JAVA
+          javac -d "$RUNNER_TEMP" "$RUNNER_TEMP/VerifyAudifySigning.java"
+          java -cp "$RUNNER_TEMP" VerifyAudifySigning
 
       - name: Enable Gradle wrapper
         run: chmod +x gradlew
 
       - name: Run unit-test gates
-        run: ./gradlew --no-daemon :app:testDevDebugUnitTest :app:testProdDebugUnitTest :tv:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :app:testProdDebugUnitTest :tv:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
 
       - name: Run production release lint
-        run: ./gradlew --no-daemon :app:lintProdRelease :tv:lintProdRelease :wearos:lintProdRelease
+        run: ./gradlew --no-daemon --max-workers=2 :app:lintProdRelease :tv:lintProdRelease :wearos:lintProdRelease
 
       - name: Build all production APK variants
-        # Serialize memory-heavy R8 workers so phone and TV shrinking do not
-        # compete for heap on the hosted runner.
         run: ./gradlew --no-daemon --max-workers=1 :app:assembleProdRelease :tv:assembleProdRelease :wearos:assembleProdRelease
 
       - name: Stage exactly four release APKs in the required order
@@ -118,7 +168,7 @@ jobs:
             mapfile -d '' -t matches < <(find "$source_dir" -maxdepth 1 -type f -name "$pattern" -print0 | sort -z)
             if [ "${#matches[@]}" -ne 1 ]; then
               echo "::error::Expected exactly one $pattern in $source_dir; found ${#matches[@]}"
-              printf '%s\n' "${matches[@]}"
+              printf '%s\\n' "${matches[@]}"
               exit 1
             fi
             cp "${matches[0]}" "dist/$destination"
@@ -130,10 +180,10 @@ jobs:
           copy_one wearos/build/outputs/apk/prod/release '*-universal-release.apk' "AudifyWear-$VERSION_NAME.apk"
 
           test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 4
-          printf '%s\n' \
-            "1. Audify Phone — Universal" \
-            "2. Audify Phone — ARM64" \
-            "3. Audify Android TV — Universal" \
+          printf '%s\\n' \\
+            "1. Audify Phone — Universal" \\
+            "2. Audify Phone — ARM64" \\
+            "3. Audify Android TV — Universal" \\
             "4. Audify Wear OS — Universal"
 
       - name: Verify package IDs, versions and production signatures
@@ -143,16 +193,11 @@ jobs:
           BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
           AAPT="$BUILD_TOOLS/aapt"
           APKSIGNER="$BUILD_TOOLS/apksigner"
-          # v1.8.9 intentionally starts a new signing identity after the
-          # previous private key became unavailable. Pin its public
-          # certificate fingerprint so stale Actions secrets cannot silently
-          # publish another incompatible signing identity.
           EXPECTED_CERT="4bde8155328a9a8659ce6b75d1a0df2e4811c0ccdc555a52ccb3df2a4be94e21"
-          echo "Expected new Audify signing certificate: $EXPECTED_CERT"
-          for apk in \
-            "dist/Audify-$VERSION_NAME.apk" \
-            "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \
-            "dist/AudifyTV-$VERSION_NAME.apk" \
+          for apk in \\
+            "dist/Audify-$VERSION_NAME.apk" \\
+            "dist/Audify-$VERSION_NAME""_arm64-v8a.apk" \\
+            "dist/AudifyTV-$VERSION_NAME.apk" \\
             "dist/AudifyWear-$VERSION_NAME.apk"; do
             test -s "$apk"
             case "$apk" in
@@ -166,27 +211,24 @@ jobs:
             }
             "$APKSIGNER" verify --verbose "$apk"
             CERT_OUTPUT="$("$APKSIGNER" verify --print-certs "$apk" 2>&1)"
-            cert="$(printf '%s\n' "$CERT_OUTPUT" | grep -Eio '[0-9a-f]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]' || true)"
+            cert="$(printf '%s\\n' "$CERT_OUTPUT" | grep -Eio '[0-9a-f]{64}' | head -n 1 | tr '[:upper:]' '[:lower:]' || true)"
             test -n "$cert"
             echo "APK signing certificate SHA-256 ($apk): $cert"
             if [ "$cert" != "$EXPECTED_CERT" ]; then
-              echo "::error::Signing certificate mismatch in $apk; it does not match the approved v1.8.9 signing identity."
+              echo "::error::Signing certificate mismatch in $apk; it does not match the approved release identity."
               exit 1
             fi
             echo "Verified: $apk ($expected_package, $VERSION_NAME/$VERSION_CODE)"
           done
 
-          # Phone and TV ship native code for all three configured ABIs. A
-          # universal APK must retain each ABI's complete native payload;
-          # the ARM64 phone APK remains available as the smaller phone option.
           require_native_payload() {
             local apk="$1"
             local abi="$2"
             local entry
-            for entry in \
-              "lib/$abi/libffmpegJNI.so" \
-              "lib/$abi/libaudify_analysis.so" \
-              "lib/$abi/libaudify_dsd.so" \
+            for entry in \\
+              "lib/$abi/libffmpegJNI.so" \\
+              "lib/$abi/libaudify_analysis.so" \\
+              "lib/$abi/libaudify_dsd.so" \\
               "lib/$abi/libaudify_dst.so"; do
               if ! unzip -Z1 "$apk" | grep -Fx "$entry" >/dev/null; then
                 echo "::error::Universal APK $apk is missing required native library $entry"
@@ -200,7 +242,7 @@ jobs:
             done
             echo "Verified universal native payload: $apk (armeabi-v7a, arm64-v8a, x86_64)"
           done
-          echo "All four APKs match the approved new Audify signing certificate."
+          echo "All four APKs match the approved Audify signing certificate."
 
       - name: Report dry-run completion
         if: ${{ inputs.dry_run == true }}
@@ -220,6 +262,7 @@ jobs:
     name: Publish approved GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: release
       url: https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag || github.ref_name }}
@@ -235,24 +278,31 @@ jobs:
           name: audify-release-apks
           path: dist
 
-      - name: Create draft release and upload assets sequentially
+      - name: Create or safely reuse the draft release and upload assets
         shell: bash
         run: |
           set -euo pipefail
           VERSION_NAME="${TAG#v}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::error::A release for $TAG already exists. Refusing to overwrite existing release assets."
-            exit 1
-          fi
-
           NOTES_FILE="docs/releases/RELEASE_NOTES_${VERSION_NAME}.md"
           if [ ! -s "$NOTES_FILE" ]; then
             echo "::error::Missing versioned release notes: $NOTES_FILE"
             exit 1
           fi
-          gh release create "$TAG" --draft --title "Audify $VERSION_NAME" --notes-file "$NOTES_FILE"
 
-          # Upload sequentially. GitHub preserves the asset creation order.
+          if existing="$(gh release view "$TAG" --json isDraft,assets 2>/dev/null)"; then
+            is_draft="$(jq -r '.isDraft' <<< "$existing")"
+            asset_count="$(jq '.assets | length' <<< "$existing")"
+            if [ "$is_draft" != "true" ] || [ "$asset_count" -ne 0 ]; then
+              echo "::error::Release $TAG already exists and is published or contains assets. Refusing to overwrite it."
+              exit 1
+            fi
+            echo "Reusing the existing empty draft release for $TAG."
+            gh release edit "$TAG" --title "Audify $VERSION_NAME" --notes-file "$NOTES_FILE"
+          else
+            echo "Creating a new draft release for $TAG."
+            gh release create "$TAG" --draft --title "Audify $VERSION_NAME" --notes-file "$NOTES_FILE"
+          fi
+
           gh release upload "$TAG" "dist/Audify-$VERSION_NAME.apk"
           gh release upload "$TAG" "dist/Audify-$VERSION_NAME""_arm64-v8a.apk"
           gh release upload "$TAG" "dist/AudifyTV-$VERSION_NAME.apk"
