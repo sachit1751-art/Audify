@@ -63,8 +63,8 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | TV motion accessibility | **TODO** |
 | [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | Wear OS accessibility | **TODO** |
 | [075 - Collaborative Playlists](075-collaborative-playlists.md) | Persistent shared playlists | **Planned - blocked on verified identity, durable storage and portable track IDs** |
-| [076 - Smart Playlists](076-smart-playlists.md) | Rule-based auto-updating playlists | **Proposal - signal audit required** |
-| [077 - Android Auto](077-android-auto.md) | Car-safe browse and playback | **Proposal - automotive integration audit required** |
+| [076 - Smart Playlists](076-smart-playlists.md) | Rule-based auto-updating playlists | **Implemented in v1.9.0** |
+| [077 - Android Auto](077-android-auto.md) | Car-safe browse and playback | **Media3 browse/playback integration in v1.9.0; real vehicle validation remains** |
 | [078 - Cross-service Music Migration](078-cross-service-music-migration.md) | Import supported service exports | **Proposal - companion to 03; 03 owns import pipeline** |
 | [079 - Smart Music Radio](079-smart-music-radio.md) | Endless seed-based listening | **Proposal - companion to 07; 07 owns ranking** |
 | [080 - Home Screen Widgets and Quick Settings](080-home-widgets-quick-settings.md) | External playback controls | **Proposal - reuse MediaSession state** |
