@@ -21,7 +21,7 @@ Project: AUDIFY
 </p>
 
 <p align="center">
-  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>↓ Download Audify</strong></a>
+  <a href="#downloads"><strong>↓ Download Audify 1.9.0</strong></a>
 </p>
 
 <p align="center">
@@ -139,8 +139,21 @@ See Audify as it actually looks. These are captures from the app, not concept mo
 | **Android phones and tablets** | Full music discovery, library management, playback, lyrics and downloads. |
 | **Android TV** | A dedicated TV experience for browsing and listening on a larger screen. |
 | **Wear OS** | A companion experience for supported watch-based playback controls. |
-| **Desktop (Windows, macOS and Linux)** | A native Rust desktop music client with platform-specific builds. See the [desktop project guide](desktop/README.md) for setup and build instructions. |
+| **Desktop (Windows)** | Native Rust desktop client. The 1.9.0 release provides a Windows x64 installer; macOS and Linux installers are not included in this release. See the [desktop project guide](desktop/README.md). |
 
+## Downloads
+
+The current stable release is **Audify 1.9.0**. Download the build for your device from the links below, or open the [complete GitHub release](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.0) to view every asset and its checksum metadata.
+
+| Platform | Download | Notes |
+| --- | --- | --- |
+| Android phone / tablet | [Universal APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/Audify-prod-universal-release.apk) | Recommended for most devices. |
+| Android phone / tablet | [ARM64 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/Audify-prod-arm64-v8a-release.apk) · [ARMv7 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/Audify-prod-armeabi-v7a-release.apk) · [x86_64 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/Audify-prod-x86_64-release.apk) | Choose the ABI matching your device if you specifically need an architecture-specific package. |
+| Android TV / Google TV | [AudifyTV 1.9.0 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/AudifyTV-1.9.0.apk) | TV-specific interface; not the phone app. |
+| Wear OS | [Universal Wear OS APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/AudifyWear-prod-universal-release.apk) | Companion app; requires a compatible phone app. |
+| Windows x64 | [Audify Setup](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/Audify-Setup.exe) | Windows installer; currently unsigned. |
+
+For installation notes and platform-specific requirements, see the [Android TV guide](tv/README.md), [Wear OS guide](wearos/README.md), and [Desktop guide](desktop/README.md). Linux and macOS desktop downloads are not available in 1.9.0.
 ## Community
 
 - **Questions and ideas:** [GitHub Discussions](https://github.com/sachit1751-art/Audify/discussions)

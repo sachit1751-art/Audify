@@ -31,6 +31,9 @@ build type, and the app listens only while it is on screen or playing.
 | `../app/src/main/java/.../playback/cast/RemoteSpeaker.kt` | The receiver seam Cast and the watch share |
 | `../tv/src/main/java/.../wear/WearBridge.kt` | No-op stand-in, so the TV build carries none of it |
 
+## Download the 1.9.0 release
+
+The [AudifyWear 1.9.0 universal APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.0/AudifyWear-prod-universal-release.apk) is published with the [Audify 1.9.0 release](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.0). Wear OS is a companion to the phone app, not a standalone music player. Phone and watch builds must have matching application flavor, package identity, and signing key to pair through the Wearable Data Layer. If pairing fails, verify that both devices are running compatible builds from the same release channel.
 ## Dev and prod
 
 The Wearable Data Layer only connects apps that have the same package name and
