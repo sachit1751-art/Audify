@@ -118,6 +118,7 @@ Project: AUDIFY
     <string name="spatial_audio_atmos_subtitle">इस ट्रैक के लिए रुका हुआ — Dolby Atmos पहले से ही स्पेशियल है</string>
     <string name="animated_cover_cellular">मोबाइल डेटा पर एनिमेटेड कवर चलाएं</string>
     <string name="replay">Replay</string>
+    <string name="smart_playlists">स्मार्ट प्लेलिस्ट</string>
     <string name="replay_subtitle">आपके टॉप गाने, कलाकार, एल्बम और शैलियां</string>
     <string name="work_out_genres">शैलियों का पता लगाएं</string>
     <string name="export_data">डेटा एक्सपोर्ट करें</string>
@@ -1254,4 +1255,6 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">बैकअप</string>
     <string name="updates">अपडेट</string>
+    <string name="auto_empty_albums_title">कोई एल्बम उपलब्ध नहीं है</string>
+    <string name="auto_empty_albums_subtitle">अपना कनेक्शन जाँचें और फिर कोशिश करें</string>
 </resources>

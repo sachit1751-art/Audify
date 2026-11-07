@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -195,7 +196,12 @@ fun ProfileScreen(
                                 .background(MaterialTheme.colorScheme.surfaceContainerLow).padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text("Listening by hour", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Listening by hour",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                             val maxHour = data.hourOfDay.maxOrNull()?.coerceAtLeast(1L) ?: 1L
                             Row(Modifier.fillMaxWidth().height(76.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
                                 data.hourOfDay.forEachIndexed { hour, ms ->
@@ -275,7 +281,7 @@ fun ProfileScreen(
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 data.artists.take(3).forEachIndexed { index, artist ->
                                     Column(
-                                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainerLow).padding(10.dp),
+                                        Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(Color.Transparent).padding(10.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(5.dp),
                                     ) {

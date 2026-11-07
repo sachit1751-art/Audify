@@ -1220,4 +1220,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">Sao lưu</string>
     <string name="updates">Cập nhật</string>
+    <string name="smart_playlists">Danh sách phát thông minh</string>
+    <string name="auto_empty_albums_title">Không có album</string>
+    <string name="auto_empty_albums_subtitle">Kiểm tra kết nối rồi thử lại</string>
 </resources>

@@ -12,6 +12,7 @@ import com.music.audify.playback.PlayableMedia
 import com.music.audify.playback.PodcastEpisodeRef
 import com.music.audify.playback.QueueEntryMetadata
 import com.music.audify.playback.isPodcastEpisode
+import com.music.audify.playback.hasSupportedPlayableKind
 import com.music.audify.playback.toMediaItem
 import com.music.audify.playback.toPlayableMedia
 import com.music.audify.playback.toSongOrNull
@@ -52,6 +53,7 @@ class PlayableMediaTest {
         assertEquals("music-occurrence-1", decoded.queueEntryId)
         assertEquals("music-video-id", item.toSongOrNull()?.videoId)
         assertFalse(item.isPodcastEpisode)
+        assertTrue(item.hasSupportedPlayableKind)
     }
 
     @Test
@@ -103,9 +105,28 @@ class PlayableMediaTest {
 
         assertNull(item.toSongOrNull())
         assertFalse(item.isPodcastEpisode)
+        assertFalse(item.hasSupportedPlayableKind)
         try {
             item.toPlayableMedia()
             throw AssertionError("Unknown media kind must be rejected")
+        } catch (expected: IllegalStateException) {
+            assertTrue(expected.message.orEmpty().contains("Unsupported Audify media kind"))
+        }
+    }
+
+    @Test
+    fun missingMediaKindIsRejectedRatherThanGuessedAsMusic() {
+        val unknown = MediaItem.Builder()
+            .setMediaId("untyped-media-id")
+            .setUri("https://example.org/audio.mp3")
+            .setMediaMetadata(MediaMetadata.Builder().setTitle("Unspecified media").build())
+            .build()
+
+        assertFalse(unknown.hasSupportedPlayableKind)
+        assertNull(unknown.toSongOrNull())
+        try {
+            unknown.toPlayableMedia()
+            throw AssertionError("Missing media kind must be rejected")
         } catch (expected: IllegalStateException) {
             assertTrue(expected.message.orEmpty().contains("Unsupported Audify media kind"))
         }

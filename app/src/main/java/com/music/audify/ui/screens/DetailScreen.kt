@@ -286,6 +286,7 @@ fun DetailScreen(
     onSongClick: (List<Song>, Int) -> Unit,
     onSongLongPress: (Song) -> Unit,
     onSongSwipe: (Song) -> Unit,
+    onRetry: () -> Unit = {},
     onShuffle: (List<Song>) -> Unit,
     onSectionItemClick: (ShelfItem) -> Unit,
     onArtistClick: (String, String) -> Unit,
@@ -679,7 +680,9 @@ fun DetailScreen(
 
             when (val state = page.songs) {
                 is UiState.Loading -> detailSkeleton(isArtist)
-                is UiState.Error -> item(key = "detail:error") { MessageState(state.message) }
+                is UiState.Error -> item(key = "detail:error") {
+                    MessageState(state.message, actionLabel = stringResource(R.string.try_again), onAction = onRetry)
+                }
                 is UiState.Success -> if (folder != null && folderState != null) {
                     localFolderItems(
                         folder = folder,

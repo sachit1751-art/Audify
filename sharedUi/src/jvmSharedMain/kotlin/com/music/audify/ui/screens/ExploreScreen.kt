@@ -36,6 +36,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
@@ -119,8 +120,18 @@ fun ExploreScreen(
                         val rows = state.data.flatMap(MoodGenreSection::items)
                             .distinctBy { it.browseId to it.params }
                             .chunked(columns)
-                        items(rows, key = { row -> row.first().let { "${it.browseId}|${it.params}" } }) { row ->
-                            MoodGenreRow(row = row, columns = columns, onCategoryClick = onCategoryClick)
+                        if (rows.isEmpty()) {
+                            item(key = "explore:empty") {
+                                MessageState(
+                                    stringResource(Res.string.explore_empty),
+                                    actionLabel = stringResource(Res.string.retry),
+                                    onAction = onRetry,
+                                )
+                            }
+                        } else {
+                            items(rows, key = { row -> row.first().let { "${it.browseId}|${it.params}" } }) { row ->
+                                MoodGenreRow(row = row, columns = columns, onCategoryClick = onCategoryClick)
+                            }
                         }
                     }
                 }
@@ -172,7 +183,7 @@ private fun MoodGenreCard(
             .aspectRatio(1.42f)
             .clip(MOOD_CARD_SHAPE)
             .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
     )
 }
 
@@ -361,8 +372,18 @@ fun MoodGenrePlaylistsScreen(
             is UiState.Error -> item(key = "explore-feed:error") {
                 MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
             }
-            is UiState.Success -> items(state.data, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
-                Shelf(shelf = shelf, onItemClick = onItemClick)
+            is UiState.Success -> if (state.data.isEmpty()) {
+                item(key = "explore-feed:empty") {
+                    MessageState(
+                        stringResource(Res.string.explore_empty),
+                        actionLabel = stringResource(Res.string.retry),
+                        onAction = onRetry,
+                    )
+                }
+            } else {
+                items(state.data, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
+                    Shelf(shelf = shelf, onItemClick = onItemClick)
+                }
             }
         }
     }

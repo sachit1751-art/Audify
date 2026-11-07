@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Sachit. All rights reserved.
 // Project: AUDIFY
+// Listening-threshold and progress-sampling approach adapted from BitChord (GPL-3.0):
+// https://github.com/kushagrasinghx/BitChord
 package com.music.audify.data.stats
 
 import com.music.audify.data.YtMusicRepository

@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Sachit. All rights reserved.
 // Project: AUDIFY
+// Monthly aggregate design adapted from BitChord (GPL-3.0):
+// https://github.com/kushagrasinghx/BitChord
 package com.music.audify.data.stats
 
 import android.content.Context
@@ -356,6 +358,48 @@ object ListeningStats {
         merged.toSummary(period, today).also {
             cached = Cached(period, version, facts, today, it)
         }
+    }
+
+    /**
+     * A compact listening-history snapshot for rule evaluation and discovery.
+     *
+     * Unlike [summary], this retains the last-play timestamp as well as the
+     * aggregate play count and listening time. It reads the same bounded
+     * monthly buckets; it does not introduce a second event log or storage
+     * format. Callers should evaluate this off the main thread.
+     */
+    suspend fun trackSnapshot(): List<ListeningTrackSnapshot> = withContext(Dispatchers.IO) {
+        if (!ready) return@withContext emptyList()
+        flushAndAwait()
+        val merged = linkedMapOf<String, TrackEntry>()
+        months().forEach { month ->
+            read(month.toString())?.tracks.orEmpty().forEach { entry ->
+                merged.merge(entry.id, entry.copy(days = entry.days.toMutableMap())) { current, next ->
+                    current.also { it.absorb(next) }
+                }
+            }
+        }
+        merged.values.map { entry ->
+            ListeningTrackSnapshot(
+                videoId = entry.id,
+                song = Song(
+                    videoId = entry.id,
+                    title = entry.title,
+                    artist = entry.artist,
+                    thumbnailUrl = entry.art,
+                    artistId = entry.artistId,
+                    albumId = entry.albumId,
+                    albumName = entry.album,
+                ),
+                plays = entry.plays,
+                listenedMs = entry.ms,
+                lastPlayedAtEpochMs = entry.last.takeIf { it > 0L },
+            )
+        }.sortedWith(
+            compareByDescending<ListeningTrackSnapshot> { it.lastPlayedAtEpochMs ?: 0L }
+                .thenByDescending { it.plays }
+                .thenByDescending { it.listenedMs },
+        )
     }
 
     /**
@@ -1055,6 +1099,15 @@ data class RankedEntry(
 
 /** A song row, which keeps the whole [Song] so tapping it can play it. */
 data class RankedSong(val song: Song, val ms: Long, val plays: Int)
+
+/** Listening totals for one track, merged across the retained monthly buckets. */
+data class ListeningTrackSnapshot(
+    val videoId: String,
+    val song: Song,
+    val plays: Int,
+    val listenedMs: Long,
+    val lastPlayedAtEpochMs: Long?,
+)
 
 /** How far back a Replay reaches. */
 enum class ReplayPeriod(val chip: String) {

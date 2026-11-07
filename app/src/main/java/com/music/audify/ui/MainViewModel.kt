@@ -121,7 +121,7 @@ private data class LocalLibrarySyncTrigger(
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    /** One random discovery layout per installation; uninstalling resets it. */
+    /** Installation-specific salt mixed into each fresh Home session seed. */
     private val homeVariationSeed: Long = runCatching {
         // noBackupFilesDir is cleared on uninstall and excluded from Android
         // backup, so a restored install gets a genuinely fresh discovery seed.
@@ -155,7 +155,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Track ids already rendered anywhere in this Home browsing session. */
     private val homeSeenVideoIds = mutableSetOf<String>()
 
-    /** Previous session's tracks, used only to rank fresh tracks ahead on refresh. */
+    /** Previous Home session's tracks, avoided per shelf when fresh alternatives exist. */
     private val homePreviousSessionVideoIds = mutableSetOf<String>()
 
     /** Continuation tokens already requested, preventing server-side token loops. */
@@ -3514,6 +3514,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _detailStack.value = stack.dropLast(1)
         navigator.onDetailStackShrunk(_detailStack.value.size)
         return true
+    }
+
+    /** Reopens the visible detail page in place after its loading state failed. */
+    fun retryDetail() {
+        val page = _detailStack.value.lastOrNull() ?: return
+        if (!closeDetail()) return
+        openDetail(page.browseId, page.title, page.subtitle, page.thumbnailUrl, page.type)
     }
 
     /**

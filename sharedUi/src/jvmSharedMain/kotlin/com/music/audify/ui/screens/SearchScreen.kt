@@ -128,6 +128,7 @@ fun SearchScreen(
     suggestions: List<String>,
     typeaheadResults: List<SearchResult>,
     onSubmit: () -> Unit,
+    onRetryLibrary: () -> Unit = {},
     onSuggestionClick: (String) -> Unit,
     onHistoryClick: (SearchHistoryEntity) -> Unit,
     onHistoryRemove: (String) -> Unit,
@@ -271,6 +272,7 @@ fun SearchScreen(
                     onSongClick = onLibrarySongClick,
                     onSongLongPress = onSongLongPress,
                     onSongSwipe = onSongSwipe,
+                    onRetry = if (searchingAddons) onSubmit else onRetryLibrary,
                 )
                 suggesting -> {
                     searchSuggestions(
@@ -311,7 +313,9 @@ fun SearchScreen(
                     )
                 }
                 results is UiState.Loading -> songListSkeleton(circular = filter == SearchFilter.ARTISTS)
-                results is UiState.Error -> item(key = "search:error") { MessageState(results.message) }
+                results is UiState.Error -> item(key = "search:error") {
+                    MessageState(results.message, actionLabel = stringResource(Res.string.retry), onAction = onSubmit)
+                }
                 results is UiState.Success -> {
                     val tracks = results.data
                         .mapNotNull { row -> when (row) {
@@ -322,6 +326,11 @@ fun SearchScreen(
                         } }
                     val isCurrentRow = playingRowMatcher(tracks, currentSong)
                     val topResult = results.data.filterIsInstance<SearchResult.TopTrack>().firstOrNull()
+                    if (results.data.isEmpty()) {
+                        item(key = "search:no-results") {
+                            MessageState(stringResource(Res.string.search_no_results, query.trim()))
+                        }
+                    }
                     if (filter == SearchFilter.ALL && topResult != null) {
                         item(key = "search:top-result:${topResult.song.videoId}") {
                             SwipeToQueueBox(
@@ -437,6 +446,7 @@ private fun LazyListScope.librarySearchResults(
     onSongClick: (List<Song>, Int) -> Unit,
     onSongLongPress: (Song) -> Unit,
     onSongSwipe: (Song) -> Unit,
+    onRetry: () -> Unit,
 ) {
     when (results) {
         null -> if (addons && query.isEmpty() && addonHistory.isNotEmpty()) {
@@ -447,7 +457,9 @@ private fun LazyListScope.librarySearchResults(
             )
         }
         UiState.Loading -> songListSkeleton(keyPrefix = "skeleton:search:library")
-        is UiState.Error -> item(key = "library:error") { MessageState(results.message) }
+        is UiState.Error -> item(key = "library:error") {
+            MessageState(results.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
+        }
         is UiState.Success -> if (results.data.isEmpty()) {
             item(key = "library:no-match") {
                 MessageState(
@@ -639,9 +651,9 @@ private fun SuggestionRow(
         if (onFill != null) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .clickable(onClick = onFill),
+                    .clickable(role = Role.Button, onClick = onFill),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -655,7 +667,7 @@ private fun SuggestionRow(
             // Match the arrow button's full touch target, not only its width.
             // A width-only spacer made the first row shorter than the ones
             // below, so its vertical rhythm looked visibly uneven.
-            Spacer(Modifier.size(40.dp))
+            Spacer(Modifier.size(48.dp))
         }
     }
 }

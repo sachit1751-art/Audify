@@ -478,13 +478,20 @@ private fun MediaItem.toMusicSong() = Song(
 val MediaItem.isPodcastEpisode: Boolean
     get() = mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND) == MEDIA_KIND_PODCAST
 
+/** MediaItems must carry an explicit supported kind; unknown and missing kinds fail closed. */
+val MediaItem.hasSupportedPlayableKind: Boolean
+    get() = when (mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND)) {
+        MEDIA_KIND_MUSIC, MEDIA_KIND_PODCAST -> true
+        else -> false
+    }
+
 /**
- * Typed conversion at the Media3 boundary. Items written before the kind marker
- * existed remain music for backwards compatibility; unknown future kinds fail closed.
+ * Typed conversion at the Media3 boundary. The media kind is explicit; missing
+ * and unknown values are rejected rather than inferred from IDs or URI shape.
  */
 fun MediaItem.toPlayableMedia(): PlayableMedia {
     return when (mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND)) {
-        null, MEDIA_KIND_MUSIC -> PlayableMedia.Music(toMusicSong())
+        MEDIA_KIND_MUSIC -> PlayableMedia.Music(toMusicSong())
         MEDIA_KIND_PODCAST -> {
             val extras = requireNotNull(mediaMetadata.extras) { "Podcast item is missing metadata" }
             PlayableMedia.Podcast(
@@ -514,7 +521,7 @@ fun MediaItem.toPlayableMedia(): PlayableMedia {
 /** Music-only compatibility conversion. Podcast and unknown items never become fake Songs. */
 fun MediaItem.toSongOrNull(): Song? = when (mediaMetadata.extras?.getString(EXTRA_MEDIA_KIND)) {
     MEDIA_KIND_PODCAST -> null
-    null, MEDIA_KIND_MUSIC -> toMusicSong()
+    MEDIA_KIND_MUSIC -> toMusicSong()
     else -> null
 }
 

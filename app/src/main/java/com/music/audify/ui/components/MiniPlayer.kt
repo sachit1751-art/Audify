@@ -74,19 +74,16 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
- * The transport buttons' touch target. Material's default 48dp is what a bar
- * this slim is really made of, so it sets the height on its own.
+ * The transport buttons' touch target. Keep the full 48dp target even though
+ * the glyph itself is smaller; the row's vertical padding keeps the bar slim.
  */
-private val GLYPH_SLOT = 40.dp
+private val GLYPH_SLOT = 48.dp
 
 /**
  * The play and skip glyphs themselves.
  *
- * Deliberately grown inside [GLYPH_SLOT] rather than by growing the slot: the
- * slot is level with the 40dp artwork opposite it, and it is the taller of the
- * two that sets the row's height — so a bigger slot would make the whole bar
- * taller, which is not what a bigger glyph is being asked for. At 32 there is
- * still 4dp of clearance to the slot's edge on every side.
+ * Deliberately kept smaller than [GLYPH_SLOT], leaving 8dp of clearance to
+ * the touch target's edge on every side.
  */
 private val GLYPH_SIZE = 32.dp
 
@@ -108,10 +105,10 @@ private val SPINNER_SIZE = 22.dp
 private val TRANSPORT_GAP = 8.dp
 
 /**
- * Vertical padding, which with the 40dp artwork sets the bar's height at 56dp
- * and so its pill radius at 28.
+ * Vertical padding, which with the 48dp transport target keeps the bar's
+ * height at 56dp and its pill radius at 28.
  */
-private val ROW_PADDING_VERTICAL = 8.dp
+private val ROW_PADDING_VERTICAL = 4.dp
 
 /**
  * Horizontal padding, deliberately larger than the vertical.

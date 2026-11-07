@@ -133,6 +133,39 @@ private val HOME_TITLE_LIFT = 64.dp
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
+internal fun HomeShelf.isRecentHistory(): Boolean =
+    title.trim().equals(RECENTS_TITLE, ignoreCase = true) ||
+        title.trim().equals("Recently played", ignoreCase = true)
+
+private fun HomeShelf.isLeadRecommendationCandidate(): Boolean =
+    !isRecentHistory() &&
+        !title.trim().equals("Quick picks", ignoreCase = true) &&
+        !title.trim().equals("Listen again", ignoreCase = true) &&
+        !title.trim().equals("Keep listening", ignoreCase = true) &&
+        !title.contains("video", ignoreCase = true) &&
+        items.any { it.videoId != null || it.browseId != null }
+
+internal data class HomeShelfPositions(
+    val recentIndex: Int,
+    val leadIndex: Int,
+    val discoveryInsertIndex: Int,
+)
+
+internal fun homeShelfPositions(shelves: List<HomeShelf>): HomeShelfPositions {
+    val recentIndex = shelves.indexOfFirst(HomeShelf::isRecentHistory)
+    val leadIndex = shelves.indexOfFirst(HomeShelf::isLeadRecommendationCandidate)
+    val discoveryInsertIndex = when {
+        leadIndex >= 0 -> leadIndex
+        recentIndex >= 0 -> recentIndex
+        shelves.isNotEmpty() -> 0
+        else -> -1
+    }
+    return HomeShelfPositions(recentIndex, leadIndex, discoveryInsertIndex)
+}
+
+internal fun homeLeadUsesHero(availableWidth: Dp, enabled: Boolean): Boolean =
+    enabled && availableWidth < 900.dp
+
 /** Minimum useful width for one Quick Picks column before another is added. */
 private val QUICK_PICK_MIN_COLUMN_WIDTH = 208.dp
 private val QUICK_PICK_COLUMN_SPACING = 18.dp
@@ -226,9 +259,7 @@ fun HomeScreen(
     val featuredItemIds = remember(timeAwareShelf) {
         timeAwareShelf?.items.orEmpty().mapNotNull { it.videoId ?: it.browseId }.toSet()
     }
-    val isChronologicalHistoryShelf: (HomeShelf) -> Boolean = { shelf ->
-        shelf.title.trim().lowercase(Locale.ROOT) in setOf("recents", "recently played")
-    }
+    val isChronologicalHistoryShelf: (HomeShelf) -> Boolean = HomeShelf::isRecentHistory
 
     PullToRefresh(
         refreshing = refreshing,
@@ -236,100 +267,107 @@ fun HomeScreen(
         state = pullState,
         modifier = modifier,
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            // The heading sits higher than the other tabs' first row: pull the
-            // whole feed up by [HOME_TITLE_LIFT] with it.
-            contentPadding = if (title != null) {
-                PaddingValues(
-                    top = (contentPadding.calculateTopPadding() - HOME_TITLE_LIFT).coerceAtLeast(0.dp),
-                    bottom = contentPadding.calculateBottomPadding(),
-                )
-            } else {
-                contentPadding
-            },
-        ) {
-            if (title != null) {
-                item(key = "home-compact-header") {
-                    HomeTitle(
-                        onSearchClick = onSearchClick,
-                        onBluetoothClick = openAudioOutput,
-                        onProfileClick = onProfileClick,
-                        profileThumbnailUrl = profileThumbnailUrl,
-                        userName = userName,
-                        greetingMorning = greetingMorning,
-                        greetingAfternoon = greetingAfternoon,
-                        greetingEvening = greetingEvening,
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // Full-bleed hero cards suit phone and portrait-tablet widths. On
+            // landscape tablets / desktop-sized panes, keep the same featured
+            // priority but use the denser standard shelf treatment.
+            val showLeadHero = homeLeadUsesHero(maxWidth, leadHero)
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                // The heading sits higher than the other tabs' first row: pull the
+                // whole feed up by [HOME_TITLE_LIFT] with it.
+                contentPadding = if (title != null) {
+                    PaddingValues(
+                        top = (contentPadding.calculateTopPadding() - HOME_TITLE_LIFT).coerceAtLeast(0.dp),
+                        bottom = contentPadding.calculateBottomPadding(),
                     )
-                }
-            }
-            if (!signedIn && onSignIn != null) {
-                item(key = "home:sign-in") {
-                    SignInBanner(onSignIn = onSignIn, modifier = Modifier.padding(bottom = 8.dp))
-                }
-            }
-            if (timeAwareShelf != null) {
-                item(key = "time-aware-discovery-shelf") {
-                    Shelf(
-                        shelf = timeAwareShelf,
-                        onItemClick = { item -> onItemClick(item, timeAwareShelf.title) },
-                        onItemLongPress = onItemLongPress,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                    )
-                }
-            }
-            when (state) {
-                is UiState.Loading -> {
-                    if (recentlyPlayedLoading) {
-                        recentlyPlayedSkeleton(listLayout = recentsViewType == LibraryViewType.LIST)
-                        // Recents owns the leading layout while its request is
-                        // pending, so the feed behind it starts with ordinary
-                        // shelf placeholders rather than another hero card.
-                        feedSkeleton(firstIsHero = false)
-                    } else {
-                        feedSkeleton(firstIsHero = leadHero)
+                } else {
+                    contentPadding
+                },
+            ) {
+                if (title != null) {
+                    item(key = "home-compact-header") {
+                        HomeTitle(
+                            onSearchClick = onSearchClick,
+                            onBluetoothClick = openAudioOutput,
+                            onProfileClick = onProfileClick,
+                            profileThumbnailUrl = profileThumbnailUrl,
+                            userName = userName,
+                            greetingMorning = greetingMorning,
+                            greetingAfternoon = greetingAfternoon,
+                            greetingEvening = greetingEvening,
+                        )
                     }
                 }
-                is UiState.Error -> item(key = "home:error") {
-                    MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
-                }
-                is UiState.Success -> {
-                    if (recentlyPlayedLoading) {
-                        recentlyPlayedSkeleton(listLayout = recentsViewType == LibraryViewType.LIST)
+                if (!signedIn && onSignIn != null) {
+                    item(key = "home:sign-in") {
+                        SignInBanner(onSignIn = onSignIn, modifier = Modifier.padding(bottom = 8.dp))
                     }
-                    // The loading skeleton already owns the hero slot. Until
-                    // Recently Played lands, every real shelf must retain its
-                    // compact-card layout instead of briefly becoming a hero.
-                    itemsIndexedShelves(
-                        // The time-aware lead is selected from this same feed;
-                        // keep its cards from appearing a second time below.
-                        shelves = if (featuredItemIds.isEmpty()) state.data else state.data.mapNotNull { shelf ->
-                            if (isChronologicalHistoryShelf(shelf)) return@mapNotNull shelf
-                            val remaining = shelf.items.filterNot { (it.videoId ?: it.browseId) in featuredItemIds }
-                            remaining.takeIf { it.isNotEmpty() }?.let { shelf.copy(items = it) }
-                        },
-                        onItemClick = onItemClick,
-                        onItemLongPress = onItemLongPress,
-                        onPlayAllQuickPicks = onPlayAllQuickPicks,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        onMoodClick = onMoodClick,
-                        onListenTogetherClick = onListenTogetherClick,
-                        firstIsHero = leadHero && !recentlyPlayedLoading,
-                        recentsViewType = recentsViewType,
-                        onRecentsViewTypeToggle = {
-                            AppUi.host.setHomeRecentsViewType(
-                                if (recentsViewType == LibraryViewType.LIST) {
-                                    LibraryViewType.GRID
-                                } else {
-                                    LibraryViewType.LIST
-                                },
-                            )
-                        },
-                    )
-                    if (loadingMore) feedMoreSkeleton()
+                }
+                if (timeAwareShelf != null) {
+                    item(key = "time-aware-discovery-shelf") {
+                        Shelf(
+                            shelf = timeAwareShelf,
+                            onItemClick = { item -> onItemClick(item, timeAwareShelf.title) },
+                            onItemLongPress = onItemLongPress,
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                        )
+                    }
+                }
+                when (state) {
+                    is UiState.Loading -> {
+                        if (recentlyPlayedLoading) {
+                            recentlyPlayedSkeleton(listLayout = recentsViewType == LibraryViewType.LIST)
+                            // Recents owns the leading layout while its request is
+                            // pending, so the feed behind it starts with ordinary
+                            // shelf placeholders rather than another hero card.
+                            feedSkeleton(firstIsHero = false)
+                        } else {
+                            feedSkeleton(firstIsHero = showLeadHero)
+                        }
+                    }
+                    is UiState.Error -> item(key = "home:error") {
+                        MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
+                    }
+                    is UiState.Success -> {
+                        if (recentlyPlayedLoading) {
+                            recentlyPlayedSkeleton(listLayout = recentsViewType == LibraryViewType.LIST)
+                        }
+                        // The loading skeleton already owns the hero slot. Until
+                        // Recently Played lands, every real shelf must retain its
+                        // compact-card layout instead of briefly becoming a hero.
+                        itemsIndexedShelves(
+                            // The time-aware lead is selected from this same feed;
+                            // keep its cards from appearing a second time below.
+                            shelves = if (featuredItemIds.isEmpty()) state.data else state.data.mapNotNull { shelf ->
+                                if (isChronologicalHistoryShelf(shelf)) return@mapNotNull shelf
+                                val remaining = shelf.items.filterNot { (it.videoId ?: it.browseId) in featuredItemIds }
+                                remaining.takeIf { it.isNotEmpty() }?.let { shelf.copy(items = it) }
+                            },
+                            onItemClick = onItemClick,
+                            onItemLongPress = onItemLongPress,
+                            onPlayAllQuickPicks = onPlayAllQuickPicks,
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                            onMoodClick = onMoodClick,
+                            onListenTogetherClick = onListenTogetherClick,
+                            firstIsHero = showLeadHero && !recentlyPlayedLoading,
+                            isScrolling = listState.isScrollInProgress,
+                            recentsViewType = recentsViewType,
+                            onRecentsViewTypeToggle = {
+                                AppUi.host.setHomeRecentsViewType(
+                                    if (recentsViewType == LibraryViewType.LIST) {
+                                        LibraryViewType.GRID
+                                    } else {
+                                        LibraryViewType.LIST
+                                    },
+                                )
+                            },
+                        )
+                        if (loadingMore) feedMoreSkeleton()
+                    }
                 }
             }
         }
@@ -379,13 +417,21 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     onMoodClick: ((String) -> Unit)?,
     onListenTogetherClick: (() -> Unit)?,
     firstIsHero: Boolean = true,
+    isScrolling: Boolean,
     recentsViewType: LibraryViewType,
     onRecentsViewTypeToggle: () -> Unit,
 ) {
+    val positions = homeShelfPositions(shelves)
+    val leadIndex = positions.leadIndex
+    val discoveryInsertIndex = positions.discoveryInsertIndex
+    val listenTogetherArtworks = shelves
+        .getOrNull(leadIndex)
+        ?.items.orEmpty().take(2).map { it.thumbnailUrl }
+
     shelves.forEachIndexed { index, shelf ->
         item(key = shelf.title + index) {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
-            if (index == 0 && shelf.title.equals(RECENTS_TITLE, ignoreCase = true)) {
+            if (shelf.isRecentHistory()) {
                 RecentShelf(
                     shelf = shelf,
                     onItemClick = openItem,
@@ -395,7 +441,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                     viewType = recentsViewType,
                     onViewTypeToggle = onRecentsViewTypeToggle,
                 )
-            } else if (index == 0 && firstIsHero) {
+            } else if (index == leadIndex && firstIsHero) {
                 HeroShelf(
                     shelf = shelf,
                     onItemClick = openItem,
@@ -414,16 +460,31 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                 )
             }
         }
-        if (shelf.title.equals("Quick picks", ignoreCase = true)) {
-            item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
-            item(key = "home-listen-together") {
-                ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
+
+        if (index == discoveryInsertIndex) {
+            if (onMoodClick != null) {
+                item(key = "home-find-your-mood") { FindYourMood(onMoodClick, isScrolling) }
+            }
+            if (onListenTogetherClick != null) {
+                item(key = "home-listen-together") {
+                    ListenTogetherShelf(listenTogetherArtworks, onListenTogetherClick)
+                }
+            }
+            if (shelves.drop(index + 1).any { !it.isRecentHistory() }) {
+                item(key = "home-more-music-header") {
+                    SectionHeader("More music for you", emphasized = true)
+                }
             }
         }
     }
-    if (shelves.none { it.title.equals("Quick picks", ignoreCase = true) }) {
-        item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
-        item(key = "home-listen-together") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
+
+    if (shelves.isEmpty()) {
+        if (onMoodClick != null) item(key = "home-find-your-mood") { FindYourMood(onMoodClick, isScrolling) }
+        if (onListenTogetherClick != null) {
+            item(key = "home-listen-together") {
+                ListenTogetherShelf(emptyList(), onListenTogetherClick)
+            }
+        }
     }
 }
 
@@ -729,7 +790,7 @@ private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: ((
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() }),
+            .clickable(enabled = onClick != null, role = Role.Button, onClick = { onClick?.invoke() }),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
@@ -749,12 +810,14 @@ private val HOME_MOOD_CARDS = listOf(
 )
 
 @Composable
-private fun FindYourMood(onMoodClick: ((String) -> Unit)?) {
+private fun FindYourMood(onMoodClick: ((String) -> Unit)?, isScrolling: Boolean) {
+    val moodListState = rememberLazyListState()
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         SectionHeader("Find Your Mood", emphasized = true)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val cardWidth = if (maxWidth >= 720.dp) 164.dp else 208.dp
             ShelfRow(
+                state = moodListState,
                 contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -764,6 +827,7 @@ private fun FindYourMood(onMoodClick: ((String) -> Unit)?) {
                         onClick = { onMoodClick?.invoke(mood.title) },
                         modifier = Modifier.width(cardWidth),
                         enabled = onMoodClick != null,
+                        isScrolling = isScrolling || moodListState.isScrollInProgress,
                     )
                 }
             }
@@ -777,18 +841,22 @@ private fun MoodArtCard(
     onClick: () -> Unit,
     modifier: Modifier,
     enabled: Boolean,
+    isScrolling: Boolean,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val motion by animateFloatAsState(
-        targetValue = if (pressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        targetValue = if (pressed && !reduceAnimation && !isScrolling) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = if (reduceAnimation || isScrolling) 0 else 180,
+            easing = FastOutSlowInEasing,
+        ),
         label = "${mood.title}-line-art-press",
     )
     // One quiet breathing cycle per composed card. LazyRow disposes distant
     // cards, so off-screen artwork does not keep an animation clock running.
-    val ambient = if (reduceAnimation) {
+    val ambient = if (reduceAnimation || isScrolling) {
         0f
     } else {
         rememberInfiniteTransition(label = "${mood.title}-ambient").animateFloat(

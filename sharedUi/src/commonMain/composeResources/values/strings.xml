@@ -147,7 +147,10 @@ Project: AUDIFY
     <string name="clear_search">Clear search</string>
     <string name="downloaded">Downloaded</string>
     <string name="explore">Explore</string>
+    <string name="explore_empty">Nothing to show right now. Try again.</string>
     <string name="library">Library</string>
+    <string name="smart_playlists">Smart Playlists</string>
+    <string name="smart_playlists_subtitle">Playlists that update from your listening.</string>
     <string name="library_sign_in_description">Sign in to your Google account to see your liked songs, playlists, and YouTube Music history.</string>
     <string name="new_playlist">New playlist</string>
     <string name="on_device">On Device</string>
@@ -165,6 +168,7 @@ Project: AUDIFY
     <string name="saved_to_youtube_music">Saved to YouTube Music</string>
     <string name="search">Search</string>
     <string name="search_empty">Search millions of songs on YouTube Music.</string>
+    <string name="search_no_results">No results for “%1$s”. Try a different search.</string>
     <string name="search_hint">Artists, Songs, Lyrics and More</string>
     <string name="search_library_empty">Search the songs in your Local Music folder.</string>
     <string name="search_library_hint">Songs, Artists and Albums</string>

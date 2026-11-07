@@ -1204,4 +1204,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">สำรองข้อมูล</string>
     <string name="updates">อัปเดต</string>
+    <string name="smart_playlists">เพลย์ลิสต์อัจฉริยะ</string>
+    <string name="auto_empty_albums_title">ไม่มีอัลบั้ม</string>
+    <string name="auto_empty_albums_subtitle">ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง</string>
 </resources>

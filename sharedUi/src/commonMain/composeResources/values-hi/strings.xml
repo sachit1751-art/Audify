@@ -144,6 +144,8 @@ Project: AUDIFY
     <string name="downloaded">डाउनलोड किया गया</string>
     <string name="explore">एक्सप्लोर करें</string>
     <string name="library">लाइब्रेरी</string>
+    <string name="smart_playlists">स्मार्ट प्लेलिस्ट</string>
+    <string name="smart_playlists_subtitle">आपकी सुनने की आदतों के अनुसार अपडेट होने वाली प्लेलिस्ट।</string>
     <string name="library_sign_in_description">अपने पसंदीदा गाने, प्लेलिस्ट और YouTube Music इतिहास देखने के लिए अपने Google खाते में साइन इन करें।</string>
     <string name="new_playlist">नई प्लेलिस्ट</string>
     <string name="on_device">डिवाइस पर</string>

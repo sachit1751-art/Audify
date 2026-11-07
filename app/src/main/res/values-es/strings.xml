@@ -1258,4 +1258,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">Copia de seguridad</string>
     <string name="updates">Actualizaciones</string>
+    <string name="smart_playlists">Listas inteligentes</string>
+    <string name="auto_empty_albums_title">No hay álbumes disponibles</string>
+    <string name="auto_empty_albums_subtitle">Comprueba la conexión e inténtalo de nuevo</string>
 </resources>

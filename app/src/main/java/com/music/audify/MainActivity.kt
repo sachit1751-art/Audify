@@ -175,6 +175,7 @@ import com.music.audify.ui.navigation.AppRoute
 import com.music.audify.ui.motion.MotionTokens
 import com.music.audify.ui.components.SpotifyImportAlert
 import com.music.audify.ui.screens.WearOsScreen
+import com.music.audify.ui.screens.SmartPlaylistsScreen
 import com.music.audify.ui.screens.AccountAndScrobblingScreen
 import com.music.audify.ui.screens.DiscordDialog
 import com.music.audify.ui.screens.DiscordDialogHost
@@ -293,6 +294,7 @@ import com.music.audify.ui.components.TopFadeBlur
 import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.optimizedHazeEffect
 import com.music.audify.ui.components.TopBarContentGap
+import com.music.audify.ui.components.topBarHeight
 import com.music.audify.ui.components.topBarContentPadding
 import com.music.audify.ui.components.AppLanguageDialog
 import com.music.audify.ui.components.TranslationLanguageDialog
@@ -2358,7 +2360,10 @@ private fun AudifyApp(
     val fallbackBottomChrome = if (player.playable != null) 210.dp else 140.dp
     val measuredBottomChrome = with(LocalDensity.current) { floatingBarsHeight.intValue.toDp() }
     val listPadding = PaddingValues(
-        top = topBarContentPadding(),
+        // Pushed pages now carry their title in the pinned back bar, so their
+        // content can begin directly below it. Root tabs retain the breathing
+        // gap for their large in-page headings (especially Home).
+        top = if (route != null) topBarHeight() else topBarContentPadding(),
         bottom = (if (floatingBarsHeight.intValue > 0) measuredBottomChrome else fallbackBottomChrome) + 16.dp,
     )
 
@@ -2976,6 +2981,13 @@ private fun AudifyApp(
                                 listState = replayListState,
                                 landingPage = replayLandingPage,
                             )
+                        } else if (pageRoute == AppRoute.SmartPlaylists) {
+                            SmartPlaylistsScreen(
+                                contentPadding = listPadding,
+                                onPlaySongs = { title, songs, index ->
+                                    playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
+                                },
+                            )
                         } else if (pageRoute == AppRoute.Spotify) {
                             SpotifyLibraryScreen(
                                 onOpenPlaylist = { playlist ->
@@ -3237,6 +3249,7 @@ private fun AudifyApp(
                                 onSongClick = ::playDetailSongs,
                                 onSongLongPress = { openSongMenu(withAlbum(it)) },
                                 onSongSwipe = { onSongSwipe(withAlbum(it)) },
+                                onRetry = viewModel::retryDetail,
                                 onShuffle = { songs ->
                                     if (songs.isNotEmpty()) {
                                         // Shuffle goes on first so the queue is built shuffled
@@ -3546,6 +3559,7 @@ private fun AudifyApp(
                                 suggestions = searchSuggestions,
                                 typeaheadResults = viewModel.typeaheadResults.collectAsStateWithLifecycle().value,
                                 onSubmit = viewModel::submitSearch,
+                                onRetryLibrary = viewModel::loadLibrarySongs,
                                 // Suggestions land in search history via searchFor → recordSearch.
                                 // History items (onHistoryClick) navigate/play without re-logging.
                                 onSuggestionClick = viewModel::searchFor,
@@ -3661,6 +3675,7 @@ private fun AudifyApp(
                                 links = libraryLinks(),
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
                                 deviceEmptyText = stringResource(R.string.on_device_empty),
+                                onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
                             )
                         }
                     }
@@ -3759,6 +3774,7 @@ private fun AudifyApp(
                         AppRoute.Equalizer -> stringResource(R.string.equalizer)
                         AppRoute.Settings -> stringResource(R.string.settings)
                         AppRoute.Replay -> stringResource(R.string.replay)
+                        AppRoute.SmartPlaylists -> stringResource(R.string.smart_playlists)
                         null -> when {
                             detail != null && detailActiveShelf != null -> detailActiveShelf?.title.orEmpty()
                             detail != null -> detail.title

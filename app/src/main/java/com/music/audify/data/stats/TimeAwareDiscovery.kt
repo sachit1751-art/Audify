@@ -9,21 +9,21 @@ import java.util.Locale
 import kotlin.random.Random
 
 /**
- * Gives each installation its own discovery ordering without disturbing the
- * listener's chronological history shelves. The seed is persisted per install
- * by MainViewModel, so recomposition/reloads stay stable while reinstalling
- * produces a different first impression.
+ * Randomizes discovery shelves and their tracks for one Home session without
+ * disturbing chronological history. The caller supplies a fresh session seed;
+ * repeated partial feed publications use that same seed so the ordering stays
+ * stable while async shelves arrive, then changes on the next load or refresh.
  */
-internal fun varyHomeFeed(shelves: List<HomeShelf>, installSeed: Long): List<HomeShelf> {
+internal fun varyHomeFeed(shelves: List<HomeShelf>, sessionSeed: Long): List<HomeShelf> {
     val (history, discovery) = shelves.partition { shelf ->
-        shelf.title.equals("Recents", ignoreCase = true) ||
-            shelf.title.equals("Recently played", ignoreCase = true)
+        shelf.title.trim().equals("Recents", ignoreCase = true) ||
+            shelf.title.trim().equals("Recently played", ignoreCase = true)
     }
     val variedDiscovery = discovery
         .map { shelf ->
-            shelf.copy(items = shelf.items.shuffled(Random(installSeed xor shelf.title.hashCode().toLong())))
+            shelf.copy(items = shelf.items.shuffled(Random(sessionSeed xor shelf.title.hashCode().toLong())))
         }
-        .shuffled(Random(installSeed))
+        .shuffled(Random(sessionSeed))
     return history + variedDiscovery
 }
 

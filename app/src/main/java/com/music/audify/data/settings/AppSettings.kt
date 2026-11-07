@@ -811,6 +811,7 @@ object AppSettings {
         prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         this.authStore = authStore
         com.music.audify.data.spotify.LocalPlaylistStore.init(context)
+        com.music.audify.data.playlist.SmartPlaylistStore.init(context)
         com.music.audify.data.stats.LocalLibraryStore.init(context)
         com.music.audify.data.stats.AutomaticBackupScheduler.schedule(context)
         readAll()

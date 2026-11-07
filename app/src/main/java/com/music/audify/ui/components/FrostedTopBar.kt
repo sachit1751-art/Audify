@@ -279,6 +279,24 @@ fun FrostedTopBar(
                 }
             }
              */
+            // Pushed pages keep their title beside the back affordance. Root
+            // tabs keep their large in-page heading and do not duplicate it.
+            if (onBack != null) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = max(leadingInset(true), ActionsInset))
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = titleAlpha },
+                )
+            }
             // On a pushed page the back affordance is always visible, since
             // there is no large in-list header to fall back on.
             if (onBack != null) {

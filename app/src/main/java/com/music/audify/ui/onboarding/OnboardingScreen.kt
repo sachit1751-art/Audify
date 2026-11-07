@@ -49,11 +49,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,6 +63,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -87,6 +83,11 @@ import com.music.audify.sharedui.resources.ic_google_g
 import com.music.audify.sharedui.resources.ic_logo
 import org.jetbrains.compose.resources.painterResource
 import com.music.audify.ui.icons.AudifyIcons
+import com.music.audify.ui.player.MeshGradientBackground
+import com.music.audify.ui.player.MESH_CYCLE_MILLIS
+import com.music.audify.ui.player.MeshPalette
+import com.music.audify.ui.player.WelcomeMeshPalettes
+import com.music.audify.ui.player.cyclingMeshPalette
 
 /**
  * Welcome, profile name, optional Google sign-in, and a short music setup guide.
@@ -127,6 +128,11 @@ fun OnboardingScreen(
         if (signedIn && page == PAGE_CONNECT) page = PAGE_MUSIC
     }
 
+    // Keep the original animated, multi-colour onboarding mesh. The welcome
+    // and setup pages use AUDIFY's warm palette; account connection leans into
+    // the original red/pink/violet palette.
+    val palette = cyclingMeshPalette(if (page == PAGE_CONNECT) ConnectPalettes else WelcomeMeshPalettes)
+
     Box(
         modifier
             .fillMaxSize()
@@ -136,6 +142,24 @@ fun OnboardingScreen(
             // away, which is where a thumb goes to dismiss one.
             .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
     ) {
+        MeshGradientBackground(
+            palette = palette,
+            trackKey = page,
+            continuous = true,
+            driftMillis = 6_000,
+            colorFadeMillis = MESH_CYCLE_MILLIS,
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.05f),
+                        0.55f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.45f),
+                    ),
+                ),
+        )
         AnimatedContent(
             targetState = page,
             transitionSpec = {
@@ -184,23 +208,19 @@ fun OnboardingScreen(
 
 @Composable
 private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit) {
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(32.dp))
     BackButton(onBack)
-    Spacer(Modifier.height(24.dp))
-    Title("Your music. Your way.")
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(32.dp))
+    Title("You're all set.")
+    Spacer(Modifier.height(14.dp))
     Text(
-        text = "You’re ready to listen. Add the rest when it makes sense for you.",
+        text = "Find something new, play audio from your device, or start a listening session with friends. You can connect music services whenever you need them.",
         style = MaterialTheme.typography.bodyLarge,
         fontSize = 17.sp,
-        lineHeight = 23.sp,
+        lineHeight = 25.sp,
         color = Color.White.copy(alpha = 0.78f),
     )
-    Spacer(Modifier.height(30.dp))
-    LaneStop(Icons.Rounded.LibraryMusic, "ON THIS DEVICE", "Find and play audio files from the Library tab.", active = true)
-    LaneStop(Icons.Rounded.MusicNote, "MUSIC SERVICES", "Connect supported sources later in Settings → Sources.")
-    LaneStop(Icons.Rounded.Groups, "LISTEN TOGETHER", "Start a shared session whenever you want company.", last = true)
-    Spacer(Modifier.height(30.dp))
+    Spacer(Modifier.height(40.dp))
     PillButton(label = "Start listening", onClick = onFinish, primary = true)
     Spacer(Modifier.height(24.dp))
 }
@@ -208,86 +228,38 @@ private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit)
 /** First-run introduction: a concise product overview before asking for details. */
 @Composable
 private fun ColumnScope.WelcomePage(onNext: () -> Unit) {
-    Spacer(Modifier.height(30.dp))
+    Spacer(Modifier.height(42.dp))
     Image(
         painter = painterResource(Res.drawable.ic_logo),
         contentDescription = "Audify",
         modifier = Modifier
-            .size(width = 64.dp, height = 48.dp),
+            .size(width = 76.dp, height = 56.dp),
     )
-    Spacer(Modifier.height(26.dp))
+    Spacer(Modifier.height(36.dp))
     Text(
-        text = "Follow the\nmusic.",
+        text = "Find it.\nFeel it.\nShare it.",
         style = MaterialTheme.typography.displayLarge.copy(
-            fontSize = 42.sp,
-            lineHeight = 44.sp,
-            letterSpacing = (-1.5).sp,
+            fontSize = 52.sp,
+            lineHeight = 52.sp,
+            letterSpacing = (-1.8).sp,
         ),
         fontWeight = FontWeight.Bold,
         color = Color.White,
         textAlign = TextAlign.Start,
         modifier = Modifier.fillMaxWidth(),
     )
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(18.dp))
     Text(
-        text = "Discover new tracks, play music from your device, and listen with friends.",
+        text = "Discover music, play the files you already own, and listen together. Your library stays yours.",
         style = MaterialTheme.typography.bodyLarge,
         color = Color.White.copy(alpha = 0.76f),
-        lineHeight = 22.sp,
+        lineHeight = 25.sp,
         textAlign = TextAlign.Start,
         modifier = Modifier.fillMaxWidth(),
     )
-    Spacer(Modifier.height(30.dp))
-    LaneStop(Icons.Rounded.MusicNote, "DISCOVER", "Search songs, albums, artists, playlists and recommendations.", active = true)
-    LaneStop(Icons.Rounded.LibraryMusic, "YOUR LIBRARY", "Keep playlists, liked music, local files and downloads close.")
-    LaneStop(Icons.Rounded.Groups, "LISTEN TOGETHER", "Create a shared session and invite friends to join.", last = true)
-    Spacer(Modifier.height(28.dp))
+    Spacer(Modifier.height(52.dp))
     PillButton(label = "Get started", onClick = onNext, primary = true)
     Spacer(Modifier.height(24.dp))
-}
-
-@Composable
-private fun ColumnScope.LaneStop(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String,
-    active: Boolean = false,
-    last: Boolean = false,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(
-            modifier = Modifier.width(34.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                Modifier
-                    .padding(top = 2.dp)
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(if (active) Color(0xFF3A3428) else Color(0xFF191D29)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = if (active) Color(0xFFE6C17A) else Color(0xFFB6BBC9), modifier = Modifier.size(18.dp))
-            }
-            if (!last) {
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .height(22.dp)
-                        .background(Color(0xFF45404A)),
-                )
-            }
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = if (active) Color(0xFFE6C17A) else Color.White, letterSpacing = 1.1.sp)
-            Spacer(Modifier.height(4.dp))
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = Color(0xFFB2B7C4), lineHeight = 20.sp)
-        }
-    }
 }
 
 /** The column every page is laid out in, capped so a tablet doesn't stretch it. */
@@ -318,12 +290,13 @@ private fun OnboardingHeader(page: Int, onSkip: () -> Unit) {
         Box(
             Modifier
                 .height(48.dp)
+                .widthIn(min = 64.dp)
                 .clip(CircleShape)
                 .clickable(role = Role.Button, onClick = onSkip)
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("SKIP SETUP", style = MaterialTheme.typography.labelMedium, color = Color(0xFFB2B7C4), letterSpacing = 0.6.sp)
+            Text("Skip", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.82f))
         }
     }
     Row(
@@ -409,38 +382,30 @@ private fun ColumnScope.ConnectPage(
     onSignIn: () -> Unit,
     onSkip: () -> Unit,
 ) {
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(32.dp))
     BackButton(onBack)
-    Spacer(Modifier.height(24.dp))
-    Title("Sign in")
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(32.dp))
+    Title("Your library,\nwithin reach.")
+    Spacer(Modifier.height(16.dp))
     Text(
-        text = "Connect YouTube Music to bring your library and account features into Audify. It’s optional; local music works without an account.",
+        text = "Connect YouTube Music to access your saved playlists, liked songs, and supported account features. This is optional — local audio works without signing in.",
         style = MaterialTheme.typography.bodyLarge,
         fontSize = 17.sp,
-        lineHeight = 23.sp,
+        lineHeight = 25.sp,
         color = Color.White.copy(alpha = 0.72f),
     )
 
-    Spacer(Modifier.height(24.dp))
-    SignInBenefit("Playlists and liked songs", "Access music saved to your YouTube Music account.")
-    Spacer(Modifier.height(14.dp))
-    SignInBenefit("Supported personalized content", "See account-based mixes and recommendations where available.")
-    Spacer(Modifier.height(14.dp))
-    SignInBenefit("Account features in one place", "Use supported YouTube Music library features inside Audify.")
-    Spacer(Modifier.height(14.dp))
+    Spacer(Modifier.height(30.dp))
     Row(verticalAlignment = Alignment.Top) {
-        Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.72f), modifier = Modifier.size(19.dp))
-        Spacer(Modifier.width(10.dp))
         Text(
-            "Google handles your sign-in. Your Google password is entered on Google's page, not in Audify.",
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.68f),
-            lineHeight = 18.sp,
+            "Your sign-in is handled by Google. Audify never asks for your Google password.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.82f),
+            lineHeight = 21.sp,
         )
     }
 
-    Spacer(Modifier.height(28.dp))
+    Spacer(Modifier.height(42.dp))
 
     PillButton(
         label = "Continue with Google",
@@ -454,31 +419,13 @@ private fun ColumnScope.ConnectPage(
             )
         },
     )
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(14.dp))
     PillButton(
         label = stringResource(R.string.onboarding_skip_sign_in),
         onClick = onSkip,
         primary = false,
     )
     Spacer(Modifier.height(24.dp))
-}
-
-@Composable
-private fun SignInBenefit(title: String, description: String) {
-    Row(verticalAlignment = Alignment.Top) {
-        Icon(
-            imageVector = Icons.Rounded.Check,
-            contentDescription = null,
-            tint = Color(0xFFFFB4AB),
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
-            Spacer(Modifier.height(3.dp))
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.72f), lineHeight = 20.sp)
-        }
-    }
 }
 
 /** A restrained headline that remains legible at the user's chosen font scale. */
@@ -624,3 +571,11 @@ private const val PAGE_MUSIC = 3
 
 /** Long enough for a full name; the party server keeps the first 80. */
 private const val NAME_LIMIT = 40
+
+/** The account page keeps leaning into YouTube's red while it moves. */
+private val ConnectPalettes = listOf(
+    MeshPalette(listOf(Color(0xFFFF1E3C), Color(0xFFC2185B), Color(0xFFFF8F3D), Color(0xFF4A1C8C))),
+    MeshPalette(listOf(Color(0xFFE53935), Color(0xFFFF6E40), Color(0xFFAD1457), Color(0xFF311B92))),
+    MeshPalette(listOf(Color(0xFFFF3D00), Color(0xFFD81B60), Color(0xFF8E24AA), Color(0xFFB71C1C))),
+    MeshPalette(listOf(Color(0xFFF50057), Color(0xFFFF9100), Color(0xFFC51162), Color(0xFF4527A0))),
+)

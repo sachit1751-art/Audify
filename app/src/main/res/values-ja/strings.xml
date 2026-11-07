@@ -1227,4 +1227,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">バックアップ</string>
     <string name="updates">アップデート</string>
+    <string name="smart_playlists">スマートプレイリスト</string>
+    <string name="auto_empty_albums_title">利用できるアルバムはありません</string>
+    <string name="auto_empty_albums_subtitle">接続を確認してもう一度お試しください</string>
 </resources>

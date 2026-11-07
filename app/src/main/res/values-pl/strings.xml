@@ -1314,4 +1314,7 @@ Project: AUDIFY
     <string name="spotify_import_language_preference">Language preference</string>
     <string name="backup">Kopia zapasowa</string>
     <string name="updates">Aktualizacje</string>
+    <string name="smart_playlists">Inteligentne playlisty</string>
+    <string name="auto_empty_albums_title">Brak dostępnych albumów</string>
+    <string name="auto_empty_albums_subtitle">Sprawdź połączenie i spróbuj ponownie</string>
 </resources>
