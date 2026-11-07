@@ -112,7 +112,7 @@ class TimeAwareDiscoveryTest {
     }
 
     @Test
-    fun homeFeedVariationIsStablePerInstallAndDifferentAcrossInstallSeeds() {
+    fun homeFeedVariationIsStableWithinASessionAndDifferentAcrossSessionSeeds() {
         val shelves = listOf(
             HomeShelf("Recently played", listOf(shelfItem("history"))),
             HomeShelf("Mixes", (1..8).map { shelfItem("mix-$it") }),
@@ -121,11 +121,21 @@ class TimeAwareDiscoveryTest {
             HomeShelf("Discover", (1..8).map { shelfItem("discover-$it") }),
         )
 
-        val firstInstall = varyHomeFeed(shelves, 1234L)
-        assertEquals(firstInstall, varyHomeFeed(shelves, 1234L))
-        assertEquals("Recently played", firstInstall.first().title)
+        val firstSession = varyHomeFeed(shelves, 1234L)
+        assertEquals(firstSession, varyHomeFeed(shelves, 1234L))
+        assertEquals("Recently played", firstSession.first().title)
         assertEquals("Recently played", varyHomeFeed(shelves, 9876L).first().title)
-        assertNotEquals(firstInstall, varyHomeFeed(shelves, 9876L))
+        assertNotEquals(firstSession, varyHomeFeed(shelves, 9876L))
+    }
+
+    @Test
+    fun paddedHistoryTitlesAreNeverRandomized() {
+        val history = HomeShelf("  rEcEnTs  ", listOf(shelfItem("newest"), shelfItem("oldest")))
+        val discovery = HomeShelf("Mixes", (1..8).map { shelfItem("mix-$it") })
+
+        val result = varyHomeFeed(listOf(discovery, history), 9876L)
+
+        assertEquals(history, result.first())
     }
 
     private fun shelfItem(id: String) = ShelfItem(
