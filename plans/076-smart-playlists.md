@@ -5,7 +5,9 @@ Project: AUDIFY
 
 # Plan 076 — Smart Playlists
 
-**Status: proposal — audit existing playlist and listening-history capabilities first.**
+**Status: implemented in v1.9.0.**
+
+Implementation is present in `app/src/main/java/com/music/audify/data/playlist/SmartPlaylistEngine.kt`, `SmartPlaylistRepository.kt`, `SmartPlaylistStore.kt`, and `ui/screens/SmartPlaylistsScreen.kt`. Unit coverage is in `app/src/test/java/com/music/audify/SmartPlaylistEngineTest.kt`.
 
 ## Outcome
 
