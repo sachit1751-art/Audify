@@ -5,7 +5,9 @@ Project: AUDIFY
 
 # Plan 077 — Android Auto
 
-**Status: proposal — verify current Media3 and automotive integration before implementation.**
+**Status: Media3 media-library integration implemented in v1.9.0; end-to-end vehicle validation remains.**
+
+The phone app declares the automotive application descriptor and exports its Media3 `MediaLibraryService` through `PlaybackService`. The browse tree exposes Quick Picks, Recents, Playlists, Liked, Downloads, Local Music, and Albums. Instrumentation coverage is in `app/src/androidTest/java/com/music/audify/AndroidAutoMediaLibraryTest.kt`. Desktop Head Unit and a real compatible vehicle validation are still required before claiming full automotive certification.
 
 ## Outcome
 
