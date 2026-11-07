@@ -24,21 +24,7 @@ import (
 func setupTestServer() *httptest.Server {
 	// Each test server starts with its own party-creation allowance.
 	createLimiter = newIPRateLimiter(time.Minute, config.CreateRatePerMinute, config.RateLimitMaxEntries)
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", handleRoot)
-	mux.HandleFunc("GET /healthz", handleHealthz)
-	mux.HandleFunc("GET /api/time", handleTime)
-	mux.HandleFunc("POST /api/parties", handleCreateParty)
-	mux.HandleFunc("POST /api/parties/{code}/join", handleJoinParty)
-	mux.HandleFunc("GET /api/parties/{code}", handleGetParty)
-	mux.HandleFunc("POST /api/parties/{code}/leave", handleLeaveParty)
-	mux.HandleFunc("POST /api/presence", handlePresence)
-	mux.HandleFunc("GET /api/stats/live", handleLiveStats)
-	mux.HandleFunc("GET /api/stats/live/badge.svg", handleLiveBadge)
-	mux.HandleFunc("GET /invite/{code}", handleInviteLanding)
-	mux.HandleFunc("GET /ws/parties/{code}", handleWebSocket)
-
-	return httptest.NewServer(corsMiddleware(mux))
+	return httptest.NewServer(newHandler())
 }
 
 func TestRESTEndpoints(t *testing.T) {
@@ -95,6 +81,14 @@ func TestRESTEndpoints(t *testing.T) {
 	token, _ := partyResp["token"].(string)
 	if code == "" || token == "" {
 		t.Fatalf("Expected code and token in response")
+	}
+	previewRes, err := http.Get(ts.URL + "/api/parties/" + code + "/preview")
+	if err != nil {
+		t.Fatalf("GET /api/parties/%s/preview failed: %v", code, err)
+	}
+	_ = previewRes.Body.Close()
+	if previewRes.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/parties/%s/preview returned status %v", code, previewRes.StatusCode)
 	}
 
 	// 4. Join Party

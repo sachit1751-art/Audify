@@ -7,7 +7,7 @@
     "build": "tsc -p . && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p . && tsc -p tsconfig.node.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "@audify/shared": "workspace:*",

@@ -228,29 +228,6 @@ const val ACTION_COMMIT_RADIO_QUEUE = "com.music.audify.action.COMMIT_RADIO_QUEU
 const val ACTION_UPGRADE_QUALITY = "com.music.audify.action.UPGRADE_QUALITY"
 
 /**
- * App-side gate for explicit quality retries.
- *
- * Automatic upgrades never pass through this object. Returning the remaining
- * wait rather than a Boolean gives the log enough information to distinguish
- * a deliberate throttle from a search which failed to start.
- */
-internal class ManualUpgradeThrottle(private val cooldownMs: Long) {
-    private var lastAcceptedAtMs: Long? = null
-
-    @Synchronized
-    fun tryAcquire(nowMs: Long): Long {
-        val previous = lastAcceptedAtMs
-        if (previous != null) {
-            val remaining = cooldownMs - (nowMs - previous)
-            if (remaining > 0) return remaining
-        }
-        lastAcceptedAtMs = nowMs
-        return 0L
-    }
-}
-
-
-/**
  * Session command marking the span of a queue drag in the UI — see
  * [PartySync.beginQueueDrag]. Dragging a queue row sends a [Player.moveMediaItem]
  * per neighbour it crosses, same as before; what this brackets is only the

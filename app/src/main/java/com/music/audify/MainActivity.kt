@@ -381,13 +381,6 @@ private const val TOP_FADE_RAMP = 0.3f
 
 private const val INITIAL_RADIO_TRACKS = 24
 
-internal fun shouldSkipAfterDislike(
-    previousStatus: LikeStatus,
-    targetVideoId: String,
-    currentVideoId: String?,
-): Boolean = previousStatus != LikeStatus.DISLIKE && targetVideoId == currentVideoId
-
-
 class MainActivity : AppCompatActivity() {
     private val firstDrawWarmupGate = StartupFirstDrawGate {
         InnerTubeXResolver.onFirstFrameDrawn()

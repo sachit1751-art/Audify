@@ -7,8 +7,7 @@
     "./bridge": "./src/bridge/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p .",
-    "test": "vitest run --passWithNoTests"
+    "typecheck": "tsc -p ."
   },
   "devDependencies": {
     "typescript": "^7.0.2",
