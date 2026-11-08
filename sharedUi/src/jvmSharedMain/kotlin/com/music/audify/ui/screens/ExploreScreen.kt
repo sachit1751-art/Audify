@@ -7,7 +7,6 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,9 +30,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -58,6 +54,8 @@ import com.music.audify.data.model.MoodGenre
 import com.music.audify.data.model.MoodGenreSection
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.UiState
+import com.music.audify.ui.motion.microPressScale
+import com.music.audify.ui.motion.microRipple
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
 import com.music.audify.ui.components.PullToRefresh
@@ -171,19 +169,18 @@ private fun MoodGenreCard(
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val pressScale by animateFloatAsState(
-        targetValue = if (pressed) .975f else 1f,
-        animationSpec = tween(180, easing = FastOutSlowInEasing),
-        label = "explore-category-press",
-    )
     MoodGenreSleeve(
         item = item,
         modifier = modifier
             .aspectRatio(1.42f)
             .clip(MOOD_CARD_SHAPE)
-            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
+            .microPressScale(interaction)
+            .clickable(
+                interactionSource = interaction,
+                indication = microRipple(),
+                role = Role.Button,
+                onClick = onClick,
+            ),
     )
 }
 

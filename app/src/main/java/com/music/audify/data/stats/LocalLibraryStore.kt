@@ -4,6 +4,7 @@ package com.music.audify.data.stats
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.music.audify.data.model.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,7 +56,7 @@ object LocalLibraryStore {
         // Playback sampling can run on a latency-sensitive service thread;
         // SharedPreferences.apply updates memory now and flushes the file off-thread.
         val array = encodeSongs(next)
-        prefs.edit().putString(HISTORY, array).apply()
+        prefs.edit { putString(HISTORY, array) }
         _history.value = next
     }
 

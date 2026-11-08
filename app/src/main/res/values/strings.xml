@@ -1076,4 +1076,6 @@ Project: AUDIFY
         <item quantity="one">%1$d song · On this device</item>
         <item quantity="other">%1$d songs · On this device</item>
     </plurals>
+    <string name="hide_explicit_content">Hide explicit content</string>
+    <string name="hide_explicit_content_subtitle">Exclude catalogue-marked explicit songs and albums from discovery and recommendations. Unlabelled items remain visible.</string>
 </resources>

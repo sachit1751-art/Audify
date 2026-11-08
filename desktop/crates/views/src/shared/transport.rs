@@ -97,12 +97,14 @@ pub(crate) fn toggle(playback: &Entity<Playback>, big: bool, frosted: bool, cx: 
     let idle = held.track().is_none() && steered.is_none();
     let playback = playback.clone();
 
-    let (id, icon, tooltip) = match playing {
-        true => ("pause", "icons/pause.svg", "play-pause"),
-        false => ("play", "icons/play.svg", "play-resume"),
+    let (icon, tooltip) = match playing {
+        true => ("icons/pause.svg", "play-pause"),
+        false => ("icons/play.svg", "play-resume"),
     };
 
-    Button::new(id)
+    // Keep the control identity stable across states so Button's existing
+    // icon-state animation can transition the glyph instead of remounting it.
+    Button::new("play-pause")
         .ghost()
         .when(frosted, Button::frosted)
         .when(!big, Button::small)

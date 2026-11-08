@@ -13,15 +13,29 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import com.music.audify.ui.motion.MotionTokens
+import com.music.audify.ui.motion.microPressScale
+import com.music.audify.ui.motion.microRipple
+import com.music.audify.ui.player.PlayerSettings
 import com.music.audify.ui.player.MESH_CYCLE_MILLIS
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.WelcomeMeshPalettes
 import com.music.audify.ui.player.cyclingMeshPalette
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -34,8 +48,8 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.PlaylistAdd
-import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SwipeToDismissBox
@@ -67,6 +81,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
@@ -383,26 +398,15 @@ fun SwipeToQueueBox(
     }
 
     val haptics = rememberHaptics()
-    val swipeStateHolder = remember { mutableStateOf<SwipeToDismissBoxState?>(null) }
     var boxWidth by remember { mutableFloatStateOf(0f) }
 
     val currentOnSwipeToQueue by rememberUpdatedState(onSwipeToQueue)
 
+    // The state owns real anchors; completion is observed below and immediately reset,
+    // rather than vetoing a state change through the deprecated confirmValueChange hook.
     val swipeState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled && currentOnSwipeToQueue != null) {
-                val offset = try { swipeStateHolder.value?.requireOffset() ?: 0f } catch (e: Exception) { 0f }
-                // Only queue if the physical drag reached half the box width, ignoring short accidental flings.
-                if (abs(offset) >= boxWidth * 0.45f) {
-                    haptics.play(Haptic.Select)
-                    currentOnSwipeToQueue?.invoke()
-                }
-            }
-            false // never actually dismiss; snap back
-        },
-        positionalThreshold = { distance -> distance * 0.5f },
+        positionalThreshold = { distance -> distance * 0.45f },
     )
-    swipeStateHolder.value = swipeState
 
     // The row reveals "Queue" from the first pixel of the drag, but it only
     // *commits* past 45% of the width — so without this the label is a promise
@@ -424,6 +428,23 @@ fun SwipeToQueueBox(
                     // re-arms, but so does the spring-back after a successful
                     // queue, and that must not buzz the same gesture twice.
                     armed && travelled < armAt * 0.8f -> armed = false
+                }
+            }
+    }
+
+    // Commit only after the gesture has settled onto a dismiss anchor. A fast fling
+    // cannot queue early while the finger is still down, and every completed swipe resets.
+    LaunchedEffect(swipeState, boxWidth) {
+        if (boxWidth <= 0f) return@LaunchedEffect
+        snapshotFlow { swipeState.currentValue }
+            .collect { value ->
+                if (value != SwipeToDismissBoxValue.Settled) {
+                    val offset = try { swipeState.requireOffset() } catch (_: IllegalStateException) { 0f }
+                    if (abs(offset) >= boxWidth * 0.45f) {
+                        haptics.play(Haptic.Select)
+                        currentOnSwipeToQueue.invoke()
+                    }
+                    swipeState.reset()
                 }
             }
     }
@@ -470,7 +491,7 @@ private fun QueueSwipeBackground(swipeState: SwipeToDismissBoxState) {
 private fun QueueSwipeLabel(playNext: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            if (playNext) Icons.Rounded.PlaylistPlay else Icons.Rounded.PlaylistAdd,
+            if (playNext) Icons.AutoMirrored.Rounded.PlaylistPlay else Icons.AutoMirrored.Rounded.PlaylistAdd,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
@@ -657,12 +678,14 @@ fun RowMoreButton(
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     iconSize: Dp = 20.dp,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .hangIntoGutter(ROW_MORE_OUTSET)
-            .size(36.dp)
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .microPressScale(interactionSource)
+            .clickable(interactionSource = interactionSource, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -752,14 +775,27 @@ fun SearchPlayingBars(modifier: Modifier = Modifier) {
  */
 @Composable
 fun DownloadedBadge(videoId: String, tint: Color, modifier: Modifier = Modifier) {
-    if (videoId !in AppUi.host.downloadedIds()) return
-    Spacer(Modifier.width(8.dp))
-    Icon(
-        Icons.Rounded.DownloadDone,
-        contentDescription = stringResource(Res.string.downloaded),
-        tint = tint,
-        modifier = modifier.size(16.dp),
-    )
+    val visible = videoId in AppUi.host.downloadedIds()
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (reduceAnimation) EnterTransition.None else
+            expandHorizontally(expandFrom = Alignment.End) +
+                fadeIn(tween(MotionTokens.SMALL_POPUP_MS)) + scaleIn(initialScale = 0.88f),
+        exit = if (reduceAnimation) ExitTransition.None else
+            shrinkHorizontally(shrinkTowards = Alignment.End) +
+                fadeOut(tween(MotionTokens.PRESS_FEEDBACK_MS)) + scaleOut(targetScale = 0.9f),
+    ) {
+        Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                Icons.Rounded.DownloadDone,
+                contentDescription = stringResource(Res.string.downloaded),
+                tint = tint,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
 }
 
 /**

@@ -4,6 +4,12 @@ package com.music.audify.auth
 
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import java.security.MessageDigest
 
 /** A Google login kept independently from every other captured login. */
@@ -68,35 +74,53 @@ internal fun List<GoogleAccountSession>.toJson(): String = JSONArray().apply {
     }
 }.toString()
 
-internal fun sessionsFromJson(raw: String?): List<GoogleAccountSession> = runCatching {
-    val root = JSONArray(raw ?: "[]")
-    buildList {
-        for (index in 0 until root.length()) {
-            val item = root.getJSONObject(index)
-            val cookie = item.optString("cookie")
-            if (cookie.isNotBlank()) {
-            val profiles = item.optJSONArray("profiles") ?: JSONArray()
-            add(GoogleAccountSession(
-                accountId = item.optString("id", sessionId(cookie, null)), cookie = cookie,
-                name = item.optString("name"), email = item.optString("email"),
-                activeProfileId = item.optString("activeProfileId").ifBlank { null },
-                profiles = buildList {
-                    for (p in 0 until profiles.length()) {
-                        val value = profiles.getJSONObject(p)
-                        val name = value.optString("name")
-                        add(YouTubeProfile(
-                            profileId = value.optString("id", profileId(null, null, name)),
-                            name = name, handle = value.optString("handle"),
-                            avatar = value.optString("avatar").ifBlank { null },
-                            pageId = value.optString("pageId").ifBlank { null },
-                            dataSyncId = value.optString("dataSyncId").ifBlank { null },
-                            authUser = value.optString("authUser").ifBlank { null },
-                            isBrandAccount = value.optBoolean("brand"),
-                        ))
-                    }
-                },
-            ))
+internal fun sessionsFromJson(raw: String?): List<GoogleAccountSession> {
+    val root = runCatching { Json.parseToJsonElement(raw ?: "[]").jsonArray }.getOrNull()
+        ?: return emptyList()
+    return buildList {
+        root.forEach { element ->
+            // One damaged account/profile must not make every other saved login
+            // disappear. This registry is the only durable source for accounts
+            // beyond the legacy single-cookie slot.
+            val item = element as? JsonObject ?: return@forEach
+            val cookie = item.string("cookie")?.takeIf(String::isNotBlank) ?: return@forEach
+            val profiles = item["profiles"] as? JsonArray
+            val parsedProfiles = buildList {
+                profiles.orEmpty().forEach profileLoop@{ profile ->
+                    val value = profile as? JsonObject ?: return@profileLoop
+                    val name = value.string("name").orEmpty()
+                    add(YouTubeProfile(
+                        profileId = value.string("id")
+                            ?.takeIf(String::isNotBlank) ?: profileId(null, null, name),
+                        name = name,
+                        handle = value.string("handle").orEmpty(),
+                        avatar = value.string("avatar")?.ifBlank { null },
+                        pageId = value.string("pageId")?.ifBlank { null },
+                        dataSyncId = value.string("dataSyncId")?.ifBlank { null },
+                        authUser = value.string("authUser")?.ifBlank { null },
+                        isBrandAccount = value.boolean("brand") ?: false,
+                    ))
+                }
             }
+            val savedActiveProfile = item.string("activeProfileId")?.ifBlank { null }
+            val activeProfile = savedActiveProfile?.takeIf { saved ->
+                parsedProfiles.any { it.profileId == saved }
+            } ?: parsedProfiles.firstOrNull()?.profileId
+            add(GoogleAccountSession(
+                accountId = item.string("id")?.takeIf(String::isNotBlank)
+                    ?: sessionId(cookie, parsedProfiles.firstOrNull()?.dataSyncId),
+                cookie = cookie,
+                name = item.string("name").orEmpty(),
+                email = item.string("email").orEmpty(),
+                activeProfileId = activeProfile,
+                profiles = parsedProfiles,
+            ))
         }
     }
-}.getOrDefault(emptyList())
+}
+
+private fun JsonObject.string(key: String): String? =
+    (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+
+private fun JsonObject.boolean(key: String): Boolean? =
+    (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.booleanOrNull

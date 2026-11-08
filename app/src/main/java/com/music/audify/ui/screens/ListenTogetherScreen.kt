@@ -2,6 +2,7 @@
 // Project: AUDIFY
 package com.music.audify.ui.screens
 
+import android.content.ClipData
 import android.content.Intent
 import android.text.format.DateFormat
 import android.widget.Toast
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,12 +42,12 @@ import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Login
-import androidx.compose.material.icons.rounded.Logout
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.AlertDialog
+import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -73,11 +75,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -149,7 +151,7 @@ fun ListenTogetherScreen(
     val context = LocalContext.current
     val shareTextFormat = stringResource(R.string.listen_together_share_text)
     val copyCodeMessage = stringResource(R.string.copy_code)
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
 
     val state by ListenTogether.state.collectAsStateWithLifecycle()
@@ -464,7 +466,7 @@ fun ListenTogetherScreen(
                         shareInvite()
                     },
                     onCopyCode = {
-                        clipboard.setText(AnnotatedString(state.code.orEmpty()))
+                        scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(copyCodeMessage, state.code.orEmpty()))) }
                         Toast.makeText(
                             context,
                             copyCodeMessage,
@@ -492,7 +494,7 @@ fun ListenTogetherScreen(
         if (!signedIn) {
             SettingsGroup(footer = stringResource(R.string.listen_together_sign_in_footer)) {
                 SettingsRow(
-                    icon = Icons.Rounded.Login,
+                    icon = Icons.AutoMirrored.Rounded.Login,
                     title = stringResource(R.string.sign_in),
                     subtitle = stringResource(R.string.not_signed_in),
                     onClick = onSignIn,
@@ -517,7 +519,7 @@ fun ListenTogetherScreen(
         } else {
             InAParty(
                 state = state,
-                onCopy = { clipboard.setText(AnnotatedString(state.code.orEmpty())) },
+                onCopy = { scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(copyCodeMessage, state.code.orEmpty()))) } },
                 onShare = { sheet = PartySheet.Invite },
                 onShareLink = shareInvite,
                 onLeave = { scope.launch { ListenTogether.leaveParty() } },
@@ -940,7 +942,7 @@ private fun InAParty(
 
     SettingsGroup {
         SettingsRow(
-            icon = Icons.Rounded.Logout,
+            icon = Icons.AutoMirrored.Rounded.Logout,
             title = stringResource(R.string.listen_together_leave),
             subtitle = stringResource(R.string.listen_together_leave_subtitle),
             onClick = onLeave,
@@ -1047,7 +1049,7 @@ private fun MemberRow(member: PartyMember, isYou: Boolean, canKick: Boolean = fa
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center,

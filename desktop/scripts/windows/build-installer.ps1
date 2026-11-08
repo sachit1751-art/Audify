@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "1.9.0",
+    [string]$Version = "1.9.1",
     [string]$Executable = "target/release/audify.exe",
     [string]$Output = "dist",
     [ValidateSet("x64compatible", "arm64")]

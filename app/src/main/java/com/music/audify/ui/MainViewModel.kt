@@ -52,6 +52,7 @@ import com.music.audify.data.model.SearchResult
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.SongMenu
+import com.music.audify.data.model.isVisibleWithExplicitFilter
 import com.music.audify.data.model.SubscriptionState
 import com.music.audify.data.model.UiState
 import com.music.audify.data.model.UserPlaylist
@@ -119,6 +120,7 @@ private data class LocalLibrarySyncTrigger(
 )
 
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+@OptIn(FlowPreview::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Installation-specific salt mixed into each fresh Home session seed. */
@@ -261,6 +263,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Every track in the Local Music folder, read when the Library source is picked. */
     private val _librarySongs = MutableStateFlow<UiState<List<Song>>>(UiState.Loading)
+    private val librarySearchGeneration = AtomicLong(0L)
 
     /**
      * The Library source's answer for the current query: the Local Music
@@ -299,10 +302,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * to the prefix they ended on instead of being worked through a letter at
      * a time.
      */
-    private val suggestRequests = MutableSharedFlow<String>(
+    private data class SuggestRequest(val query: String, val requestId: Long)
+
+    private val suggestRequests = MutableSharedFlow<SuggestRequest>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
+
+    /** Prevents an older answer for a repeated query from looking current again. */
+    private val newestSuggestRequestId = AtomicLong(0L)
 
     private val newestRequestId = AtomicLong(0L)
 
@@ -1717,6 +1725,47 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch {
+            AppSettings.hideExplicitContent.drop(1).collect { hide ->
+                if (hide) {
+                    _home.update { state ->
+                        if (state is UiState.Success) UiState.Success(filterExplicitHomeShelves(state.data)) else state
+                    }
+                    _results.update { state ->
+                        if (state is UiState.Success) UiState.Success(filterExplicitSearchRows(state.data)) else state
+                    }
+                    _history.update { state ->
+                        if (state is UiState.Success) UiState.Success(filterExplicitSongs(state.data)) else state
+                    }
+                    _library.update { state ->
+                        if (state is UiState.Success) UiState.Success(
+                            state.data.copy(
+                                likedSongs = filterExplicitSongs(state.data.likedSongs),
+                                librarySongs = filterExplicitSongs(state.data.librarySongs),
+                                shelves = filterExplicitHomeShelves(state.data.shelves),
+                            ),
+                        ) else state
+                    }
+                    _detailStack.update { pages -> pages.map { page ->
+                        page.copy(
+                            songs = when (val songs = page.songs) {
+                                is UiState.Success -> UiState.Success(filterExplicitSongs(songs.data))
+                                else -> songs
+                            },
+                            sections = filterExplicitHomeShelves(page.sections),
+                            suggestedSongs = filterExplicitSongs(page.suggestedSongs),
+                        )
+                    } }
+                } else {
+                    loadHome()
+                    if (searchSubmitted && _query.value.isNotBlank()) runSearch()
+                    if (_signedIn.value) {
+                        loadHistory()
+                        loadLibrary()
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
             AppSettings.filterNonMusicAudio.drop(1).collect {
                 if (_detailStack.value.any { page -> page.browseId == "local:all" }) {
                     reloadLocalDetail("local:all")
@@ -1827,12 +1876,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val identity = listenerKey()
         _refreshing.value = _refreshing.value + feed
         viewModelScope.launch {
-            when (feed) {
-                Feed.HOME -> refreshHome(identity)
-                Feed.EXPLORE -> fetchExplore()
-                Feed.LIBRARY -> fetchLibrary(identity)
+            runFeedRefresh(_refreshing, feed) {
+                when (feed) {
+                    Feed.HOME -> refreshHome(identity)
+                    Feed.EXPLORE -> fetchExplore()
+                    Feed.LIBRARY -> fetchLibrary(identity)
+                }
             }
-            _refreshing.value = _refreshing.value - feed
         }
     }
 
@@ -2022,7 +2072,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         prepend: Boolean = false,
         prioritize: Boolean = false,
     ) {
-        val variedShelves = diversifyHomeShelves(varyHomeFeed(shelves, homeSessionSeed)).map { shelf ->
+        val visibleShelves = filterExplicitHomeShelves(shelves)
+        val variedShelves = diversifyHomeShelves(varyHomeFeed(visibleShelves, homeSessionSeed)).map { shelf ->
             diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
         }
         val freshnessOrderedShelves = if (prepend) variedShelves else
@@ -2045,7 +2096,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     it.title.lowercase(Locale.ROOT) in replacing
             }
             homeSeenVideoIds.clear()
-            val unique = deduplicateHomeTracks(history + core + supplements, homeSeenVideoIds)
+            val unique = deduplicateHomeTracks(
+                mergeDuplicateHomeCredits(history + core + supplements),
+                homeSeenVideoIds,
+            )
             homeSeenTitles.clear()
             homeSeenTitles.addAll(unique.map { it.title.lowercase(Locale.ROOT) })
             _home.value = UiState.Success(unique)
@@ -2059,27 +2113,34 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 it.title.lowercase(Locale.ROOT) in replacing
             }
             homeSeenVideoIds.clear()
-            val unique = deduplicateHomeTracks(combined, homeSeenVideoIds)
+            val unique = deduplicateHomeTracks(mergeDuplicateHomeCredits(combined), homeSeenVideoIds)
             homeSeenTitles.clear()
             homeSeenTitles.addAll(unique.map { it.title.lowercase(Locale.ROOT) })
             _home.value = UiState.Success(unique)
             return
         }
-        val candidates = freshnessOrderedShelves.withoutRepeatsOf(existing)
+        val merged = mergeDuplicateHomeCredits(existing + freshnessOrderedShelves)
+        val enrichedExisting = merged.take(existing.size)
+        val enrichedIncoming = merged.drop(existing.size)
+        val candidates = enrichedIncoming.withoutRepeatsOf(enrichedExisting)
             .filterNot { it.title.lowercase(Locale.ROOT) in homeSeenTitles }
         val added = deduplicateHomeTracks(candidates, homeSeenVideoIds)
             .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
-        if (added.isNotEmpty()) _home.value = UiState.Success(existing + added)
+        if (added.isNotEmpty() || enrichedExisting != existing) {
+            _home.value = UiState.Success(enrichedExisting + added)
+        }
     }
 
     /** Refreshes the core feed without blanking the current Play page first. */
     private suspend fun refreshHome(identity: String?) = coroutineScope {
+        val loadGeneration = homeLoadGeneration.get()
+        val refreshSeed = Random.nextLong() xor homeVariationSeed
+        val previousSessionVideoIds = homeSeenVideoIds.toSet()
         homePagingGeneration.incrementAndGet()
         _homeLoadingMore.value = false
         homeContinuation = null
-        homeSessionSeed = Random.nextLong() xor homeVariationSeed
         homePreviousSessionVideoIds.clear()
-        homePreviousSessionVideoIds.addAll(homeSeenVideoIds)
+        homePreviousSessionVideoIds.addAll(previousSessionVideoIds)
         val recent = if (_signedIn.value) async { YtMusicRepository.homeRecentlyPlayed() } else null
         val primary = YtMusicRepository.home().getOrNull()
         val useFallback = primary == null || (primary.shelves.isEmpty() && primary.continuation == null)
@@ -2089,8 +2150,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     android.util.Log.w("MainViewModel", "Home refresh fallback failed: ${failure.message}", failure)
                     return@coroutineScope
                 }
-        } else primary!!
-        if (identity != listenerKey()) return@coroutineScope
+        } else primary
+        if (!shouldPublishHomeRefresh(
+                identityMatches = identity == listenerKey(),
+                requestGeneration = loadGeneration,
+                currentGeneration = homeLoadGeneration.get(),
+            )
+        ) {
+            recent?.cancel()
+            return@coroutineScope
+        }
+        homeSessionSeed = refreshSeed
         homeContinuation = if (useFallback) {
             feed.continuation
         } else {
@@ -2099,15 +2169,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         homeSeenTitles.clear()
         homeSeenVideoIds.clear()
         homeSeenContinuationTokens.clear()
-        val varied = diversifyHomeShelves(varyHomeFeed(feed.shelves, homeSessionSeed)).map { shelf ->
-            diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
-        }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
+        val varied = diversifyHomeShelves(varyHomeFeed(filterExplicitHomeShelves(feed.shelves), refreshSeed)).map { shelf ->
+            diversifyHomeShelf(shelf, refreshSeed xor shelf.title.hashCode().toLong())
+        }.let { prioritizeFreshHomeTracks(it, previousSessionVideoIds) }
             .withoutRepeatsOf(emptyList())
-        val shelves = deduplicateHomeTracks(varied, homeSeenVideoIds)
+        val shelves = deduplicateHomeTracks(mergeDuplicateHomeCredits(varied), homeSeenVideoIds)
             .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
         _home.value = UiState.Success(shelves)
         recent?.await()?.onSuccess { shelf ->
-            if (identity == listenerKey()) shelf?.let { publishHomeShelves(listOf(it), prepend = true) }
+            if (shouldPublishHomeRefresh(
+                    identityMatches = identity == listenerKey(),
+                    requestGeneration = loadGeneration,
+                    currentGeneration = homeLoadGeneration.get(),
+                )
+            ) {
+                shelf?.let { publishHomeShelves(listOf(it), prepend = true) }
+            }
         }
     }
 
@@ -2165,7 +2242,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )).map { shelf ->
                         diversifyHomeShelf(shelf, homeSessionSeed xor pageToken.hashCode().toLong() xor shelf.title.hashCode().toLong())
                     }.let { prioritizeFreshHomeTracks(it, homePreviousSessionVideoIds) }
-                    val candidates = varied.withoutRepeatsOf(existing)
+                    val merged = mergeDuplicateHomeCredits(existing + varied)
+                    val enrichedExisting = merged.take(existing.size)
+                    val enrichedIncoming = merged.drop(existing.size)
+                    val candidates = enrichedIncoming.withoutRepeatsOf(enrichedExisting)
                         .filterNot { it.title.lowercase(Locale.ROOT) in homeSeenTitles }
                     val added = deduplicateHomeTracks(candidates, homeSeenVideoIds)
                         .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
@@ -2173,8 +2253,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         it != pageToken && it !in homeSeenContinuationTokens
                     } ?: if (!isFallback) "${YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX}0" else null
                     homeContinuation = followingToken
+                    if (added.isNotEmpty() || enrichedExisting != existing) {
+                        _home.value = UiState.Success(enrichedExisting + added)
+                    }
                     if (added.isNotEmpty()) {
-                        _home.value = UiState.Success(existing + added)
                         break
                     }
 
@@ -2368,6 +2450,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * a blank placeholder.
      */
     fun searchFor(term: String) {
+        newestSuggestRequestId.incrementAndGet()
         _query.value = term
         searchSubmitted = true
         _suggestions.value = emptyList()
@@ -2384,6 +2467,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun clearSearchHistory() = SearchHistory.clear()
 
     fun onQueryChange(newValue: String) {
+        val requestId = newestSuggestRequestId.incrementAndGet()
         _query.value = newValue
         if (newValue.isBlank()) {
             searchSubmitted = false
@@ -2406,7 +2490,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (_searchSource.value != SearchSource.YOUTUBE) return
         // While typing, surface text completions — the pipeline already feeds
         // them through [suggestRequests] and publishes results via typeahead.
-        suggestRequests.tryEmit(newValue)
+        suggestRequests.tryEmit(SuggestRequest(newValue, requestId))
     }
 
     /**
@@ -2414,6 +2498,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * full search, and records the term in history for future recall.
      */
     fun submitSearch() {
+        newestSuggestRequestId.incrementAndGet()
         val q = _query.value.trim()
         if (q.isEmpty() || _searchSource.value == SearchSource.LIBRARY) return
         searchSubmitted = true
@@ -2468,7 +2553,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setSearchSource(source: SearchSource) {
         if (_searchSource.value == source) return
+        newestSuggestRequestId.incrementAndGet()
         _searchSource.value = source
+        librarySearchGeneration.incrementAndGet()
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
         _searchScrollReset.value += 1
@@ -2485,9 +2572,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * are in the next answer; the last list stays up meanwhile.
      */
     fun loadLibrarySongs() {
+        val generation = librarySearchGeneration.incrementAndGet()
         viewModelScope.launch {
             val context = getApplication<Application>()
-            _librarySongs.value = if (!LocalMediaRepository.hasStoragePermission(context)) {
+            val result = if (!LocalMediaRepository.hasStoragePermission(context)) {
                 UiState.Error(text(R.string.storage_required_read))
             } else {
                 runCatching { LocalMediaRepository.getLocalMusic(context) }.fold(
@@ -2497,6 +2585,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     },
                     onFailure = { UiState.Error(text(R.string.no_local_audio_found)) },
                 )
+            }
+            if (shouldPublishLibrarySearch(generation, librarySearchGeneration.get(), _searchSource.value)) {
+                _librarySongs.value = result
             }
         }
     }
@@ -2583,7 +2674,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // one. Only fall back to a spinner with neither.
                 val exact = searchCache.get(key)
                 val cached = exact?.rows ?: prefixMatch(request.query, request.filter)
-                _results.value = cached?.let { UiState.Success(it) } ?: UiState.Loading
+                _results.value = cached?.let { UiState.Success(filterExplicitSearchRows(it)) } ?: UiState.Loading
                 // An explicit submit still has to reach the server even when
                 // an anonymous lookup cached the same query: that call is what
                 // records it in the account's history.
@@ -2627,11 +2718,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val stillCurrent = searchSession == session && session.requestId == newestRequestId.get()
             if (stillCurrent) {
                 next.onSuccess { page ->
-                    val current = (_results.value as? UiState.Success)?.data.orEmpty()
+                    val current = searchCache.get(session.key)?.rows
+                        ?: (_results.value as? UiState.Success)?.data.orEmpty()
                     val merged = (current + page.rows).distinctBy(::searchResultKey)
                     searchCache.put(session.key, SearchCacheEntry(merged, page.continuation))
                     searchSession = session.copy(continuation = page.continuation)
-                    _results.value = UiState.Success(merged)
+                    _results.value = UiState.Success(filterExplicitSearchRows(merged))
                 }
                 _searchLoadingMore.value = false
             }
@@ -2662,18 +2754,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // moved on: typed further, or searched — which empties [_suggestions],
         // and a late answer writing to it would reopen the suggestions over
         // the results the user is by then reading.
-        fun stillWanted(input: String) = _query.value == input && !searchSubmitted
+        fun stillWanted(request: SuggestRequest) = shouldPublishYouTubeTypeahead(
+            currentQuery = _query.value,
+            requestedQuery = request.query,
+            submitted = searchSubmitted,
+            source = _searchSource.value,
+            requestId = request.requestId,
+            currentRequestId = newestSuggestRequestId.get(),
+        )
 
         suggestRequests
             .debounce(SUGGEST_DEBOUNCE_MS)
-            .collectLatest { input ->
-                if (!stillWanted(input)) return@collectLatest
-                val fetched = YtMusicRepository.searchSuggestions(input).getOrNull()
+            .collectLatest { request ->
+                if (!stillWanted(request)) return@collectLatest
+                val fetched = YtMusicRepository.searchSuggestions(request.query).getOrNull()
                     ?: return@collectLatest
                 // Asked again on the way back; the field is live throughout.
-                if (!stillWanted(input)) return@collectLatest
-                _suggestions.value = listOf(input) +
-                    fetched.filterNot { it.equals(input, ignoreCase = true) }
+                if (!stillWanted(request)) return@collectLatest
+                _suggestions.value = listOf(request.query) +
+                    fetched.filterNot { it.equals(request.query, ignoreCase = true) }
             }
     }
 
@@ -2686,7 +2785,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun startTypeaheadMediaPipeline() = viewModelScope.launch {
         suggestRequests
             .debounce(TYPEAHEAD_MEDIA_DEBOUNCE_MS)
-            .collectLatest { input ->
+            .collectLatest { request ->
+                val input = request.query
                 if (input.isBlank()) {
                     _typeaheadResults.value = emptyList()
                     return@collectLatest
@@ -2696,13 +2796,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // own isn't enough: a late suggestion callback can repopulate
                 // _suggestions after submission, and we must not re-open the
                 // typeahead dropdown under an already-committed search.
-                if (searchSubmitted) {
+                if (!shouldPublishYouTubeTypeahead(
+                        currentQuery = _query.value,
+                        requestedQuery = input,
+                        submitted = searchSubmitted,
+                        source = _searchSource.value,
+                        requestId = request.requestId,
+                        currentRequestId = newestSuggestRequestId.get(),
+                    )
+                ) {
                     _typeaheadResults.value = emptyList()
                     return@collectLatest
                 }
                 val result = YtMusicRepository.searchTypeahead(input).getOrNull()
                 // If the field moved on, drop the result silently.
-                if (_query.value != input) {
+                if (!shouldPublishYouTubeTypeahead(
+                        currentQuery = _query.value,
+                        requestedQuery = input,
+                        submitted = searchSubmitted,
+                        source = _searchSource.value,
+                        requestId = request.requestId,
+                        currentRequestId = newestSuggestRequestId.get(),
+                    )
+                ) {
                     _typeaheadResults.value = emptyList()
                     return@collectLatest
                 }
@@ -2717,14 +2833,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         key: String,
         requestId: Long,
     ): UiState<List<SearchResult>> {
-        val rows = page.rows
+        val rows = filterExplicitSearchRows(page.rows)
         if (rows.isEmpty()) return UiState.Error(text(R.string.no_results))
-        searchCache.put(key, SearchCacheEntry(rows, page.continuation))
+        searchCache.put(key, SearchCacheEntry(page.rows, page.continuation))
         searchSession = SearchSession(key, requestId, _filter.value, page.continuation)
         prefetchTopResult(rows)
         return UiState.Success(rows)
     }
 
+    /** Unknown explicit state is deliberately visible; only a positive catalogue mark is hidden. */
+    private fun filterExplicitSongs(songs: List<Song>): List<Song> =
+        if (AppSettings.hideExplicitContent.value) songs.filter { isVisibleWithExplicitFilter(it.isExplicit, hideExplicitContent = true) } else songs
+
+    private fun filterExplicitSearchRows(rows: List<SearchResult>): List<SearchResult> =
+        if (!AppSettings.hideExplicitContent.value) rows else rows.filterNot { row ->
+            when (row) {
+                is SearchResult.TopTrack -> !isVisibleWithExplicitFilter(row.song.isExplicit, hideExplicitContent = true)
+                is SearchResult.Track -> !isVisibleWithExplicitFilter(row.song.isExplicit, hideExplicitContent = true)
+                is SearchResult.Browse -> !isVisibleWithExplicitFilter(row.item.isExplicit, hideExplicitContent = true)
+            }
+        }
+
+    private fun filterExplicitHomeShelves(shelves: List<HomeShelf>): List<HomeShelf> =
+        if (!AppSettings.hideExplicitContent.value) shelves else shelves.mapNotNull { shelf ->
+            val items = shelf.items.filterNot { !isVisibleWithExplicitFilter(it.isExplicit, hideExplicitContent = true) }
+            shelf.copy(items = items).takeIf { items.isNotEmpty() }
+        }
     private fun searchResultKey(row: SearchResult): String = when (row) {
         is SearchResult.TopTrack -> "v:${row.song.videoId}"
         is SearchResult.Track -> "v:${row.song.videoId}"
@@ -3020,11 +3154,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // tracks already on the device, and showed an error with no
             // connection at all. Its downloaded copy goes up first; the
             // online listing replaces it if and when that arrives.
-            val onDevice = if (localPlaylist == null && remote == null && !browseId.startsWith("local:")) {
+            val onDeviceRaw = if (localPlaylist == null && remote == null && !browseId.startsWith("local:")) {
                 downloadedCopyOf(browseId)
             } else {
                 emptyList()
             }
+            val onDevice = filterExplicitSongs(onDeviceRaw)
             if (onDevice.isNotEmpty()) {
                 _detailStack.value = _detailStack.value.map {
                     if (it.browseId == browseId && it.songs is UiState.Loading) it.copy(songs = UiState.Success(onDevice)) else it
@@ -3045,7 +3180,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 resolved == BrowseType.ARTIST -> {
                     YtMusicRepository.artistPage(browseId).fold(
                         onSuccess = { page ->
-                            sections = page.sections
+                            sections = filterExplicitHomeShelves(page.sections)
                             artwork = page.thumbnailUrl
                             name = page.name
                             description = page.description
@@ -3055,7 +3190,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             if (page.songs.isEmpty()) {
                                 UiState.Error(text(R.string.no_tracks_here))
                             } else {
-                                UiState.Success(page.songs.withArtwork(thumbnailUrl ?: artwork))
+                                UiState.Success(filterExplicitSongs(page.songs).withArtwork(thumbnailUrl ?: artwork))
                             }
                         },
                         onFailure = { UiState.Error(it.friendly()) },
@@ -3090,9 +3225,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                                 UiState.Error(text(R.string.no_tracks_here))
                             } else {
                                 more = page.continuation
-                                suggested = page.suggested.withArtwork(thumbnailUrl ?: artwork)
+                                suggested = filterExplicitSongs(page.suggested).withArtwork(thumbnailUrl ?: artwork)
                                 library = page.library
-                                UiState.Success(page.songs.withArtwork(thumbnailUrl ?: artwork))
+                                UiState.Success(filterExplicitSongs(page.songs).withArtwork(thumbnailUrl ?: artwork))
                             }
                         },
                         onFailure = { UiState.Error(it.friendly()) },
@@ -3361,7 +3496,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     if (current.browseId != browseId) return@map current
                     val existing = (current.songs as? UiState.Success)?.data ?: return@map current
                     val known = existing.mapTo(HashSet()) { it.contextEntryKey() }
-                    val added = fetched.songs
+                    val added = filterExplicitSongs(fetched.songs)
                         .filter { known.add(it.contextEntryKey()) }
                         .withArtwork(artworkFallback)
                     val knownVideoIds = (existing + added).mapTo(HashSet()) { it.videoId }
@@ -3370,7 +3505,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     // see parsePlaylistShelf — so they're tracked separately
                     // rather than folded into [known].
                     val knownSuggested = current.suggestedSongs.mapTo(HashSet()) { it.videoId }
-                    val addedSuggested = fetched.suggested
+                    val addedSuggested = filterExplicitSongs(fetched.suggested)
                         .filter { it.videoId !in knownVideoIds && knownSuggested.add(it.videoId) }
                         .withArtwork(artworkFallback)
                     if (added.isEmpty() && addedSuggested.isEmpty()) return@map current

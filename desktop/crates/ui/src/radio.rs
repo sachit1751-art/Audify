@@ -103,7 +103,7 @@ impl RenderOnce for Radio {
             true => dot
                 .motion(
                     ("dot", usize::from(selected)),
-                    Motion::Control,
+                    Motion::Toggle,
                     move |dot, t| {
                         dot.bg(mix(fill_was, fill_is, t))
                             .border_color(mix(edge_was, edge_is, t))

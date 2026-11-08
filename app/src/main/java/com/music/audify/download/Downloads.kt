@@ -36,7 +36,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import java.io.OutputStream
 import java.io.File
 import java.util.Locale
@@ -138,7 +140,7 @@ object Downloads {
     private val _storagePrompt = MutableStateFlow<DownloadStoragePrompt?>(null)
     internal val storagePrompt: StateFlow<DownloadStoragePrompt?> = _storagePrompt.asStateFlow()
     private val storageBudgetLock = Any()
-    private val storageReservations = mutableMapOf<String, Long>()
+    private val storageReservations = mutableMapOf<Long, Long>()
 
     /**
      * The releases that were downloaded *as* releases, by the id they were asked
@@ -157,9 +159,9 @@ object Downloads {
     private val lock = Any()
 
     /**
-     * The tracks taken off the queue and not yet finished, to the job fetching
-     * each — null in the gap between a worker claiming a track and its job
-     * existing.
+     * The tracks taken off the queue and not yet finished, to their unique
+     * claim token and the job fetching each — null in the gap between a worker
+     * claiming a track and its job existing.
      *
      * A map rather than the single slot this used to be, because several
      * downloads run at once now. That plurality is the only reason it is here:
@@ -167,27 +169,40 @@ object Downloads {
      * claiming the next track must not be able to step on another worker's.
      * Guarded by [lock].
      */
-    private val running = LinkedHashMap<String, Job?>()
+    private val running = LinkedHashMap<String, RunningDownloadClaim>()
+    /** Cancelled claims remain here until their worker has fully unwound. */
+    private val retiring = LinkedHashMap<String, MutableSet<Long>>()
+    private var nextClaimToken = 0L
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
-        _saved.value = runCatching {
-            json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _savedMetadata.value = runCatching {
-            json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
-        }.getOrDefault(emptyMap())
+        _saved.value = readPersistedMap(KEY_SAVED, String.serializer())
+        _savedMetadata.value = readPersistedMap(KEY_SAVED_METADATA, SavedSongMetadata.serializer())
         _fileChecks.value = _savedMetadata.value.mapValues { (_, metadata) ->
             DownloadFileCheckStatus(
                 state = DownloadFileCheckState.fromPersisted(metadata.fileCheckState),
                 checkedAtMillis = metadata.fileCheckAtMillis,
             )
         }
-        _collections.value = runCatching {
-            json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
-        }.getOrDefault(emptyMap())
+        _collections.value = readPersistedMap(KEY_SAVED_COLLECTIONS, SavedCollection.serializer())
         _storageBudgetBytes.value = prefs.getLong(KEY_STORAGE_BUDGET_BYTES, UNLIMITED_STORAGE_BUDGET)
         DownloadVerificationScheduler.schedule(context.applicationContext)
+    }
+
+    private fun <T> readPersistedMap(key: String, valueSerializer: KSerializer<T>): Map<String, T> {
+        val raw = prefs.getString(key, null) ?: return emptyMap()
+        val decoded = decodePersistedDownloadMap(raw, valueSerializer, json)
+        if (decoded.invalidRoot || decoded.invalidEntries > 0) {
+            // Preserve the original before a later successful download writes a
+            // clean map over it. Valid entries remain available immediately;
+            // malformed records can still be recovered from this backup key.
+            val backupKey = "$key.corrupt_backup"
+            if (prefs.getString(backupKey, null) == null) {
+                prefs.edit { putString(backupKey, raw) }
+            }
+            Log.w(TAG, "loaded ${decoded.values.size} valid $key entries; skipped ${decoded.invalidEntries} malformed")
+        }
+        return decoded.values
     }
 
     /** Change the opt-in cap. Zero means unlimited and is the compatibility default. */
@@ -209,7 +224,12 @@ object Downloads {
      * Reserve exact projected bytes before a destination is created. Unknown
      * source or existing-file sizes block while the cap is enabled.
      */
-    internal fun reserveStorageBudget(context: Context, song: Song, projectedBytes: Long?): Boolean =
+    internal fun reserveStorageBudget(
+        context: Context,
+        song: Song,
+        projectedBytes: Long?,
+        claimToken: Long,
+    ): Boolean =
         synchronized(storageBudgetLock) {
             val budget = _storageBudgetBytes.value
             if (budget == UNLIMITED_STORAGE_BUDGET) return@synchronized true
@@ -264,7 +284,7 @@ object Downloads {
             }
             when (val decision = evaluateStorageBudget(files, projectedBytes, budget, reserved)) {
                 StorageBudgetDecision.Allowed -> {
-                    storageReservations[song.videoId] = projectedBytes
+                    storageReservations[claimToken] = projectedBytes
                     true
                 }
                 StorageBudgetDecision.SizeUnknown -> {
@@ -294,8 +314,8 @@ object Downloads {
             }
         }
 
-    internal fun releaseStorageReservation(videoId: String) {
-        synchronized(storageBudgetLock) { storageReservations.remove(videoId) }
+    internal fun releaseStorageReservation(claimToken: Long) {
+        synchronized(storageBudgetLock) { storageReservations.remove(claimToken) }
     }
 
     /** Called only from the second, explicit confirmation dialog. */
@@ -421,19 +441,21 @@ object Downloads {
             // here to leave alone, and a refusal nobody is told about reads as a
             // dead button. A download already queued or running started on a
             // connection that allowed it and is none of this check's business.
-            val inFlight = _active.value[id]
-            if (inFlight !is DownloadState.Queued && inFlight !is DownloadState.Running) {
-                DownloadSession.queued(song, from)
-                fail(id, WIFI_ONLY_REFUSAL)
+            synchronized(lock) {
+                val inFlight = _active.value[id]
+                if (inFlight !is DownloadState.Queued && inFlight !is DownloadState.Running) {
+                    DownloadSession.queued(song, from)
+                    fail(id, WIFI_ONLY_REFUSAL)
+                }
             }
             return
         }
         synchronized(lock) {
             if (id in pending || id in running) return
             pending[id] = song
+            _active.update { it + (id to DownloadState.Queued) }
+            DownloadSession.queued(song, from)
         }
-        _active.update { it + (id to DownloadState.Queued) }
-        DownloadSession.queued(song, from)
 
         val app = context.applicationContext
         runCatching {
@@ -443,8 +465,12 @@ object Downloads {
             // means the queue has nothing to drain it and would sit there
             // looking accepted forever.
             Log.w(TAG, "could not start the download service: ${it.message}")
-            synchronized(lock) { pending.remove(id) }
-            fail(id, "Downloads can't start right now")
+            synchronized(lock) {
+                if (pending.remove(id) != null) {
+                    _active.update { it + (id to DownloadState.Failed("Downloads can't start right now")) }
+                    DownloadSession.failed(id, "Downloads can't start right now")
+                }
+            }
         }
     }
 
@@ -479,23 +505,21 @@ object Downloads {
      * Drop [videoId] from the queue, or stop it if it is one of the ones
      * running.
      *
-     * Dropping it from [running] is what makes this safe in the gap between a
-     * track being dequeued and its job existing: a cancel landing in that
-     * window finds no job to stop, but [onRunning] then finds the id it was
-     * told to run is no longer wanted, and stops it on arrival.
+     * A cancelled claim moves to [retiring] until its worker has unwound. A
+     * re-enqueued copy waits there rather than racing the old worker's file
+     * cleanup, and the unique token prevents that worker from touching the new
+     * claim's progress or completion state.
      */
     fun cancel(videoId: String) {
         val job = synchronized(lock) {
             pending.remove(videoId)
-            if (videoId !in running) return@synchronized null
-            running.remove(videoId)
+            val claimed = running.remove(videoId)
+            claimed?.let { retiring.getOrPut(videoId) { mutableSetOf() }.add(it.token) }
+            _active.update { it - videoId }
+            DownloadSession.forget(videoId)
+            claimed?.job
         }
         job?.cancel()
-        clear(videoId)
-        // A download the user called off is not something they need reminding to
-        // check on, so it leaves the manager rather than sitting in it as a
-        // permanent "cancelled" row.
-        DownloadSession.forget(videoId)
     }
 
     // ---- The record ---------------------------------------------------------
@@ -845,6 +869,7 @@ object Downloads {
             downloadFormat = downloadFormat,
             dateAddedSeconds = dateAddedSeconds,
             fileCheckState = DownloadFileCheckState.UNCHECKED.persistedValue,
+            isExplicit = asked.isExplicit,
         )
         val metaFetched = SavedSongMetadata(
             videoId = fetched.videoId,
@@ -857,6 +882,7 @@ object Downloads {
             downloadFormat = downloadFormat,
             dateAddedSeconds = dateAddedSeconds,
             fileCheckState = DownloadFileCheckState.UNCHECKED.persistedValue,
+            isExplicit = fetched.isExplicit,
         )
         record(
             saved = { it + ids.associateWith { id -> uri.toString() } },
@@ -976,6 +1002,7 @@ object Downloads {
                         albumName = meta.albumName,
                         localUri = meta.uri,
                         downloadFormat = downloadFormat,
+                        isExplicit = meta.isExplicit,
                         localDateAddedSeconds = dateAddedSeconds,
                         localDateModifiedSeconds = dateModifiedSeconds,
                     )
@@ -1055,6 +1082,7 @@ object Downloads {
                     albumName = meta.albumName,
                     localUri = uriString,
                     downloadFormat = meta.downloadFormat ?: legacyYoutubeDownloadBadge(context, uri),
+                    isExplicit = meta.isExplicit,
                     localDateAddedSeconds = dateAddedSeconds,
                     localDateModifiedSeconds = dateModifiedSeconds,
                 )
@@ -1072,41 +1100,54 @@ object Downloads {
      * instant where a track is in neither the queue nor the running slot and a
      * [cancel] for it would quietly do nothing.
      */
-    internal fun takeNext(): Song? = synchronized(lock) {
-        val entry = pending.entries.firstOrNull() ?: return null
+    internal fun takeNext(): DownloadClaim? = synchronized(lock) {
+        val entry = pending.entries.firstOrNull { canStartDownloadClaim(it.key, retiring) } ?: return null
         pending.remove(entry.key)
-        running[entry.key] = null
-        entry.value
+        val token = ++nextClaimToken
+        running[entry.key] = RunningDownloadClaim(token)
+        DownloadClaim(entry.value, token)
     }
 
-    /** Attach the job fetching [videoId], unless it has been cancelled meanwhile. */
-    internal fun onRunning(videoId: String, job: Job) {
-        val cancelled = synchronized(lock) {
-            if (videoId !in running) return@synchronized true
-            running[videoId] = job
-            false
+    /** Attach the job only to the exact queue claim that created it. */
+    internal fun onRunning(videoId: String, claimToken: Long, job: Job) {
+        val attached = synchronized(lock) {
+            attachRunningJobIfClaimMatches(running, videoId, claimToken, job)
         }
-        if (cancelled) job.cancel()
+        if (!attached) job.cancel()
     }
 
     /** [videoId] is finished, one way or another, and no longer holds a worker. */
-    internal fun onIdle(videoId: String) {
-        synchronized(lock) { running.remove(videoId) }
+    internal fun onIdle(videoId: String, claimToken: Long) {
+        synchronized(lock) {
+            removeRunningClaimIfMatches(running, videoId, claimToken)
+            removeRetiringDownloadClaim(retiring, videoId, claimToken)
+        }
     }
 
     /** Whether anything is still queued or in flight — see [DownloadService]'s workers. */
-    internal fun busy(): Boolean = synchronized(lock) { pending.isNotEmpty() || running.isNotEmpty() }
+    internal fun busy(): Boolean = synchronized(lock) {
+        pending.isNotEmpty() || running.isNotEmpty() || retiring.isNotEmpty()
+    }
 
     /**
      * The service is gone, so nothing is running any more.
      *
      * Distinct from [onIdle], which is one worker reporting one finished track.
-     * This is the whole drain going away at once — every claim in [running] is
-     * void, and leaving one behind would have [enqueue] refuse that track
-     * forever as already in flight.
+     * This is the whole drain going away at once — active claims are void, and
+     * leaving one behind would have [enqueue] refuse that track forever as
+     * already in flight. Pending requests are retained for a replacement
+     * service instance to drain.
      */
     internal fun onStopped() {
-        synchronized(lock) { running.clear() }
+        synchronized(lock) {
+            val abandoned = (running.keys + retiring.keys).distinct()
+            running.clear()
+            retiring.clear()
+            abandoned.forEach { id ->
+                _active.update { it - id }
+                DownloadSession.forget(id)
+            }
+        }
     }
 
     /**
@@ -1133,29 +1174,32 @@ object Downloads {
      * shared between them but the two state flows, and both are written through
      * atomic updates for exactly that reason.
      */
-    internal suspend fun run(context: Context, song: Song) = withContext(Dispatchers.IO) {
+    internal suspend fun run(context: Context, claim: DownloadClaim) = withContext(Dispatchers.IO) {
+        val song = claim.song
         val id = song.videoId
+        val claimToken = claim.token
+        ensureCurrentClaim(id, claimToken)
         // Set before the lookup, not after it. Resolving where a lossless track
         // comes from is the long part of a download, and leaving the row on
         // "Queued" for all of it reads as a queue that has stopped rather than
         // one that is working.
-        _active.update { it + (id to DownloadState.Running(0f)) }
-        DownloadSession.running(id, 0f)
+        if (!updateRunningIfCurrent(id, claimToken, 0f)) ensureCurrentClaim(id, claimToken)
 
         try {
             val plan = prepare(context, song)
+            ensureCurrentClaim(id, claimToken)
             // The manager is showing the row that was tapped, which for a music
             // video is the wrong title and the wrong cover for the file actually
             // being written. Corrected here rather than left to disagree with
             // the notification and with the Downloads page afterwards.
-            DownloadSession.retitle(id, plan.track)
-            transfer(context, song, plan)
+            if (!retitleIfCurrent(id, claimToken, plan.track)) ensureCurrentClaim(id, claimToken)
+            transfer(context, song, plan, claimToken)
         } catch (e: CancellationException) {
-            clear(id)
+            clearIfCurrent(id, claimToken)
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "download failed for $id: ${e.message}", e)
-            fail(id, e.friendly())
+            failIfCurrent(id, claimToken, e.friendly())
         }
     }
 
@@ -1212,7 +1256,7 @@ object Downloads {
 
         // Asked for from the Cached songs folder: the copy already on disk is
         // the answer, if it is whole. See [fromCache].
-        if (fromCache.remove(song.videoId)) {
+        if (song.videoId in fromCache) {
             AudioCache.completeCopyOf(song.videoId)?.let(::cachedRoute)?.let { route ->
                 Log.d(TAG, "downloading ${song.videoId} from the song cache as .${route.extension}")
                 return@withContext Prepared(song.videoId, track, route = route, alreadyAt = null)
@@ -1258,29 +1302,26 @@ object Downloads {
      * commits or aborts, so a caller is free to call it a second time with a
      * freshly resolved plan without the first attempt leaving anything behind.
      */
-    private suspend fun transfer(context: Context, song: Song, plan: Prepared) {
+    private suspend fun transfer(context: Context, song: Song, plan: Prepared, claimToken: Long) {
         val id = song.videoId
         val track = plan.track
+        ensureCurrentClaim(id, claimToken)
 
         // Already there from a previous run the record lost track of — adopt it
         // rather than writing a second copy beside it.
         plan.alreadyAt?.let { uri ->
-            remember(song, track, uri)
-            DownloadSession.done(id)
-            clear(id)
+            completeIfCurrent(id, claimToken) { remember(song, track, uri) }
             return
         }
         val route = plan.route ?: error("Nothing to download")
 
         val name = DownloadStore.fileNameFor(track, route.extension)
         DownloadStore.existing(context, name)?.let { alreadyThere ->
-            remember(song, track, alreadyThere)
-            DownloadSession.done(id)
-            clear(id)
+            completeIfCurrent(id, claimToken) { remember(song, track, alreadyThere) }
             return
         }
 
-        if (!reserveStorageBudget(context, song, route.expectedSizeBytes)) {
+        if (!reserveStorageBudget(context, song, route.expectedSizeBytes, claimToken)) {
             val reason = _storagePrompt.value?.reason
                 ?: context.getString(R.string.download_storage_budget_reached)
             error(reason)
@@ -1314,11 +1355,9 @@ object Downloads {
                 if (alreadyThere != null) {
                     Log.d(TAG, "$name is already in Music; adopting it")
                     synchronized(storageBudgetLock) {
-                        remember(song, track, alreadyThere)
-                        storageReservations.remove(id)
+                        completeIfCurrent(id, claimToken) { remember(song, track, alreadyThere) }
+                        storageReservations.remove(claimToken)
                     }
-                    DownloadSession.done(id)
-                    clear(id)
                     return@coroutineScope
                 }
 
@@ -1326,8 +1365,7 @@ object Downloads {
                 if (manifest != null) {
                     val onSegment: (Long, Long) -> Unit = { written, total ->
                         val fraction = written.toFloat() / total
-                        _active.update { it + (id to DownloadState.Running(fraction)) }
-                        DownloadSession.running(id, fraction)
+                        updateRunningIfCurrent(id, claimToken, fraction)
                     }
                     val savedUri = if (manifest.dash) {
                         OfflineDash.save(
@@ -1350,12 +1388,13 @@ object Downloads {
                             artwork = artwork?.await(),
                         )
                     }
-                    synchronized(storageBudgetLock) {
+                    val recorded = completeIfCurrent(id, claimToken) {
                         remember(song, track, savedUri, route.downloadFormat)
-                        storageReservations.remove(id)
                     }
-                    DownloadSession.done(id)
-                    clear(id)
+                    if (!recorded) DownloadStore.delete(context, savedUri)
+                    synchronized(storageBudgetLock) {
+                        storageReservations.remove(claimToken)
+                    }
                     Log.d(TAG, "saved offline ${if (manifest.dash) "DASH" else "HLS"} package for $name")
                     return@coroutineScope
                 }
@@ -1365,8 +1404,7 @@ object Downloads {
                 destination.openStream().use { sink ->
                     route.write(sink) { written, total ->
                         val fraction = written.toFloat() / total
-                        _active.update { it + (id to DownloadState.Running(fraction)) }
-                        DownloadSession.running(id, fraction)
+                        updateRunningIfCurrent(id, claimToken, fraction)
                     }
                 }
                 val words = lyrics?.await()
@@ -1377,12 +1415,13 @@ object Downloads {
                 val artworkUri = MediaTagger.persistArtwork(context, track.thumbnailUrl, cover)
                 val savedUri = destination.commit()
                 pending = null
-                synchronized(storageBudgetLock) {
+                val recorded = completeIfCurrent(id, claimToken) {
                     remember(song, track, savedUri, route.downloadFormat, artworkUri)
-                    storageReservations.remove(id)
                 }
-                DownloadSession.done(id)
-                clear(id)
+                if (!recorded) DownloadStore.delete(context, savedUri)
+                synchronized(storageBudgetLock) {
+                    storageReservations.remove(claimToken)
+                }
                 Log.d(TAG, "saved $name")
             }
         } catch (e: Throwable) {
@@ -1396,7 +1435,7 @@ object Downloads {
             // a lyrics search per already-downloaded track.
             lyrics?.cancel()
             artwork?.cancel()
-            releaseStorageReservation(id)
+            releaseStorageReservation(claimToken)
         }
     }
 
@@ -1611,6 +1650,53 @@ object Downloads {
         _active.update { it - videoId }
     }
 
+    private fun ensureCurrentClaim(videoId: String, claimToken: Long) {
+        if (!synchronized(lock) { running[videoId]?.token == claimToken }) {
+            throw CancellationException("Download claim for $videoId is no longer active")
+        }
+    }
+
+    private fun updateRunningIfCurrent(videoId: String, claimToken: Long, fraction: Float): Boolean =
+        synchronized(lock) {
+            if (running[videoId]?.token != claimToken) return@synchronized false
+            _active.update { it + (videoId to DownloadState.Running(fraction)) }
+            DownloadSession.running(videoId, fraction)
+            true
+        }
+
+    private fun retitleIfCurrent(videoId: String, claimToken: Long, song: Song): Boolean =
+        synchronized(lock) {
+            if (running[videoId]?.token != claimToken) return@synchronized false
+            DownloadSession.retitle(videoId, song)
+            true
+        }
+
+    /** The saved file and its session state commit together against the live claim. */
+    private fun completeIfCurrent(videoId: String, claimToken: Long, save: () -> Unit): Boolean =
+        synchronized(lock) {
+            if (running[videoId]?.token != claimToken) return@synchronized false
+            save()
+            fromCache.remove(videoId)
+            DownloadSession.done(videoId)
+            _active.update { it - videoId }
+            true
+        }
+
+    private fun clearIfCurrent(videoId: String, claimToken: Long): Boolean =
+        synchronized(lock) {
+            if (running[videoId]?.token != claimToken) return@synchronized false
+            _active.update { it - videoId }
+            true
+        }
+
+    private fun failIfCurrent(videoId: String, claimToken: Long, reason: String): Boolean =
+        synchronized(lock) {
+            if (running[videoId]?.token != claimToken) return@synchronized false
+            _active.update { it + (videoId to DownloadState.Failed(reason)) }
+            DownloadSession.failed(videoId, reason)
+            true
+        }
+
     private fun fail(videoId: String, reason: String) {
         _active.update { it + (videoId to DownloadState.Failed(reason)) }
         DownloadSession.failed(videoId, reason)
@@ -1697,10 +1783,59 @@ object Downloads {
 
     /** Dropped when the sheet is reopened; a failure is worth showing once. */
     fun dismissFailure(videoId: String) {
-        if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
+        synchronized(lock) {
+            if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
+        }
     }
 
     private const val KEY_SAVED = "downloaded_tracks"
+}
+
+internal data class DownloadClaim(val song: Song, val token: Long)
+
+internal data class RunningDownloadClaim(val token: Long, var job: Job? = null)
+
+/** A cancelled worker must neither attach to nor clear a newer retry's claim. */
+internal fun attachRunningJobIfClaimMatches(
+    running: MutableMap<String, RunningDownloadClaim>,
+    videoId: String,
+    claimToken: Long,
+    job: Job,
+): Boolean {
+    val claim = running[videoId] ?: return false
+    if (claim.token != claimToken) return false
+    claim.job = job
+    return true
+}
+
+internal fun removeRunningClaimIfMatches(
+    running: MutableMap<String, RunningDownloadClaim>,
+    videoId: String,
+    claimToken: Long,
+): Boolean {
+    if (running[videoId]?.token != claimToken) return false
+    running.remove(videoId)
+    return true
+}
+
+internal fun canStartDownloadClaim(
+    videoId: String,
+    retiring: Map<String, Set<Long>>,
+): Boolean = retiring[videoId].isNullOrEmpty()
+
+/** A drain must be repeated if a start raced its final empty-queue check. */
+internal fun shouldRestartDownloadDrain(restartRequested: Boolean, queueBusy: Boolean): Boolean =
+    restartRequested || queueBusy
+
+internal fun removeRetiringDownloadClaim(
+    retiring: MutableMap<String, MutableSet<Long>>,
+    videoId: String,
+    claimToken: Long,
+): Boolean {
+    val claims = retiring[videoId] ?: return false
+    if (!claims.remove(claimToken)) return false
+    if (claims.isEmpty()) retiring.remove(videoId)
+    return true
 }
 
 @kotlinx.serialization.Serializable
@@ -1724,6 +1859,8 @@ internal data class SavedSongMetadata(
     val dateAddedSeconds: Long? = null,
     /** File accessibility only; this does not establish that the audio is playable. */
     val fileCheckState: String = DownloadFileCheckState.UNCHECKED.persistedValue,
+    /** Explicit-content badge from the source catalogue; null for legacy/unknown records. */
+    val isExplicit: Boolean? = null,
     /** Time of the most recent file accessibility check, including failed checks. */
     val fileCheckAtMillis: Long? = null,
 )
@@ -1831,3 +1968,31 @@ data class DownloadedCollection(
     val playlist: Boolean,
     val songs: List<Song>,
 )
+
+internal data class PersistedDownloadMap<T>(
+    val values: Map<String, T>,
+    val invalidEntries: Int,
+    val invalidRoot: Boolean,
+)
+
+/** Salvage valid records from a partially malformed persisted download map. */
+internal fun <T> decodePersistedDownloadMap(
+    raw: String,
+    valueSerializer: KSerializer<T>,
+    json: Json,
+): PersistedDownloadMap<T> {
+    val root = runCatching { json.parseToJsonElement(raw).jsonObject }.getOrNull()
+        ?: return PersistedDownloadMap(emptyMap(), invalidEntries = 0, invalidRoot = true)
+    var invalidEntries = 0
+    val values = buildMap {
+        root.forEach { (key, value) ->
+            val decoded = runCatching { json.decodeFromJsonElement(valueSerializer, value) }.getOrNull()
+            if (decoded == null) {
+                invalidEntries++
+            } else {
+                put(key, decoded)
+            }
+        }
+    }
+    return PersistedDownloadMap(values, invalidEntries, invalidRoot = false)
+}

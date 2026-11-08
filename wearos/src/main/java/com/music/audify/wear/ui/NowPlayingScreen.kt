@@ -3,6 +3,7 @@
 package com.music.audify.wear.ui
 
 import android.view.HapticFeedbackConstants
+import android.animation.ValueAnimator
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
@@ -319,7 +320,10 @@ private fun PlayDisc(
     val ambient = LocalAmbient.current.active
     val scrubbing = scrubMs != null
     val buffering = np.playing && !np.advancing
-    val spin = if (buffering && !ambient && !scrubbing) {
+    // Wear devices expose the system animator scale; don't run an endless
+    // spinner when the wearer has disabled system animations.
+    val systemAnimationsEnabled = remember { ValueAnimator.areAnimatorsEnabled() }
+    val spin = if (buffering && !ambient && !scrubbing && systemAnimationsEnabled) {
         rememberInfiniteTransition(label = "buffering").animateFloat(
             initialValue = 0f,
             targetValue = 360f,

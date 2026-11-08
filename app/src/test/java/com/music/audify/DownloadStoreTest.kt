@@ -9,9 +9,12 @@ import com.music.audify.data.settings.DownloadQuality
 import com.music.audify.data.sources.SourceResolver
 import com.music.audify.data.sources.StreamRequest
 import com.music.audify.download.DownloadStore
+import com.music.audify.download.decodePersistedDownloadMap
+import com.music.audify.download.requireMediaStorePublishSucceeded
 import com.music.audify.download.SavedSongMetadata
 import com.music.audify.download.resolvedDownloadDates
 import com.music.audify.download.youtubeDownloadBadge
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,6 +40,38 @@ import org.junit.Test
  */
 class DownloadStoreTest {
 
+    @Test
+    fun `MediaStore publish must update exactly one row before download is marked saved`() {
+        requireMediaStorePublishSucceeded(1, "track.flac")
+
+        assertEquals(
+            "Android did not publish track.flac in Music",
+            runCatching { requireMediaStorePublishSucceeded(0, "track.flac") }.exceptionOrNull()?.message,
+        )
+        assertTrue(runCatching { requireMediaStorePublishSucceeded(2, "track.flac") }.isFailure)
+    }
+
+    @Test
+    fun `malformed saved entry does not hide other downloaded tracks`() {
+        val decoded = decodePersistedDownloadMap(
+            """{"good-a":"content://music/a","broken":42,"good-b":"content://music/b"}""",
+            String.serializer(),
+            Json,
+        )
+
+        assertEquals(mapOf("good-a" to "content://music/a", "good-b" to "content://music/b"), decoded.values)
+        assertEquals(1, decoded.invalidEntries)
+        assertFalse(decoded.invalidRoot)
+    }
+
+    @Test
+    fun `malformed saved map root is reported for backup instead of being treated as valid empty data`() {
+        val decoded = decodePersistedDownloadMap("not-json", String.serializer(), Json)
+
+        assertTrue(decoded.invalidRoot)
+        assertTrue(decoded.values.isEmpty())
+    }
+
     private fun song(title: String, artist: String, videoId: String = "abc123") =
         Song(videoId = videoId, title = title, artist = artist, thumbnailUrl = null)
 
@@ -47,6 +82,7 @@ class DownloadStoreTest {
         )
 
         assertNull(old.dateAddedSeconds)
+        assertNull(old.isExplicit)
         assertEquals("unchecked", old.fileCheckState)
         assertNull(old.fileCheckAtMillis)
     }
@@ -68,7 +104,19 @@ class DownloadStoreTest {
         assertEquals(1_800_000_000_000L, decoded.fileCheckAtMillis)
     }
 
+
     @Test
+    fun `explicit badge survives a saved download metadata round trip`() {
+        val saved = SavedSongMetadata(
+            videoId = "explicit",
+            title = "Marked song",
+            artist = "Artist",
+            uri = "file:///marked.flac",
+            isExplicit = true,
+        )
+        val decoded = Json.decodeFromString<SavedSongMetadata>(Json.encodeToString(saved))
+        assertEquals(true, decoded.isExplicit)
+    }    @Test
     fun `existing downloads use file time when no creation time was recorded`() {
         val (added, modified) = resolvedDownloadDates(
             persistedAddedSeconds = null,

@@ -4,6 +4,7 @@ package com.music.audify.data.stats
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.content.edit
 import com.music.audify.BuildConfig
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.SearchHistory
@@ -78,8 +79,9 @@ object Backup {
             // Keep the newest five complete snapshots; never delete before the new one is safe.
             directory.listFiles { candidate -> candidate.name.endsWith(".json") }
                 .orEmpty().sortedByDescending { it.lastModified() }.drop(5).forEach { it.delete() }
-            context.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE).edit()
-                .putLong(LAST_BACKUP_AT, System.currentTimeMillis()).commit()
+            context.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE).edit {
+                putLong(LAST_BACKUP_AT, System.currentTimeMillis())
+            }
             target
         }
     }

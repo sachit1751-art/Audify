@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -317,6 +318,7 @@ private fun TonePad(
     onChange: (Int, Int) -> Unit,
 ) {
     val haptics = rememberHaptics()
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val dotColor = MaterialTheme.colorScheme.onSurfaceVariant
     val puckColor = MaterialTheme.colorScheme.background
     val shadowColor = Color.Black.copy(alpha = 0.16f)
@@ -334,12 +336,18 @@ private fun TonePad(
     // settle rather than arrive and stop dead.
     val animatedX by animateFloatAsState(
         targetValue = x.toFloat(),
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessHigh),
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessHigh,
+        ),
         label = "tonePadX",
     )
     val animatedY by animateFloatAsState(
         targetValue = y.toFloat(),
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessHigh),
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = 0.75f,
+            stiffness = Spring.StiffnessHigh,
+        ),
         label = "tonePadY",
     )
 
@@ -590,6 +598,24 @@ private fun BandFader(
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
     val range = EqLayout.MANUAL_RANGE_DB
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    var dragging by remember { mutableStateOf(false) }
+    val animatedValue by animateFloatAsState(
+        targetValue = value,
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessHigh,
+        ),
+        label = "equalizerBandValue",
+    )
+    val knobScale by animateFloatAsState(
+        targetValue = if (dragging) 1.18f else 1f,
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "equalizerBandKnob",
+    )
     // See [TonePad]: the gesture block outlives the composition that made it.
     // [onChange] too, and that one matters most: the caller's lambda closes
     // over the whole band list, so a stale copy writes every *other* band
@@ -606,6 +632,7 @@ private fun BandFader(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
+                    dragging = true
                     var last = latest
                     fun report(offset: Offset) {
                         val inset = KNOB_RADIUS.toPx()
@@ -621,18 +648,22 @@ private fun BandFader(
                             currentOnChange(snapped)
                         }
                     }
-                    report(down.position)
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) {
-                            change.consume()
-                            break
+                    try {
+                        report(down.position)
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                change.consume()
+                                break
+                            }
+                            if (change.positionChanged()) {
+                                change.consume()
+                                report(change.position)
+                            }
                         }
-                        if (change.positionChanged()) {
-                            change.consume()
-                            report(change.position)
-                        }
+                    } finally {
+                        dragging = false
                     }
                 }
             },
@@ -642,7 +673,7 @@ private fun BandFader(
         val centreY = inset + usable / 2
         val trackWidth = TRACK_WIDTH.toPx()
         val centreX = size.width / 2
-        val knobY = inset + usable * (1f - (value / range + 1f) / 2f)
+        val knobY = inset + usable * (1f - (animatedValue / range + 1f) / 2f)
 
         drawRoundRect(
             color = trackColor,
@@ -650,7 +681,7 @@ private fun BandFader(
             size = Size(trackWidth, usable),
             cornerRadius = CornerRadius(trackWidth / 2),
         )
-        if (abs(value) > 0.05f) {
+        if (abs(animatedValue) > 0.05f) {
             drawRoundRect(
                 color = fillColor,
                 topLeft = Offset(centreX - trackWidth / 2, minOf(centreY, knobY)),
@@ -667,10 +698,10 @@ private fun BandFader(
         )
         drawCircle(
             color = Color.Black.copy(alpha = 0.18f),
-            radius = inset + 1.5f,
+            radius = inset * knobScale + 1.5f,
             center = Offset(centreX, knobY + 1.5f),
         )
-        drawCircle(color = knobColor, radius = inset, center = Offset(centreX, knobY))
+        drawCircle(color = knobColor, radius = inset * knobScale, center = Offset(centreX, knobY))
     }
 }
 
@@ -725,6 +756,24 @@ private fun BalanceControl(
     val trackColor = MaterialTheme.colorScheme.outline
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    var dragging by remember { mutableStateOf(false) }
+    val animatedBalance by animateFloatAsState(
+        targetValue = balance,
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessHigh,
+        ),
+        label = "equalizerBalance",
+    )
+    val knobScale by animateFloatAsState(
+        targetValue = if (dragging) 1.18f else 1f,
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "equalizerBalanceKnob",
+    )
     // See [TonePad]: the gesture block outlives the composition that made it.
     val latest by rememberUpdatedState(balance)
     val currentOnChange by rememberUpdatedState(onChange)
@@ -759,6 +808,7 @@ private fun BalanceControl(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         down.consume()
+                        dragging = true
                         var last = latest
                         fun report(offset: Offset) {
                             val inset = KNOB_RADIUS.toPx()
@@ -772,18 +822,22 @@ private fun BalanceControl(
                                 currentOnChange(snapped)
                             }
                         }
-                        report(down.position)
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!change.pressed) {
-                                change.consume()
-                                break
+                        try {
+                            report(down.position)
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) {
+                                    change.consume()
+                                    break
+                                }
+                                if (change.positionChanged()) {
+                                    change.consume()
+                                    report(change.position)
+                                }
                             }
-                            if (change.positionChanged()) {
-                                change.consume()
-                                report(change.position)
-                            }
+                        } finally {
+                            dragging = false
                         }
                     }
                 },
@@ -793,7 +847,7 @@ private fun BalanceControl(
             val centreY = size.height / 2
             val centreX = inset + usable / 2
             val trackHeight = TRACK_WIDTH.toPx()
-            val knobX = inset + usable * (balance + 1f) / 2f
+            val knobX = inset + usable * (animatedBalance + 1f) / 2f
 
             drawRoundRect(
                 color = trackColor,
@@ -801,7 +855,7 @@ private fun BalanceControl(
                 size = Size(usable, trackHeight),
                 cornerRadius = CornerRadius(trackHeight / 2),
             )
-            if (abs(balance) > 0.004f) {
+            if (abs(animatedBalance) > 0.004f) {
                 drawRoundRect(
                     color = fillColor,
                     topLeft = Offset(minOf(centreX, knobX), centreY - trackHeight / 2),
@@ -811,10 +865,10 @@ private fun BalanceControl(
             }
             drawCircle(
                 color = Color.Black.copy(alpha = 0.18f),
-                radius = inset + 1.5f,
+                radius = inset * knobScale + 1.5f,
                 center = Offset(knobX, centreY + 1.5f),
             )
-            drawCircle(color = knobColor, radius = inset, center = Offset(knobX, centreY))
+            drawCircle(color = knobColor, radius = inset * knobScale, center = Offset(knobX, centreY))
         }
     }
 }

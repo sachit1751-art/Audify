@@ -1,4 +1,5 @@
 use crate::metrics::snapped;
+use crate::motion::{Motion, Motioned as _, Movement};
 use crate::palette::{CoverPalette, of_image};
 use crate::skeleton::Skeleton;
 use crate::theme::ActiveTheme as _;
@@ -18,6 +19,7 @@ use image::{
 };
 use std::cell::Cell;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::io::Cursor;
 use std::panic::Location;
 use std::path::Path;
@@ -1083,6 +1085,18 @@ impl RenderOnce for Artwork {
                 // Drawn at once rather than after `img`'s loading delay, and under the cover,
                 // so a cover that lands mid-pulse simply covers it.
                 let waiting = !overlay && !cache.read(cx).holds(&resource, edge, soft);
+                let mut artwork_key = std::collections::hash_map::DefaultHasher::new();
+                resource.hash(&mut artwork_key);
+                edge.hash(&mut artwork_key);
+                let fade = window.use_keyed_state(
+                    ("artwork-arrival", artwork_key.finish()),
+                    cx,
+                    |_, _| Movement::new(!waiting),
+                );
+                let (fading_in, fade_generation) = fade.update(cx, |movement, _| {
+                    let moving = movement.turning_for(!waiting, Motion::Artwork);
+                    (moving && !waiting, movement.generation())
+                });
                 let source = ImageSource::Custom(Arc::new({
                     let cache = cache.clone();
                     move |window, cx| {
@@ -1125,15 +1139,25 @@ impl RenderOnce for Artwork {
                                     .rounded(rounded),
                             )
                         })
-                        .child(
-                            img(source)
+                        .child({
+                            let image = img(source)
                                 .image_cache(&cache)
                                 .w(size)
                                 .h(tall)
                                 .object_fit(ObjectFit::Cover)
                                 .rounded(rounded)
-                                .with_fallback(placeholder),
-                        ),
+                                .with_fallback(placeholder);
+                            match fading_in {
+                                true => image
+                                    .motion(
+                                        ("artwork-arrival", fade_generation),
+                                        Motion::Artwork,
+                                        |image, progress| image.opacity(progress.clamp(0., 1.)),
+                                    )
+                                    .into_any_element(),
+                                false => image.into_any_element(),
+                            }
+                        }),
                     interactivity,
                 )
                 .into_any_element()

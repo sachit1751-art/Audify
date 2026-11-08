@@ -43,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -425,6 +426,7 @@ internal fun LandscapeCredits(
     onOpenArtist: (browseId: String?, name: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var landscapeLikeBurstTrigger by remember(song.videoId) { mutableIntStateOf(0) }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Crossfade(
             targetState = song.title to song.artist,
@@ -467,15 +469,25 @@ internal fun LandscapeCredits(
         // download against either.
         if (signedIn && song.localUri == null) {
             val liked = likeStatus == LikeStatus.LIKE
-            CircleGlyph(
-                icon = if (liked) AudifyIcons.StarFilled else AudifyIcons.Star,
-                contentDescription = stringResource(
-                    if (liked) Res.string.remove_from_liked else Res.string.like,
-                ),
-                onClick = onToggleLike,
-                active = liked,
-                haptic = if (liked) Haptic.ToggleOff else Haptic.ToggleOn,
-            )
+            Box(contentAlignment = Alignment.Center) {
+                LikeBurst(
+                    trigger = landscapeLikeBurstTrigger,
+                    tint = LocalPlayerTint.current,
+                    modifier = Modifier.size(88.dp).offset(x = (-22).dp, y = (-22).dp),
+                )
+                CircleGlyph(
+                    icon = if (liked) AudifyIcons.StarFilled else AudifyIcons.Star,
+                    contentDescription = stringResource(
+                        if (liked) Res.string.remove_from_liked else Res.string.like,
+                    ),
+                    onClick = {
+                        if (!liked) landscapeLikeBurstTrigger++
+                        onToggleLike()
+                    },
+                    active = liked,
+                    haptic = if (liked) Haptic.ToggleOff else Haptic.ToggleOn,
+                )
+            }
             Spacer(Modifier.width(8.dp))
         }
         CircleGlyph(

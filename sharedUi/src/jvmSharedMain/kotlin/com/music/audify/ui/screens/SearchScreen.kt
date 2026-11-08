@@ -6,7 +6,12 @@ import com.music.audify.data.model.stableSongComposeKeys
 
 import com.music.audify.data.model.toSong
 import com.music.audify.ui.components.SwipeToQueueBox
+import com.music.audify.ui.animation.sharedArtworkModifier
+import com.music.audify.ui.haptics.Haptic
+import com.music.audify.ui.haptics.rememberHaptics
 import com.music.audify.ui.components.TrackArtworkThumbnail
+import com.music.audify.ui.components.ExplicitSongTitle
+import com.music.audify.ui.components.ExplicitBadge
 import com.music.audify.ui.components.contextClick
 import androidx.compose.ui.unit.Dp
 import com.music.audify.sharedui.resources.*
@@ -93,8 +98,6 @@ import com.music.audify.ui.components.SongRow
 import com.music.audify.ui.components.SearchPlayingBars
 import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.components.songListSkeleton
-import com.music.audify.ui.haptics.Haptic
-import com.music.audify.ui.haptics.rememberHaptics
 import java.util.Locale
 
 @Composable
@@ -322,7 +325,6 @@ fun SearchScreen(
                             is SearchResult.TopTrack -> row.song
                             is SearchResult.Track -> row.song
                             is SearchResult.Browse -> null
-                            else -> null
                         } }
                     val isCurrentRow = playingRowMatcher(tracks, currentSong)
                     val topResult = results.data.filterIsInstance<SearchResult.TopTrack>().firstOrNull()
@@ -379,6 +381,7 @@ fun SearchScreen(
                                     onClick = {
                                         onSongClick(tracks, tracks.indexOf(row.song).coerceAtLeast(0))
                                     },
+                                    modifier = Modifier.animateItem(),
                                     onLongPress = { onSongLongPress(row.song) },
                                     onSwipeToQueue = { onSongSwipe(row.song) },
                                     isCurrent = isCurrentRow(row.song),
@@ -388,6 +391,7 @@ fun SearchScreen(
                                 )
                                 is SearchResult.Browse -> BrowseRow(
                                     item = row.item,
+                                    modifier = Modifier.animateItem(),
                                     onClick = { onBrowseClick(row.item) },
                                     onLongPress = onBrowseLongPress?.let { { it(row.item) } },
                                 )
@@ -477,6 +481,7 @@ private fun LazyListScope.librarySearchResults(
             itemsIndexed(tracks, key = { index, _ -> "${if (addons) "addon" else "library"}_${trackKeys[index]}" }) { index, song ->
                 SongRow(
                     song = song,
+                    modifier = Modifier.animateItem(),
                     onClick = { onSongClick(tracks, index) },
                     onLongPress = { onSongLongPress(song) },
                     onSwipeToQueue = { onSongSwipe(song) },
@@ -530,12 +535,11 @@ private fun TopResultCard(
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = song.title,
+                ExplicitSongTitle(
+                    song = song,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -596,12 +600,14 @@ private fun LazyListScope.searchSuggestions(
     // the search field itself — and cap at N so the list stays compact above
     // the playable-media cards.
     itemsIndexed(suggestions.drop(1).take(3), key = { _, term -> "suggest:$term" }) { _, term ->
+        Box(Modifier.animateItem()) {
         SuggestionRow(
             term = term,
             isQueryAction = false,
             onFill = { onFill(term) },
             onClick = { onClick(term) },
         )
+        }
     }
 }
 
@@ -706,6 +712,7 @@ private fun LazyListScope.searchTypeaheadDropdown(
         when (result) {
             is SearchResult.Track -> TypeaheadSongRow(
                 song = result.song,
+                modifier = Modifier.animateItem(),
                 onClick = { onSongClick(result.song) },
                 onLongPress = onSongLongPress?.let { { it(result.song) } },
                 isCurrent = isCurrentRow(result.song),
@@ -713,11 +720,13 @@ private fun LazyListScope.searchTypeaheadDropdown(
             )
             is SearchResult.Browse -> BrowseRow(
                 item = result.item,
+                modifier = Modifier.animateItem(),
                 onClick = { onBrowseClick(result.item) },
                 onLongPress = onSongLongPress?.let { { /* browse long-press not applicable */ } },
             )
             is SearchResult.TopTrack -> TypeaheadSongRow(
                 song = result.song,
+                modifier = Modifier.animateItem(),
                 onClick = { onSongClick(result.song) },
                 onLongPress = onSongLongPress?.let { { it(result.song) } },
                 isCurrent = isCurrentRow(result.song),
@@ -738,11 +747,16 @@ private fun TypeaheadSongRow(
     onLongPress: (() -> Unit)? = null,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
+    val haptics = rememberHaptics()
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = { haptics.play(Haptic.Select); onClick() },
+                onLongClick = onLongPress,
+            )
             .contextClick(onLongPress)
             .padding(horizontal = PAGE_GUTTER, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -756,13 +770,12 @@ private fun TypeaheadSongRow(
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            ExplicitSongTitle(
+                    song = song,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                )
             Spacer(Modifier.height(2.dp))
             Text(
                 text = listOfNotNull(song.artist).joinToString(" · "),
@@ -821,6 +834,7 @@ private fun LazyListScope.recentSearches(
         // saved as raw queries ("q:…") have no track behind them.
         val song = entity.toSong()
         RecentSearchEntityRow(
+            modifier = Modifier.animateItem(),
             entity = entity,
             isCurrent = entity.entityType == EntityType.TRACK && entity.id == currentSong?.videoId,
             isPlaying = isPlaying,
@@ -865,7 +879,7 @@ private fun LazyListScope.recentAddonSearches(
     }
     items(history, key = { "addon-recent:$it" }) { term ->
         Row(
-            modifier = Modifier
+            modifier = Modifier.animateItem()
                 .fillMaxWidth()
                 .clickable(role = Role.Button) { onClick(term) }
                 .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 6.dp),
@@ -919,10 +933,11 @@ private fun RecentSearchEntityRow(
     onLongPress: (() -> Unit)?,
     onRemove: () -> Unit,
     onSwipeToQueue: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     SwipeToQueueBox(
         onSwipeToQueue = onSwipeToQueue,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
@@ -993,11 +1008,20 @@ private fun RecentSearchEntityRow(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BrowseRow(item: BrowseItem, onClick: () -> Unit, onLongPress: (() -> Unit)? = null) {
+private fun BrowseRow(
+    item: BrowseItem,
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = rememberHaptics()
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = { haptics.play(Haptic.Select); onClick() },
+                onLongClick = onLongPress,
+            )
             .contextClick(onLongPress)
             .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1015,7 +1039,8 @@ private fun BrowseRow(item: BrowseItem, onClick: () -> Unit, onLongPress: (() ->
                     if (item.type == BrowseType.ARTIST) CircleShape
                     else RoundedCornerShape(8.dp),
                 )
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .then(sharedArtworkModifier(item.browseId)),
         )
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {

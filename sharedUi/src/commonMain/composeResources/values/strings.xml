@@ -5,6 +5,19 @@ Project: AUDIFY
 -->
 <resources>
     <string name="home_greeting">Good to see you</string>
+    <string name="home_more_music_for_you">More music for you</string>
+    <string name="home_more_from_feed">More from your feed</string>
+    <string name="home_find_your_mood">Find your mood</string>
+    <string name="home_feed_empty">Your recommendations aren’t available right now. Refresh to try again.</string>
+    <string name="listen_together_start_session">Start a session</string>
+    <string name="listen_together_join_session">Join a session</string>
+    <string name="home_mood_energy">Energy</string>
+    <string name="home_mood_relax">Relax</string>
+    <string name="home_mood_feeling_blue">Feeling blue</string>
+    <string name="home_mood_feel_good">Feel good</string>
+    <string name="home_mood_focus">Focus</string>
+    <string name="home_mood_heartbreak">Heartbreak</string>
+    <string name="home_mood_love">Love</string>
     <string name="analysis_complete">analysed</string>
     <string name="analysis_in_progress">analysing…</string>
     <string name="analysis_refining">analysed, refining…</string>

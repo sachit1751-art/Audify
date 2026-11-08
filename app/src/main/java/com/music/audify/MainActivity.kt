@@ -22,11 +22,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
@@ -90,12 +95,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
@@ -118,6 +126,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -169,6 +178,8 @@ import com.music.audify.data.stats.selectTimeAwareHourBlock
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.LibrarySort
 import com.music.audify.data.settings.ThemeMode
+import com.music.audify.ui.animation.ArtworkTransitionContext
+import com.music.audify.ui.animation.LocalArtworkTransition
 import com.music.audify.ui.components.AccountProfileSelector
 import com.music.audify.ui.navigation.AppDestination
 import com.music.audify.ui.navigation.AppRoute
@@ -503,7 +514,7 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 @Composable
 private fun AudifyApp(
@@ -536,11 +547,18 @@ private fun AudifyApp(
     // solid (see [Modifier.liquidGlass]) and the whole-page layer recording
     // below goes with them, which is the part that costs a draw pass.
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
-    val glassSamplesBackdrop = glassActive && !reduceDynamicBlur
+    val adaptiveBlurReduction by AppSettings.adaptivePerformancePressure.collectAsStateWithLifecycle()
+    val highPerformanceMode by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
+    val glassSamplesBackdrop = glassActive && !reduceDynamicBlur && !(highPerformanceMode && adaptiveBlurReduction)
     // What folds [GlassNavBar] between its expanded and inline shapes. Held here
     // rather than inside the bar because the page's scroll is what drives it,
     // and the page is a sibling of the bar rather than a child.
     val navBarScroll = rememberFloatingTabBarScrollConnection()
+    // Material's medium-width breakpoint: compact windows keep the floating
+    // bottom bar; expanded windows get a persistent rail with a full-height
+    // navigation lane. This is based on the actual available window width,
+    // so foldables can move between modes as they open or rotate.
+    val useNavigationRail = windowWidth >= 600.dp
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     /**
      * Whether the player's sheet is up. The player is always a full-screen
@@ -574,6 +592,17 @@ private fun AudifyApp(
     // dock or the motion directly.
     val reducePlayerMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val activeDock = playerDock.takeIf { !reducePlayerMotion }
+    // The mini-player is a separate dialog window. If a search field still
+    // owns focus underneath it, Android can restore that editor when the dialog
+    // closes and Gboard briefly appears before Compose clears it. Relinquish
+    // focus and hide IME before creating the player window, for every entry path.
+    val focusManager = LocalFocusManager.current
+    val softwareKeyboard = LocalSoftwareKeyboardController.current
+    val openPlayer: () -> Unit = {
+        focusManager.clearFocus(force = true)
+        softwareKeyboard?.hide()
+        if (reducePlayerMotion) showNowPlaying = true else playerSheetMotion.open()
+    }
     playerSheetMotion.flingVelocity = with(LocalDensity.current) { PLAYER_PULL_FLING_VELOCITY.toPx() }
     // How the app takes the player down, whatever for: a back press, or a page
     // opened from inside it. Set straight to false, the sheet left in one frame
@@ -590,7 +619,7 @@ private fun AudifyApp(
     val openPlayerRequested by PlayerDeepLink.pending.collectAsStateWithLifecycle()
     LaunchedEffect(openPlayerRequested) {
         if (openPlayerRequested) {
-            showNowPlaying = true
+            openPlayer()
             PlayerDeepLink.handled()
         }
     }
@@ -767,8 +796,8 @@ private fun AudifyApp(
     )
 
     val homeState by viewModel.home.collectAsStateWithLifecycle()
-    val homeLoadingMore by viewModel.homeLoadingMore.collectAsStateWithLifecycle()
     val homeRecentlyPlayedLoading by viewModel.homeRecentlyPlayedLoading.collectAsStateWithLifecycle()
+    val homeLoadingMore by viewModel.homeLoadingMore.collectAsStateWithLifecycle()
 
     // The top bar's icon is the quiet, always-there nudge; this is the
     // once-per-launch popup version of the same news. `updateDialogShown`
@@ -781,7 +810,7 @@ private fun AudifyApp(
         context.getSharedPreferences("audify_migration_notice", Context.MODE_PRIVATE)
     }
     val dismissMigrationNotice: () -> Unit = {
-        migrationNoticePreferences.edit().putBoolean("v1_8_9_seen", true).apply()
+        migrationNoticePreferences.edit { putBoolean("v1_8_9_seen", true) }
         showMigrationNotice = false
     }
     val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
@@ -2795,12 +2824,40 @@ private fun AudifyApp(
         BackHandler(enabled = editingPartyServer) { editingPartyServer = false }
         BackHandler(enabled = editingSignatureApi) { editingSignatureApi = false }
 
+        // One tab handler shared by the compact bottom bar and expanded rail.
+        val onTabSelected: (Int) -> Unit = { index ->
+            navigator.clear()
+            viewModel.closeMoodGenre()
+            if (index == 3) {
+                navigator.push(AppRoute.Settings)
+            } else {
+                selectedTab = index
+            }
+        }
+
         // On a tablet the page and the player stand side by side rather than
         // one over the other: everything a phone stacks in a single column —
         // the feed, the frosted bars, the tab row — becomes the left half of
         // a row, and the player is the right. Off a tablet the row has the
         // one child it always had and changes nothing.
+        SharedTransitionLayout {
         Row(Modifier.fillMaxSize()) {
+            if (useNavigationRail) {
+                NavigationRail(
+                    modifier = Modifier.fillMaxHeight(),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        NavigationRailItem(
+                            selected = (if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2)) == index,
+                            onClick = { onTabSelected(index) },
+                            icon = { Icon(tab.icon, contentDescription = null) },
+                            label = { Text(tab.label, maxLines = 1) },
+                            alwaysShowLabel = true,
+                        )
+                    }
+                }
+            }
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 AnimatedContent(
                     // Whatever is on top of the back stack — see [AppNavigator].
@@ -2889,6 +2946,11 @@ private fun AudifyApp(
                         ),
                     label = "content",
                 ) { destination ->
+                    val artworkTransitionContext = ArtworkTransitionContext(
+                        sharedScope = this@SharedTransitionLayout,
+                        visibilityScope = this@AnimatedContent,
+                        reduceMotion = reducePlayerMotion,
+                    )
                     // Every branch below reads `destination` rather than the
                     // stack that produced it. The two are the same thing only
                     // for the page being entered: the one on its way out is
@@ -3230,7 +3292,8 @@ private fun AudifyApp(
                             }
                             // This page's songs being rearranged, drawn in place of its list.
                             val reordering = reorderTarget?.takeIf { it.browseId == page.browseId }
-                            DetailScreen(
+                            CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
+DetailScreen(
                                 page = page,
                                 currentSong = player.song,
                                 isPlaying = player.isPlaying,
@@ -3324,8 +3387,10 @@ private fun AudifyApp(
                                     null
                                 },
                             )
+                    }
                         } else when ((destination as? AppDestination.Tab)?.index ?: selectedTab) {
-                            TAB_HOME -> HomeScreen(
+                            TAB_HOME -> CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
+HomeScreen(
                                 state = homeState,
                                 listState = homeListState,
                                 currentSong = player.song,
@@ -3363,9 +3428,9 @@ private fun AudifyApp(
                                 onRefresh = { viewModel.refresh(MainViewModel.Feed.HOME) },
                                 pullState = homePull,
                                 contentPadding = listPadding,
+                                recentlyPlayedLoading = homeRecentlyPlayedLoading,
                                 onLoadMore = viewModel::loadMoreHome,
                                 loadingMore = homeLoadingMore,
-                                recentlyPlayedLoading = homeRecentlyPlayedLoading,
                                 timeAwareShelf = timeAwareShelf,
                                 onSearchClick = {
                                     navigator.clear()
@@ -3418,6 +3483,7 @@ private fun AudifyApp(
                                     if (songs.isNotEmpty()) play(songs, 0)
                                 },
                             )
+                    }
                             TAB_EXPLORE -> selectedMoodGenre?.let { category ->
                                 MoodGenrePlaylistsScreen(
                                     title = category.title,
@@ -3460,7 +3526,8 @@ private fun AudifyApp(
                                 pullState = explorePull,
                                 contentPadding = listPadding,
                             )
-                            TAB_SEARCH -> SearchScreen(
+                            TAB_SEARCH -> CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
+SearchScreen(
                                 query = query,
                                 onQueryChange = viewModel::onQueryChange,
                                 filter = filter,
@@ -3636,7 +3703,9 @@ private fun AudifyApp(
                                     )
                                 },
                             )
-                            else -> LibraryScreen(
+                    }
+                            else -> CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
+LibraryScreen(
                                 signedIn = signedIn,
                                 state = libraryState,
                                 listState = libraryListState,
@@ -3670,6 +3739,7 @@ private fun AudifyApp(
                                 deviceEmptyText = stringResource(R.string.on_device_empty),
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
                             )
+                            }
                         }
                     }
                     // A pushed page keeps its saved state — a scroll position,
@@ -4120,20 +4190,47 @@ private fun AudifyApp(
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
-                // One tab handler, whichever bar is drawing it.
-                // A tab is a fresh start: everything pushed over the old one —
-                // routes and release pages alike — goes with it.
-                val onTabSelected: (Int) -> Unit = { index ->
-                    navigator.clear()
-                    viewModel.closeMoodGenre()
-                    if (index == 3) {
-                        navigator.push(AppRoute.Settings)
-                    } else {
-                        selectedTab = index
+                if (useNavigationRail) Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .widthIn(max = FLOATING_BAR_MAX_WIDTH)
+                        .fillMaxWidth()
+                        .onSizeChanged { floatingBarsHeight.intValue = it.height },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    QueueActionNoticeHost(queueNotice)
+                    playerSong?.let { song ->
+                        MiniPlayer(
+                            song = song,
+                            isPlaying = player.isPlaying,
+                            isLoading = playPauseBusy,
+                            hazeState = hazeState,
+                            onPlayPause = { togglePlayPause() },
+                            onNext = { controller?.seekToNextMediaItem() },
+                            onPrevious = { controller?.seekToPrevious() },
+                            onExpand = openPlayer,
+                            controlsLocked = controlsLocked,
+                            onBlockedControl = showHostOnlyNotice,
+                            dock = activeDock,
+                            pull = playerSheetMotion.takeIf { !reducePlayerMotion },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
-                }
-
-                if (glassActive) Column(
+                    if (playerSong == null) playerPodcast?.let { episode ->
+                        PodcastMiniPlayer(
+                            episode = episode,
+                            isPlaying = player.isPlaying,
+                            isLoading = playPauseBusy,
+                            onPlayPause = { togglePlayPause() },
+                            onNext = { controller?.seekToNextMediaItem() },
+                            onPrevious = { controller?.seekToPrevious() },
+                            onExpand = openPlayer,
+                            controlsLocked = controlsLocked,
+                            onBlockedControl = showHostOnlyNotice,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                } else if (glassActive) Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .widthIn(max = FLOATING_BAR_MAX_WIDTH)
@@ -4149,11 +4246,7 @@ private fun AudifyApp(
                             onPlayPause = { togglePlayPause() },
                             onNext = { controller?.seekToNextMediaItem() },
                             onPrevious = { controller?.seekToPrevious() },
-                            onExpand = if (reducePlayerMotion) {
-                                { showNowPlaying = true }
-                            } else {
-                                playerSheetMotion::open
-                            },
+                            onExpand = openPlayer,
                             controlsLocked = controlsLocked,
                             onBlockedControl = showHostOnlyNotice,
                             modifier = Modifier.fillMaxWidth(),
@@ -4176,11 +4269,7 @@ private fun AudifyApp(
                         },
                         onNext = { controller?.seekToNextMediaItem() },
                         onPrevious = { controller?.seekToPrevious() },
-                        onExpand = if (reducePlayerMotion) {
-                            { showNowPlaying = true }
-                        } else {
-                            playerSheetMotion::open
-                        },
+                        onExpand = openPlayer,
                         controlsLocked = controlsLocked,
                         onBlockedControl = showHostOnlyNotice,
                         dock = activeDock,
@@ -4213,11 +4302,7 @@ private fun AudifyApp(
                             },
                             onNext = { controller?.seekToNextMediaItem() },
                             onPrevious = { controller?.seekToPrevious() },
-                            onExpand = if (reducePlayerMotion) {
-                                { showNowPlaying = true }
-                            } else {
-                                playerSheetMotion::open
-                            },
+                            onExpand = openPlayer,
                             controlsLocked = controlsLocked,
                             onBlockedControl = showHostOnlyNotice,
                             dock = activeDock,
@@ -4234,11 +4319,7 @@ private fun AudifyApp(
                             onPlayPause = { togglePlayPause() },
                             onNext = { controller?.seekToNextMediaItem() },
                             onPrevious = { controller?.seekToPrevious() },
-                            onExpand = if (reducePlayerMotion) {
-                                { showNowPlaying = true }
-                            } else {
-                                playerSheetMotion::open
-                            },
+                            onExpand = openPlayer,
                             controlsLocked = controlsLocked,
                             onBlockedControl = showHostOnlyNotice,
                             modifier = Modifier.fillMaxWidth(),
@@ -4254,6 +4335,7 @@ private fun AudifyApp(
                 }
             }
 
+        }
         }
 
         val playerRaised = showNowPlaying && player.playable != null
@@ -5402,7 +5484,11 @@ private fun AudifyApp(
             }
         }
 
-        if (showHomeCastDialog) {
+        AnimatedVisibility(
+            visible = showHomeCastDialog,
+            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
+            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
+        ) {
             BackHandler { showHomeCastDialog = false }
             PlayerPlatform.host.CastDialog(
                 hazeState = hazeState,
@@ -5410,7 +5496,11 @@ private fun AudifyApp(
             )
         }
 
-        if (showLyricsSources) {
+        AnimatedVisibility(
+            visible = showLyricsSources,
+            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
+            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
+        ) {
             BackHandler { showLyricsSources = false }
             LyricsSourcesDialog(
                 hazeState = hazeState,
@@ -5418,7 +5508,11 @@ private fun AudifyApp(
             )
         }
 
-        if (songSortMenuOpen) {
+        AnimatedVisibility(
+            visible = songSortMenuOpen,
+            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.97f, animationSpec = tween(160)),
+            exit = fadeOut(tween(100)) + scaleOut(targetScale = 0.985f, animationSpec = tween(100)),
+        ) {
             BackHandler { songSortMenuOpen = false }
             FrostedSortMenu(
                 hazeState = hazeState,
@@ -5446,7 +5540,12 @@ private fun AudifyApp(
         }
 
         val menuFolder = detail?.browseId?.takeIf { it.isDeviceFolder() }
-        if (folderMenuOpen && menuFolder != null) {
+        AnimatedVisibility(
+            visible = folderMenuOpen && menuFolder != null,
+            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.97f, animationSpec = tween(160)),
+            exit = fadeOut(tween(100)) + scaleOut(targetScale = 0.985f, animationSpec = tween(100)),
+        ) {
+            if (menuFolder != null) {
             BackHandler { folderMenuOpen = false }
             val downloadsFolder = menuFolder == "local:downloads"
             val viewType = folderViewTypeOf(menuFolder)
@@ -5467,9 +5566,14 @@ private fun AudifyApp(
                 },
                 onDismiss = { folderMenuOpen = false },
             )
+            }
         }
 
-        if (showAccountSelector) {
+        AnimatedVisibility(
+            visible = showAccountSelector,
+            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
+            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
+        ) {
             BackHandler { showAccountSelector = false }
             AccountProfileSelector(
                 accounts = googleAccounts,
@@ -5493,7 +5597,11 @@ private fun AudifyApp(
             )
         }
 
-        if (showAppLanguage) {
+        AnimatedVisibility(
+            visible = showAppLanguage,
+            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
+            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
+        ) {
             BackHandler { showAppLanguage = false }
             AppLanguageDialog(
                 hazeState = hazeState,
@@ -5501,7 +5609,11 @@ private fun AudifyApp(
             )
         }
 
-        if (showTranslationLanguage) {
+        AnimatedVisibility(
+            visible = showTranslationLanguage,
+            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
+            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
+        ) {
             BackHandler { showTranslationLanguage = false }
             TranslationLanguageDialog(
                 hazeState = hazeState,

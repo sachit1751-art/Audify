@@ -8,6 +8,12 @@ use gpui::{
 use i18n::t;
 
 const CONTROL: Duration = Duration::from_millis(110);
+const ICON: Duration = Duration::from_millis(160);
+const TOGGLE: Duration = Duration::from_millis(180);
+const SELECTION: Duration = Duration::from_millis(210);
+const ARTWORK: Duration = Duration::from_millis(210);
+pub(crate) const PRESS_SCALE: f32 = 0.96;
+pub(crate) const SLIDER_ACTIVE_SCALE: f32 = 1.18;
 const QUICK: Duration = Duration::from_millis(120);
 const BASE: Duration = Duration::from_millis(200);
 const SLOW: Duration = Duration::from_millis(320);
@@ -34,6 +40,10 @@ impl Springs {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Motion {
     Control,
+    Icon,
+    Toggle,
+    Selection,
+    Artwork,
     Quick,
     Base,
     Slow,
@@ -43,6 +53,10 @@ impl Motion {
     pub fn span(self) -> Duration {
         match self {
             Self::Control => CONTROL,
+            Self::Icon => ICON.mul_f32(pace().scale()),
+            Self::Toggle => TOGGLE.mul_f32(pace().scale()),
+            Self::Selection => SELECTION.mul_f32(pace().scale()),
+            Self::Artwork => ARTWORK.mul_f32(pace().scale()),
             Self::Quick => QUICK.mul_f32(pace().scale()),
             Self::Base => BASE.mul_f32(pace().scale()),
             Self::Slow => SLOW.mul_f32(pace().scale()),
@@ -53,8 +67,12 @@ impl Motion {
         let animation = Animation::new(self.span());
 
         match self {
-            Self::Control | Self::Base => animation.with_easing(ease_in_out),
-            Self::Quick | Self::Slow => animation.with_easing(ease_out_quint()),
+            Self::Control | Self::Toggle | Self::Selection | Self::Base => {
+                animation.with_easing(ease_in_out)
+            }
+            Self::Icon | Self::Artwork | Self::Quick | Self::Slow => {
+                animation.with_easing(ease_out_quint())
+            }
         }
     }
 }
@@ -482,6 +500,7 @@ impl HoverFade {
 pub(crate) struct Movement {
     drawn: bool,
     turned: Option<Instant>,
+    generation: u64,
 }
 
 impl Movement {
@@ -489,17 +508,60 @@ impl Movement {
         Self {
             drawn: checked,
             turned: None,
+            generation: 0,
         }
     }
 
     pub(crate) fn turning(&mut self, checked: bool) -> bool {
+        self.turning_for(checked, Motion::Control)
+    }
+
+    pub(crate) fn turning_for(&mut self, checked: bool, motion: Motion) -> bool {
         if self.drawn != checked {
             self.drawn = checked;
+            self.generation = self.generation.wrapping_add(1);
             self.turned = Some(Instant::now());
         }
 
         self.turned
-            .is_some_and(|turned| turned.elapsed() < Motion::Control.span())
+            .is_some_and(|turned| turned.elapsed() < motion.span())
+    }
+
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+}
+
+/// Tracks an optional icon by value and keeps a transition alive for its full animation window.
+/// Initial content appears immediately; only an actual state change animates.
+pub(crate) struct IconMovement {
+    current: Option<SharedString>,
+    generation: u64,
+    changed: Option<Instant>,
+}
+
+impl IconMovement {
+    pub(crate) fn new(current: Option<SharedString>) -> Self {
+        Self {
+            current,
+            generation: 0,
+            changed: None,
+        }
+    }
+
+    pub(crate) fn update(&mut self, current: Option<&SharedString>) -> Option<u64> {
+        if self.current.as_ref() != current {
+            self.current = current.cloned();
+            self.generation = self.generation.wrapping_add(1);
+            self.changed = Some(Instant::now());
+        }
+        let changed = self.changed?;
+        if changed.elapsed() < Motion::Icon.span() {
+            Some(self.generation)
+        } else {
+            self.changed = None;
+            None
+        }
     }
 }
 
@@ -580,6 +642,45 @@ mod system {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn micro_interaction_timing_stays_inside_the_usability_budget() {
+        assert_eq!(ICON, Duration::from_millis(160));
+        assert_eq!(TOGGLE, Duration::from_millis(180));
+        assert_eq!(SELECTION, Duration::from_millis(210));
+        assert_eq!(ARTWORK, Duration::from_millis(210));
+        assert_eq!(CONTROL, Duration::from_millis(110));
+    }
+
+    #[test]
+    fn selection_movement_increments_its_generation_on_each_change() {
+        let mut movement = Movement::new(false);
+        assert!(!movement.turning_for(false, Motion::Selection));
+        assert_eq!(movement.generation(), 0);
+        assert!(movement.turning_for(true, Motion::Selection));
+        assert_eq!(movement.generation(), 1);
+        assert!(movement.turning_for(false, Motion::Selection));
+        assert_eq!(movement.generation(), 2);
+    }
+
+    #[test]
+    fn tactile_scales_remain_subtle() {
+        assert!((0.95..1.0).contains(&PRESS_SCALE));
+        assert!((1.0..1.25).contains(&SLIDER_ACTIVE_SCALE));
+    }
+
+    #[test]
+    fn icon_movement_only_animates_actual_changes() {
+        let first = SharedString::from("icons/play.svg");
+        let second = SharedString::from("icons/pause.svg");
+        let mut movement = IconMovement::new(Some(first.clone()));
+
+        assert_eq!(movement.update(Some(&first)), None);
+        let generation = movement.update(Some(&second));
+        assert_eq!(generation, Some(1));
+        assert_eq!(movement.update(Some(&second)), Some(1));
+        assert_eq!(movement.update(None), Some(2));
+    }
 
     #[test]
     fn system_motion_leaves_the_preference_to_the_platform() {

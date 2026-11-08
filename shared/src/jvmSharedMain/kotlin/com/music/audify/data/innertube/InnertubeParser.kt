@@ -189,6 +189,7 @@ object InnertubeParser {
                 "PLAYLIST" in pageType -> BrowseType.PLAYLIST
                 else -> BrowseType.OTHER
             },
+            isExplicit = renderer.hasExplicitBadge(),
         )
     }
 
@@ -291,7 +292,7 @@ object InnertubeParser {
                 ?: parseResponsiveListItem(item.o("musicResponsiveListItemRenderer"))
                     ?.takeUnless { it.isVideo }
                     ?.let { song ->
-                        ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null)
+                        ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null, isExplicit = song.isExplicit)
                     }
                 // A chart row with nothing to play — "Top artists" lists the
                 // artist alone, no track — falls through parseResponsiveListItem
@@ -307,7 +308,7 @@ object InnertubeParser {
         val items = shelf.a("contents").orEmpty().mapNotNull {
             parseResponsiveListItem(it.o("musicResponsiveListItemRenderer"))
         }.filterNot { it.isVideo }
-            .map { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null) }
+            .map { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null, isExplicit = it.isExplicit) }
         return if (items.isEmpty()) null else HomeShelf(title.ifBlank { "For you" }, items)
     }
 
@@ -577,7 +578,7 @@ object InnertubeParser {
             val item = parseBrowseItem(renderer) ?: return@forEach
             out.putIfAbsent(
                 item.browseId,
-                ShelfItem(item.title, item.subtitle, item.thumbnailUrl, null, item.browseId),
+                ShelfItem(item.title, item.subtitle, item.thumbnailUrl, null, item.browseId, isExplicit = item.isExplicit),
             )
         }
         return LibraryItemPage(out.values.toList(), continuationToken(root))
@@ -802,6 +803,7 @@ object InnertubeParser {
                 "PLAYLIST" in pageType -> BrowseType.PLAYLIST
                 else -> BrowseType.OTHER
             },
+            isExplicit = renderer["subtitleBadges"].hasExplicitBadge(),
         )
     }
 
@@ -1410,6 +1412,7 @@ object InnertubeParser {
             thumbnailUrl = thumbnails.best(),
             videoId = videoId,
             browseId = resolvedBrowseId,
+            isExplicit = renderer.hasExplicitBadge(),
         )
     }
 
@@ -1425,8 +1428,8 @@ object InnertubeParser {
     fun artistFromSubtitle(subtitle: String): String {
         val parts = subtitle.split(" • ").map(String::trim).filter { it.isNotBlank() }
         return parts.firstOrNull {
-            it.lowercase() !in TYPE_WORDS && !it.matches(TALLY) && !it.matches(DURATION)
-        } ?: subtitle
+            it.lowercase() !in TYPE_WORDS && it.lowercase() !in GENERIC_BYLINE_PARTS && !it.matches(TALLY) && !it.matches(DURATION)
+        } ?: ""
     }
 
     /**
@@ -1447,6 +1450,7 @@ object InnertubeParser {
             }
         }
 
+    private val GENERIC_BYLINE_PARTS = setOf("youtube music", "youtube", "unknown artist", "unknown")
     private val DURATION = Regex("""\d+:\d{2}""")
     private val YEAR = Regex("""\d{4}""")
     /**

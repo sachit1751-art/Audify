@@ -4,6 +4,8 @@ package com.music.audify.data.settings
 
 import androidx.core.content.edit
 import com.music.audify.data.webdav.update
+import android.app.ActivityManager
+import android.os.PowerManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.ConnectivityManager
@@ -219,6 +221,13 @@ object AppSettings {
 
     /** Whether the active network charges for data. `null` while offline. */
     val meteredConnection = MutableStateFlow<Boolean?>(null)
+    /** Estimated downstream capacity from the active network; zero means unknown. */
+    val downstreamBandwidthKbps = MutableStateFlow(0)
+    /** Runtime pressure is transient and never overwrites the listener preferences. */
+    val adaptivePerformancePressure = MutableStateFlow(false)
+
+    val effectiveReduceDynamicBlur: Boolean
+        get() = reduceDynamicBlur.value || (highPerformanceMode.value && adaptivePerformancePressure.value)
 
     // `losslessAudio` used to live here, behind a "Prefer lossless" switch on
     // the Sources screen. It is gone: sources are asked for their best and each
@@ -379,7 +388,7 @@ object AppSettings {
     val onboardingComplete = MutableStateFlow(false)
 
     /** Requests a sustained high-refresh UI. Off keeps Android's automatic policy. */
-    val highPerformanceMode = MutableStateFlow(false)
+    val highPerformanceMode = MutableStateFlow(true)
 
     /** Preferred UI refresh rate while [highPerformanceMode] is enabled. */
     val performanceRefreshRate = MutableStateFlow(DEFAULT_PERFORMANCE_REFRESH_RATE)
@@ -418,10 +427,10 @@ object AppSettings {
     val reduceDynamicBlur = MutableStateFlow(false)
 
     /** Progressive blur feathering at the top and bottom edges of scrollable content. */
-    val progressiveScrollEdgeBlur = MutableStateFlow(false)
+    val progressiveScrollEdgeBlur = MutableStateFlow(true)
 
     /** Real backdrop-sampled glass (blur, lens refraction) on the floating nav bar, Android 12+ only. */
-    val liquidGlass = MutableStateFlow(false)
+    val liquidGlass = MutableStateFlow(true)
 
     /** Blurs unfocused lyric lines, keeping the active line sharp. */
     val lyricsBlur = MutableStateFlow(true)
@@ -478,7 +487,7 @@ object AppSettings {
      * Apple Music has no title logo. Blank URL means unconfigured and the
      * lookup is skipped entirely — there is no hosted default.
      */
-    val signatureApiEnabled = MutableStateFlow(false)
+    val signatureApiEnabled = MutableStateFlow(true)
     val signatureApiUrl = MutableStateFlow("")
 
     /**
@@ -508,7 +517,7 @@ object AppSettings {
      * Kept as a switch because people asked for the old look back, and neither
      * reason is one a listener has to agree with.
      */
-    val legacyMeshGradient = MutableStateFlow(false)
+    val legacyMeshGradient = MutableStateFlow(true)
 
     /** Restores the expanded player to the surface the listener left open. */
     val lastPlayerScreen = MutableStateFlow(LastPlayerScreen.MAIN)
@@ -589,6 +598,9 @@ object AppSettings {
 
     /** Hides short clips, recorder output and non-music formats from Local Music. */
     val filterNonMusicAudio = MutableStateFlow(true)
+
+    /** Hides only catalogue entries positively marked explicit; unknown stays visible. */
+    val hideExplicitContent = MutableStateFlow(false)
 
     val localMusicSort = MutableStateFlow(LocalMusicSort.TITLE_ASC)
     val downloadedMusicSort = MutableStateFlow(LocalMusicSort.TITLE_ASC)
@@ -787,7 +799,15 @@ object AppSettings {
             } else {
                 audioQualityWifi.value
             }
-            val cap = streamCeilingOverride.value ?: return chosen
+            val networkCap = when (downstreamBandwidthKbps.value) {
+                in 1..499 -> AudioQuality.LOW
+                in 500..1499 -> AudioQuality.MEDIUM
+                in 1500..4999 -> AudioQuality.HIGH
+                else -> chosen
+            }
+            val bounded = if (chosen.ordinal > networkCap.ordinal) networkCap else chosen
+            val cap = streamCeilingOverride.value ?: return bounded
+            return if (bounded.ordinal > cap.ordinal) cap else bounded
             return if (chosen.ordinal > cap.ordinal) cap else chosen
         }
 
@@ -890,7 +910,7 @@ object AppSettings {
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
         reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
         onboardingComplete.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
-        highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
+        highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, true)
         performanceRefreshRate.value = normalizePerformanceRefreshRate(
             prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
         )
@@ -904,8 +924,8 @@ object AppSettings {
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
-        progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, false)
-        liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, false)
+        progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, true)
+        liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, true)
         lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
         lyricsOffsetMs.value = prefs.getInt(KEY_LYRICS_OFFSET_MS, 0)
             .coerceIn(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
@@ -918,10 +938,10 @@ object AppSettings {
         canvasOverCellular.value = prefs.getBoolean(KEY_CANVAS_OVER_CELLULAR, false)
         spotifyCanvasAutoHide.value = prefs.getBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, true)
         prioritizeSpotifyCanvas.value = prefs.getBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, false)
-        signatureApiEnabled.value = prefs.getBoolean(KEY_SIGNATURE_API_ENABLED, false)
+        signatureApiEnabled.value = prefs.getBoolean(KEY_SIGNATURE_API_ENABLED, true)
         signatureApiUrl.value = normalizeSignatureApiUrl(prefs.getString(KEY_SIGNATURE_API_URL, "").orEmpty())
         fullBleedArtwork.value = prefs.getBoolean(KEY_FULL_BLEED_ARTWORK, true)
-        legacyMeshGradient.value = prefs.getBoolean(KEY_LEGACY_MESH_GRADIENT, false)
+        legacyMeshGradient.value = prefs.getBoolean(KEY_LEGACY_MESH_GRADIENT, true)
         lastPlayerScreen.value = runCatching {
             LastPlayerScreen.valueOf(
                 prefs.getString(KEY_LAST_PLAYER_SCREEN, null) ?: LastPlayerScreen.MAIN.name,
@@ -956,6 +976,7 @@ object AppSettings {
         showTimeAwareShelf.value = prefs.getBoolean(KEY_SHOW_TIME_AWARE_SHELF, true)
         weeklyRecapSeenWeek.value = prefs.getLong(KEY_WEEKLY_RECAP_SEEN_WEEK, 0L)
         filterNonMusicAudio.value = prefs.getBoolean(KEY_FILTER_NON_MUSIC_AUDIO, true)
+        hideExplicitContent.value = prefs.getBoolean(KEY_HIDE_EXPLICIT_CONTENT, false)
         localMusicSort.value = readLocalMusicSort(KEY_LOCAL_MUSIC_SORT)
         downloadedMusicSort.value = readLocalMusicSort(KEY_DOWNLOADED_MUSIC_SORT)
         localMusicViewType.value = readLibraryViewType(KEY_LOCAL_MUSIC_VIEW_TYPE)
@@ -1079,12 +1100,26 @@ object AppSettings {
      * thread mid-playback; a callback keeps that lookup off the hot path and
      * lets the settings page show which ceiling is currently in force.
      */
+    private fun refreshAdaptivePerformance(context: Context) {
+        val activity = context.getSystemService(ActivityManager::class.java)
+        val power = context.getSystemService(PowerManager::class.java)
+        val lowRam = activity?.isLowRamDevice == true
+        val thermal = if (android.os.Build.VERSION.SDK_INT >= 29) power?.currentThermalStatus ?: 0 else 0
+        adaptivePerformancePressure.value = lowRam || power?.isPowerSaveMode == true || thermal >= 3
+    }
+
     private fun watchConnection(context: Context) {
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return
         val refresh = {
+            val network = manager.activeNetwork
             meteredConnection.value = runCatching {
-                if (manager.activeNetwork == null) null else manager.isActiveNetworkMetered
+                if (network == null) null else manager.isActiveNetworkMetered
             }.getOrNull()
+            val capabilities = network?.let { manager.getNetworkCapabilities(it) }
+            downstreamBandwidthKbps.value = if (
+                capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+            ) capabilities.linkDownstreamBandwidthKbps.coerceAtLeast(0) else 0
+            refreshAdaptivePerformance(context)
         }
         refresh()
         runCatching {
@@ -1774,6 +1809,11 @@ object AppSettings {
         prefs.edit { putBoolean(KEY_FILTER_NON_MUSIC_AUDIO, value) }
     }
 
+    fun setHideExplicitContent(value: Boolean) {
+        hideExplicitContent.value = value
+        prefs.edit { putBoolean(KEY_HIDE_EXPLICIT_CONTENT, value) }
+    }
+
     fun setLocalMusicSort(value: LocalMusicSort) {
         localMusicSort.value = value
         prefs.edit { putString(KEY_LOCAL_MUSIC_SORT, value.name) }
@@ -2143,6 +2183,7 @@ object AppSettings {
     private const val KEY_SHOW_TIME_AWARE_SHELF = "show_time_aware_shelf"
     private const val KEY_WEEKLY_RECAP_SEEN_WEEK = "weekly_recap_seen_week"
     private const val KEY_FILTER_NON_MUSIC_AUDIO = "filter_non_music_audio"
+    private const val KEY_HIDE_EXPLICIT_CONTENT = "hide_explicit_content"
     private const val KEY_SHOW_CACHE_FOLDER = "show_cache_folder"
     private const val KEY_LOCAL_MUSIC_SORT = "local_music_sort"
     private const val KEY_DOWNLOADED_MUSIC_SORT = "downloaded_music_sort"

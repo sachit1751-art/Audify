@@ -744,6 +744,7 @@ fun NowPlayingScreen(
     windowHeight: Dp,
     modifier: Modifier = Modifier,
 ) {
+    var likeBurstTrigger by remember(song.videoId) { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val haptics = rememberHaptics()
 
@@ -3272,15 +3273,25 @@ fun NowPlayingScreen(
                             // no YouTube identity to rate.
                             if (signedIn && song.localUri == null) {
                                 val liked = likeStatus == LikeStatus.LIKE
-                                CircleGlyph(
-                                    icon = if (liked) AudifyIcons.StarFilled else AudifyIcons.Star,
-                                    contentDescription = stringResource(
-                                        if (liked) Res.string.remove_from_liked else Res.string.like,
-                                    ),
-                                    onClick = onToggleLike,
-                                    active = liked,
-                                    haptic = if (liked) Haptic.ToggleOff else Haptic.ToggleOn,
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                LikeBurst(
+                    trigger = likeBurstTrigger,
+                    tint = LocalPlayerTint.current,
+                    modifier = Modifier.size(88.dp).offset(x = (-22).dp, y = (-22).dp),
+                )
+                CircleGlyph(
+                    icon = if (liked) AudifyIcons.StarFilled else AudifyIcons.Star,
+                    contentDescription = stringResource(
+                        if (liked) Res.string.remove_from_liked else Res.string.like,
+                    ),
+                    onClick = {
+                        if (!liked) likeBurstTrigger++
+                        onToggleLike()
+                    },
+                    active = liked,
+                    haptic = if (liked) Haptic.ToggleOff else Haptic.ToggleOn,
+                )
+            }
                                 Spacer(Modifier.width(8.dp))
                             }
                             // While the lyrics are up the menu glyph becomes the share

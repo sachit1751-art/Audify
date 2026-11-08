@@ -389,20 +389,31 @@ Project: AUDIFY
     background-color: rgba(var(--keyColor-rgb), 0.3);
   }
 
-  /* No focus ring, for the mouse or the keyboard: the user asked for the key-colour box to go. */
-  :focus,
-  :focus-visible {
+  /* Keep pointer focus quiet, but never hide the keyboard's location. */
+  :focus:not(:focus-visible) {
     outline: none;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--keyColor);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto !important;
+    }
+
     *,
     *::before,
     *::after {
+      /* Remove spatial/continuous motion, but retain brief state feedback. */
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
+      transition-duration: 140ms !important;
+      transition-property: color, background-color, border-color, opacity, fill, stroke !important;
       scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
     }
   }
 }

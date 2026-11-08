@@ -4,6 +4,8 @@ package com.music.audify.ui.player
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import com.music.audify.ui.motion.MotionTokens
+import com.music.audify.ui.motion.microPressScale
+import com.music.audify.ui.motion.microRipple
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
@@ -19,12 +21,15 @@ import com.music.audify.sharedui.resources.*
 
 import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -35,6 +40,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -493,6 +499,7 @@ internal fun TransportRow(
                 touchSize = playTouch,
                 onClick = onPlayPause,
                 haptic = if (isPlaying) Haptic.Pause else Haptic.Resume,
+                playPauseState = isPlaying,
             )
         }
         TransportGlyph(
@@ -576,6 +583,7 @@ internal fun PlayerActionRow(
     /** Opens [ListenTogetherMembersSheet] rather than settings directly. */
     onOpenListenTogetherMembers: () -> Unit,
 ) {
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         // Sized for the wider of the two capsules — the three-up one — in both
         // states. Computed for whichever was on screen it would change as they
@@ -587,7 +595,7 @@ internal fun PlayerActionRow(
         // slide relays out the row and recomposes nothing.
         val toStart = animateFloatAsState(
             targetValue = if (queueOpen) 1f else 0f,
-            animationSpec = tween(PILL_SLIDE_MS, easing = FastOutSlowInEasing),
+            animationSpec = tween(if (reduceAnimation) 0 else PILL_SLIDE_MS, easing = FastOutSlowInEasing),
             label = "playerBottomPillSlide",
         )
         Box(
@@ -598,8 +606,8 @@ internal fun PlayerActionRow(
             // the queue glyph, lit, is how you get back.
             AnimatedVisibility(
                 visible = !queueOpen,
-                enter = fadeIn(tween(MotionTokens.SHORT_FADE_MS, delayMillis = 120)),
-                exit = fadeOut(tween(120)),
+                enter = fadeIn(tween(if (reduceAnimation) 0 else MotionTokens.SHORT_FADE_MS, delayMillis = if (reduceAnimation) 0 else 120)),
+                exit = fadeOut(tween(if (reduceAnimation) 0 else 120)),
                 modifier = Modifier.align(Alignment.CenterStart),
             ) {
                 BottomGlyph(
@@ -627,11 +635,12 @@ internal fun PlayerActionRow(
                 },
                 targetState = queueOpen,
                 transitionSpec = {
-                    (fadeIn(tween(MotionTokens.SHORT_FADE_MS, delayMillis = 140)) togetherWith fadeOut(tween(140)))
+                    (fadeIn(tween(if (reduceAnimation) 0 else MotionTokens.SHORT_FADE_MS, delayMillis = if (reduceAnimation) 0 else 140)) togetherWith
+                        fadeOut(tween(if (reduceAnimation) 0 else 140)))
                         // Unclipped: the capsule's own rounded ends are what
                         // the eye follows through the width change, and the
                         // default clip cuts them square while it happens.
-                        .using(SizeTransform(clip = false) { _, _ -> tween(MotionTokens.CONTENT_TRANSITION_MS) })
+                        .using(SizeTransform(clip = false) { _, _ -> tween(if (reduceAnimation) 0 else MotionTokens.CONTENT_TRANSITION_MS) })
                 },
                 label = "playerBottomPill",
             ) { showQueueModes ->
@@ -720,34 +729,57 @@ internal fun CircleGlyph(
     haptic: Haptic = Haptic.Tap,
 ) {
     val haptics = rememberHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val discAlpha by animateFloatAsState(
         targetValue = if (active) 0.34f else 0.18f,
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
         label = "glyphDisc",
+    )
+    val glyphScale by animateFloatAsState(
+        targetValue = if (active) 1.12f else 1f,
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "favoriteGlyphScale",
     )
     Box(
         modifier = Modifier
             .size(34.dp)
             .clip(CircleShape)
             .background(LocalPlayerTint.current.copy(alpha = discAlpha))
+            .microPressScale(interactionSource)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                interactionSource = interactionSource,
+                indication = microRipple(),
             ) {
                 haptics.play(haptic)
                 onClick()
             },
         contentAlignment = Alignment.Center,
     ) {
-        Crossfade(
+        AnimatedContent(
             targetState = icon,
-            animationSpec = tween(durationMillis = 180),
+            transitionSpec = {
+                (fadeIn(tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS)) + scaleIn(
+                    initialScale = if (reduceAnimation) 1f else 0.84f,
+                    animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                )) togetherWith
+                    (fadeOut(tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS)) + scaleOut(
+                        targetScale = if (reduceAnimation) 1f else 0.92f,
+                        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                    ))
+            },
             label = "playerMenuGlyph",
         ) { glyph ->
             Icon(
                 imageVector = glyph,
                 contentDescription = contentDescription,
                 tint = LocalPlayerTint.current,
-                modifier = Modifier.size(19.dp),
+                modifier = Modifier
+                    .size(19.dp)
+                    .graphicsLayer { scaleX = glyphScale; scaleY = glyphScale },
             )
         }
     }
@@ -769,8 +801,12 @@ private fun TransportGlyph(
     haptic: Haptic = Haptic.Tap,
     /** Vertical squash of the glyph alone; its width and touch box are untouched. */
     heightScale: Float = 1f,
+    /** Non-null only for the play/pause control, whose state gets a shared morph transition. */
+    playPauseState: Boolean? = null,
 ) {
     val haptics = rememberHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     // Faded rather than hidden: the row keeps its shape at the ends of a queue.
     val alpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.3f,
@@ -779,24 +815,40 @@ private fun TransportGlyph(
     Box(
         modifier = Modifier
             .size(touchSize)
+            .microPressScale(interactionSource, enabled = enabled)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                interactionSource = interactionSource,
+                indication = microRipple(),
                 enabled = enabled,
             ) {
                 haptics.play(haptic)
                 onClick()
-            },
+            }
+            .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = contentDescription,
-            tint = Color.White.copy(alpha = alpha),
-            modifier = Modifier
-                .size(size)
-                .then(if (heightScale != 1f) Modifier.graphicsLayer { scaleY = heightScale } else Modifier),
-        )
+        if (playPauseState != null) {
+            PlayPauseMorphIcon(
+                isPlaying = playPauseState,
+                tint = Color.White.copy(alpha = alpha),
+                size = size,
+            )
+        } else {
+            Crossfade(
+                targetState = icon,
+                animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                label = "transportIcon",
+            ) { currentIcon ->
+                Icon(
+                    painter = painterResource(currentIcon),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = alpha),
+                    modifier = Modifier
+                        .size(size)
+                        .then(if (heightScale != 1f) Modifier.graphicsLayer { scaleY = heightScale } else Modifier),
+                )
+            }
+        }
     }
 }
 
@@ -825,7 +877,7 @@ private val PILL_SEGMENT_WIDTH = 64.dp
  * glyph's place as the queue opens, and back. Long enough to cover the content
  * swap and the resize, so it lands after both rather than before.
  */
-private const val PILL_SLIDE_MS = 320
+private const val PILL_SLIDE_MS = MotionTokens.SELECTION_INDICATOR_MS
 
 /**
  * Optical sizes, not equal ones.
@@ -866,15 +918,16 @@ private fun Pill(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     Row(
         modifier = modifier
             .height(BOTTOM_ACTION_SIZE)
             .clip(CircleShape)
             .background(LocalPlayerTint.current.copy(alpha = 0.12f))
             .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.82f,
-                    stiffness = Spring.StiffnessMediumLow,
+                animationSpec = if (reduceAnimation) snap() else spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMedium,
                 ),
             ),
         verticalAlignment = Alignment.CenterVertically,
@@ -1004,19 +1057,33 @@ private fun PillSegment(
     loading: Boolean = false,
     /** See [BottomGlyph], where the same window means the same thing. */
     tapWindowMs: Long = 0L,
-    /** Per-segment override — see [OutputPartyPill]'s three-up capsule. */
+    /** Per-segment override ? see [OutputPartyPill]'s three-up capsule. */
     width: Dp = PILL_SEGMENT_WIDTH,
 ) {
     val haptics = rememberHaptics()
+    val interactionSource = remember { MutableInteractionSource() }
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+    // The first tap always lands; only taps inside a deliberately configured repeat window are ignored.
     val lastTap = remember { mutableLongStateOf(-tapWindowMs) }
+    val segmentBackground by animateColorAsState(
+        targetValue = if (highlighted) LocalPlayerTint.current.copy(alpha = 0.14f) else Color.Transparent,
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
+        label = "pillSegmentBackground",
+    )
+    val tint by animateColorAsState(
+        targetValue = LocalPlayerTint.current.copy(alpha = if (highlighted) 1f else 0.75f),
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
+        label = "pillSegmentTint",
+    )
     Box(
         modifier = Modifier
             .width(width)
             .height(BOTTOM_ACTION_SIZE)
-            .background(if (highlighted) LocalPlayerTint.current.copy(alpha = 0.14f) else Color.Transparent)
+            .background(segmentBackground)
+            .microPressScale(interactionSource, enabled = !loading)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                interactionSource = interactionSource,
+                indication = microRipple(),
                 enabled = !loading,
             ) {
                 val now = uptimeMillis()
@@ -1029,47 +1096,51 @@ private fun PillSegment(
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        val tint = LocalPlayerTint.current.copy(alpha = if (highlighted) 1f else 0.75f)
-        Crossfade(
-            targetState = loading,
-            animationSpec = tween(durationMillis = 200),
-            label = "pillSegmentLoading",
-        ) { isLoading ->
+        AnimatedContent(
+            targetState = Triple(loading, icon to iconSize, label to trailingLabel),
+            transitionSpec = {
+                (fadeIn(tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS)) + scaleIn(
+                    initialScale = if (reduceAnimation) 1f else 0.86f,
+                    animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                )) togetherWith
+                    (fadeOut(tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS)) + scaleOut(
+                        targetScale = if (reduceAnimation) 1f else 0.94f,
+                        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                    ))
+            },
+            label = "pillSegmentContent",
+        ) { (isLoading, iconAndSize, labelAndTrailing) ->
+            val currentIcon = iconAndSize.first
+            val currentIconSize = iconAndSize.second
+            val currentLabel = labelAndTrailing.first
+            val currentTrailingLabel = labelAndTrailing.second
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(17.dp),
                     color = LocalPlayerTint.current,
                     strokeWidth = 2.dp,
                 )
-            } else if (icon != null) {
+            } else if (currentIcon != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The size travels with the icon, so the outgoing glyph
-                    // fades at its own size rather than the incoming one's.
-                    Crossfade(
-                        targetState = icon to iconSize,
-                        animationSpec = tween(durationMillis = 200),
-                        label = "pillSegmentIcon",
-                    ) { (currentIcon, currentSize) ->
-                        Icon(
-                            imageVector = currentIcon,
-                            contentDescription = null,
-                            tint = tint,
-                            modifier = Modifier.size(currentSize),
-                        )
-                    }
-                    if (trailingLabel != null) {
+                    Icon(
+                        imageVector = currentIcon,
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(currentIconSize),
+                    )
+                    if (currentTrailingLabel != null) {
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = trailingLabel,
+                            text = currentTrailingLabel,
                             color = tint,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                         )
                     }
                 }
-            } else if (label != null) {
+            } else if (currentLabel != null) {
                 Text(
-                    text = label,
+                    text = currentLabel,
                     color = tint,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
@@ -1216,28 +1287,37 @@ private fun BottomGlyph(
     label: String? = null,
     /**
      * Shortest gap between taps that both reach [onClick]. A tap inside the
-     * window of the last one is dropped whole — haptic included, so a swallowed
+     * window of the last one is dropped whole ? haptic included, so a swallowed
      * tap doesn't buzz as though something happened. The default lets every tap
-     * through: only the glyphs whose work is too heavy to repeat at finger speed
+     * through: only glyphs whose work is too heavy to repeat at finger speed
      * ask for a window.
      */
     tapWindowMs: Long = 0L,
 ) {
     val haptics = rememberHaptics()
-    // Read only from the click handler, never during composition, so writing it
-    // costs no recomposition. Starts a full window in the past so the first tap
-    // is never the one that gets swallowed.
+    val interactionSource = remember { MutableInteractionSource() }
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+    // Read only from the click handler, never during composition, so writing it costs no recomposition.
     val lastTap = remember { mutableLongStateOf(-tapWindowMs) }
+    val background by animateColorAsState(
+        targetValue = if (highlighted) LocalPlayerTint.current.copy(alpha = 0.20f) else Color.Transparent,
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
+        label = "bottomGlyphBackground",
+    )
+    val tint by animateColorAsState(
+        targetValue = LocalPlayerTint.current.copy(alpha = if (highlighted) 1f else 0.75f),
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
+        label = "bottomGlyphTint",
+    )
     Box(
         modifier = Modifier
             .size(BOTTOM_ACTION_SIZE)
             .clip(CircleShape)
-            .background(
-                if (highlighted) LocalPlayerTint.current.copy(alpha = 0.20f) else Color.Transparent,
-            )
+            .background(background)
+            .microPressScale(interactionSource)
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                interactionSource = interactionSource,
+                indication = microRipple(),
             ) {
                 val now = uptimeMillis()
                 if (now - lastTap.longValue >= tapWindowMs) {
@@ -1249,21 +1329,10 @@ private fun BottomGlyph(
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        val tint = LocalPlayerTint.current.copy(alpha = if (highlighted) 1f else 0.75f)
         if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(26.dp),
-            )
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
         } else if (label != null) {
-            Text(
-                text = label,
-                color = tint,
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Text(label, color = tint, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

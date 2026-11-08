@@ -11,9 +11,18 @@ import android.content.Intent
 import android.media.AudioFormat
 import android.media.audiofx.AudioEffect
 import android.net.Uri
-import androidx.core.net.toUri
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -41,6 +50,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.BarChart
@@ -67,6 +77,7 @@ import androidx.compose.material.icons.rounded.Gradient
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -76,16 +87,15 @@ import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.MotionPhotosOff
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Draw
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.SurroundSound
 import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.WebAssetOff
-import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -93,9 +103,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.data.lyrics.translationLanguageName
-import androidx.compose.material3.AlertDialog
+import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -296,6 +309,7 @@ fun SettingsScreen(
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
     val smartVersionAlignment by AppSettings.smartVersionAlignment.collectAsStateWithLifecycle()
     val filterNonMusicAudio by AppSettings.filterNonMusicAudio.collectAsStateWithLifecycle()
+    val hideExplicitContent by AppSettings.hideExplicitContent.collectAsStateWithLifecycle()
     val localMusicFolderUri by AppSettings.localMusicFolderUri.collectAsStateWithLifecycle()
     val highPerformanceMode by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
     val performanceRefreshRate by AppSettings.performanceRefreshRate.collectAsStateWithLifecycle()
@@ -424,6 +438,11 @@ fun SettingsScreen(
     }
     var showListenBrainzTokenDialog by remember { mutableStateOf(false) }
     var showLastfmLoginDialog by remember { mutableStateOf(false) }
+    var feedbackRequestType by rememberSaveable { mutableStateOf<String?>(null) }
+    var feedbackDescription by rememberSaveable { mutableStateOf("") }
+    var feedbackCategory by rememberSaveable { mutableStateOf("") }
+    var feedbackIncludeDiagnostics by rememberSaveable { mutableStateOf(false) }
+    var feedbackCategoryMenuExpanded by remember { mutableStateOf(false) }
     val scrobbleScope = rememberCoroutineScope()
 
     val version = remember(context) {
@@ -635,6 +654,7 @@ fun SettingsScreen(
                 stringResource(R.string.miscellaneous) to Icons.Rounded.Apps,
                 stringResource(R.string.language) to Icons.Rounded.Language,
                 stringResource(R.string.advanced_options) to Icons.Rounded.Extension,
+                "About" to Icons.Rounded.Info,
             )
             categories.forEach { (title, icon) ->
                 SettingsCategoryCard(
@@ -646,6 +666,99 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp)
                         .padding(top = 10.dp),
                 )
+            }
+        }
+
+        SearchableSettingsGroup(search, header = "About") {
+            row("Report a problem", "bug", "issue", "problem", "crash", "report") {
+                SettingsRow(
+                    icon = Icons.Rounded.BugReport,
+                    title = "Report a problem",
+                    subtitle = "Tell us what went wrong",
+                    onClick = { feedbackRequestType = "Bug report" },
+                )
+            }
+            row("Request a feature", "feature", "idea", "suggestion", "request") {
+                SettingsRow(
+                    icon = Icons.Rounded.AutoAwesome,
+                    title = "Request a feature",
+                    subtitle = "Suggest something you'd like to see",
+                    onClick = { feedbackRequestType = "Feature request" },
+                )
+            }
+            row("Contact support", "contact", "email", "get in touch", "support") {
+                SettingsRow(
+                    icon = Icons.Rounded.Feedback,
+                    title = "Contact support",
+                    subtitle = "sachit1771@gmail.com",
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:sachit1771@gmail.com"))
+                        runCatching { context.startActivity(intent) }.onFailure {
+                            Toast.makeText(context, "No email app is available", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                )
+            }
+            row("About Audify", "version", "source code", "github", "creator", "developer", "maintainer", "sachit") {
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(64.dp).clip(RoundedCornerShape(18.dp))) {
+                            Image(
+                                painter = painterResource(R.drawable.ic_launcher_background),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            Image(
+                                painter = painterResource(R.drawable.ic_launcher_foreground),
+                                contentDescription = "Audify app logo",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize().padding(8.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Audify", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("Version $version", style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Person, contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("TEAM", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = "https://github.com/sachit1751-art.png",
+                            contentDescription = "Sachit's GitHub profile picture",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(38.dp).clip(CircleShape),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("sachit1751-art", fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("Lead Maintainer", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Text("Copyright © 2026 Audify Contributors. Audify comes with absolutely no warranty. It is free software, and you are welcome to redistribute it under the terms of the GNU General Public License version 3 or later. Audify is unofficial and is not affiliated with Spotify AB.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                        Text("License", color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gnu.org/licenses/gpl-3.0.html"))) })
+                        Text("Source code", color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/sachit1751-art/Audify"))) })
+                        Text("Developer", color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/sachit1751-art"))) })
+                    }
+                }
+                }
             }
         }
 
@@ -742,7 +855,7 @@ fun SettingsScreen(
             val loudnessTitle = stringResource(R.string.loudness_normalization)
             row(loudnessTitle, "loudness", "volume", "normalize", "replaygain", "lufs") {
                 SettingsRow(
-                    icon = Icons.Rounded.VolumeUp,
+                    icon = Icons.AutoMirrored.Rounded.VolumeUp,
                     title = loudnessTitle,
                     subtitle = stringResource(R.string.loudness_normalization_subtitle),
                     trailing = {
@@ -850,7 +963,7 @@ fun SettingsScreen(
             val pauseOnMuteTitle = stringResource(R.string.pause_on_mute)
             row(pauseOnMuteTitle, "mute", "volume") {
                 SettingsRow(
-                    icon = Icons.Rounded.VolumeOff,
+                    icon = Icons.AutoMirrored.Rounded.VolumeOff,
                     title = pauseOnMuteTitle,
                     subtitle = stringResource(R.string.pause_on_mute_subtitle),
                     trailing = {
@@ -1342,6 +1455,25 @@ fun SettingsScreen(
                     )
                 }
             }
+            val hideExplicitTitle = stringResource(R.string.hide_explicit_content)
+            row(hideExplicitTitle, "explicit", "parental", "content filter") {
+                SettingsRow(
+                    icon = Icons.Rounded.FilterAlt,
+                    title = hideExplicitTitle,
+                    subtitle = stringResource(R.string.hide_explicit_content_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = hideExplicitContent,
+                            onCheckedChange = AppSettings::setHideExplicitContent,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = { AppSettings.setHideExplicitContent(!hideExplicitContent) },
+                )
+            }
             val filterNonMusicAudioTitle = stringResource(R.string.filter_non_music_audio)
             row(filterNonMusicAudioTitle, "podcast", "recording") {
                 SettingsRow(
@@ -1602,7 +1734,7 @@ fun SettingsScreen(
             val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)
             row(playNextOnSwipeTitle, "swipe", "queue") {
                 SettingsRow(
-                    icon = Icons.Rounded.PlaylistPlay,
+                    icon = Icons.AutoMirrored.Rounded.PlaylistPlay,
                     title = playNextOnSwipeTitle,
                     subtitle = if (swipeToPlayNext) {
                         stringResource(R.string.swipe_plays_next)
@@ -1663,7 +1795,7 @@ fun SettingsScreen(
             val hideVolumeBarTitle = stringResource(R.string.hide_volume_bar)
             row(hideVolumeBarTitle, "volume", "player") {
                 SettingsRow(
-                    icon = Icons.Rounded.VolumeOff,
+                    icon = Icons.AutoMirrored.Rounded.VolumeOff,
                     title = hideVolumeBarTitle,
                     subtitle = stringResource(R.string.hide_volume_bar_subtitle),
                     trailing = {
@@ -1789,53 +1921,6 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
-                )
-            }
-        }
-
-        SearchableSettingsGroup(search, header = stringResource(R.string.help_and_feedback)) {
-            val reportBugTitle = stringResource(R.string.report_a_bug)
-            val couldNotOpenBugReport = stringResource(R.string.could_not_open_bug_report)
-            row(reportBugTitle, "bug", "issue", "problem", "crash", "feedback", "support") {
-                SettingsRow(
-                    icon = Icons.Rounded.BugReport,
-                    title = reportBugTitle,
-                    subtitle = stringResource(R.string.report_a_bug_subtitle),
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml".toUri(),
-                        )
-                        runCatching { context.startActivity(intent) }.onFailure {
-                            Toast.makeText(
-                                context,
-                                couldNotOpenBugReport,
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    },
-                )
-            }
-            val shareFeedbackTitle = stringResource(R.string.share_feedback)
-            val couldNotOpenFeedback = stringResource(R.string.could_not_open_feedback)
-            row(shareFeedbackTitle, "suggestion", "idea", "feedback", "experience", "tester") {
-                SettingsRow(
-                    icon = Icons.Rounded.Feedback,
-                    title = shareFeedbackTitle,
-                    subtitle = stringResource(R.string.share_feedback_subtitle),
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml".toUri(),
-                        )
-                        runCatching { context.startActivity(intent) }.onFailure {
-                            Toast.makeText(
-                                context,
-                                couldNotOpenFeedback,
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    },
                 )
             }
         }
@@ -2115,6 +2200,123 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showPerformanceConfirmation = false }) {
                     Text(stringResource(R.string.not_yet))
+                }
+            },
+        )
+    }
+
+    feedbackRequestType?.let { requestType ->
+        val categories = if (requestType == "Bug report") {
+            listOf("Playback", "Downloads", "Library", "Account", "Appearance", "Performance", "Other")
+        } else {
+            listOf("Playback", "Playlists", "Discovery", "Library", "Appearance", "Accessibility", "Other")
+        }
+        AlertDialog(
+            onDismissRequest = {
+                feedbackRequestType = null
+                feedbackDescription = ""
+                feedbackCategory = ""
+                feedbackIncludeDiagnostics = false
+            },
+            title = { Text(if (requestType == "Bug report") "Report a Problem" else "Request a Feature") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Your email app will open with the details addressed to Audify support. Review and send the email to submit.",
+                        style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(12.dp))
+                    Box {
+                        OutlinedTextField(
+                            value = feedbackCategory,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Category") },
+                            placeholder = { Text("Choose a category") },
+                            trailingIcon = { Icon(Icons.Rounded.ExpandMore, contentDescription = "Choose category") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Box(
+                            Modifier.matchParentSize().clickable { feedbackCategoryMenuExpanded = true },
+                        )
+                        DropdownMenu(
+                            expanded = feedbackCategoryMenuExpanded,
+                            onDismissRequest = { feedbackCategoryMenuExpanded = false },
+                        ) {
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category) },
+                                    onClick = {
+                                        feedbackCategory = category
+                                        feedbackCategoryMenuExpanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = feedbackDescription,
+                        onValueChange = { feedbackDescription = it },
+                        label = { Text(if (requestType == "Bug report") "What happened?" else "What would you like Audify to do?") },
+                        minLines = 4,
+                        maxLines = 7,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = feedbackIncludeDiagnostics,
+                            onCheckedChange = { feedbackIncludeDiagnostics = it },
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text("Include diagnostic details", style = MaterialTheme.typography.bodyMedium)
+                            Text("App version, Android version and device model. No personal files or raw logs.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = feedbackCategory.isNotBlank() && feedbackDescription.isNotBlank(), onClick = {
+                    val subject = "Audify $requestType - $feedbackCategory"
+                    val body = buildString {
+                        appendLine("Category: $feedbackCategory")
+                        appendLine()
+                        appendLine(feedbackDescription.trim())
+                        if (feedbackIncludeDiagnostics) {
+                            appendLine()
+                            appendLine("--- Diagnostic details ---")
+                            appendLine("Audify version: $version")
+                            appendLine("Android version: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+                            appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
+                        }
+                    }
+                    val emailUri = Uri.parse(
+                        "mailto:sachit1771@gmail.com?subject=${Uri.encode(subject)}&body=${Uri.encode(body)}",
+                    )
+                    val intent = Intent(Intent.ACTION_SENDTO, emailUri)
+                    val launchResult = runCatching {
+                        context.startActivity(intent)
+                    }
+                    launchResult.onFailure {
+                        Toast.makeText(context, "No email app is available. Install or enable an email app, then try again.", Toast.LENGTH_LONG).show()
+                    }
+                    if (launchResult.isSuccess) {
+                        feedbackRequestType = null
+                        feedbackDescription = ""
+                        feedbackCategory = ""
+                        feedbackIncludeDiagnostics = false
+                    }
+                }) { Text("Continue to email") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    feedbackRequestType = null
+                    feedbackDescription = ""
+                    feedbackCategory = ""
+                    feedbackIncludeDiagnostics = false
+                }) {
+                    Text(stringResource(R.string.cancel))
                 }
             },
         )
@@ -2991,10 +3193,7 @@ internal fun SettingsRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (badge != null) {
-                    Spacer(Modifier.width(8.dp))
-                    Badge(badge)
-                }
+                Badge(badge)
             }
             if (subtitleContent != null) {
                 subtitleContent()
@@ -3054,10 +3253,7 @@ internal fun SettingsSubRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (badge != null) {
-                    Spacer(Modifier.width(8.dp))
-                    Badge(badge)
-                }
+                Badge(badge)
             }
             if (subtitle != null) {
                 Text(
@@ -3081,16 +3277,40 @@ internal fun SettingsSubRow(
 
 /** Marks the connection whose ceiling is actually in force right now. */
 @Composable
-internal fun Badge(text: String) {
-    Text(
-        text = text.uppercase(Locale.ROOT),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .clip(RoundedCornerShape(5.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-    )
+internal fun Badge(text: String?) {
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    var lastText by remember { mutableStateOf(text.orEmpty()) }
+    LaunchedEffect(text) {
+        if (text != null) lastText = text
+    }
+    AnimatedVisibility(
+        visible = text != null,
+        enter = if (reduceAnimation) EnterTransition.None else
+            expandHorizontally(expandFrom = Alignment.Start) +
+                fadeIn(tween(MotionTokens.SMALL_POPUP_MS)) + scaleIn(initialScale = 0.9f),
+        exit = if (reduceAnimation) ExitTransition.None else
+            shrinkHorizontally(shrinkTowards = Alignment.Start) +
+                fadeOut(tween(MotionTokens.PRESS_FEEDBACK_MS)) + scaleOut(targetScale = 0.9f),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(8.dp))
+            Crossfade(
+                targetState = lastText.uppercase(Locale.ROOT),
+                animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                label = "settingsBadgeText",
+            ) { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

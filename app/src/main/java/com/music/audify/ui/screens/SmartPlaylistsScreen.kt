@@ -16,7 +16,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
+import com.music.audify.ui.components.ExplicitSongTitle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -49,6 +50,8 @@ import com.music.audify.data.playlist.SmartPlaylistEngine
 import com.music.audify.data.playlist.SmartPlaylistRepository
 import com.music.audify.data.playlist.SmartPlaylistSort
 import com.music.audify.data.playlist.SmartPlaylistStore
+import com.music.audify.data.stats.LocalLibraryStore
+import com.music.audify.data.stats.ListeningStats
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +65,9 @@ fun SmartPlaylistsScreen(
 ) {
     val context = LocalContext.current
     val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
+    val history by LocalLibraryStore.history.collectAsStateWithLifecycle()
+    val favorites by LocalLibraryStore.favorites.collectAsStateWithLifecycle()
+    var loadingLibrary by remember { mutableStateOf(true) }
     var candidates by remember { mutableStateOf<List<Song>>(emptyList()) }
     var results by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
     var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -69,12 +75,17 @@ fun SmartPlaylistsScreen(
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
 
-    LaunchedEffect(context) {
+    LaunchedEffect(context, refreshVersion, history, favorites) {
+        loadingLibrary = true
         candidates = withContext(Dispatchers.IO) {
             val local = runCatching { LocalMediaRepository.getLocalMusic(context) }.getOrDefault(emptyList())
             val downloaded = runCatching { LocalMediaRepository.getDownloadedSongs(context) }.getOrDefault(emptyList())
-            (local + downloaded).filter { it.videoId.isNotBlank() }.distinctBy { it.videoId }
+            val listened = runCatching { ListeningStats.trackSnapshot().map { it.song } }.getOrDefault(emptyList())
+            (local + downloaded + history + favorites + listened)
+                .filter { it.videoId.isNotBlank() }
+                .distinctBy { it.videoId }
         }
+        loadingLibrary = false
     }
     LaunchedEffect(definitions, candidates, refreshVersion) {
         results = SmartPlaylistRepository.evaluateAll(candidates)
@@ -96,12 +107,35 @@ fun SmartPlaylistsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = { refreshVersion++ }) { Text("Refresh") }
+            TextButton(onClick = { refreshVersion++ }) { Text(if (loadingLibrary) "Loading..." else "Refresh") }
             Button(onClick = { editing = null; showEditor = true }) { Text("Create") }
+        }
+        if (loadingLibrary) {
+            Text(
+                "Refreshing your music sources...",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        } else if (candidates.isNotEmpty()) {
+            Text(
+                "${candidates.size} tracks available to match",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        } else {
+            Text(
+                "No tracks found yet. Play music, like tracks or download music, then refresh.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
         if (definitions.isEmpty()) {
             Text(
-                "No smart playlists yet. Create one from listening history, artists, likes or recently added music.",
+                if (loadingLibrary) "Loading your library and listening history..."
+                else "No smart playlists yet. Create rules from played tracks, liked songs, artists or downloaded music.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 24.dp),

@@ -16,6 +16,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import com.music.audify.ui.animation.sharedArtworkModifier
 import com.music.audify.ui.components.liquidGlassRim
 import com.music.audify.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -286,13 +288,13 @@ fun DetailScreen(
     onSongClick: (List<Song>, Int) -> Unit,
     onSongLongPress: (Song) -> Unit,
     onSongSwipe: (Song) -> Unit,
+    modifier: Modifier = Modifier,
     onRetry: () -> Unit = {},
     onShuffle: (List<Song>) -> Unit,
     onSectionItemClick: (ShelfItem) -> Unit,
     onArtistClick: (String, String) -> Unit,
     onAddSuggested: (Song) -> Unit,
     contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
     activeShelf: HomeShelf? = null,
     onActiveShelfChange: (HomeShelf?) -> Unit = {},
@@ -941,7 +943,7 @@ private fun ReleaseHeader(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onState = { artFailed = it is AsyncImagePainter.State.Error },
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.matchParentSize().then(sharedArtworkModifier(page.browseId)),
             )
             // Animated cover art, inside the same frame. Always running:
             // unlike the player's sleeve there is no transport here to follow,
@@ -1168,7 +1170,7 @@ private fun DetailSearchField(
         }
         Box(
             modifier = Modifier
-                .size(30.dp)
+                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(CircleShape)
                 // Clearing and closing are the same gesture: an empty filter
                 // showing an unfiltered list is a row of furniture with nothing
@@ -1408,7 +1410,8 @@ private fun PageBackground(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
-                    .background(palette.elevated),
+                    .background(palette.elevated)
+                    .then(sharedArtworkModifier(page.browseId)),
             )
 
             // Above the still art but below the scrim, so the scrim that
@@ -2062,7 +2065,7 @@ private fun SuggestedSongRow(
         Spacer(Modifier.width(8.dp))
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                 .clip(CircleShape)
                 .background(palette.accent.copy(alpha = 0.16f))
                 .clickable(onClick = onAdd),

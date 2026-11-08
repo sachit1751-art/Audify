@@ -3,7 +3,11 @@
 package com.music.audify.ui.components
 
 import com.music.audify.ui.motion.MotionTokens
+import com.music.audify.ui.motion.microPressScale
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
@@ -14,6 +18,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -37,7 +43,7 @@ import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.AlertDialog
+import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,6 +73,7 @@ import coil3.compose.AsyncImage
 import com.music.audify.R
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.artworkAt
+import com.music.audify.data.settings.AppSettings
 import com.music.audify.download.DownloadProgress
 import com.music.audify.download.DownloadSession
 import com.music.audify.download.Downloads
@@ -98,6 +105,8 @@ import com.music.audify.ui.haptics.rememberHaptics
 @Composable
 fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val session by DownloadSession.state.collectAsStateWithLifecycle()
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val interactionSource = remember { MutableInteractionSource() }
 
     val haptics = rememberHaptics()
     // Animated, because the fraction lands in steps — one track at a time, plus
@@ -105,7 +114,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     // reads as a stutter rather than as progress.
     val progress by animateFloatAsState(
         targetValue = session.fraction,
-        animationSpec = tween(300),
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.CONTROL_STATE_MS),
         label = "downloadRingProgress",
     )
     val failed = session.failed > 0
@@ -114,7 +123,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             failed -> MaterialTheme.colorScheme.error
             else -> MaterialTheme.colorScheme.primary
         },
-        animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
+        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
         label = "downloadRingTint",
     )
 
@@ -124,13 +133,13 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         // Open the slot first; the glyph arrives as the pill approaches its
         // new width. Siblings move with the expanding slot and make room rather
         // than jumping directly to their final positions.
-        enter = expandHorizontally(
+        enter = if (reduceAnimation) EnterTransition.None else expandHorizontally(
             animationSpec = tween(MotionTokens.SHEET_ENTER_MS),
             expandFrom = Alignment.End,
         ) + fadeIn(
             animationSpec = tween(durationMillis = 160, delayMillis = 100),
         ),
-        exit = fadeOut(
+        exit = if (reduceAnimation) ExitTransition.None else fadeOut(
             animationSpec = tween(120),
         ) + shrinkHorizontally(
             animationSpec = tween(durationMillis = 220, delayMillis = 60),
@@ -142,8 +151,9 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 haptics.play(Haptic.Select)
                 onClick()
             },
+            interactionSource = interactionSource,
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.microPressScale(interactionSource), contentAlignment = Alignment.Center) {
                 if (session.busy) {
                     CircularProgressIndicator(
                         // Never quite zero: a ring pinned at nothing reads as
@@ -157,30 +167,29 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                         gapSize = 0.dp,
                     )
                 }
-                Icon(
-                    imageVector = when {
-                        failed -> Icons.Rounded.ErrorOutline
-                        // A bare arrow inside the ring, not the tray-and-arrow: the
-                        // ring is already saying "downloading", and a second glyph
-                        // that says it too is detail nobody can resolve at 15dp.
-                        session.busy -> Icons.Rounded.ArrowDownward
-                        else -> Icons.Rounded.DownloadDone
-                    },
-                    contentDescription = when {
-                        session.busy -> stringResource(
-                            R.string.downloads_progress,
-                            (session.fraction * 100).toInt(),
-                        )
-                        failed -> pluralStringResource(
-                            R.plurals.downloads_failed_count,
-                            session.failed,
-                            session.failed,
-                        )
-                        else -> stringResource(R.string.downloads_finished)
-                    },
-                    tint = tint,
-                    modifier = Modifier.size(if (session.busy) GLYPH_IN_RING else GLYPH_SIZE),
-                )
+                val statusIcon = when {
+                    failed -> Icons.Rounded.ErrorOutline
+                    // The ring already communicates progress; the arrow identifies the active operation.
+                    session.busy -> Icons.Rounded.ArrowDownward
+                    else -> Icons.Rounded.DownloadDone
+                }
+                val statusDescription = when {
+                    session.busy -> stringResource(R.string.downloads_progress, (session.fraction * 100).toInt())
+                    failed -> pluralStringResource(R.plurals.downloads_failed_count, session.failed, session.failed)
+                    else -> stringResource(R.string.downloads_finished)
+                }
+                Crossfade(
+                    targetState = statusIcon,
+                    animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
+                    label = "downloadStatusIcon",
+                ) { icon ->
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = statusDescription,
+                        tint = tint,
+                        modifier = Modifier.size(if (session.busy) GLYPH_IN_RING else GLYPH_SIZE),
+                    )
+                }
             }
         }
     }
@@ -592,7 +601,7 @@ private fun RowAction(
 ) {
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,

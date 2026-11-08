@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.ui.motion.MotionTokens
 
 /** A unique queue result, so repeating the same action restarts its lifetime. */
 data class QueueActionNotice(
@@ -47,8 +49,10 @@ fun QueueActionNoticeHost(
             if (reduceAnimation) {
                 EnterTransition.None togetherWith ExitTransition.None
             } else {
-                (fadeIn() + slideInVertically { height -> height / 2 }) togetherWith
-                    (fadeOut() + slideOutVertically { height -> height / 2 })
+                (fadeIn(tween(MotionTokens.SMALL_POPUP_MS)) +
+                    slideInVertically(tween(MotionTokens.SMALL_POPUP_MS)) { height -> height / 10 }) togetherWith
+                    (fadeOut(tween(MotionTokens.SHORT_FADE_MS)) +
+                        slideOutVertically(tween(MotionTokens.SHORT_FADE_MS)) { height -> height / 10 })
             }
         },
         contentKey = { it?.id },

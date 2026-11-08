@@ -6,6 +6,7 @@ import com.music.audify.sharedui.resources.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
@@ -59,6 +60,7 @@ import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.stableShelfComposeKeys
 import com.music.audify.data.model.UiState
 import com.music.audify.data.settings.LibrarySort
+import com.music.audify.ui.player.PlayerSettings
 import com.music.audify.ui.AppUi
 import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.components.LIBRARY_GRID_SPACING
@@ -131,6 +133,7 @@ fun LibraryScreen(
     onSmartPlaylists: (() -> Unit)? = null,
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val onDevice = stringResource(Res.string.on_device)
     PullToRefresh(
         refreshing = refreshing,
@@ -154,7 +157,13 @@ fun LibraryScreen(
                         text = stringResource(Res.string.library),
                         style = MaterialTheme.typography.displayLarge,
                         color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
+                        modifier = Modifier
+                            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp)
+                            .graphicsLayer {
+                                if (!reduceAnimation && listState.firstVisibleItemIndex == 0) {
+                                    translationY = listState.firstVisibleItemScrollOffset * 0.10f
+                                }
+                            },
                     )
                 }
             }
@@ -265,6 +274,7 @@ fun LibraryScreen(
                     }
                     shelves.forEach { shelf ->
                         item(key = "shelf:${shelf.title}") {
+                            Column(Modifier.animateItem()) {
                             if (shelf.title == PLAYLISTS) {
                                 val pinnedFirst = shelf.pinnedFirst(pinnedPlaylists)
                                 PlaylistShelf(
@@ -283,6 +293,7 @@ fun LibraryScreen(
                                     onItemLongPress = onShelfItemLongPress,
                                     onShowAll = { onShowAll(shelf) },
                                 )
+                            }
                             }
                         }
                     }
@@ -442,6 +453,7 @@ internal fun LibraryGridShelf(
             itemsIndexed(visibleItems, key = { index, _ -> visibleItemKeys[index] }) { _, item ->
                 ShelfCard(
                     item = item,
+                    modifier = Modifier.width(SHELF_CARD_WIDTH).animateItem(),
                     onClick = { onItemClick(item) },
                     onLongPress = { onItemLongPress(item) },
                     isPinned = item.browseId != null && item.browseId in pinnedPlaylists,
@@ -500,9 +512,9 @@ fun LibraryGridPage(
             gridItemsIndexed(sortedShelf.items, key = { index, _ -> sortedItemKeys[index] }) { _, item ->
                 ShelfCard(
                     item = item,
+                    modifier = Modifier.fillMaxWidth().animateItem(),
                     onClick = { onItemClick(item) },
                     onLongPress = { onItemLongPress(item) },
-                    modifier = Modifier.fillMaxWidth(),
                     isPinned = item.browseId != null && item.browseId in pinnedPlaylists,
                 )
             }

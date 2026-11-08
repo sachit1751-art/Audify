@@ -3,6 +3,9 @@
 package com.music.audify.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.music.audify.ui.motion.microPressScale
+import com.music.audify.ui.motion.microRipple
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -90,6 +93,7 @@ fun Modifier.longPressMenuClickable(
     enabled: Boolean = true,
 ): Modifier {
     val capture = remember { HoldCapture() }
+    val interactionSource = remember { MutableInteractionSource() }
     val graphicsContext = LocalGraphicsContext.current
     val scope = rememberCoroutineScope()
     val longClick = onLongClick?.let { held ->
@@ -104,8 +108,15 @@ fun Modifier.longPressMenuClickable(
         }
     }
     return this
+        .microPressScale(interactionSource, enabled = enabled)
         .onPlaced { capture.coordinates = it }
-        .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = longClick)
+        .combinedClickable(
+            interactionSource = interactionSource,
+            indication = microRipple(),
+            enabled = enabled,
+            onClick = onClick,
+            onLongClick = longClick,
+        )
         .drawWithContent {
             drawContent()
             // Reading the counter is what subscribes this draw to a hold;

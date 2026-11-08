@@ -2,6 +2,8 @@
 // Project: AUDIFY
 package com.music.audify
 
+import com.music.audify.ui.motion.MotionTokens
+
 import android.app.ActivityManager
 import android.app.Application
 import androidx.annotation.OptIn
@@ -254,7 +256,7 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             }
             // Covers arriving with a hard cut read as the list flickering as
             // it scrolls; a short fade reads as them developing.
-            .crossfade(200)
+            .crossfade(MotionTokens.ARTWORK_CROSSFADE_MS)
             .build()
 
     private fun initLastfm() {

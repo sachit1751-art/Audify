@@ -3,6 +3,7 @@
 package com.music.audify.data.local
 
 import android.content.Context
+import android.annotation.SuppressLint
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -34,6 +35,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Room-backed catalog and durable, account-scoped synchronization outbox. */
+@SuppressLint("StaticFieldLeak") // The singleton retains applicationContext only, never an Activity.
 object LocalFirstRepository {
     private const val DATABASE_NAME = "audify-library.db"
     private const val LEGACY_IMPORTED = "legacy_json_imported_v1"
@@ -46,6 +48,7 @@ object LocalFirstRepository {
     private val mirrorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var mirroringStarted = false
     @Volatile private var database: LocalDatabase? = null
+    // This is always assigned applicationContext in initialize(), never an Activity.
     @Volatile private var contextForWork: Context? = null
     private val _pendingCount = MutableStateFlow(0)
     val pendingCount: StateFlow<Int> = _pendingCount.asStateFlow()

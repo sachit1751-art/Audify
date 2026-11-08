@@ -317,10 +317,10 @@ impl Listening {
     /// The server sessions go through. There is no Audify-operated public server yet, so only an
     /// explicitly configured development server or a user-saved server may be used.
     fn server(&self, cx: &App) -> Option<String> {
-        if let Ok(forced) = std::env::var(server::VARIABLE) {
-            if !forced.trim().is_empty() {
-                return Some(forced);
-            }
+        if let Ok(forced) = std::env::var(server::VARIABLE)
+            && !forced.trim().is_empty()
+        {
+            return Some(forced);
         }
         let settings = self.settings.read(cx);
         if settings.sessions_official() {

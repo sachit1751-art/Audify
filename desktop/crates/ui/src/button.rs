@@ -2,13 +2,14 @@ use std::f32::consts::TAU;
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, App, ClickEvent, Div, ElementId, Hsla, Interactivity, MouseButton, Pixels,
-    SharedString, Stateful, StyleRefinement, TextStyleRefinement, Transformation, Window, div, px,
-    radians, relative, svg,
+    AnimationExt as _, AnyElement, App, ClickEvent, Div, ElementId, Hsla, Interactivity,
+    MouseButton, Pixels, SharedString, SpringAnimation, Stateful, StyleRefinement,
+    TextStyleRefinement, Transformation, Window, div, px, radians, relative, svg,
 };
 
 use crate::glass::{blurring, frost};
 use crate::metrics::{Text, text_width};
+use crate::motion::{IconMovement, Motion, Motioned as _, Movement, PRESS_SCALE, Springs};
 use crate::theme::ActiveTheme as _;
 use crate::tooltip::{Perch, Tipped as _};
 
@@ -31,6 +32,11 @@ const BORDER: Pixels = px(1.);
 
 type Click = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
 
+#[derive(Default)]
+struct PressState {
+    down: bool,
+}
+
 enum Variant {
     Ghost,
     Secondary,
@@ -41,6 +47,7 @@ enum Variant {
 
 #[derive(IntoElement)]
 pub struct Button {
+    id: ElementId,
     base: Stateful<Div>,
     label: Option<SharedString>,
     /// Labels the button may switch between. The label slot is as wide as the widest of them,
@@ -82,8 +89,10 @@ pub struct Button {
 impl Button {
     #[track_caller]
     pub fn new(id: impl Into<ElementId>) -> Self {
+        let id = id.into();
         Self {
-            base: div().id(id),
+            base: div().id(id.clone()),
+            id,
             label: None,
             reserve: Vec::new(),
             name: None,
@@ -342,6 +351,7 @@ struct Palette {
 impl RenderOnce for Button {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
+            id,
             mut base,
             label,
             reserve,
@@ -371,7 +381,24 @@ impl RenderOnce for Button {
             on_click,
         } = self;
 
-        let theme = cx.theme();
+        let theme = *cx.theme();
+        let press = window.use_keyed_state((id.clone(), "press"), cx, |_, _| PressState::default());
+        let is_pressed = press.read(cx).down;
+        let icon_generation = icon.as_ref().and_then(|path| {
+            let movement = window.use_keyed_state((id.clone(), "icon-state"), cx, |_, _| {
+                IconMovement::new(Some(path.clone()))
+            });
+            movement.update(cx, |movement, _| movement.update(Some(path)))
+        });
+        let indicator_movement =
+            window.use_keyed_state((id.clone(), "indicator-state"), cx, |_, _| {
+                Movement::new(indicator)
+            });
+        let (indicator_animates, indicator_generation) =
+            indicator_movement.update(cx, |movement, _| {
+                let moving = movement.turning_for(indicator, Motion::Selection);
+                (moving, movement.generation())
+            });
         // A plain ghost floats over flat paint, so it hovers with the themed
         // secondary fill that stays visible on both dark and light surfaces. A
         // frosted ghost floats over real content under blur, so it hovers with
@@ -492,52 +519,37 @@ impl RenderOnce for Button {
             ),
         };
 
-        let mut button = base
-            .role(match tab {
-                true => gpui::accesskit::Role::Tab,
-                false => gpui::accesskit::Role::Button,
-            })
-            .when_some(accessible, |this, name| this.aria_label(name))
-            .when_some(description, |this, description| {
-                this.aria_description(description)
-            })
-            .when(selected || tab, |this| this.aria_selected(selected))
-            .when_some(expanded, |this, expanded| this.aria_expanded(expanded))
-            .when_some(toggled, |this, toggled| {
-                this.aria_toggled(gpui::accesskit::Toggled::from(toggled))
-            })
+        // The semantic/clickable node stays outside the spring wrapper. GPUI's animation
+        // elements do not forward accessibility roles, so the entire visual surface scales
+        // inside the unchanged semantic hit target.
+        let content = div()
             .flex()
-            .flex_none()
+            .flex_1()
+            .min_w_0()
             .items_center()
             .justify_center()
             .gap(gap)
-            .h(height)
-            .px(padding)
-            .rounded(radius)
-            .text_color(foreground)
-            .when(small, |this| this.text_size(theme.text(Text::Label)))
-            .when_some(palette.background, |this, background| this.bg(background))
-            .when(selected && !backgroundless, |this| {
-                this.bg(selected_background)
-            })
-            .when_some(palette.border, |this, border| {
-                this.border_1().border_color(border)
-            })
-            .when(interactive, |this| this.cursor_pointer())
-            .when_some(tooltip.filter(|_| interactive), |this, (key, perch)| {
-                this.tip(key, perch)
-            })
-            .when_some(hovered, |this, style| this.hover(move |_| style))
-            .when_some(pressed, |this, style| this.active(move |_| style))
             .when_some(icon, |this, path| {
-                this.child(
-                    svg()
-                        .path(icons::path(path))
-                        .size(ICON)
-                        .flex_none()
-                        .text_color(foreground)
-                        .with_transformation(Transformation::rotate(radians(turn * TAU))),
-                )
+                let icon = svg()
+                    .path(icons::path(path))
+                    .size(ICON)
+                    .flex_none()
+                    .text_color(foreground)
+                    .with_transformation(Transformation::rotate(radians(turn * TAU)));
+                let icon = match icon_generation {
+                    Some(generation) => icon
+                        .motion(
+                            ("button-icon", generation),
+                            Motion::Icon,
+                            |icon, progress| {
+                                let progress = progress.clamp(0., 1.);
+                                icon.opacity(progress).layer_scale(0.84 + 0.16 * progress)
+                            },
+                        )
+                        .into_any_element(),
+                    None => icon.into_any_element(),
+                };
+                this.child(icon)
             })
             .children(leading)
             .when_some(label, |this, label| {
@@ -572,18 +584,32 @@ impl RenderOnce for Button {
                         .text_color(foreground),
                 )
             })
-            .when(indicator, |this| {
+            .when(indicator || indicator_animates, |this| {
                 let diameter = theme.metrics.pad * 0.375;
-                this.relative().child(
-                    div()
-                        .absolute()
-                        .left(relative(0.5))
-                        .ml(-diameter / 2.)
-                        .bottom(theme.metrics.pad * 0.125)
-                        .size(diameter)
-                        .rounded_full()
-                        .bg(foreground),
-                )
+                let dot = div()
+                    .absolute()
+                    .left(relative(0.5))
+                    .ml(-diameter / 2.)
+                    .bottom(theme.metrics.pad * 0.125)
+                    .size(diameter)
+                    .rounded_full()
+                    .bg(foreground);
+                let dot = match indicator_animates {
+                    true => dot
+                        .motion(
+                            ("button-indicator", indicator_generation),
+                            Motion::Selection,
+                            move |dot, t| {
+                                let shown = if indicator { t } else { 1. - t };
+                                dot.opacity(shown).layer_scale(0.7 + 0.3 * shown)
+                            },
+                        )
+                        .into_any_element(),
+                    false => dot
+                        .when(!indicator, |dot| dot.opacity(0.))
+                        .into_any_element(),
+                };
+                this.relative().child(dot)
             })
             .when_some(status, |this, color| {
                 let diameter = theme.metrics.pad * STATUS;
@@ -596,14 +622,105 @@ impl RenderOnce for Button {
                         .rounded_full()
                         .bg(color),
                 )
-            })
-            .when(interactive, |this| {
-                this.when_some(on_click, |this, handler| {
-                    this.on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                        .on_click(move |event, window, cx| handler(event, window, cx))
-                })
             });
 
+        // The semantic/clickable node stays outside the spring wrapper. The complete painted
+        // button surface scales inside that stable accessibility and hit-test node.
+        let visual = div().id(ElementId::named_usize(format!("button-visual-{id}"), 0));
+        let visual = match hovered {
+            Some(style) => visual.hover(move |_| style),
+            None => visual,
+        };
+        let visual = match pressed {
+            Some(style) => visual.active(move |_| style),
+            None => visual,
+        };
+        let visual = visual
+            .flex()
+            .flex_1()
+            .min_w_0()
+            .items_center()
+            .justify_center()
+            .h(height)
+            .px(padding)
+            .rounded(radius)
+            .text_color(foreground)
+            .when(small, |this| this.text_size(theme.text(Text::Label)))
+            .when_some(palette.background, |this, background| this.bg(background))
+            .when(selected && !backgroundless, |this| {
+                this.bg(selected_background)
+            })
+            .when_some(palette.border, |this, border| {
+                this.border_1().border_color(border)
+            })
+            .child(content)
+            .with_spring(
+                ElementId::named_usize(format!("button-press-{id}"), 0),
+                SpringAnimation::new(Springs::RESPONSIVE).to(if is_pressed {
+                    PRESS_SCALE
+                } else {
+                    1.
+                }),
+                |visual, scale| visual.layer_scale(scale),
+            );
+
+        let mut button = base
+            .role(match tab {
+                true => gpui::accesskit::Role::Tab,
+                false => gpui::accesskit::Role::Button,
+            })
+            .when_some(accessible, |this, name| this.aria_label(name))
+            .when_some(description, |this, description| {
+                this.aria_description(description)
+            })
+            .when(selected || tab, |this| this.aria_selected(selected))
+            .when_some(expanded, |this, expanded| this.aria_expanded(expanded))
+            .when_some(toggled, |this, toggled| {
+                this.aria_toggled(gpui::accesskit::Toggled::from(toggled))
+            })
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_center()
+            .h(height)
+            .when(interactive, |this| this.cursor_pointer())
+            .when_some(tooltip.filter(|_| interactive), |this, (key, perch)| {
+                this.tip(key, perch)
+            })
+            .child(visual)
+            .when(interactive, |this| {
+                this.when_some(on_click, |this, handler| {
+                    let down = press.clone();
+                    let up = press.clone();
+                    let outside = press.clone();
+                    this.on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                        down.update(cx, |state, cx| {
+                            if !state.down {
+                                state.down = true;
+                                cx.notify();
+                            }
+                        });
+                        cx.stop_propagation();
+                    })
+                    .on_mouse_up(MouseButton::Left, move |_, _, cx| {
+                        up.update(cx, |state, cx| {
+                            if state.down {
+                                state.down = false;
+                                cx.notify();
+                            }
+                        });
+                    })
+                    .on_mouse_up_out(MouseButton::Left, move |_, _, cx| {
+                        outside.update(cx, |state, cx| {
+                            if state.down {
+                                state.down = false;
+                                cx.notify();
+                            }
+                        });
+                    })
+                    .on_click(move |event, window, cx| handler(event, window, cx))
+                })
+            });
         button.style().refine(&overrides);
         button
     }

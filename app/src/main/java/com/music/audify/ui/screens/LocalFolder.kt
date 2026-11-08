@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -799,7 +800,7 @@ private fun RowDownloadButton(song: Song, palette: ArtworkPalette, onDownload: (
     val done = state == null && song.videoId in saved
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .clip(CircleShape)
             .clickable(enabled = !done) {
                 when (state) {

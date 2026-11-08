@@ -32,6 +32,8 @@ const CATCH_UP: f32 = 0.22;
 const SETTLED: f32 = 0.0005;
 /// How long a closed ring takes to fade out over a backdrop, before the chosen pace.
 const FADE: Duration = Duration::from_millis(300);
+/// How long the download arrow takes to draw into a completion checkmark.
+const CHECK: Duration = Duration::from_millis(160);
 /// How far the turning arc travels at least to reach the top once the amount done is known, so
 /// it slows into place rather than stopping short.
 const ROOM: f32 = 0.25;
@@ -39,10 +41,10 @@ const ROOM: f32 = 0.25;
 /// lets it ease to a stop without a jolt.
 const EASE_IN: f32 = 1.5;
 
-/// A down arrow in a ring that fills clockwise from the top as work goes, and closes into
-/// Lucide's `circle-arrow-down` when it is done. It is drawn rather than loaded, so it looks the
-/// same whatever icon pack is active. With the amount unknown, a short arc turns instead, and
-/// holds still when the system asks for less motion.
+/// A down arrow in a ring that fills clockwise from the top as work goes, and draws a checkmark
+/// as the ring closes when it is done. It is drawn rather than loaded, so it looks the same
+/// whatever icon pack is active. With the amount unknown, a short arc turns instead, and holds
+/// still when the system asks for less motion.
 #[derive(IntoElement)]
 pub struct ArrowRing {
     id: ElementId,
@@ -106,7 +108,7 @@ impl RenderOnce for ArrowRing {
             true => ease_in_out(frame.shown),
             false => 1.,
         };
-        mark(frame.arc, look.fade(shown))
+        mark(frame.arc, look.fade(shown), frame.checked)
     }
 }
 
@@ -144,6 +146,8 @@ struct Sweep {
     morph: Option<Morph>,
     /// How much of a closed ring still shows, from 1 down to 0.
     shown: f32,
+    checked: f32,
+    checking: Option<Instant>,
     at: Instant,
 }
 
@@ -155,6 +159,8 @@ struct Frame {
     closed: bool,
     /// Whether the arc still moves, so another frame is needed.
     moving: bool,
+    /// How much of the completion checkmark has been drawn, from 0 to 1.
+    checked: f32,
 }
 
 impl Sweep {
@@ -170,6 +176,12 @@ impl Sweep {
                 true => 0.,
                 false => 1.,
             },
+            checked: if done.is_some_and(|done| done >= 1.) {
+                1.
+            } else {
+                0.
+            },
+            checking: None,
             at: Instant::now(),
         }
     }
@@ -183,6 +195,8 @@ impl Sweep {
         let Some(done) = done else {
             self.known = false;
             self.morph = None;
+            self.checked = 0.;
+            self.checking = None;
             if animates {
                 self.spin = (self.spin + elapsed / TURN.as_secs_f32()).fract();
             }
@@ -194,6 +208,7 @@ impl Sweep {
                 shown: 1.,
                 closed: false,
                 moving: animates,
+                checked: 0.,
             };
         };
         if !self.known {
@@ -225,6 +240,24 @@ impl Sweep {
             }
         };
         let closed = self.morph.is_none() && self.drawn >= 1.;
+        if !closed {
+            self.checked = 0.;
+            self.checking = None;
+        } else if !animates {
+            self.checked = 1.;
+            self.checking = None;
+        } else {
+            if self.checked < 1. && self.checking.is_none() {
+                self.checking = Some(now);
+            }
+            if let Some(started) = self.checking {
+                self.checked =
+                    (now.duration_since(started).as_secs_f32() / CHECK.as_secs_f32()).clamp(0., 1.);
+                if self.checked >= 1. {
+                    self.checking = None;
+                }
+            }
+        }
         self.shown = match (closed, animates) {
             (false, _) => 1.,
             (true, false) => 0.,
@@ -234,7 +267,8 @@ impl Sweep {
             arc,
             shown: self.shown,
             closed,
-            moving: self.morph.is_some() || self.drawn != done,
+            moving: self.morph.is_some() || self.drawn != done || self.checking.is_some(),
+            checked: self.checked,
         }
     }
 }
@@ -279,10 +313,10 @@ struct Arc {
     sweep: f32,
 }
 
-fn mark(arc: Arc, look: Look) -> AnyElement {
+fn mark(arc: Arc, look: Look, checked: f32) -> AnyElement {
     canvas(
         |_, _, _| {},
-        move |bounds, _, window, _| paint(bounds, arc, look, window),
+        move |bounds, _, window, _| paint(bounds, arc, look, checked, window),
     )
     .size(SIZE)
     .flex_none()
@@ -290,7 +324,7 @@ fn mark(arc: Arc, look: Look) -> AnyElement {
 }
 
 /// Draws the mark into `bounds`. Over a backdrop the empty part of the ring is left out.
-fn paint(bounds: Bounds<Pixels>, arc: Arc, look: Look, window: &mut Window) {
+fn paint(bounds: Bounds<Pixels>, arc: Arc, look: Look, checked: f32, window: &mut Window) {
     let scale = bounds.size.width / px(GRID);
     let width = px(STROKE * scale);
     let at = |x: f32, y: f32| {
@@ -308,13 +342,43 @@ fn paint(bounds: Bounds<Pixels>, arc: Arc, look: Look, window: &mut Window) {
     if sweep > 0. && look.ring.a > 0. {
         stroke_arc(&at, start, sweep, width, look.ring, window);
     }
-    stroke(&[at(12., 8.), at(12., 16.)], width, look.arrow, window);
-    stroke(
-        &[at(8., 12.), at(12., 16.), at(16., 12.)],
-        width,
-        look.arrow,
-        window,
-    );
+    let checked = checked.clamp(0., 1.);
+    if checked < 1. {
+        let arrow = look.arrow.opacity(1. - checked);
+        stroke(&[at(12., 8.), at(12., 16.)], width, arrow, window);
+        stroke(
+            &[at(8., 12.), at(12., 16.), at(16., 12.)],
+            width,
+            arrow,
+            window,
+        );
+    }
+    if checked > 0. {
+        let start = at(7., 12.);
+        let elbow = at(10., 15.);
+        let end = at(17., 8.);
+        let points = if checked < 0.5 {
+            let t = checked * 2.;
+            vec![
+                start,
+                point(
+                    start.x + (elbow.x - start.x) * t,
+                    start.y + (elbow.y - start.y) * t,
+                ),
+            ]
+        } else {
+            let t = (checked - 0.5) * 2.;
+            vec![
+                start,
+                elbow,
+                point(
+                    elbow.x + (end.x - elbow.x) * t,
+                    elbow.y + (end.y - elbow.y) * t,
+                ),
+            ]
+        };
+        stroke(&points, width, look.arrow.opacity(checked), window);
+    }
 }
 
 /// Strokes `sweep` of the ring clockwise from `start`, both as fractions of a turn from the top.
@@ -378,5 +442,29 @@ fn dot(center: Point<Pixels>, radius: Pixels, color: Hsla, window: &mut Window) 
     path.add_polygon(&points, true);
     if let Ok(path) = path.build() {
         window.paint_path(path, color);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_already_completed_download_starts_with_a_checkmark() {
+        let sweep = Sweep::new(Some(1.));
+        assert_eq!(sweep.checked, 1.);
+        assert!(sweep.checking.is_none());
+    }
+
+    #[test]
+    fn an_in_progress_download_does_not_show_a_completion_check_early() {
+        let sweep = Sweep::new(Some(0.7));
+        assert_eq!(sweep.checked, 0.);
+        assert!(sweep.checking.is_none());
+    }
+
+    #[test]
+    fn completion_check_has_a_bounded_transition_budget() {
+        assert_eq!(CHECK, Duration::from_millis(160));
     }
 }

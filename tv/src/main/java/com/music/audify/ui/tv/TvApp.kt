@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Person
@@ -647,7 +648,7 @@ private fun TvAvatarButton(
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
-            .size(32.dp)
+            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
             .tvLift(interaction, CircleShape, focusedScale = 1.15f, elevation = 8.dp)
             .tvClick(interaction, onClick = onClick)
             .background(TvGlass.Fill),

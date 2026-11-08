@@ -9,6 +9,7 @@ use crate::arrow_ring::ArrowRing;
 use crate::button::Button;
 use crate::metrics::Text;
 use crate::modal::corners;
+use crate::motion::{IconMovement, Motion, Motioned as _};
 use crate::spinner::Spinner;
 use crate::theme::ActiveTheme as _;
 
@@ -187,7 +188,7 @@ impl InteractiveElement for Toast {
 impl StatefulInteractiveElement for Toast {}
 
 impl RenderOnce for Toast {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let Self {
             mut base,
             id,
@@ -209,6 +210,10 @@ impl RenderOnce for Toast {
         } = self;
 
         let theme = *cx.theme();
+        let icon_state = window.use_keyed_state((id.clone(), "status-icon"), cx, |_, _| {
+            IconMovement::new(icon.clone())
+        });
+        let icon_generation = icon_state.update(cx, |state, _| state.update(icon.as_ref()));
         let pad = theme.metrics.pad * 2;
         let overrides = std::mem::take(base.style());
         // The card reads as one status named for its message, since the text
@@ -236,14 +241,26 @@ impl RenderOnce for Toast {
                     .text_color(theme.popover_foreground)
                     .into_any_element(),
             ),
-            (None, false, Some(icon)) => Some(
-                svg()
+            (None, false, Some(icon)) => {
+                let glyph = svg()
                     .path(icons::path(icon))
                     .size(ICON)
                     .flex_none()
-                    .text_color(theme.popover_foreground)
-                    .into_any_element(),
-            ),
+                    .text_color(theme.popover_foreground);
+                Some(match icon_generation {
+                    Some(generation) => glyph
+                        .motion(
+                            ("toast-status-icon", generation),
+                            Motion::Icon,
+                            |glyph, progress| {
+                                let progress = progress.clamp(0., 1.);
+                                glyph.opacity(progress).layer_scale(0.9 + 0.1 * progress)
+                            },
+                        )
+                        .into_any_element(),
+                    None => glyph.into_any_element(),
+                })
+            }
             (None, false, None) => None,
         };
 

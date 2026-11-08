@@ -55,7 +55,7 @@ export function DetailHeader({ info, onPlay, onShuffle, canPlay, extra, motion }
           <MotionArtwork
             key={motion.url}
             motion={motion}
-            className="absolute inset-0 size-full rounded-artwork-lg object-cover opacity-0 transition-opacity duration-600 ease-in data-ready:opacity-100"
+            className="absolute inset-0 size-full rounded-artwork-lg object-cover opacity-0 transition-opacity duration-300 ease-out data-ready:opacity-100"
           />
         )}
       </div>

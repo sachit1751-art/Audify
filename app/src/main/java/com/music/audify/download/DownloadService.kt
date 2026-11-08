@@ -43,6 +43,8 @@ class DownloadService : Service() {
 
     private var drain: Job? = null
     private var notifier: Job? = null
+    /** A start request arriving as the previous drain is winding down. */
+    private var drainRestartRequested = false
 
     /** What the notification is currently about. */
     @Volatile
@@ -68,15 +70,7 @@ class DownloadService : Service() {
             return START_NOT_STICKY
         }
 
-        if (drain == null) {
-            drain = scope.launch {
-                drainQueue()
-                // Not shutdown(stopWork = true): this is the drain coroutine,
-                // and cancelling its own job here would be cancelling itself.
-                shutdown(stopWork = false)
-            }
-            notifier = scope.launch { reflectProgress() }
-        }
+        ensureDrain()
         // Not sticky: a queue is a list of things asked for in a session, and
         // reviving the service without one would put up a notification about
         // nothing.
@@ -115,11 +109,38 @@ class DownloadService : Service() {
         repeat(WORKERS) { launch { work() } }
     }
 
+    /**
+     * A new enqueue can arrive after the last worker observes an empty queue
+     * but before this drain coroutine has finished. Android delivers both
+     * start requests on the main thread; remember that request and start a new
+     * drain after the old workers have joined instead of silently stranding it.
+     */
+    private fun ensureDrain() {
+        if (drain != null) {
+            drainRestartRequested = true
+            return
+        }
+        notifier = scope.launch { reflectProgress() }
+        drain = scope.launch {
+            drainQueue()
+            val restart = shouldRestartDownloadDrain(drainRestartRequested, Downloads.busy())
+            drainRestartRequested = false
+            drain = null
+            if (restart) {
+                ensureDrain()
+            } else {
+                // Not shutdown(stopWork = true): this is the drain coroutine,
+                // and cancelling its own job here would cancel itself.
+                shutdown(stopWork = false)
+            }
+        }
+    }
+
     private suspend fun work() {
         var idleFor = 0L
         while (true) {
-            val song = Downloads.takeNext()
-            if (song == null) {
+            val claim = Downloads.takeNext()
+            if (claim == null) {
                 // Nothing to take, but something may still be arriving — or
                 // another worker may fail a track back into view. Only a queue
                 // that stays empty, with nothing else in flight, is finished.
@@ -128,16 +149,17 @@ class DownloadService : Service() {
                 idleFor += IDLE_POLL_MS
                 continue
             }
+            val song = claim.song
             idleFor = 0L
             current = song
             postNotification()
 
             // Its own job, so one track can be cancelled out from under the
             // loop without taking the rest of the queue with it.
-            val job = scope.launch { Downloads.run(this@DownloadService, song) }
-            Downloads.onRunning(song.videoId, job)
+            val job = scope.launch { Downloads.run(this@DownloadService, claim) }
+            Downloads.onRunning(song.videoId, claim.token, job)
             job.join()
-            Downloads.onIdle(song.videoId)
+            Downloads.onIdle(song.videoId, claim.token)
         }
     }
 

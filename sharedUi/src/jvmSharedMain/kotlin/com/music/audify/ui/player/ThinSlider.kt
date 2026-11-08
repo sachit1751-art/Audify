@@ -14,6 +14,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -47,6 +48,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.MixBlend
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -104,11 +106,12 @@ fun ThinSlider(
     markerColor: Color = Color.White.copy(alpha = 0.5f),
 ) {
     var dragging by remember { mutableStateOf(false) }
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val height by animateDpAsState(
         targetValue = if (dragging) activeHeight else idleHeight,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMediumLow,
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
         ),
         label = "sliderHeight",
     )
@@ -136,7 +139,7 @@ fun ThinSlider(
     val sheenVisible = shownLoading || (mixing && mixPulse?.active != true)
     val fillFactor by animateFloatAsState(
         targetValue = if (sheenVisible) 0f else 1f,
-        animationSpec = tween(durationMillis = MORPH_MS, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = if (reduceAnimation) 0 else MORPH_MS, easing = FastOutSlowInEasing),
         label = "fillFactor",
     )
 
@@ -299,6 +302,11 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
     val active = pulse.active
     val playing = pulse.playing
     LaunchedEffect(active, playing, enabled) {
+        if (!enabled) {
+            pulse.coverAnim.snapTo(if (active) 1f else 0f)
+            pulse.depthAnim.snapTo(0f)
+            return@LaunchedEffect
+        }
         launch {
             pulse.coverAnim.animateTo(
                 if (active) 1f else 0f,
@@ -309,11 +317,10 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
             // Paused mid-blend, the pulse settles to a steady bar rather than beating on
             // over silence — and the frame clock below gets to stop.
             pulse.depthAnim.animateTo(
-                if (active && playing && enabled) 1f else 0f,
+                if (active && playing) 1f else 0f,
                 tween(durationMillis = PULSE_FADE_MS, easing = FastOutSlowInEasing),
             )
         }
-        if (!enabled) return@LaunchedEffect
         // The pulse's own beat clock. The blend publishes a beat anchor every fade tick, and
         // each one is re-derived from player positions that wobble by a few tens of ms — drawn
         // straight, that wobble is the pulse lurching. So this runs a free phase at the blend's
@@ -329,7 +336,7 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
                 val blend = pulse.blendNow()
                 val beatNanos = blend?.beatMs?.takeIf { it > 0f }?.let { it * 1_000_000.0 }
                 var phase = pulse.phase
-                if (beatNanos != null && blend != null) {
+                if (beatNanos != null) {
                     phase += dt / beatNanos
                     val target = Math.floorMod(now - blend.beatAnchorNanos, beatNanos.toLong()) / beatNanos
                     // Shortest way round the circle to where the beat should be. The very first

@@ -18,11 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -41,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.music.audify.playback.PlayableMedia
 import com.music.audify.playback.PodcastEpisodeRef
+import com.music.audify.ui.player.PlayPauseMorphIcon
 
 @Composable
 fun PodcastMiniPlayer(
@@ -51,9 +48,9 @@ fun PodcastMiniPlayer(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onExpand: () -> Unit,
+    modifier: Modifier = Modifier,
     controlsLocked: Boolean = false,
     onBlockedControl: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     Surface(
         modifier = modifier
@@ -89,9 +86,11 @@ fun PodcastMiniPlayer(
             }
             IconButton(onClick = { if (controlsLocked) onBlockedControl() else onPlayPause() }) {
                 if (isLoading) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
-                else Icon(
-                    if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                else PlayPauseMorphIcon(
+                    isPlaying = isPlaying,
                     contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    size = 24.dp,
                 )
             }
             IconButton(onClick = { if (controlsLocked) onBlockedControl() else onNext() }) {
@@ -112,9 +111,9 @@ fun PodcastNowPlayingScreen(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
     queueItems: List<PlayableMedia> = emptyList(),
     queueIndex: Int = 0,
-    modifier: Modifier = Modifier,
 ) {
     val duration = durationMs.takeIf { it > 0L } ?: episode.durationMs ?: 0L
     val position = positionMs.coerceIn(0L, duration.takeIf { it > 0L } ?: Long.MAX_VALUE)
@@ -192,11 +191,11 @@ fun PodcastNowPlayingScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     if (isLoading) CircularProgressIndicator(Modifier.size(28.dp), color = MaterialTheme.colorScheme.onPrimary)
-                    else Icon(
-                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    else PlayPauseMorphIcon(
+                        isPlaying = isPlaying,
                         contentDescription = if (isPlaying) "Pause" else "Play",
                         tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(36.dp),
+                        size = 36.dp,
                     )
                 }
             }

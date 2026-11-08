@@ -9,7 +9,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.skiaCanvas
 import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.round
@@ -111,7 +111,7 @@ internal actual fun DrawScope.clipShiftedDown(
         }
         return
     }
-    val canvas = drawContext.canvas.nativeCanvas
+    val canvas = drawContext.canvas.skiaCanvas
     val paint = Paint().apply {
         imageFilter = ImageFilter.makeMatrixTransform(
             Matrix33.makeTranslate(0f, fraction),

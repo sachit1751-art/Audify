@@ -29,16 +29,12 @@ struct Member {
 #[derive(Clone, Copy)]
 enum Role {
     LeadMaintainer,
-    Maintainer,
-    Contributor,
 }
 
 impl Role {
     fn label(self) -> SharedString {
         match self {
             Self::LeadMaintainer => t!("settings-role-lead-maintainer"),
-            Self::Maintainer => t!("settings-role-maintainer"),
-            Self::Contributor => t!("settings-role-contributor"),
         }
     }
 }

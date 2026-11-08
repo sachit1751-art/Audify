@@ -144,7 +144,7 @@ impl RenderOnce for Switch {
                 true => knob
                     .motion(
                         ("thumb", usize::from(checked)),
-                        Motion::Control,
+                        Motion::Toggle,
                         move |knob, t| {
                             knob.ml(travel * (from + (to - from) * t))
                                 .bg(crate::motion::mix(knob_was, knob_is, t))
@@ -163,7 +163,7 @@ impl RenderOnce for Switch {
             true => switch
                 .motion(
                     ("track", usize::from(checked)),
-                    Motion::Control,
+                    Motion::Toggle,
                     move |track, t| {
                         let hover = crate::motion::mix(hover_was, hover_is, t);
                         track

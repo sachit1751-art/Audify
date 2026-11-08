@@ -91,6 +91,7 @@ private val NOTES_MAX_HEIGHT = 220.dp
 fun UpdateAvailableDialog(
     version: String,
     notes: String?,
+    modifier: Modifier = Modifier,
     requiresManualMigration: Boolean,
     migrationAlreadyInstalled: Boolean = false,
     hazeState: HazeState,
@@ -99,7 +100,6 @@ fun UpdateAvailableDialog(
     onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()

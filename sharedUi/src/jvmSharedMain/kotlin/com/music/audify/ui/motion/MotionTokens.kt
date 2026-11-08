@@ -9,6 +9,14 @@ import androidx.compose.animation.core.LinearEasing
 /** Shared motion values for the Android/JVM Compose surfaces. Keep replacements behavior-neutral. */
 object MotionTokens {
     const val CONTROL_STATE_MS = 160
+    const val PRESS_FEEDBACK_MS = 105
+    const val ICON_STATE_MS = 150
+    const val TOGGLE_STATE_MS = 180
+    const val SMALL_POPUP_MS = 170
+    const val SELECTION_INDICATOR_MS = 210
+    const val ARTWORK_CROSSFADE_MS = 210
+    const val PRESS_SCALE = 0.96f
+
     const val SHORT_FADE_MS = 180
     const val CONTENT_TRANSITION_MS = 220
     const val SHEET_ENTER_MS = 260

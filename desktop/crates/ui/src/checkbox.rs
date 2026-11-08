@@ -119,7 +119,7 @@ impl RenderOnce for Checkbox {
             true => mark
                 .motion(
                     ("mark", usize::from(checked)),
-                    Motion::Control,
+                    Motion::Toggle,
                     move |mark, t| mark.text_color(mix(mark_was, mark_is, t)),
                 )
                 .into_any_element(),
@@ -139,7 +139,7 @@ impl RenderOnce for Checkbox {
             true => square
                 .motion(
                     ("box", usize::from(checked)),
-                    Motion::Control,
+                    Motion::Toggle,
                     move |square, t| {
                         square
                             .bg(mix(box_was, box_is, t))

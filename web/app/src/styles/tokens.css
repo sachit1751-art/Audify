@@ -57,8 +57,12 @@ Project: AUDIFY
 
   /* ---- Motion ------------------------------------------------------------ */
   --ease-out-panel: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --duration-quick: 120ms;
+  --duration-state: 180ms;
   --duration-panel: 0.3s;
-  --global-transition: opacity 0.1s ease-in;
+  --global-transition: opacity var(--duration-quick) var(--ease-standard);
   --duration-arrow: 0.25s;
 
   /* ---- z-index ----------------------------------------------------------- */

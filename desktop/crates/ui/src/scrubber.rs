@@ -5,10 +5,12 @@ use std::rc::Rc;
 
 use gpui::prelude::*;
 use gpui::{
-    App, Bounds, Div, DragMoveEvent, ElementId, Empty, Hsla, MouseButton, MouseDownEvent,
-    MouseUpEvent, Pixels, Point, Render, SharedString, Stateful, StyleRefinement, Window, canvas,
-    div, px, relative,
+    AnimationExt as _, App, Bounds, Div, DragMoveEvent, ElementId, Empty, Hsla, MouseButton,
+    MouseDownEvent, MouseUpEvent, Pixels, Point, Render, SharedString, SpringAnimation, Stateful,
+    StyleRefinement, Window, canvas, div, px, relative,
 };
+
+use crate::motion::{SLIDER_ACTIVE_SCALE, Springs};
 
 const TRACK: f32 = 0.5;
 const THUMB: f32 = 1.5;
@@ -46,6 +48,7 @@ impl Render for Grab {
 pub struct ScrubberState {
     id: SharedString,
     bounds: Rc<Cell<Bounds<Pixels>>>,
+    pressed: Rc<Cell<bool>>,
 }
 
 impl ScrubberState {
@@ -53,6 +56,7 @@ impl ScrubberState {
         Self {
             id: id.into(),
             bounds: Rc::new(Cell::new(Bounds::default())),
+            pressed: Rc::new(Cell::new(false)),
         }
     }
 
@@ -89,6 +93,7 @@ pub struct Scrubber {
     base: Stateful<Div>,
     id: SharedString,
     bounds: Rc<Cell<Bounds<Pixels>>>,
+    pressed: Rc<Cell<bool>>,
     fraction: f32,
     filled: Hsla,
     empty: Hsla,
@@ -111,6 +116,7 @@ impl Scrubber {
             base: div().id(ElementId::Name(state.id.clone())),
             id: state.id.clone(),
             bounds: state.bounds.clone(),
+            pressed: state.pressed.clone(),
             fraction: fraction.clamp(0., 1.),
             filled: gpui::white(),
             empty: gpui::black(),
@@ -208,6 +214,7 @@ impl RenderOnce for Scrubber {
             mut base,
             id,
             bounds,
+            pressed,
             fraction,
             filled,
             empty,
@@ -226,6 +233,7 @@ impl RenderOnce for Scrubber {
         let state = Rc::new(ScrubberState {
             id: id.clone(),
             bounds: bounds.clone(),
+            pressed: pressed.clone(),
         });
         let on_move = on_move.map(Rc::new);
         let on_release = on_release.map(Rc::new);
@@ -239,6 +247,8 @@ impl RenderOnce for Scrubber {
             let state = state.clone();
             let on_move = on_move.clone();
             move |event: &MouseDownEvent, window: &mut Window, cx: &mut App| {
+                state.pressed.set(true);
+                window.request_animation_frame();
                 if let Some(handler) = on_move.as_ref() {
                     handler(&at(&state, event.position), window, cx);
                 }
@@ -276,7 +286,10 @@ impl RenderOnce for Scrubber {
             }
         };
 
+        let released_pressed = pressed.clone();
         let released = move |event: &MouseUpEvent, window: &mut Window, cx: &mut App| {
+            released_pressed.set(false);
+            window.request_animation_frame();
             if let Some(handler) = on_release.as_ref() {
                 handler(event, window, cx);
             }
@@ -320,7 +333,18 @@ impl RenderOnce for Scrubber {
                                     .mb(Pixels::ZERO - pin / 2.)
                                     .size(pin)
                                     .rounded_full()
-                                    .bg(thumb),
+                                    .bg(thumb)
+                                    .with_spring(
+                                        ElementId::named_usize(format!("scrubber-thumb-{id}"), 0),
+                                        SpringAnimation::new(Springs::RESPONSIVE).to(
+                                            if pressed.get() {
+                                                SLIDER_ACTIVE_SCALE
+                                            } else {
+                                                1.
+                                            },
+                                        ),
+                                        |thumb, scale| thumb.layer_scale(scale),
+                                    ),
                             )
                         })
                         .when_some(bubble, |this, (at, text)| {
@@ -386,7 +410,18 @@ impl RenderOnce for Scrubber {
                                     .ml(Pixels::ZERO - pin / 2.)
                                     .size(pin)
                                     .rounded_full()
-                                    .bg(thumb),
+                                    .bg(thumb)
+                                    .with_spring(
+                                        ElementId::named_usize(format!("scrubber-thumb-{id}"), 0),
+                                        SpringAnimation::new(Springs::RESPONSIVE).to(
+                                            if pressed.get() {
+                                                SLIDER_ACTIVE_SCALE
+                                            } else {
+                                                1.
+                                            },
+                                        ),
+                                        |thumb, scale| thumb.layer_scale(scale),
+                                    ),
                             )
                         })
                         .when_some(bubble, |this, (at, text)| {

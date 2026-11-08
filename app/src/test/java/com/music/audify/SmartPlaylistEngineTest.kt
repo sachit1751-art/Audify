@@ -8,6 +8,7 @@ import com.music.audify.data.playlist.SmartPlaylistDefinition
 import com.music.audify.data.playlist.SmartPlaylistEngine
 import com.music.audify.data.playlist.SmartPlaylistListening
 import com.music.audify.data.playlist.SmartPlaylistSort
+import com.music.audify.data.playlist.mergeSmartPlaylistCandidates
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -119,5 +120,20 @@ class SmartPlaylistEngineTest {
             ),
         )
         assertEquals(listOf("newer", "older", "never"), result.map { it.videoId })
+    }
+    @Test fun `candidate merge includes played and liked streamed tracks without duplicates`() {
+        val local = song("local")
+        val played = song("played")
+        val liked = song("liked")
+        val aggregateOnly = song("aggregate")
+        val duplicateHistory = played.copy(title = "Older title")
+        val result = mergeSmartPlaylistCandidates(
+            library = listOf(local, played),
+            history = listOf(duplicateHistory),
+            favorites = listOf(liked, local),
+            listeningTracks = listOf(aggregateOnly, liked),
+        )
+        assertEquals(listOf("local", "played", "liked", "aggregate"), result.map { it.videoId })
+        assertEquals("played", result.first { it.videoId == "played" }.title)
     }
 }

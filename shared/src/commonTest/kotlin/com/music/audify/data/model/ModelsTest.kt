@@ -7,6 +7,14 @@ import kotlin.test.assertEquals
 
 class ModelsTest {
     @Test
+    fun explicitFilterHidesOnlyCatalogueMarkedEntries() {
+        assertEquals(true, isVisibleWithExplicitFilter(false, hideExplicitContent = true))
+        assertEquals(true, isVisibleWithExplicitFilter(null, hideExplicitContent = true))
+        assertEquals(false, isVisibleWithExplicitFilter(true, hideExplicitContent = true))
+        assertEquals(true, isVisibleWithExplicitFilter(true, hideExplicitContent = false))
+    }
+
+    @Test
     fun durationIsSharedAcrossTargets() {
         assertEquals(225_000L, "3:45".durationMillis())
         assertEquals(3_723_000L, "1:02:03".durationMillis())
@@ -90,5 +98,16 @@ class ModelsTest {
         val listenAgain = HomeShelf("Listen again", (1..10).map { song("s$it") } + album("a1") + album("a2"))
         val albums = HomeShelf("Albums & singles", (1..10).map { album("a$it") })
         assertEquals(listOf(listenAgain), listOf(listenAgain).withoutRepeatsOf(listOf(recents, albums)))
+    }
+
+    @Test
+    fun shelfLayoutUsesPlayableItemShapeRatherThanOnlyTheShelfTitle() {
+        val track = song("track")
+        val video = track.copy(isVideo = true)
+
+        assertEquals(ShelfLayout.LIST, shelfLayoutFor("For you", listOf(track), fromList = true))
+        assertEquals(ShelfLayout.LIST, shelfLayoutFor("Listen again", listOf(track), fromList = false))
+        assertEquals(ShelfLayout.VIDEO, shelfLayoutFor("Recommended", listOf(video, video, track), fromList = false))
+        assertEquals(ShelfLayout.CARDS, shelfLayoutFor("Albums", listOf(album("one"), album("two")), fromList = false))
     }
 }

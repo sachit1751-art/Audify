@@ -3,6 +3,8 @@
 package com.music.audify.playback
 
 import com.music.audify.data.YtMusicRepository
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.model.isVisibleWithExplicitFilter
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.model.SearchFilter
 import com.music.audify.data.model.SearchResult
@@ -105,6 +107,7 @@ suspend fun loadAutoplayTracks(
 ): Result<List<Song>> {
     val seed = youtubeSeedFor(seedSong) ?: return Result.success(emptyList())
     val related = YtMusicRepository.radio(seed).getOrElse { return Result.failure(it) }
+        .let { tracks -> if (AppSettings.hideExplicitContent.value) tracks.filter { isVisibleWithExplicitFilter(it.isExplicit, hideExplicitContent = true) } else tracks }
     val extra = QueueBuilder.extend(existing, related, limit)
     if (extra.isEmpty()) return Result.success(emptyList())
 

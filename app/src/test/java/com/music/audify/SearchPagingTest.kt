@@ -99,6 +99,13 @@ class SearchPagingTest {
     }
 
     @Test
+    fun `shelf subtitle conversion hides labels and source names when no creator is supplied`() {
+        assertEquals("", InnertubeParser.artistFromSubtitle("Song • YouTube Music"))
+        assertEquals("", InnertubeParser.artistFromSubtitle("Playlist • YouTube Music"))
+        assertEquals("", InnertubeParser.artistFromSubtitle("Song • 3:03"))
+    }
+
+    @Test
     fun `album rows inherit every artist from the release header`() {
         val json = """
         {

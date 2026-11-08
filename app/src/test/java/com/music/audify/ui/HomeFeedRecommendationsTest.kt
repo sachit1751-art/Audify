@@ -71,7 +71,7 @@ class HomeFeedRecommendationsTest {
     }
 
     @Test
-    fun previousSessionTracksAreExcludedWhenFreshAlternativesExist() {
+    fun previousSessionTracksMoveBehindFreshCandidatesWithoutBeingDiscarded() {
         val shelf = HomeShelf(
             "For you",
             listOf(track("old-1", "Artist A"), track("fresh-1", "Artist B"), track("old-2", "Artist C")),
@@ -79,33 +79,7 @@ class HomeFeedRecommendationsTest {
 
         val result = prioritizeFreshHomeTracks(listOf(shelf), setOf("old-1", "old-2")).single()
 
-        assertEquals(listOf("fresh-1"), result.items.mapNotNull { it.videoId })
-    }
-
-    @Test
-    fun previousSessionTracksRemainAsFallbackWhenNoFreshTracksExist() {
-        val shelf = HomeShelf(
-            "For you",
-            listOf(track("old-1", "Artist A"), track("old-2", "Artist B")),
-        )
-
-        val result = prioritizeFreshHomeTracks(listOf(shelf), setOf("old-1", "old-2")).single()
-
-        assertEquals(listOf("old-1", "old-2"), result.items.mapNotNull { it.videoId })
-    }
-
-    @Test
-    fun oldOnlyShelvesRemainAvailableWhenOtherShelvesHaveFreshTracks() {
-        val shelves = listOf(
-            HomeShelf("Fresh discoveries", listOf(track("fresh-1", "Artist A"), track("old-1", "Artist B"))),
-            HomeShelf("Old catalogue fallback", listOf(track("old-2", "Artist C"))),
-        )
-
-        val result = prioritizeFreshHomeTracks(shelves, setOf("old-1", "old-2"))
-
-        assertEquals(listOf("fresh-1"), result[0].items.mapNotNull { it.videoId })
-        assertEquals(listOf("old-2"), result[1].items.mapNotNull { it.videoId })
-        assertEquals(shelves.map { it.title }, result.map { it.title })
+        assertEquals(listOf("fresh-1", "old-1", "old-2"), result.items.mapNotNull { it.videoId })
     }
 
     @Test

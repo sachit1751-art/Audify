@@ -300,12 +300,13 @@ object DownloadStore {
                 )
                 return Uri.fromFile(target)
             }
-            context.contentResolver.update(
+            val publishedRows = context.contentResolver.update(
                 uri,
                 ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
                 null,
                 null,
             )
+            requireMediaStorePublishSucceeded(publishedRows, name)
             return uri
         }
 
@@ -370,4 +371,12 @@ object DownloadStore {
 
     private fun privateFile(context: Context, name: String) =
         File(File(context.filesDir, "downloads"), name)
+}
+
+/** A download is not complete until Android makes its pending MediaStore row visible. */
+internal fun requireMediaStorePublishSucceeded(updatedRows: Int, name: String) {
+    check(updatedRows == 1) {
+        if (updatedRows == 0) "Android did not publish $name in Music"
+        else "Android returned an unexpected publish count for $name: $updatedRows"
+    }
 }

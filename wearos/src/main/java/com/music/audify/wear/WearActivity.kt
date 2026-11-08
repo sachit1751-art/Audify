@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.core.content.edit
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
@@ -108,11 +109,11 @@ class WearActivity : ComponentActivity() {
                         link = model.link,
                         showOnboarding = !onboardingComplete.value,
                         onOnboardingComplete = {
-                            onboardingPrefs.edit().putBoolean("complete", true).apply()
+                            onboardingPrefs.edit { putBoolean("complete", true) }
                             onboardingComplete.value = true
                         },
                         onReplayOnboarding = {
-                            onboardingPrefs.edit().putBoolean("complete", false).apply()
+                            onboardingPrefs.edit { putBoolean("complete", false) }
                             onboardingComplete.value = false
                         },
                     )

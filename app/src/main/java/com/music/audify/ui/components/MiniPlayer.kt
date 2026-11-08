@@ -511,12 +511,8 @@ fun MiniPlayer(
 }
 
 /**
- * The full player's skip-forward glyph, at the mini player's scale.
- *
- * Sized against the play glyph beside it the way the full player sizes it
- * against its own play button — about half as wide again and two thirds as
- * tall — and squashed by the same 0.85, so the two players' next buttons
- * read as one glyph at two sizes. Shared with the glass bar's docked player.
+ * The skip-forward glyph uses the same visual size as play/pause, so the two
+ * transport controls have consistent weight in the mini-player.
  */
 @Composable
 internal fun MiniPlayerNextGlyph(tint: Color) {
@@ -525,9 +521,7 @@ internal fun MiniPlayerNextGlyph(tint: Color) {
         contentDescription = stringResource(R.string.widget_next),
         tint = tint,
         modifier = Modifier
-            .size(NEXT_GLYPH_SIZE)
+            .size(GLYPH_SIZE)
             .graphicsLayer { scaleY = 0.85f },
     )
 }
-
-private val NEXT_GLYPH_SIZE = 25.dp

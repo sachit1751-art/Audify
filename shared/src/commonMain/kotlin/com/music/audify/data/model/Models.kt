@@ -23,6 +23,13 @@ data class ArtistRef(
     val browseId: String? = null,
 )
 
+/**
+ * Hide only catalogue entries positively marked explicit. Missing metadata is
+ * not evidence that a track is explicit, so unknown remains visible.
+ */
+fun isVisibleWithExplicitFilter(isExplicit: Boolean?, hideExplicitContent: Boolean): Boolean =
+    !hideExplicitContent || isExplicit != true
+
 /** A playable YouTube Music track. */
 data class Song(
     val videoId: String,
@@ -374,6 +381,8 @@ data class BrowseItem(
     val subtitle: String,
     val thumbnailUrl: String?,
     val type: BrowseType,
+    /** Explicit badge supplied by the catalogue, unknown when absent. */
+    val isExplicit: Boolean? = null,
 )
 
 /** Search rows are heterogeneous once filters other than "Songs" are used. */
@@ -401,7 +410,30 @@ data class ShelfItem(
     val thumbnailUrl: String?,
     val videoId: String?,
     val browseId: String?,
+    /** A playable music-video upload; its artwork must remain widescreen. */
+    val isVideo: Boolean = false,
+    /** Explicit badge from the catalogue; null when the shelf did not label it. */
+    val isExplicit: Boolean? = null,
 )
+
+/**
+ * How a home shelf is presented. Adapted from BitChord's GPL-3.0 home-feed
+ * classification: https://github.com/kushagrasinghx/BitChord
+ */
+enum class ShelfLayout {
+    CARDS,
+    LIST,
+    VIDEO,
+}
+
+/** Match the source feed's structure instead of guessing from its heading. */
+fun shelfLayoutFor(title: String, items: List<ShelfItem>, fromList: Boolean): ShelfLayout {
+    if (items.isEmpty()) return ShelfLayout.CARDS
+    if (fromList && items.first().videoId != null) return ShelfLayout.LIST
+    if (title.trim().equals("Listen again", ignoreCase = true)) return ShelfLayout.LIST
+    if (items.count(ShelfItem::isVideo) * 2 > items.size) return ShelfLayout.VIDEO
+    return ShelfLayout.CARDS
+}
 
 /** The signed-in Google account, as YouTube Music reports it. */
 data class Account(
@@ -473,6 +505,8 @@ data class HomeShelf(
     val moreParams: String? = null,
     /** Exact category label supplied by YouTube's Moods & genres catalogue, when applicable. */
     val discoveryCategory: String? = null,
+    /** Source-derived layout, appended to preserve existing positional constructors. */
+    val layout: ShelfLayout = ShelfLayout.CARDS,
 )
 
 /**

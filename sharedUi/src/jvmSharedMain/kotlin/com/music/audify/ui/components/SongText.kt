@@ -74,6 +74,7 @@ fun ExplicitSongTitle(
     style: TextStyle,
     color: Color,
     modifier: Modifier = Modifier,
+    maxLines: Int = 1,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         if (song.isExplicit == true) {
@@ -84,7 +85,7 @@ fun ExplicitSongTitle(
             text = song.title,
             style = style,
             color = color,
-            maxLines = 1,
+            maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )

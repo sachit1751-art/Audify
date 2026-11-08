@@ -23,22 +23,18 @@ internal fun deduplicateHomeTracks(
     items.takeIf { it.isNotEmpty() }?.let { shelf.copy(items = it) }
 }
 
-/**
- * Prefers tracks not seen in the previous Home session within each shelf.
- * Shelves with no fresh alternatives remain intact and naturally fall back to
- * their available tracks instead of disappearing from the feed.
- */
+/** Compatibility no-op for the existing Home refresh call sites. */
+internal fun mergeDuplicateHomeCredits(shelves: List<HomeShelf>): List<HomeShelf> = shelves
+
+/** Moves tracks from the previous Home session behind fresh candidates when available. */
 internal fun prioritizeFreshHomeTracks(
     shelves: List<HomeShelf>,
     previouslySeenVideoIds: Set<String>,
-): List<HomeShelf> {
-    if (previouslySeenVideoIds.isEmpty()) return shelves
-    return shelves.map { shelf ->
-        val freshItems = shelf.items.filter { item ->
-            item.videoId == null || item.videoId !in previouslySeenVideoIds
-        }
-        shelf.copy(items = freshItems.ifEmpty { shelf.items })
-    }
+): List<HomeShelf> = shelves.map { shelf ->
+    val ordered = shelf.items.withIndex()
+        .sortedBy { (_, item) -> if (item.videoId != null && item.videoId in previouslySeenVideoIds) 1 else 0 }
+        .map { it.value }
+    shelf.copy(items = ordered)
 }
 
 /**
@@ -50,8 +46,8 @@ internal fun prioritizeFreshHomeTracks(
  * strongest item-level diversity signal available here.
  */
 internal fun diversifyHomeShelf(shelf: HomeShelf, seed: Long): HomeShelf {
-    if (shelf.title.trim().equals("Recents", ignoreCase = true) ||
-        shelf.title.trim().equals("Recently played", ignoreCase = true)
+    if (shelf.title.equals("Recents", ignoreCase = true) ||
+        shelf.title.equals("Recently played", ignoreCase = true)
     ) return shelf
     if (shelf.items.size < 3) return shelf
 
@@ -87,8 +83,8 @@ internal fun homeArtistKey(item: ShelfItem): String = item.subtitle
  */
 internal fun diversifyHomeShelves(shelves: List<HomeShelf>): List<HomeShelf> {
     val (history, discovery) = shelves.partition { shelf ->
-        shelf.title.trim().equals("Recents", ignoreCase = true) ||
-            shelf.title.trim().equals("Recently played", ignoreCase = true)
+        shelf.title.equals("Recents", ignoreCase = true) ||
+            shelf.title.equals("Recently played", ignoreCase = true)
     }
     val sources = LinkedHashMap<String, ArrayDeque<HomeShelf>>()
     discovery.forEachIndexed { index, shelf ->

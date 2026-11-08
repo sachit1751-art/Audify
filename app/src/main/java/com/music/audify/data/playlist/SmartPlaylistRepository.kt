@@ -50,11 +50,12 @@ object SmartPlaylistRepository {
         val recentHistoryIds = LocalLibraryStore.history.value.mapTo(mutableSetOf()) { it.videoId }
         // Listening aggregates retain enough metadata to surface streamed
         // tracks even when they are not part of a device-local folder.
-        val candidates = (library + snapshots.map { it.song } + LocalLibraryStore.favorites.value)
-            .asSequence()
-            .filter { it.videoId.isNotBlank() }
-            .distinctBy { it.videoId }
-            .toList()
+        val candidates = mergeSmartPlaylistCandidates(
+            library = library,
+            history = LocalLibraryStore.history.value,
+            favorites = LocalLibraryStore.favorites.value,
+            listeningTracks = snapshots.map { it.song },
+        )
         val listening = snapshots.associate { snapshot ->
             snapshot.videoId to SmartPlaylistListening(
                 plays = snapshot.plays,
@@ -72,3 +73,15 @@ object SmartPlaylistRepository {
         )
     }
 }
+
+/** Merge all device-owned sources once, preserving the first (richest) song record. */
+internal fun mergeSmartPlaylistCandidates(
+    library: List<Song>,
+    history: List<Song>,
+    favorites: List<Song>,
+    listeningTracks: List<Song>,
+): List<Song> = (library + history + favorites + listeningTracks)
+    .asSequence()
+    .filter { it.videoId.isNotBlank() }
+    .distinctBy { it.videoId }
+    .toList()
