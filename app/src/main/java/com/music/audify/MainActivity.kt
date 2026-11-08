@@ -558,7 +558,12 @@ private fun AudifyApp(
     // bottom bar; expanded windows get a persistent rail with a full-height
     // navigation lane. This is based on the actual available window width,
     // so foldables can move between modes as they open or rotate.
-    val useNavigationRail = windowWidth >= 600.dp
+    // A wide but shallow compatibility window (for example, an app letterboxed
+    // into a portrait display) is not a tablet layout. Require enough vertical
+    // room as well as width before replacing the phone navigation with a rail.
+    val useNavigationRail = windowWidth >= 600.dp &&
+        windowHeight >= 480.dp &&
+        windowWidth / windowHeight.coerceAtLeast(1.dp) >= 1.6f
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     /**
      * Whether the player's sheet is up. The player is always a full-screen
