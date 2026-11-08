@@ -114,8 +114,8 @@ fun EqualizerScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
+            .padding(contentPadding)
+            .verticalScroll(rememberScrollState()),
     ) {
         SettingsGroup(
             footer = stringResource(R.string.equalizer_footer),

@@ -4,19 +4,19 @@ Project: AUDIFY
 -->
 # Production release process
 
-**Last reviewed:** 2026-11-07
+**Last reviewed:** 2026-11-08
 **Workflow:** [Audify Release](../../.github/workflows/android.yml)
-**Latest published release:** [Audify 1.9.0](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.0)
+**Latest published release:** [Audify 1.9.1](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.1)
 
 This document records the published release inventory and the checks required for future production releases. The GitHub Release and its attached assets are authoritative for publication status; do not infer publication from a local build or a successful workflow run.
 
 ## Current release snapshot
 
-- Release: `1.9.0`
-- Tag: [`v1.9.0`](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.0)
-- Publication state: **published** (2026-11-07)
-- Target branch recorded by GitHub: `main`
-- Download page: <https://github.com/sachit1751-art/Audify/releases/tag/v1.9.0>
+- Release: `1.9.1`
+- Tag: [`v1.9.1`](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.1)
+- Publication state: **published** (2026-11-08)
+- Target branch recorded by GitHub: `fix/android-ci-ui-audit-2026-11-06`
+- Download page: <https://github.com/sachit1751-art/Audify/releases/tag/v1.9.1>
 
 ## Published assets
 
@@ -24,16 +24,15 @@ The release currently contains the following downloadable assets:
 
 | Platform | Asset | Purpose |
 | --- | --- | --- |
-| Android phone | `Audify-prod-universal-release.apk` | Universal phone/tablet APK |
-| Android phone | `Audify-prod-arm64-v8a-release.apk` | ARM64 phone APK |
-| Android phone | `Audify-prod-armeabi-v7a-release.apk` | ARMv7 phone APK |
-| Android phone | `Audify-prod-x86_64-release.apk` | x86_64 phone APK |
-| Android TV | `AudifyTV-1.9.0.apk` | Universal Android TV / Google TV APK |
-| Android TV | `tv-prod-universal-release.apk` | Existing universal TV asset; retained on the release |
+| Android phone | `Audify-1.9.1.apk` | Universal phone/tablet APK |
+| Android phone | `Audify-1.9.1_arm64-v8a.apk` | ARM64 phone APK |
+| Android phone | `Audify-1.9.1_armeabi-v7a.apk` | ARMv7 phone APK |
+| Android phone | `Audify-1.9.1_x86_64.apk` | x86_64 phone APK |
+| Android TV | `AudifyTV-1.9.1.apk` | Universal Android TV / Google TV APK |
 | Wear OS | `AudifyWear-prod-universal-release.apk` | Universal Wear OS companion APK |
 | Windows | `Audify-Setup.exe` | Windows x64 desktop installer |
 
-The TV APK is a separate TV-targeted application, not a phone build. The two TV-named assets are both attached; use the versioned `AudifyTV-1.9.0.apk` link in user-facing installation instructions. The Windows installer is intentionally unsigned; do not describe it as Authenticode-signed or trusted by Windows publisher verification. No macOS or Linux desktop installer is included in this release.
+The TV APK is a separate TV-targeted application, not a phone build. The Windows installer is intentionally unsigned; do not describe it as Authenticode-signed or trusted by Windows publisher verification. No macOS or Linux desktop installer is included in this release.
 
 ## Release notes and download links
 

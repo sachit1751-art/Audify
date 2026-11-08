@@ -486,8 +486,8 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(scrollState)
-            .padding(contentPadding),
+            .padding(contentPadding)
+            .verticalScroll(scrollState),
     ) {
         if (selectedCategory != null) {
             Row(

@@ -74,8 +74,8 @@ fun AccountAndScrobblingScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(contentPadding),
+            .padding(contentPadding)
+            .verticalScroll(rememberScrollState()),
     ) {
         Text(
             text = stringResource(R.string.account_integrations),
