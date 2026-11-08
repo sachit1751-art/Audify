@@ -19,9 +19,9 @@ Audify 1.9.1 is a cross-platform maintenance release focused on reliability, con
 ## Android downloads
 
 - **Phone / tablet (universal):** `Audify-1.9.1.apk` — universal APK containing supported ABIs.
-- **Phone / tablet (ARM64):** `Audify-1.9.1_arm64-v8a.apk` — smaller device-specific APK.
-- **Android TV / Google TV:** `AudifyTV-1.9.1.apk` — TV-specific application.
-- **Wear OS:** `AudifyWear-1.9.1.apk` — companion application; install alongside a compatible phone build signed with the same release identity.
+- **Phone / tablet (ABI-specific):** `Audify-1.9.1_arm64-v8a.apk`, `Audify-1.9.1_armeabi-v7a.apk`, and `Audify-1.9.1_x86_64.apk`.
+- **Android TV / Google TV:** `AudifyTV-1.9.1.apk` — TV-specific universal application. ABI-specific builds are also attached as `AudifyTV-1.9.1_arm64-v8a.apk`, `AudifyTV-1.9.1_armeabi-v7a.apk`, and `AudifyTV-1.9.1_x86_64.apk`.
+- **Wear OS:** `AudifyWear-prod-universal-release.apk` — companion application; install alongside a compatible phone build signed with the same release identity.
 
 ## Windows desktop
 
