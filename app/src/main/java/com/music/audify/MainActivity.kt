@@ -95,8 +95,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -554,16 +552,8 @@ private fun AudifyApp(
     // rather than inside the bar because the page's scroll is what drives it,
     // and the page is a sibling of the bar rather than a child.
     val navBarScroll = rememberFloatingTabBarScrollConnection()
-    // Material's medium-width breakpoint: compact windows keep the floating
-    // bottom bar; expanded windows get a persistent rail with a full-height
-    // navigation lane. This is based on the actual available window width,
-    // so foldables can move between modes as they open or rotate.
-    // A wide but shallow compatibility window (for example, an app letterboxed
-    // into a portrait display) is not a tablet layout. Require enough vertical
-    // room as well as width before replacing the phone navigation with a rail.
-    val useNavigationRail = windowWidth >= 600.dp &&
-        windowHeight >= 480.dp &&
-        windowWidth / windowHeight.coerceAtLeast(1.dp) >= 1.6f
+    // Primary navigation stays in the floating bottom bar on every device and
+    // window size. Adaptive layout decisions must not replace it with a rail.
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     /**
      * Whether the player's sheet is up. The player is always a full-screen
@@ -2841,29 +2831,10 @@ private fun AudifyApp(
             }
         }
 
-        // On a tablet the page and the player stand side by side rather than
-        // one over the other: everything a phone stacks in a single column —
-        // the feed, the frosted bars, the tab row — becomes the left half of
-        // a row, and the player is the right. Off a tablet the row has the
-        // one child it always had and changes nothing.
+        // Navigation remains in the floating bottom chrome at every size and
+        // orientation; this row contains only the full-width page content.
         SharedTransitionLayout {
         Row(Modifier.fillMaxSize()) {
-            if (useNavigationRail) {
-                NavigationRail(
-                    modifier = Modifier.fillMaxHeight(),
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                ) {
-                    tabs.forEachIndexed { index, tab ->
-                        NavigationRailItem(
-                            selected = (if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2)) == index,
-                            onClick = { onTabSelected(index) },
-                            icon = { Icon(tab.icon, contentDescription = null) },
-                            label = { Text(tab.label, maxLines = 1) },
-                            alwaysShowLabel = true,
-                        )
-                    }
-                }
-            }
             Box(Modifier.weight(1f).fillMaxHeight()) {
                 AnimatedContent(
                     // Whatever is on top of the back stack — see [AppNavigator].
@@ -4203,47 +4174,7 @@ LibraryScreen(
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
-                if (useNavigationRail) Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .widthIn(max = FLOATING_BAR_MAX_WIDTH)
-                        .fillMaxWidth()
-                        .onSizeChanged { floatingBarsHeight.intValue = it.height },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    QueueActionNoticeHost(queueNotice)
-                    playerSong?.let { song ->
-                        MiniPlayer(
-                            song = song,
-                            isPlaying = player.isPlaying,
-                            isLoading = playPauseBusy,
-                            hazeState = hazeState,
-                            onPlayPause = { togglePlayPause() },
-                            onNext = { controller?.seekToNextMediaItem() },
-                            onPrevious = { controller?.seekToPrevious() },
-                            onExpand = openPlayer,
-                            controlsLocked = controlsLocked,
-                            onBlockedControl = showHostOnlyNotice,
-                            dock = activeDock,
-                            pull = playerSheetMotion.takeIf { !reducePlayerMotion },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    if (playerSong == null) playerPodcast?.let { episode ->
-                        PodcastMiniPlayer(
-                            episode = episode,
-                            isPlaying = player.isPlaying,
-                            isLoading = playPauseBusy,
-                            onPlayPause = { togglePlayPause() },
-                            onNext = { controller?.seekToNextMediaItem() },
-                            onPrevious = { controller?.seekToPrevious() },
-                            onExpand = openPlayer,
-                            controlsLocked = controlsLocked,
-                            onBlockedControl = showHostOnlyNotice,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                } else if (glassActive) Column(
+                if (glassActive) Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .widthIn(max = FLOATING_BAR_MAX_WIDTH)

@@ -121,10 +121,8 @@ fun GlassNavBar(
     // handler out of the key.
     val currentOnTabSelected by rememberUpdatedState(onTabSelected)
 
-    // Search is the odd one out in the iOS 26 layout: a circle of its own beside
-    // the pill rather than a quarter of it. It is the last tab in Audify's
-    // order, which is where the shape wants it anyway.
-    val standaloneIndex = tabs.lastIndex
+    // All four Audify destinations share the same pill. Keeping Settings in
+    // the row avoids a detached control and preserves the reference layout.
 
     // A factory, not a value — see the note in FloatingTabBar's header. Each of
     // the three surfaces gets its own glass modifier and so its own shape cache.
@@ -220,46 +218,28 @@ fun GlassNavBar(
                 if (!isSelected) haptics.play(Haptic.Select)
                 currentOnTabSelected(index)
             }
-            if (index == standaloneIndex) {
-                standaloneTab(
-                    key = index,
-                    icon = {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = tint,
-                            modifier = Modifier.size(25.dp),
-                        )
-                    },
-                    onClick = onClick,
-                )
-            } else {
-                tab(
-                    key = index,
-                    icon = {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = tint,
-                            modifier = Modifier.size(25.dp),
-                        )
-                    },
-                    title = {
-                        Text(
-                            text = tab.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = tint,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            // The library's Tab stacks the glyph and the label
-                            // with nothing between them; the plain bar spaces
-                            // them, and this is where that gap goes.
-                            modifier = Modifier.padding(top = TAB_ICON_LABEL_GAP),
-                        )
-                    },
-                    onClick = onClick,
-                )
-            }
+            tab(
+                key = index,
+                icon = {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = tab.label,
+                        tint = tint,
+                        modifier = Modifier.size(25.dp),
+                    )
+                },
+                title = {
+                    Text(
+                        text = tab.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = tint,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = TAB_ICON_LABEL_GAP),
+                    )
+                },
+                onClick = onClick,
+            )
         }
     }
 }
