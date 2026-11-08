@@ -1284,4 +1284,6 @@ Project: AUDIFY
     <string name="smart_playlists">Playlists intelligentes</string>
     <string name="auto_empty_albums_title">Aucun album disponible</string>
     <string name="auto_empty_albums_subtitle">Vérifiez votre connexion et réessayez</string>
+    <string name="hide_explicit_content">Masquer le contenu explicite</string>
+    <string name="hide_explicit_content_subtitle">Exclut de la découverte et des recommandations les morceaux et albums signalés comme explicites par le catalogue. Les éléments sans étiquette restent visibles.</string>
 </resources>

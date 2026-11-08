@@ -23,7 +23,6 @@ import com.music.audify.sharedui.resources.spotify_logo
 import com.music.audify.sharedui.resources.Res
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -48,6 +47,7 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.spotify.SpotifyLibrary
 import com.music.audify.data.spotify.SpotifyPlaylist
 import com.music.audify.data.spotify.SpotifyTrack
+import com.music.audify.ui.components.songListSkeleton
 
 /**
  * The signed-in Spotify account's playlists. A tap opens one as an ordinary
@@ -123,11 +123,7 @@ fun SpotifyLibraryScreen(
             }
         } else {
             if (loading) {
-                item(key = "spotify-library:loading") {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
+                songListSkeleton(count = 7, keyPrefix = "skeleton:spotify-library")
             }
             error?.let { message ->
                 item(key = "spotify-library:error") {

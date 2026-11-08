@@ -1223,4 +1223,6 @@ Project: AUDIFY
     <string name="smart_playlists">Danh sách phát thông minh</string>
     <string name="auto_empty_albums_title">Không có album</string>
     <string name="auto_empty_albums_subtitle">Kiểm tra kết nối rồi thử lại</string>
+    <string name="hide_explicit_content">Ẩn nội dung nhạy cảm</string>
+    <string name="hide_explicit_content_subtitle">Loại các bài hát và album được danh mục đánh dấu là có nội dung nhạy cảm khỏi mục khám phá và đề xuất. Các mục không có nhãn vẫn hiển thị.</string>
 </resources>

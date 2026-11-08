@@ -160,6 +160,7 @@ import com.music.audify.data.model.playingRowMatcher
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.components.DownloadedBadge
 import com.music.audify.ui.components.ExplicitSongTitle
+import com.music.audify.ui.components.ExplicitBadge
 import com.music.audify.ui.components.LIBRARY_GRID_SPACING
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
@@ -958,15 +959,25 @@ private fun ReleaseHeader(
         }
 
         Spacer(Modifier.height(20.dp))
-        Text(
-            text = page.title,
-            style = MaterialTheme.typography.headlineMedium,
-            color = palette.onBackground,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = HEADER_GUTTER),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = HEADER_GUTTER),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (page.isExplicit == true) {
+                ExplicitBadge(palette.onBackground)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                text = page.title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = palette.onBackground,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
         if (credit.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
             Text(
@@ -2168,13 +2179,19 @@ private fun TopReleaseCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = palette.onBackground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (item.isExplicit == true) {
+                    ExplicitBadge(palette.onBackground)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = palette.onBackground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
                 text = stringResource(item.recentLabel()),
                 style = MaterialTheme.typography.bodyMedium,
@@ -2242,13 +2259,19 @@ private fun SectionCard(
                 .background(palette.elevated),
         )
         Spacer(Modifier.height(8.dp))
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = palette.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (item.isExplicit == true) {
+                ExplicitBadge(palette.onBackground)
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = palette.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Text(
             text = item.subtitle,
             style = MaterialTheme.typography.bodyMedium,

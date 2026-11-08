@@ -2204,6 +2204,7 @@ private fun AudifyApp(
                 title = item.title,
                 subtitle = item.subtitle,
                 thumbnailUrl = item.thumbnailUrl,
+                isExplicit = item.isExplicit,
             )
         }
     }
@@ -3323,6 +3324,7 @@ DetailScreen(
                                             subtitle = item.subtitle,
                                             thumbnailUrl = item.thumbnailUrl,
                                             type = BrowseType.ALBUM,
+                                            isExplicit = item.isExplicit,
                                         )
                                     }
                                 },
@@ -3419,6 +3421,7 @@ HomeScreen(
                                             title = item.title,
                                             subtitle = item.subtitle,
                                             thumbnailUrl = item.thumbnailUrl,
+                                            isExplicit = item.isExplicit,
                                         )
                                     }
                                 },
@@ -3510,6 +3513,7 @@ HomeScreen(
                                                 title = item.title,
                                                 subtitle = item.subtitle,
                                                 thumbnailUrl = item.thumbnailUrl,
+                                                isExplicit = item.isExplicit,
                                             )
                                         }
                                     },
@@ -3597,6 +3601,7 @@ SearchScreen(
                                         subtitle = item.subtitle,
                                         thumbnailUrl = item.thumbnailUrl,
                                         type = item.type,
+                                        isExplicit = item.isExplicit,
                                     )
                                 },
                                 onBrowseLongPress = { item ->
@@ -3835,7 +3840,10 @@ LibraryScreen(
                         AppRoute.ListenTogether -> stringResource(R.string.listen_together)
                         AppRoute.WearOs -> stringResource(R.string.wear_os_page_title)
                         AppRoute.Equalizer -> stringResource(R.string.equalizer)
-                        AppRoute.Settings -> stringResource(R.string.settings)
+                        // Settings categories already show an in-page breadcrumb
+                        // and heading. Keep the floating Back control, but don't
+                        // repeat "Settings" in the bar above that hierarchy.
+                        AppRoute.Settings -> if (settingsCategoryBackHandler != null) "" else stringResource(R.string.settings)
                         AppRoute.Replay -> stringResource(R.string.replay)
                         AppRoute.SmartPlaylists -> stringResource(R.string.smart_playlists)
                         null -> when {

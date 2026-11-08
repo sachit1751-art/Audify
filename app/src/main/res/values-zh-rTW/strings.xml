@@ -1192,4 +1192,6 @@ Project: AUDIFY
     <string name="smart_playlists">智慧播放清單</string>
     <string name="auto_empty_albums_title">沒有可用的專輯</string>
     <string name="auto_empty_albums_subtitle">請檢查網路連線後重試</string>
+    <string name="hide_explicit_content">隱藏露骨內容</string>
+    <string name="hide_explicit_content_subtitle">將目錄標記為露骨內容的歌曲和專輯從探索和推薦中排除。未標記的項目仍會顯示。</string>
 </resources>

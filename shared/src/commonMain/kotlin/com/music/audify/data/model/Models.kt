@@ -621,6 +621,8 @@ data class DetailPage(
      * fetched with a session; see [SubscriptionState].
      */
     val subscription: SubscriptionState? = null,
+    /** Explicit-content state supplied by the catalogue for this release page. */
+    val isExplicit: Boolean? = null,
 )
 
 /**

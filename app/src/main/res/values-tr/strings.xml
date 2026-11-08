@@ -1230,4 +1230,6 @@ Project: AUDIFY
     <string name="smart_playlists">Akıllı Çalma Listeleri</string>
     <string name="auto_empty_albums_title">Kullanılabilir albüm yok</string>
     <string name="auto_empty_albums_subtitle">Bağlantınızı kontrol edip tekrar deneyin</string>
+    <string name="hide_explicit_content">Müstehcen içeriği gizle</string>
+    <string name="hide_explicit_content_subtitle">Katalogda müstehcen olarak işaretlenen şarkıları ve albümleri keşif ve önerilerden çıkarır. Etiketi olmayan öğeler görünür kalır.</string>
 </resources>

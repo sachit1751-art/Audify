@@ -10,6 +10,10 @@ Audify 1.9.1 is a cross-platform maintenance release focused on reliability, con
 - **Playback and navigation:** Fixed the Android minimized-player return path that could briefly summon and dismiss the keyboard, and refined player-control sizing, icon alignment, and interaction consistency.
 - **Home presentation:** Restored the v1.9.0 Home metadata parsing and rendering baseline after the 1.9.1 metadata regression investigation. Generic source labels are not presented as artist credits.
 - **Interface consistency:** Improved dialog, sheet, settings, browse, and detail-screen loading, empty, error, and retry states.
+- **Explicit-content controls:** Added catalogue-backed `E` markers to supported song, album, and playlist surfaces, plus a persistent option to hide positively labelled explicit catalogue entries. Unknown or unlabelled items remain visible.
+- **Player feedback:** Added an artwork-coloured heart-and-sparkle burst when a track is liked from the player.
+- **Settings navigation:** Removed the repeated Settings heading inside category pages and made the in-page return path clearer. The top-bar Back action returns to the Settings category index before leaving Settings.
+- **Loading feedback:** Extended shimmer skeletons to Spotify playlist loading and listening-statistics refreshes, replacing generic centered progress indicators with layout-matched placeholders.
 - **Windows desktop:** Carries the desktop client forward with the 1.9.1 package version and refreshed release packaging.
 
 ## Android downloads

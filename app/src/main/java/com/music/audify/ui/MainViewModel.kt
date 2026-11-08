@@ -1733,6 +1733,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     _results.update { state ->
                         if (state is UiState.Success) UiState.Success(filterExplicitSearchRows(state.data)) else state
                     }
+                    _typeaheadResults.update(::filterExplicitSearchRows)
                     _history.update { state ->
                         if (state is UiState.Success) UiState.Success(filterExplicitSongs(state.data)) else state
                     }
@@ -1745,7 +1746,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             ),
                         ) else state
                     }
-                    _detailStack.update { pages -> pages.map { page ->
+                    _detailStack.update { pages -> pages.filterNot { it.isExplicit == true }.map { page ->
                         page.copy(
                             songs = when (val songs = page.songs) {
                                 is UiState.Success -> UiState.Success(filterExplicitSongs(songs.data))
@@ -2343,8 +2344,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadHistory() {
         if (!_signedIn.value) {
             val local = com.music.audify.data.stats.LocalLibraryStore.history.value
-            _history.value = if (local.isEmpty()) UiState.Error(text(R.string.history_empty))
-                else UiState.Success(local)
+            val visible = filterExplicitSongs(local)
+            _history.value = if (visible.isEmpty()) UiState.Error(text(R.string.history_empty))
+                else UiState.Success(visible)
             return
         }
         val identity = listenerKey()
@@ -2353,7 +2355,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val next = YtMusicRepository.history().fold(
                 onSuccess = { songs ->
                     val local = com.music.audify.data.stats.LocalLibraryStore.history.value
-                    val merged = (local + songs).distinctBy { it.videoId }
+                    val merged = filterExplicitSongs((local + songs).distinctBy { it.videoId })
                     if (merged.isEmpty()) UiState.Error(text(R.string.history_empty))
                     else UiState.Success(merged)
                 },
@@ -2823,7 +2825,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     return@collectLatest
                 }
                 // Cap results so the dropdown doesn't grow unbounded.
-                _typeaheadResults.value = result?.rows.orEmpty().take(TYPEAHEAD_MAX_RESULTS)
+                _typeaheadResults.value = filterExplicitSearchRows(
+                    result?.rows.orEmpty().take(TYPEAHEAD_MAX_RESULTS),
+                )
             }
     }
 
@@ -3095,7 +3099,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         subtitle: String = "",
         thumbnailUrl: String? = null,
         type: BrowseType = BrowseType.OTHER,
+        isExplicit: Boolean? = null,
     ) {
+        if (AppSettings.hideExplicitContent.value && isExplicit == true) return
         // A fast double tap used to push two identical loading pages and launch
         // two identical browse requests. Besides wasting the connection, both
         // completions then raced to update every matching browse id in the
@@ -3117,6 +3123,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             thumbnailUrl = thumbnailUrl,
             songs = UiState.Loading,
             type = resolved,
+            isExplicit = isExplicit,
         )
         viewModelScope.launch {
             var sections = emptyList<HomeShelf>()
@@ -3254,6 +3261,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         subscriberCountText = subscriberCountText,
                         monthlyListenerCount = monthlyListenerCount,
                         subscription = subscription,
+                        isExplicit = it.isExplicit,
                     )
                 } else {
                     it

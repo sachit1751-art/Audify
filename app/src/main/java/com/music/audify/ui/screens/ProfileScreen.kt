@@ -26,7 +26,6 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +50,7 @@ import coil3.compose.AsyncImage
 import com.music.audify.data.stats.ListeningStats
 import com.music.audify.data.stats.ReplayPeriod
 import com.music.audify.data.stats.ReplaySummary
+import com.music.audify.ui.components.ShimmerBox
 import java.text.NumberFormat
 
 @Composable
@@ -161,12 +161,7 @@ fun ProfileScreen(
             }
 
             when {
-                loading -> Box(
-                    modifier = Modifier.fillMaxWidth().height(180.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
+                loading -> ProfileStatsSkeleton()
                 summary == null || summary?.isEmpty == true -> EmptyStatsState()
                 else -> {
                     val data = requireNotNull(summary)
@@ -327,6 +322,22 @@ fun ProfileScreen(
         }
         Spacer(Modifier.size(2.dp))
     }
+    }
+}
+
+@Composable
+private fun ProfileStatsSkeleton() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ShimmerBox(Modifier.fillMaxWidth().height(104.dp), RoundedCornerShape(20.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            repeat(3) {
+                ShimmerBox(
+                    Modifier.weight(1f).height(92.dp),
+                    RoundedCornerShape(16.dp),
+                )
+            }
+        }
+        ShimmerBox(Modifier.fillMaxWidth().height(180.dp), RoundedCornerShape(20.dp))
     }
 }
 

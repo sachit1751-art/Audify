@@ -53,6 +53,7 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOff
@@ -136,7 +137,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -490,7 +490,7 @@ fun SettingsScreen(
         if (selectedCategory != null) {
             Row(
                 modifier = Modifier
-                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
+                .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable {
                         selectedCategory = null
@@ -499,10 +499,10 @@ fun SettingsScreen(
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null, modifier = Modifier.size(18.dp).scale(-1f, 1f))
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text(
                     text = stringResource(R.string.settings),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
