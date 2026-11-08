@@ -465,19 +465,13 @@ private fun WhileShown(shown: () -> Boolean, content: @Composable () -> Unit) {
 }
 
 /**
- * Whether the full-bleed artwork switch is worth listing in Settings for a
- * window this wide. Public so the settings sheet can leave the switch out
- * entirely where it would do nothing.
- *
- * A window narrow enough that the player fills it is where the setting
- * acts: edge to edge there means the artwork *is* the screen. The tablet
- * half is left from the docked player, whose phone-width pane ran the
- * artwork edge to edge too; with the pane gone the portrait player no
- * longer goes full bleed at these widths, but the switch is still listed
- * there, unchanged, until that is decided on its own.
+ * Whether the full-bleed artwork switch can affect this player window.
+ * The portrait hero only reaches the window edges when the player itself
+ * fills the available width; wider tablet windows use a centred, capped
+ * player and intentionally keep the artwork in its sleeve.
  */
-fun fullBleedArtworkAvailable(windowWidth: Dp): Boolean =
-    playerFillsWindow(windowWidth) || tabletSizedPlayer(windowWidth)
+fun fullBleedArtworkAvailable(windowWidth: Dp, windowHeight: Dp): Boolean =
+    !landscapePlayerAvailable(windowWidth, windowHeight) && playerFillsWindow(windowWidth)
 
 /**
  * Whether a player given the whole of a window this wide is still narrow enough

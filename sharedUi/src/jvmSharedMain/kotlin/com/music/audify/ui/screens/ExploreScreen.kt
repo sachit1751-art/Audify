@@ -319,7 +319,7 @@ private const val MOOD_MAX_COLUMNS = 4
 
 internal fun moodColumns(available: Dp): Int {
     val row = available - PAGE_GUTTER * 2
-    return ((row + MOOD_SPACING) / (MOOD_MIN_CARD_WIDTH + MOOD_SPACING)).toInt().coerceIn(2, MOOD_MAX_COLUMNS)
+    return ((row + MOOD_SPACING) / (MOOD_MIN_CARD_WIDTH + MOOD_SPACING)).toInt().coerceIn(1, MOOD_MAX_COLUMNS)
 }
 
 @Composable

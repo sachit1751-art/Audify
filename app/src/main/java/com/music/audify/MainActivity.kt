@@ -3106,6 +3106,7 @@ private fun AudifyApp(
                         } else if (pageRoute == AppRoute.Settings) {
                             SettingsScreen(
                                 windowWidth = windowWidth,
+                                windowHeight = windowHeight,
                                 signedIn = signedIn,
                                 account = account,
                                 onSignIn = {

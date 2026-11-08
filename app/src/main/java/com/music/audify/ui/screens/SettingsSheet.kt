@@ -215,6 +215,8 @@ import java.util.Locale
 fun SettingsScreen(
     /** The window's width, for the gates that depend on it. */
     windowWidth: Dp,
+    /** The window height, to distinguish portrait from landscape player layouts. */
+    windowHeight: Dp,
     signedIn: Boolean,
     account: Account?,
     onSignIn: () -> Unit,
@@ -1153,11 +1155,10 @@ fun SettingsScreen(
                     onClick = { AppSettings.setLiquidGlass(!liquidGlass) },
                 )
             }
-            // Left out where the player won't honour it: a window too wide for
-            // the player to fill and too narrow to stand a page beside it keeps
-            // the sleeve either way. A docked pane is a phone's width, so it does
-            // honour it — see [fullBleedArtworkAvailable].
-            if (fullBleedArtworkAvailable(windowWidth)) {
+            // The edge-to-edge hero belongs to the portrait player when it
+            // fills the window. Tablet and landscape layouts keep a contained
+            // sleeve, so do not offer a switch that cannot affect them.
+            if (fullBleedArtworkAvailable(windowWidth, windowHeight)) {
                 val fullScreenCoverArtTitle = stringResource(R.string.full_screen_cover_art)
                 row(fullScreenCoverArtTitle, "artwork", "player") {
                     SettingsRow(

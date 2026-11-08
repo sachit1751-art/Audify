@@ -3,6 +3,7 @@
 package com.music.audify.ui.screens
 
 import androidx.compose.ui.unit.dp
+import com.music.audify.ui.player.fullBleedArtworkAvailable
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -18,8 +19,23 @@ class TabletLayoutColumnsTest {
     }
 
     @Test
-    fun exploreKeepsTwoColumnsOnPhone() {
+    fun exploreUsesOneColumnWhenTwoCardsWouldBeTooNarrow() {
+        assertEquals(1, moodColumns(360.dp))
+    }
+
+    @Test
+    fun exploreKeepsTwoColumnsWhenMinimumCardWidthFits() {
         assertEquals(2, moodColumns(400.dp))
+    }
+
+    @Test
+    fun fullBleedSettingIsOnlyAvailableWhenPortraitPlayerCanFillWindow() {
+        assertEquals(true, fullBleedArtworkAvailable(360.dp, 800.dp))
+        assertEquals(true, fullBleedArtworkAvailable(620.dp, 900.dp))
+        assertEquals(false, fullBleedArtworkAvailable(621.dp, 900.dp))
+        assertEquals(false, fullBleedArtworkAvailable(800.dp, 1200.dp))
+        assertEquals(false, fullBleedArtworkAvailable(600.dp, 360.dp))
+        assertEquals(false, fullBleedArtworkAvailable(1200.dp, 800.dp))
     }
 
     @Test
