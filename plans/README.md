@@ -77,6 +77,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [087 - Full-screen player motion](087-fullscreen-player-motion.md) | Refine artwork, motion-artwork and control transitions | **TODO - MEDIUM; depends on 084/085** |
 | [088 - Desktop popover entrance](088-desktop-popover-entrance.md) | Trigger-origin-aware popover entrance | **TODO - LOW; independent** |
 | [089 - Android micro-interactions](089-android-micro-interactions.md) | Balanced-premium touch, icon, slider and feedback motion | **Implemented locally; device QA pending** |
+| [090 - Personalization Engine and Control Centre](090-personalization-and-control-center.md) | Appearance, Home layout, player presentation, configurable gestures and personalization profiles | **Planned for v1.9.2; reconcile with Plans 09, 11, 080 and 081 before implementation** |
 
 ## Recommended motion execution order
 
