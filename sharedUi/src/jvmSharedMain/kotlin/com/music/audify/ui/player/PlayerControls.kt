@@ -818,7 +818,10 @@ private fun TransportGlyph(
             .microPressScale(interactionSource, enabled = enabled)
             .clickable(
                 interactionSource = interactionSource,
-                indication = microRipple(),
+                // The play/pause target stays fully interactive, but should
+                // not paint a pressed ripple/shadow over the glyph's hitbox.
+                // Keep the established micro-ripple on the adjacent skip keys.
+                indication = if (playPauseState != null) null else microRipple(),
                 enabled = enabled,
             ) {
                 haptics.play(haptic)

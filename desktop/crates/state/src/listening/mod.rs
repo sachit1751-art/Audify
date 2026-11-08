@@ -1,7 +1,5 @@
-//! Audify Session: listening together across Audify apps through the session server. One listener
-//! starts a session and shares its six-digit code, others join with it, and whatever anyone in
-//! the session plays, pauses or seeks to plays the same way for everyone. Every member has to be
-//! signed in to the provider the session was started on, and local files are never shared.
+//! Audify Listen Together: one Cloudflare party shared by Android and desktop. Cross-device
+//! playback uses YouTube video IDs; local files and other providers remain local to the client.
 
 mod link;
 mod server;
@@ -22,10 +20,10 @@ use crate::{
 use link::{Heard, Link};
 use wire::{Reason, Reply, Request, Shared, VERSION};
 
-/// How many digits a session code has.
+/// How many alphanumeric characters a session code has.
 pub const CODE_LENGTH: usize = 6;
 /// How many upcoming tracks are shared. The server keeps no more than this either.
-const UPCOMING: usize = 100;
+const UPCOMING: usize = 25;
 /// How far playback here may stray from the session's before it is moved back in step.
 const DRIFT: Duration = Duration::from_millis(2500);
 /// How far it may stray when the session pauses or resumes, which is when a seek goes unheard.
@@ -42,7 +40,7 @@ const RETRIES: u32 = 8;
 #[derive(Clone, Debug)]
 pub struct Room {
     pub code: String,
-    /// The slug of the provider the session plays from.
+    /// Cross-device sessions use YouTube video IDs on every client.
     pub provider: String,
     pub members: Vec<Member>,
     /// The id the server knows this app by.
@@ -87,6 +85,8 @@ pub struct Listening {
     hearing: Option<Task<()>>,
     /// Whether a start or join is waiting for the server's answer.
     asking: bool,
+    /// Whether starting should continue once the stored YouTube account switches in.
+    start_when_ready: bool,
     /// The wait before a dropped connection is tried again.
     retry: Option<Task<()>>,
     retries: u32,
@@ -97,10 +97,6 @@ pub struct Listening {
     baseline: Option<Mark>,
     /// `Playback::seeks` when playback was last shared or brought in step.
     seeks: u64,
-    /// The last state this app sent, and the last of its own the server echoed. States from
-    /// others that arrive in between are older than one of ours and are passed over.
-    sent: u64,
-    echoed: u64,
     /// Round trips and clock offsets of the latest pings, in milliseconds.
     clock: VecDeque<(u64, i64)>,
     /// Compares playback here with the session's every few seconds while in one.
@@ -138,14 +134,13 @@ impl Listening {
             link: None,
             hearing: None,
             asking: false,
+            start_when_ready: false,
             retry: None,
             retries: 0,
             shared: None,
             waiting: None,
             baseline: None,
             seeks: 0,
-            sent: 0,
-            echoed: 0,
             clock: VecDeque::new(),
             checking: None,
             code_shown: false,
@@ -157,9 +152,13 @@ impl Listening {
         }
     }
 
-    /// Whether a session can be started or joined: a streaming provider is signed in.
+    /// Whether YouTube playback is available for cross-device sessions. Membership is
+    /// authenticated separately by the party token; guest playback uses a stable device identity.
     pub fn available(&self, cx: &App) -> bool {
-        self.session.read(cx).client().is_some()
+        self.session
+            .read(cx)
+            .providers()
+            .any(|provider| provider.slug == "youtube" && provider.stored)
     }
 
     /// The session the listener is in.
@@ -169,7 +168,7 @@ impl Listening {
 
     /// Whether a start or join is on its way.
     pub fn asking(&self) -> bool {
-        self.asking && self.room.is_none()
+        self.start_when_ready || self.asking && self.room.is_none()
     }
 
     /// Whether the connection dropped and is being made again.
@@ -177,18 +176,28 @@ impl Listening {
         self.room.is_some() && (self.retry.is_some() || self.asking)
     }
 
-    /// Starts a session on the current provider. Its code shows once the server hands it out.
+    /// Starts a YouTube session. Its code shows once the server hands it out.
     pub fn start(&mut self, cx: &mut Context<Self>) {
-        if self.room.is_some() || self.asking {
+        if self.room.is_some() || self.asking || self.start_when_ready {
             return;
         }
-        let session = self.session.read(cx);
-        let Some(provider) = session
-            .provider_slug()
-            .filter(|_| session.client().is_some())
-        else {
-            return Toasts::show(Outcome::Info, "toast-session-needs-provider", cx);
+        let switch_to_youtube = {
+            let session = self.session.read(cx);
+            if !session
+                .providers()
+                .any(|provider| provider.slug == "youtube" && provider.stored)
+            {
+                return Toasts::show(Outcome::Info, "toast-session-needs-provider", cx);
+            }
+            session.provider_slug() != Some("youtube") || session.client().is_none()
         };
+        if switch_to_youtube {
+            self.start_when_ready = true;
+            self.session
+                .update(cx, |session, cx| session.switch("youtube", cx));
+            cx.notify();
+            return;
+        }
         let (name, image) = self.me(cx);
         self.code_shown = true;
         self.connect(
@@ -196,16 +205,22 @@ impl Listening {
                 version: VERSION,
                 name,
                 image,
-                provider: provider.to_owned(),
+                provider: "youtube".to_owned(),
             },
             cx,
         );
     }
 
-    /// Joins the session `code` names. The server checks that this app has an account for its
-    /// provider, and the app switches to it when another one is current.
+    /// Joins the six-character session code and switches playback to YouTube when needed.
     pub fn join(&mut self, code: &str, cx: &mut Context<Self>) {
-        let code: String = code.chars().filter(char::is_ascii_digit).collect();
+        if !self.available(cx) {
+            return Toasts::show(Outcome::Info, "toast-session-needs-provider", cx);
+        }
+        let code: String = code
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .collect::<String>()
+            .to_ascii_uppercase();
         if code.len() != CODE_LENGTH || self.asking {
             return;
         }
@@ -280,26 +295,13 @@ impl Listening {
     }
 
     fn join_request(&self, code: String, cx: &App) -> Request {
-        let session = self.session.read(cx);
-        let mut providers: Vec<String> = session
-            .connected()
-            .map(|info| info.slug.to_owned())
-            .collect();
-        // a guest session plays without an account stored, and counts while it is current
-        if let Some(current) = session
-            .provider_slug()
-            .filter(|_| session.client().is_some())
-            && !providers.iter().any(|slug| slug == current)
-        {
-            providers.push(current.to_owned());
-        }
         let (name, image) = self.me(cx);
         Request::Join {
             version: VERSION,
             code,
             name,
             image,
-            providers,
+            providers: vec!["youtube".to_owned()],
         }
     }
 
@@ -314,19 +316,18 @@ impl Listening {
         self.saving.is_some()
     }
 
-    /// The server sessions go through. There is no Audify-operated public server yet, so only an
-    /// explicitly configured development server or a user-saved server may be used.
+    /// The official Cloudflare party API, unless a development server was explicitly selected.
     fn server(&self, cx: &App) -> Option<String> {
         if let Ok(forced) = std::env::var(server::VARIABLE)
             && !forced.trim().is_empty()
         {
-            return Some(forced);
+            return server::http_base(&forced);
         }
         let settings = self.settings.read(cx);
         if settings.sessions_official() {
-            return None;
+            return Some(server::OFFICIAL.to_owned());
         }
-        server::socket(settings.sessions_server()).map(|url| url.to_string())
+        server::http_base(settings.sessions_server())
     }
 
     fn reject(&mut self, cx: &mut Context<Self>) {
@@ -432,7 +433,6 @@ impl Listening {
                     members,
                     you,
                 });
-                self.echoed = self.sent;
                 self.baseline = None;
                 self.shared = state.clone();
                 self.seeks = self.playback.read(cx).seeks();
@@ -454,19 +454,23 @@ impl Listening {
                     room.members = members;
                 }
             }
+            Reply::Queue { upcoming } => {
+                if let Some(state) = self.shared.as_mut() {
+                    state.upcoming = upcoming;
+                    let state = state.clone();
+                    self.waiting = Some(state);
+                    self.catch_up(cx);
+                }
+            }
             Reply::State { state, by, seq } => {
                 let Some(room) = &self.room else {
                     return;
                 };
                 if by == room.you {
-                    self.echoed = self.echoed.max(seq);
                     self.shared = Some(state);
                     return;
                 }
-                if self.echoed < self.sent {
-                    log::debug!("listening: passing over a state older than our own");
-                    return;
-                }
+                log::trace!("listening: applying playback sequence {seq} from member {by}");
                 self.shared = Some(state.clone());
                 self.waiting = Some(state);
                 self.catch_up(cx);
@@ -509,9 +513,7 @@ impl Listening {
                     .map_or(slug.clone(), |(name, _)| name.to_owned());
                 return Toasts::about(Outcome::Failed, "toast-session-provider", name, cx);
             }
-            Reason::Busy | Reason::Version | Reason::Invalid | Reason::Unknown => {
-                "toast-session-failed"
-            }
+            Reason::Busy | Reason::Invalid => "toast-session-failed",
         };
         Toasts::show(Outcome::Failed, key, cx);
     }
@@ -555,6 +557,7 @@ impl Listening {
         self.link = None;
         self.hearing = None;
         self.asking = false;
+        self.start_when_ready = false;
         self.retry = None;
         self.retries = 0;
         self.shared = None;
@@ -568,6 +571,29 @@ impl Listening {
     /// Leaves the session when the listener signs out or moves to another provider than the
     /// session's, and brings playback in step once the session's provider is signed in.
     fn on_session(&mut self, event: &SessionEvent, cx: &mut Context<Self>) {
+        if self.start_when_ready {
+            let (youtube, signed_in, pending) = {
+                let session = self.session.read(cx);
+                (
+                    session.provider_slug() == Some("youtube"),
+                    matches!(session.state(), SessionState::SignedIn(_)),
+                    session.is_pending(),
+                )
+            };
+            if youtube && signed_in {
+                self.start_when_ready = false;
+                self.start(cx);
+                return;
+            }
+            if !pending
+                && (!youtube || !signed_in)
+                && matches!(event, SessionEvent::SignedOut | SessionEvent::WentOffline)
+            {
+                self.start_when_ready = false;
+                Toasts::show(Outcome::Failed, "toast-session-needs-provider", cx);
+                return;
+            }
+        }
         let Some(provider) = self.room.as_ref().map(|room| room.provider.clone()) else {
             return;
         };
@@ -581,8 +607,7 @@ impl Listening {
         }
     }
 
-    /// Switches to the session's provider when another one is current here. The server already
-    /// checked that this app has an account for it.
+    /// Switches to YouTube when another provider is current; shared track IDs are YouTube video IDs.
     fn follow_provider(&mut self, cx: &mut Context<Self>) {
         let Some(provider) = self.room.as_ref().map(|room| room.provider.clone()) else {
             return;
@@ -601,7 +626,8 @@ impl Listening {
             return false;
         };
         let session = self.session.read(cx);
-        session.provider_slug() == Some(room.provider.as_str())
+        room.provider == "youtube"
+            && session.provider_slug() == Some("youtube")
             && matches!(session.state(), SessionState::SignedIn(_))
     }
 
@@ -694,7 +720,6 @@ impl Listening {
             Some(_) => "seek",
         };
         let state = self.snapshot(cx);
-        self.sent += 1;
         log::debug!(
             "listening: sharing {:?} for its {reason}, playing {}, at {} ms",
             mark.track,
@@ -703,7 +728,6 @@ impl Listening {
         );
         link.send(Request::State {
             state: Box::new(state.clone()),
-            seq: self.sent,
         });
         self.shared = Some(Shared {
             at: self.server_now(),
@@ -715,13 +739,19 @@ impl Listening {
 
     fn mark(&self, cx: &App) -> Mark {
         let queue = self.queue.read(cx);
+        let youtube = self.session.read(cx).provider_slug() == Some("youtube");
         Mark {
             track: queue
                 .current()
+                .filter(|_| youtube)
                 .and_then(|track| track.id.clone())
                 .filter(|id| !music::is_local_id(id)),
             playing: self.playback.read(cx).wants_playing(),
-            upcoming: ids(queue.chosen_upcoming()),
+            upcoming: if youtube {
+                ids(queue.chosen_upcoming())
+            } else {
+                Vec::new()
+            },
         }
     }
 
@@ -729,11 +759,15 @@ impl Listening {
     fn snapshot(&self, cx: &App) -> Shared {
         let queue = self.queue.read(cx);
         let playback = self.playback.read(cx);
+        let youtube = self.session.read(cx).provider_slug() == Some("youtube");
         Shared {
-            track: queue.current().filter(|track| shareable(track)).cloned(),
+            track: queue
+                .current()
+                .filter(|track| youtube && shareable(track))
+                .cloned(),
             upcoming: queue
                 .chosen_upcoming()
-                .filter(|track| shareable(track))
+                .filter(|track| youtube && shareable(track))
                 .take(UPCOMING)
                 .cloned()
                 .collect(),

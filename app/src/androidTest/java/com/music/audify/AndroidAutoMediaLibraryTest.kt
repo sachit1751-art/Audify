@@ -3,6 +3,8 @@
 package com.music.audify
 
 import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaBrowser
 import androidx.media3.session.SessionToken
@@ -69,6 +71,62 @@ class AndroidAutoMediaLibraryTest {
         assertNotNull("Library root item must not be null", rootResult.value)
         assertEquals("root", rootResult.value?.mediaId)
         assertTrue("Root must be browsable", rootResult.value?.mediaMetadata?.isBrowsable == true)
+    }
+
+    @Test
+    fun automotiveMediaDescriptorIsRegistered() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val appInfo = context.packageManager.getApplicationInfo(
+            context.packageName,
+            PackageManager.GET_META_DATA,
+        )
+        assertNotNull("Application metadata must be present", appInfo.metaData)
+        assertEquals(
+            "Android Auto must be told this is a media app",
+            R.xml.automotive_app_desc,
+            appInfo.metaData?.getInt("com.google.android.gms.car.application"),
+        )
+
+        val parser = context.resources.getXml(R.xml.automotive_app_desc)
+        try {
+            var foundMediaCapability = false
+            while (parser.next() != org.xmlpull.v1.XmlPullParser.END_DOCUMENT) {
+                if (parser.eventType == org.xmlpull.v1.XmlPullParser.START_TAG && parser.name == "uses") {
+                    foundMediaCapability = parser.getAttributeValue(null, "name") == "media"
+                    if (foundMediaCapability) break
+                }
+            }
+            assertTrue("Automotive descriptor must declare the media capability", foundMediaCapability)
+        } finally {
+            parser.close()
+        }
+    }
+
+    @Test
+    fun mediaLibraryServiceIsDiscoverableToAndroidAuto() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val packageManager = context.packageManager
+        val mediaLibraryIntent = Intent("androidx.media3.session.MediaLibraryService")
+            .setPackage(context.packageName)
+        val serviceInfo = packageManager.resolveService(
+            mediaLibraryIntent,
+            0,
+        )?.serviceInfo
+
+        assertNotNull("MediaLibraryService action must resolve inside the app", serviceInfo)
+        assertEquals(PlaybackService::class.java.name, serviceInfo?.name)
+        assertTrue("Media browsing service must be exported for Android Auto", serviceInfo?.exported == true)
+        assertEquals(
+            "android.permission.BIND_MEDIA_BROWSER_SERVICE",
+            serviceInfo?.permission,
+        )
+
+        val legacyBrowserIntent = Intent("android.media.browse.MediaBrowserService")
+            .setPackage(context.packageName)
+        assertNotNull(
+            "Legacy MediaBrowserService discovery must remain available",
+            packageManager.resolveService(legacyBrowserIntent, 0),
+        )
     }
 
     @Test

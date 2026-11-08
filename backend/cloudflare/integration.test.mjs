@@ -88,6 +88,26 @@ test('health, time, preview and authenticated snapshot REST contract', async () 
   assert.equal(snapshot.status, 200); assert.equal((await json(snapshot)).members.length, 3);
 });
 
+test('anonymous feedback validates submissions and fails closed until GitHub delivery is configured', async () => {
+  assert.equal((await request('/api/feedback')).status, 405);
+  const invalid = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  assert.equal(invalid.status, 422);
+  assert.equal((await json(invalid)).error, 'validation_error');
+
+  const validPayload = {
+    kind: 'bug', category: 'Playback', title: 'Playback stops',
+    description: 'Playback stops after the current song finishes unexpectedly.',
+    platform: 'Android', version: '1.9.2', website: '',
+  };
+  const unconfigured = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validPayload) });
+  assert.equal(unconfigured.status, 503);
+  assert.equal((await json(unconfigured)).error, 'feedback_unavailable');
+
+  const bot = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...validPayload, website: 'spam.example' }) });
+  assert.equal(bot.status, 202);
+  assert.deepEqual(await json(bot), { ok: true });
+});
+
 test('native WebSocket bearer-header authentication matches the Android client', async () => {
   assert.equal(await nativeHandshake(host.code, host.token), 101);
   assert.equal(await nativeHandshake(host.code, 'not-a-valid-token'), 401);
@@ -154,6 +174,69 @@ test('playback state synchronizes between participants', async () => {
   assert.equal(synced.playback.track.videoId, 'video-1');
 });
 
+test('Windows desktop host and Android member share YouTube playback, controls and queue', async () => {
+  const created = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'desktop:stable-device', deviceId: 'desktop-stable-device', displayName: 'Windows Desktop' }) });
+  assert.equal(created.status, 201);
+  const pc = await json(created);
+  const pcConnection = await socket(pc.code, pc.token);
+  const joined = await request(`/api/parties/${pc.code}/join`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'android:account-hash', deviceId: 'android-stable-device', displayName: 'Android' }) });
+  assert.equal(joined.status, 200);
+  const android = await json(joined);
+  const androidConnection = await socket(pc.code, android.token);
+  assert.equal(pcConnection.welcome.you.isHost, true);
+  assert.equal(androidConnection.welcome.you.isHost, false);
+
+  const firstTrack = { videoId: 'yt-cross-device-1', title: 'Shared from Windows', artist: 'AUDIFY', durationMs: 180000 };
+  const androidTrack = waitFor(androidConnection.ws, f => f.type === 'state' && f.playback.track?.videoId === firstTrack.videoId);
+  send(pcConnection.ws, { type: 'control', action: 'setTrack', eventId: crypto.randomUUID(), track: firstTrack, isPlaying: true });
+  assert.equal((await androidTrack).playback.isPlaying, true);
+
+  const paused = waitFor(pcConnection.ws, f => f.type === 'state' && !f.playback.isPlaying);
+  send(androidConnection.ws, { type: 'control', action: 'pause', eventId: crypto.randomUUID(), positionMs: 42000 });
+  assert.equal((await paused).playback.positionMs, 42000);
+
+  const resumed = waitFor(androidConnection.ws, f => f.type === 'state' && f.playback.isPlaying);
+  send(pcConnection.ws, { type: 'control', action: 'play', eventId: crypto.randomUUID(), positionMs: 42000 });
+  assert.equal((await resumed).playback.isPlaying, true);
+
+  const sought = waitFor(androidConnection.ws, f => f.type === 'state' && f.playback.positionMs === 90000);
+  send(pcConnection.ws, { type: 'control', action: 'seek', eventId: crypto.randomUUID(), positionMs: 90000 });
+  assert.equal((await sought).playback.positionMs, 90000);
+
+  const queued = waitFor(androidConnection.ws, f => f.type === 'queue' && f.queue.items.some(item => item.videoId === 'yt-cross-device-2'));
+  send(pcConnection.ws, { type: 'control', action: 'queueAdd', eventId: crypto.randomUUID(), track: { videoId: 'yt-cross-device-2', title: 'Next from Windows' } });
+  assert.ok((await queued).queue.items.some(item => item.videoId === 'yt-cross-device-2'));
+  pcConnection.ws.close(); androidConnection.ws.close();
+});
+
+test('Android host and Windows desktop member share YouTube playback and queue changes', async () => {
+  const created = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'android:account', deviceId: 'android-host-device', displayName: 'Android Host' }) });
+  assert.equal(created.status, 201);
+  const android = await json(created);
+  const androidConnection = await socket(android.code, android.token);
+  const joined = await request(`/api/parties/${android.code}/join`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'desktop:device', deviceId: 'windows-member-device', displayName: 'Windows Desktop' }) });
+  assert.equal(joined.status, 200);
+  const pc = await json(joined);
+  const pcConnection = await socket(android.code, pc.token);
+  assert.equal(androidConnection.welcome.you.isHost, true);
+  assert.equal(pcConnection.welcome.you.isHost, false);
+
+  const track = { videoId: 'yt-android-hosted', title: 'Shared from Android', artist: 'AUDIFY', durationMs: 210000 };
+  const desktopPlayback = waitFor(pcConnection.ws, f => f.type === 'state' && f.playback.track?.videoId === track.videoId);
+  send(androidConnection.ws, { type: 'control', action: 'setTrack', eventId: crypto.randomUUID(), track, isPlaying: true });
+  assert.equal((await desktopPlayback).playback.track.videoId, track.videoId);
+
+  const queueSync = waitFor(pcConnection.ws, f => f.type === 'queue' && f.queue.items.length === 2);
+  send(androidConnection.ws, { type: 'control', action: 'setQueue', eventId: crypto.randomUUID(),
+    queue: [track, { videoId: 'yt-android-next', title: 'Next from Android' }], queueIndex: 0 });
+  assert.equal((await queueSync).queue.items[1].videoId, 'yt-android-next');
+  androidConnection.ws.close(); pcConnection.ws.close();
+});
+
 test('host-only policy is enforced by the server', async () => {
   const connected = await socket(host.code, other.token);
   otherSocket = connected.ws;
@@ -181,6 +264,37 @@ test('a disconnected participant can reconnect with the same token and recover s
   guestSocket = reconnected.ws;
   assert.equal(reconnected.welcome.party.playback.track.videoId, 'video-1');
   assert.equal(reconnected.welcome.you.memberId, guest.you.memberId);
+});
+
+test('desktop reconnect can re-authenticate its stable device identity and rotate its token', async () => {
+  const created = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'desktop:reconnect-device', deviceId: 'desktop-reconnect-device', displayName: 'Windows' }) });
+  assert.equal(created.status, 201);
+  const first = await json(created);
+  const firstSocket = await socket(first.code, first.token);
+  const memberId = firstSocket.welcome.you.memberId;
+  firstSocket.ws.close();
+  await new Promise(resolve => setTimeout(resolve, 150));
+
+  const joined = await request(`/api/parties/${first.code}/join`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'desktop:reconnect-device', deviceId: 'desktop-reconnect-device', displayName: 'Windows' }) });
+  assert.equal(joined.status, 200);
+  const renewed = await json(joined);
+  assert.notEqual(renewed.token, first.token);
+  const secondSocket = await socket(first.code, renewed.token);
+  assert.equal(secondSocket.welcome.you.memberId, memberId);
+  secondSocket.ws.close();
+});
+
+test('invalid party codes and tokens issued for another party cannot join', async () => {
+  const invalid = await request('/api/parties/NOPE99/join', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'valid-user', deviceId: 'valid-device', displayName: 'Valid' }) });
+  assert.equal(invalid.status, 404);
+  const otherParty = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'isolated-user', deviceId: 'isolated-device', displayName: 'Isolated' }) });
+  assert.equal(otherParty.status, 201);
+  const isolated = await json(otherParty);
+  assert.equal(await nativeHandshake(host.code, isolated.token), 401);
 });
 
 test('presence, public stats, SVG badge and invite landing are compatible', async () => {
@@ -233,17 +347,19 @@ test('presence validation and all supported platform counters match the Go contr
     body: JSON.stringify({ id, platform: id === androidId ? 'android' : 'pc', open: false }) });
 });
 
-test('Android and web control producers attach fresh idempotency identifiers; TV shares Android implementation', async () => {
+test('Android, web and Windows desktop share the authenticated Cloudflare party protocol', async () => {
   const android = await readFile(new URL('../../app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt', import.meta.url), 'utf8');
   const web = await readFile(new URL('../../web/app/src/party/listenTogether.ts', import.meta.url), 'utf8');
   const tv = await readFile(new URL('../../tv/build.gradle.kts', import.meta.url), 'utf8');
-  const desktop = await readFile(new URL('../../desktop/crates/music/src/spotify/connect.rs', import.meta.url), 'utf8');
+  const desktop = await readFile(new URL('../../desktop/crates/state/src/listening/link.rs', import.meta.url), 'utf8');
   assert.match(android, /put\("eventId",\s*UUID\.randomUUID\(\)\.toString\(\)\)/);
   assert.match(web, /eventId:\s*crypto\.randomUUID\(\)/);
   assert.match(tv, /kotlin\.directories \+= "\.\.\/app\/src\/main\/java"/);
-  assert.match(desktop, /JAM_CURRENT|JAM_INFO/);
-  assert.doesNotMatch(desktop, /audify-listen-together|\/api\/parties\//,
-    'desktop currently uses Spotify Jam APIs, not the AUDIFY Listen Together protocol; do not silently retarget it');
+  assert.match(desktop, /\/api\/parties/);
+  assert.match(desktop, /\/ws\/parties\//);
+  assert.match(desktop, /AUTHORIZATION/);
+  assert.match(desktop, /Bearer \{token\}/);
+  assert.match(desktop, /desktop:\{device_id\}/);
 });
 
 test('host departure hands host role to remaining participant', async () => {
@@ -258,7 +374,7 @@ test('creation validation and per-IP creation rate limit are enforced', async t 
   const invalid = await request(`/api/parties/${host.code}/join`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   assert.equal(invalid.status, 422);
   const payload = JSON.stringify({ userId: 'rate-user', deviceId: 'rate-device', displayName: 'Rate Test' });
-  const headers = { 'content-type': 'application/json', 'x-test-ip': 'rate-limit-suite-fixed-ip' };
+  const headers = { 'content-type': 'application/json', 'x-test-ip': `rate-limit-suite-${crypto.randomUUID()}` };
   const first = await request('/api/parties', { method: 'POST', headers, body: payload });
   const second = await request('/api/parties', { method: 'POST', headers, body: payload });
   const third = await request('/api/parties', { method: 'POST', headers, body: payload });
@@ -267,11 +383,11 @@ test('creation validation and per-IP creation rate limit are enforced', async t 
 
 test('authentication and join attempts are rate limited by source IP', async t => {
   if (!base.includes('127.0.0.1')) { t.skip('Fixed-source-IP auth buckets are tested locally.'); return; }
-  const authHeaders = { 'x-test-ip': 'auth-limit-suite' };
+  const authHeaders = { 'x-test-ip': `auth-limit-suite-${crypto.randomUUID()}` };
   for (let i = 0; i < 30; i++) assert.equal((await request(`/api/parties/${host.code}`, { headers: authHeaders })).status, 401);
   assert.equal((await request(`/api/parties/${host.code}`, { headers: authHeaders })).status, 429);
 
-  const joinHeaders = { 'content-type': 'application/json', 'x-test-ip': 'join-limit-suite' };
+  const joinHeaders = { 'content-type': 'application/json', 'x-test-ip': `join-limit-suite-${crypto.randomUUID()}` };
   for (let i = 0; i < 10; i++) assert.equal((await request(`/api/parties/${host.code}/join`, { method: 'POST', headers: joinHeaders, body: '{}' })).status, 422);
   assert.equal((await request(`/api/parties/${host.code}/join`, { method: 'POST', headers: joinHeaders, body: '{}' })).status, 429);
 });

@@ -7,6 +7,7 @@ import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,9 +31,11 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
@@ -54,8 +57,6 @@ import com.music.audify.data.model.MoodGenre
 import com.music.audify.data.model.MoodGenreSection
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.UiState
-import com.music.audify.ui.motion.microPressScale
-import com.music.audify.ui.motion.microRipple
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
 import com.music.audify.ui.components.PullToRefresh
@@ -118,18 +119,8 @@ fun ExploreScreen(
                         val rows = state.data.flatMap(MoodGenreSection::items)
                             .distinctBy { it.browseId to it.params }
                             .chunked(columns)
-                        if (rows.isEmpty()) {
-                            item(key = "explore:empty") {
-                                MessageState(
-                                    stringResource(Res.string.explore_empty),
-                                    actionLabel = stringResource(Res.string.retry),
-                                    onAction = onRetry,
-                                )
-                            }
-                        } else {
-                            items(rows, key = { row -> row.first().let { "${it.browseId}|${it.params}" } }) { row ->
-                                MoodGenreRow(row = row, columns = columns, onCategoryClick = onCategoryClick)
-                            }
+                        items(rows, key = { row -> row.first().let { "${it.browseId}|${it.params}" } }) { row ->
+                            MoodGenreRow(row = row, columns = columns, onCategoryClick = onCategoryClick)
                         }
                     }
                 }
@@ -169,18 +160,19 @@ private fun MoodGenreCard(
     modifier: Modifier = Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) .975f else 1f,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "explore-category-press",
+    )
     MoodGenreSleeve(
         item = item,
         modifier = modifier
             .aspectRatio(1.42f)
             .clip(MOOD_CARD_SHAPE)
-            .microPressScale(interaction)
-            .clickable(
-                interactionSource = interaction,
-                indication = microRipple(),
-                role = Role.Button,
-                onClick = onClick,
-            ),
+            .graphicsLayer { scaleX = pressScale; scaleY = pressScale }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
     )
 }
 
@@ -319,7 +311,7 @@ private const val MOOD_MAX_COLUMNS = 4
 
 internal fun moodColumns(available: Dp): Int {
     val row = available - PAGE_GUTTER * 2
-    return ((row + MOOD_SPACING) / (MOOD_MIN_CARD_WIDTH + MOOD_SPACING)).toInt().coerceIn(1, MOOD_MAX_COLUMNS)
+    return ((row + MOOD_SPACING) / (MOOD_MIN_CARD_WIDTH + MOOD_SPACING)).toInt().coerceIn(2, MOOD_MAX_COLUMNS)
 }
 
 @Composable
@@ -369,18 +361,8 @@ fun MoodGenrePlaylistsScreen(
             is UiState.Error -> item(key = "explore-feed:error") {
                 MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
             }
-            is UiState.Success -> if (state.data.isEmpty()) {
-                item(key = "explore-feed:empty") {
-                    MessageState(
-                        stringResource(Res.string.explore_empty),
-                        actionLabel = stringResource(Res.string.retry),
-                        onAction = onRetry,
-                    )
-                }
-            } else {
-                items(state.data, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
-                    Shelf(shelf = shelf, onItemClick = onItemClick)
-                }
+            is UiState.Success -> items(state.data, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
+                Shelf(shelf = shelf, onItemClick = onItemClick)
             }
         }
     }

@@ -1,0 +1,52 @@
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
+name: Feature suggestion
+description: Suggest a useful improvement for Audify
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep it focused: explain the problem and the behaviour you'd like. Do not include passwords, account details, access tokens, private listening history, or personal information.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Playback
+        - Playlists
+        - Discovery
+        - Library
+        - Downloads
+        - Lyrics
+        - Appearance
+        - Accessibility
+        - Android Auto
+        - Android TV
+        - Wear OS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+      description: Describe what you are trying to do and what is difficult today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should Audify do?
+      description: Describe the feature or behaviour you would like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Additional context (optional)
+      description: Mention alternatives you considered or add a privacy-safe screenshot.
+    validations:
+      required: false

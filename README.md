@@ -158,11 +158,14 @@ For installation notes and platform-specific requirements, see the [Android TV g
 
 - **Questions and ideas:** [GitHub Discussions](https://github.com/sachit1751-art/Audify/discussions)
 - **Report a bug:** [Open a bug report](https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml)
+- **Suggest a feature:** [Submit a feature suggestion](https://github.com/sachit1751-art/Audify/issues/new?template=feature_request.yml)
 - **Tester feedback:** [Share feedback](https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml)
 - **Contribute code:** Read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
 - **More project docs:** [Documentation index](docs/ADDITIONAL.md)
 
 When reporting an issue, include clear reproduction steps and relevant app details. Remove personal information from screenshots and logs. Never share account credentials, tokens, or private listening data.
+
+The Android app also supports direct anonymous bug reports and feature suggestions from Settings → About. These are published as public GitHub issues. The in-app submission service requires the one-time Worker secret described in [the feedback setup guide](backend/cloudflare/FEEDBACK_SETUP.md).
 
 ## Build from source
 

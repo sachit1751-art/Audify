@@ -104,6 +104,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.data.lyrics.translationLanguageName
+import com.music.audify.data.feedback.FeedbackRepository
 import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -441,10 +442,14 @@ fun SettingsScreen(
     var showListenBrainzTokenDialog by remember { mutableStateOf(false) }
     var showLastfmLoginDialog by remember { mutableStateOf(false) }
     var feedbackRequestType by rememberSaveable { mutableStateOf<String?>(null) }
+    var feedbackTitle by rememberSaveable { mutableStateOf("") }
     var feedbackDescription by rememberSaveable { mutableStateOf("") }
     var feedbackCategory by rememberSaveable { mutableStateOf("") }
     var feedbackIncludeDiagnostics by rememberSaveable { mutableStateOf(false) }
     var feedbackCategoryMenuExpanded by remember { mutableStateOf(false) }
+    var feedbackSubmitting by remember { mutableStateOf(false) }
+    var feedbackError by remember { mutableStateOf<String?>(null) }
+    var feedbackReceipt by remember { mutableStateOf<FeedbackRepository.Receipt?>(null) }
     val scrobbleScope = rememberCoroutineScope()
 
     val version = remember(context) {
@@ -486,8 +491,8 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(contentPadding)
-            .verticalScroll(scrollState),
+            .verticalScroll(scrollState)
+            .padding(contentPadding),
     ) {
         if (selectedCategory != null) {
             Row(
@@ -2207,118 +2212,141 @@ fun SettingsScreen(
     }
 
     feedbackRequestType?.let { requestType ->
-        val categories = if (requestType == "Bug report") {
-            listOf("Playback", "Downloads", "Library", "Account", "Appearance", "Performance", "Other")
+        val isBugReport = requestType == "Bug report"
+        val categories = if (isBugReport) {
+            listOf("Playback", "Downloads", "Library", "Lyrics", "Appearance", "Performance", "Android Auto", "Android TV", "Wear OS", "Other")
         } else {
-            listOf("Playback", "Playlists", "Discovery", "Library", "Appearance", "Accessibility", "Other")
+            listOf("Playback", "Playlists", "Discovery", "Library", "Downloads", "Lyrics", "Appearance", "Accessibility", "Other")
+        }
+        fun resetFeedback() {
+            feedbackRequestType = null
+            feedbackTitle = ""
+            feedbackDescription = ""
+            feedbackCategory = ""
+            feedbackIncludeDiagnostics = false
+            feedbackSubmitting = false
+            feedbackError = null
+            feedbackReceipt = null
         }
         AlertDialog(
             onDismissRequest = {
-                feedbackRequestType = null
-                feedbackDescription = ""
-                feedbackCategory = ""
-                feedbackIncludeDiagnostics = false
+                if (!feedbackSubmitting) resetFeedback()
             },
-            title = { Text(if (requestType == "Bug report") "Report a Problem" else "Request a Feature") },
+            title = {
+                Text(when {
+                    feedbackReceipt != null -> "Feedback submitted"
+                    isBugReport -> "Report a problem"
+                    else -> "Suggest a feature"
+                })
+            },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Your email app will open with the details addressed to Audify support. Review and send the email to submit.",
-                        style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(12.dp))
-                    Box {
-                        OutlinedTextField(
-                            value = feedbackCategory,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category") },
-                            placeholder = { Text("Choose a category") },
-                            trailingIcon = { Icon(Icons.Rounded.ExpandMore, contentDescription = "Choose category") },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Box(
-                            Modifier.matchParentSize().clickable { feedbackCategoryMenuExpanded = true },
-                        )
-                        DropdownMenu(
-                            expanded = feedbackCategoryMenuExpanded,
-                            onDismissRequest = { feedbackCategoryMenuExpanded = false },
-                        ) {
-                            categories.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(category) },
-                                    onClick = {
-                                        feedbackCategory = category
-                                        feedbackCategoryMenuExpanded = false
-                                    },
-                                )
+                if (feedbackReceipt != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Your report was submitted anonymously as #${feedbackReceipt!!.number}.", style = MaterialTheme.typography.bodyMedium)
+                        Text("It will be visible publicly in Audify's issue tracker. No email or Audify account was required.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                        Text("No login or email required. Reports are public GitHub issues, so don't include passwords, account details, tokens, private listening history, or personal information.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(12.dp))
+                        Box {
+                            OutlinedTextField(
+                                value = feedbackCategory,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category") },
+                                placeholder = { Text("Choose a category") },
+                                trailingIcon = { Icon(Icons.Rounded.ExpandMore, contentDescription = "Choose category") },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Box(Modifier.matchParentSize().clickable(enabled = !feedbackSubmitting) { feedbackCategoryMenuExpanded = true })
+                            DropdownMenu(
+                                expanded = feedbackCategoryMenuExpanded,
+                                onDismissRequest = { feedbackCategoryMenuExpanded = false },
+                            ) {
+                                categories.forEach { category ->
+                                    DropdownMenuItem(
+                                        text = { Text(category) },
+                                        onClick = { feedbackCategory = category; feedbackCategoryMenuExpanded = false },
+                                    )
+                                }
                             }
                         }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = feedbackDescription,
-                        onValueChange = { feedbackDescription = it },
-                        label = { Text(if (requestType == "Bug report") "What happened?" else "What would you like Audify to do?") },
-                        minLines = 4,
-                        maxLines = 7,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = feedbackIncludeDiagnostics,
-                            onCheckedChange = { feedbackIncludeDiagnostics = it },
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = feedbackTitle,
+                            onValueChange = { feedbackTitle = it.take(120) },
+                            label = { Text("Short title") },
+                            placeholder = { Text(if (isBugReport) "e.g. Playback stops after one song" else "e.g. Add queue folders") },
+                            singleLine = true,
+                            supportingText = { Text("${feedbackTitle.length}/120") },
+                            enabled = !feedbackSubmitting,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                        Column(Modifier.weight(1f)) {
-                            Text("Include diagnostic details", style = MaterialTheme.typography.bodyMedium)
-                            Text("App version, Android version and device model. No personal files or raw logs.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = feedbackDescription,
+                            onValueChange = { feedbackDescription = it.take(6000) },
+                            label = { Text(if (isBugReport) "What happened?" else "What should Audify do?") },
+                            placeholder = { Text(if (isBugReport) "What did you do, what did you expect, and what happened instead? Include steps to reproduce." else "What problem would this solve? Describe the behaviour you'd like.") },
+                            minLines = 4,
+                            maxLines = 7,
+                            supportingText = { Text("${feedbackDescription.length}/6000") },
+                            enabled = !feedbackSubmitting,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = feedbackIncludeDiagnostics, onCheckedChange = { feedbackIncludeDiagnostics = it }, enabled = !feedbackSubmitting)
+                            Column(Modifier.weight(1f)) {
+                                Text("Include device details (optional)", style = MaterialTheme.typography.bodyMedium)
+                                Text("Android version and device model only. No logs, files, accounts, or listening history.",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        feedbackError?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(enabled = feedbackCategory.isNotBlank() && feedbackDescription.isNotBlank(), onClick = {
-                    val subject = "Audify $requestType - $feedbackCategory"
-                    val body = buildString {
-                        appendLine("Category: $feedbackCategory")
-                        appendLine()
-                        appendLine(feedbackDescription.trim())
-                        if (feedbackIncludeDiagnostics) {
-                            appendLine()
-                            appendLine("--- Diagnostic details ---")
-                            appendLine("Audify version: $version")
-                            appendLine("Android version: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
-                            appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}")
-                        }
+                if (feedbackReceipt != null) {
+                    Row {
+                        TextButton(onClick = {
+                            feedbackReceipt?.url?.takeIf(String::isNotBlank)?.let { url ->
+                                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                            }
+                        }) { Text("View report") }
+                        TextButton(onClick = ::resetFeedback) { Text("Done") }
                     }
-                    val emailUri = Uri.parse(
-                        "mailto:sachit1771@gmail.com?subject=${Uri.encode(subject)}&body=${Uri.encode(body)}",
-                    )
-                    val intent = Intent(Intent.ACTION_SENDTO, emailUri)
-                    val launchResult = runCatching {
-                        context.startActivity(intent)
-                    }
-                    launchResult.onFailure {
-                        Toast.makeText(context, "No email app is available. Install or enable an email app, then try again.", Toast.LENGTH_LONG).show()
-                    }
-                    if (launchResult.isSuccess) {
-                        feedbackRequestType = null
-                        feedbackDescription = ""
-                        feedbackCategory = ""
-                        feedbackIncludeDiagnostics = false
-                    }
-                }) { Text("Continue to email") }
+                } else {
+                    TextButton(
+                        enabled = !feedbackSubmitting && feedbackCategory.isNotBlank() && feedbackTitle.trim().length >= 4 && feedbackDescription.trim().length >= 20,
+                        onClick = {
+                            feedbackSubmitting = true
+                            feedbackError = null
+                            scrobbleScope.launch {
+                                runCatching {
+                                    FeedbackRepository.submit(
+                                        kind = if (isBugReport) "bug" else "feature",
+                                        category = feedbackCategory,
+                                        title = feedbackTitle,
+                                        description = feedbackDescription,
+                                        includeDiagnostics = feedbackIncludeDiagnostics,
+                                    )
+                                }.onSuccess { feedbackReceipt = it }
+                                    .onFailure { feedbackError = it.message ?: "Could not submit feedback. Please try again." }
+                                feedbackSubmitting = false
+                            }
+                        },
+                    ) { Text(if (feedbackSubmitting) "Submitting…" else "Submit anonymously") }
+                }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    feedbackRequestType = null
-                    feedbackDescription = ""
-                    feedbackCategory = ""
-                    feedbackIncludeDiagnostics = false
-                }) {
-                    Text(stringResource(R.string.cancel))
-                }
+                if (feedbackReceipt == null) TextButton(enabled = !feedbackSubmitting, onClick = ::resetFeedback) { Text(stringResource(R.string.cancel)) }
             },
         )
     }

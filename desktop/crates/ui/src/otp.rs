@@ -19,7 +19,15 @@ const DASH_HEIGHT: Pixels = px(2.);
 /// How much larger a slot is than a text field is tall, so a code reads at a glance.
 const SLOT: f32 = 1.3;
 
-/// A row of one-character slots for a short numeric code, the way shadcn's InputOTP draws them.
+fn normalise_code(text: &str, limit: usize) -> String {
+    text.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|character| character.to_ascii_uppercase())
+        .take(limit)
+        .collect()
+}
+
+/// A row of one-character slots for a short code, the way shadcn's InputOTP draws them.
 /// The slots stand in groups that share their borders, with a dash between groups. Nothing is
 /// typed into them: `OtpInput` draws the code it holds with this, and a screen that only shows a
 /// code draws it straight away.
@@ -151,9 +159,9 @@ impl RenderOnce for OtpSlots {
     }
 }
 
-/// A field for a short numeric code that shows each digit in a slot of its own, like shadcn's
-/// InputOTP. It keeps only digits, never more than `length` of them, and pasted text gives up
-/// its digits too. The parent reads `value` and checks `complete` to act on a whole code.
+/// A field for a short alphanumeric code that shows each character in a slot of its own.
+/// It keeps only ASCII letters and digits, normalises letters to uppercase, and accepts pasted
+/// codes without separators. The parent reads `value` and checks `complete` to act on a whole code.
 pub struct OtpInput {
     focus_handle: FocusHandle,
     length: usize,
@@ -184,12 +192,12 @@ impl OtpInput {
         &self.value
     }
 
-    /// Whether every slot holds a digit.
+    /// Whether every slot holds a character.
     pub fn complete(&self) -> bool {
-        self.value.len() == self.length
+        self.value.chars().count() == self.length
     }
 
-    /// Replaces the code with the digits of `text`, as many as fit.
+    /// Replaces the code with the characters of `text`, as many as fit.
     pub fn set_value(&mut self, text: &str, cx: &mut Context<Self>) {
         self.value.clear();
         self.push(text, cx);
@@ -199,11 +207,10 @@ impl OtpInput {
         window.focus(&self.focus_handle, cx);
     }
 
-    /// Adds the digits of `text` after the ones already typed, as many as fit.
+    /// Adds the characters of `text` after the ones already typed, as many as fit.
     fn push(&mut self, text: &str, cx: &mut Context<Self>) {
-        let room = self.length - self.value.len();
-        self.value
-            .extend(text.chars().filter(char::is_ascii_digit).take(room));
+        let room = self.length.saturating_sub(self.value.chars().count());
+        self.value.push_str(&normalise_code(text, room));
         cx.notify();
     }
 
@@ -228,6 +235,18 @@ impl OtpInput {
     /// The whole code as a range of UTF-16 offsets, which is all an input method is shown.
     fn all(&self) -> Range<usize> {
         0..self.value.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalise_code;
+
+    #[test]
+    fn session_codes_accept_letters_digits_and_pasted_separators() {
+        assert_eq!(normalise_code(" a7-k2q9 ", 6), "A7K2Q9");
+        assert_eq!(normalise_code("zzzzzz99", 6), "ZZZZZZ");
+        assert_eq!(normalise_code("--!?", 6), "");
     }
 }
 
@@ -330,7 +349,7 @@ impl EntityInputHandler for OtpInput {
     }
 
     /// Text an input method is still composing is left out until it commits, which arrives
-    /// through `replace_text_in_range`, so no digit lands twice.
+    /// through `replace_text_in_range`, so no character lands twice.
     fn replace_and_mark_text_in_range(
         &mut self,
         _: Option<Range<usize>>,

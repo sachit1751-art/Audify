@@ -193,8 +193,8 @@ fun SourcesScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
     ) {
         Text(
             text = stringResource(R.string.source),

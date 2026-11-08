@@ -3779,7 +3779,13 @@ LibraryScreen(
                 val playlistFadeStartPx = with(LocalDensity.current) { TopBarContentGap.toPx() }
                 val topFadeAlpha by remember(headerListState, fadeStart, fadeRamp, playlistListState, playlistFadeStartPx) {
                     derivedStateOf {
-                        val list = headerListState ?: return@derivedStateOf 1f
+                        // Pages without a tracked collapsing header (Settings and
+                        // pushed utility screens, for example) have no scroll
+                        // position from which to infer that content has moved
+                        // beneath the top bar. Treat them as resting at the top:
+                        // applying a fully opaque fade here paints a solid,
+                        // full-width strip behind the floating controls.
+                        val list = headerListState ?: return@derivedStateOf 0f
                         if (list.firstVisibleItemIndex > 0) return@derivedStateOf 1f
                         val header = list.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.index == 0 }?.size?.toFloat()
@@ -3789,21 +3795,38 @@ LibraryScreen(
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
-                TopFadeBlur(
-                    hazeState = hazeState,
-                    pageColor = chromePageColor,
-                    scrimColor = chromePageColor,
-                    modifier = Modifier.align(Alignment.TopCenter),
-                    alpha = topFadeAlpha,
-                )
+                // Only draw a collapsing top fade when its page exposes a
+                // tracked list position. A fixed, full-strength fallback on
+                // utility pages paints a dark strip behind the floating bar
+                // even at rest, despite there being no scroll state to drive it.
+                if (headerListState != null) {
+                    TopFadeBlur(
+                        hazeState = hazeState,
+                        pageColor = chromePageColor,
+                        scrimColor = chromePageColor,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        alpha = topFadeAlpha,
+                    )
 
-                BottomFadeScrim(
-                    pageColor = chromePageColor,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .rotate(180f)
-                        .graphicsLayer { alpha = 1f - topFadeAlpha },
-                )
+                    BottomFadeScrim(
+                        pageColor = chromePageColor,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .rotate(180f)
+                            .graphicsLayer { alpha = 1f - topFadeAlpha },
+                    )
+                } else {
+                    // Utility pages use regular ScrollState rather than a
+                    // LazyListState. Keep the content behind their floating
+                    // top controls softly blurred, but do not add the opaque
+                    // page-colour scrim that used to become a solid black bar.
+                    TopFadeBlur(
+                        hazeState = hazeState,
+                        pageColor = chromePageColor,
+                        scrimColor = chromePageColor,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
 
                 FrostedTopBar(
                     title = when (route) {

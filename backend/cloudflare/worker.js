@@ -6,6 +6,7 @@ import { isRoomExpired, nextCleanupAt } from './lifecycle.js';
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const CODE_LENGTH = 6;
 const MAX_BODY = 16 * 1024;
+const MAX_FEEDBACK_BODY = 8 * 1024;
 const MAX_UPCOMING = 25;
 const PLAY_LEAD_MS = 350;
 const DISCONNECT_GRACE_MS = 45_000;
@@ -25,6 +26,46 @@ const normalise = value => [...String(value ?? '').trim().toUpperCase()].filter(
 const makeCode = () => [...crypto.getRandomValues(new Uint8Array(CODE_LENGTH))].map(x => ALPHABET[x % ALPHABET.length]).join('');
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const clampText = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
+const FEEDBACK_CATEGORIES = new Set(['Playback', 'Playlists', 'Discovery', 'Library', 'Downloads', 'Lyrics', 'Appearance', 'Accessibility', 'Performance', 'Android Auto', 'Android TV', 'Wear OS', 'Other']);
+
+async function feedbackIpKey(ip) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip || 'unknown'));
+  return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+function validateFeedback(body) {
+  if (!isObject(body)) return 'Malformed JSON body.';
+  if (!['bug', 'feature'].includes(body.kind)) return 'Choose a bug report or feature suggestion.';
+  if (!FEEDBACK_CATEGORIES.has(body.category)) return 'Choose a valid category.';
+  const title = clampText(body.title, 121).trim();
+  const description = clampText(body.description, 6001).trim();
+  if (title.length < 4 || title.length > 120) return 'Title must be between 4 and 120 characters.';
+  if (/[\r\n\u0000-\u001f]/.test(title)) return 'Title must be a single line.';
+  if (description.length < 20 || description.length > 6000) return 'Description must be between 20 and 6000 characters.';
+  if (body.diagnostics != null && !isObject(body.diagnostics)) return 'Diagnostic details are invalid.';
+  return null;
+}
+
+function feedbackIssueBody(body) {
+  const kind = body.kind === 'bug' ? 'Bug report' : 'Feature suggestion';
+  const diagnostics = isObject(body.diagnostics) ? body.diagnostics : {};
+  const oneLine = (value, max) => clampText(value, max).replace(/[\r\n\t]+/g, ' ').trim();
+  const lines = [
+    '## Description', '', clampText(body.description, 6000).trim(), '',
+    '## Category', '', clampText(body.category, 40), '',
+    '## App details', '',
+    `- Platform: ${oneLine(body.platform, 30) || 'Android'}`,
+    `- Audify version: ${oneLine(body.version, 40) || 'Not provided'}`,
+  ];
+  if (Object.keys(diagnostics).length) {
+    lines.push('', '## Optional diagnostics', '');
+    for (const [label, value] of [['OS', diagnostics.os], ['Device', diagnostics.device]]) {
+      if (typeof value === 'string' && value.trim()) lines.push(`- ${label}: ${oneLine(value, 120)}`);
+    }
+  }
+  lines.push('', '---', '*Submitted anonymously from Audify. Do not post passwords, tokens, account details, private listening history, or personal files.*');
+  return { title: `[${kind}] ${clampText(body.title, 120).trim()}`, body: lines.join('\n'), labels: body.kind === 'bug' ? ['bug'] : ['enhancement'] };
+}
 
 function inviteHtml({ code, origin, active, members = 0, title = '', artist = '' }) {
   const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -253,6 +294,17 @@ export class PartyRoom extends DurableObject {
       if (row && t - row.window_ms < 60_000 && row.count >= 2) return err(429, 'create_rate_limited', 'You can create up to two parties per minute. Please try again shortly.');
       if (!row && this.ctx.storage.sql.exec("SELECT COUNT(*) AS count FROM rate_limits WHERE key LIKE 'create:%' OR key LIKE 'auth:%' OR key LIKE 'join:%'").toArray()[0].count >= Number(this.env.JAM_RATE_LIMIT_MAX_ENTRIES || 10000)) return err(429, 'create_rate_limited', 'Too many source addresses are being tracked.');
       this.ctx.storage.sql.exec('INSERT INTO rate_limits (key, window_ms, count) VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET window_ms = CASE WHEN ? - window_ms >= 60000 THEN ? ELSE window_ms END, count = CASE WHEN ? - window_ms >= 60000 THEN 1 ELSE count + 1 END', key, t, t, t, t);
+      return json({ ok: true });
+    }
+    if (path === '/internal/feedback-limit' && request.method === 'POST') {
+      const body = await request.json(), ipKey = clampText(body.ipKey, 64), t = now(), key = `feedback:${ipKey}`;
+      if (!/^[a-f0-9]{64}$/.test(ipKey)) return err(422, 'invalid_rate_key', 'Invalid rate-limit key.');
+      this.ctx.storage.sql.exec('DELETE FROM rate_limits WHERE window_ms < ?', t - 86_400_000);
+      const row = this.ctx.storage.sql.exec('SELECT window_ms, count FROM rate_limits WHERE key = ?', key).toArray()[0];
+      if (row && t - row.window_ms < 3_600_000 && row.count >= 3) return err(429, 'feedback_rate_limited', 'You have sent several reports recently. Please try again later.');
+      const active = this.ctx.storage.sql.exec("SELECT COUNT(*) AS count FROM rate_limits WHERE key LIKE 'feedback:%'").toArray()[0].count;
+      if (!row && active >= Number(this.env.JAM_FEEDBACK_RATE_LIMIT_MAX_ENTRIES || 10000)) return err(429, 'feedback_rate_limited', 'Feedback is temporarily busy. Please try again later.');
+      this.ctx.storage.sql.exec('INSERT INTO rate_limits (key, window_ms, count) VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET window_ms = CASE WHEN ? - window_ms >= 3600000 THEN ? ELSE window_ms END, count = CASE WHEN ? - window_ms >= 3600000 THEN 1 ELSE count + 1 END', key, t, t, t, t);
       return json({ ok: true });
     }
     if (path === '/internal/reserve-room' && request.method === 'POST') {
@@ -547,6 +599,46 @@ export default {
       const raw = await request.text(); if (raw.length > 2048) return fail(413, 'request_too_large', 'Request body is too large.');
       const response = await global.fetch('https://room.internal/internal/presence', { method: 'POST', headers: request.headers, body: raw });
       return new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), ...cors } });
+    }
+    if (path === '/api/feedback') {
+      if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'POST' } });
+      const raw = await request.text();
+      if (raw.length > MAX_FEEDBACK_BODY) return fail(413, 'request_too_large', 'Feedback is too long.');
+      let body;
+      try { body = JSON.parse(raw); } catch { return fail(422, 'invalid_json', 'Malformed JSON body.'); }
+      const invalid = validateFeedback(body);
+      if (invalid) return fail(422, 'validation_error', invalid);
+      if (clampText(body.website, 200).trim()) return json({ ok: true }, 202, cors);
+      if (!env.GITHUB_ISSUES_TOKEN) return fail(503, 'feedback_unavailable', 'Feedback submission is not configured yet.');
+      const ipKey = await feedbackIpKey(request.headers.get('cf-connecting-ip') ?? 'unknown');
+      const limited = await global.fetch('https://room.internal/internal/feedback-limit', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ipKey }),
+      });
+      if (!limited.ok) return new Response(limited.body, { status: limited.status, headers: { ...Object.fromEntries(limited.headers), ...cors } });
+      const issue = feedbackIssueBody(body);
+      let response;
+      try {
+    response = await fetch('https://api.github.com/repos/sachit1751-art/Audify/issues', {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${env.GITHUB_ISSUES_TOKEN}`,
+            accept: 'application/vnd.github+json',
+            'content-type': 'application/json',
+            'user-agent': 'Audify-Feedback',
+            'x-github-api-version': '2022-11-28',
+          },
+          body: JSON.stringify(issue),
+        });
+      } catch {
+        return fail(502, 'feedback_upstream_unavailable', 'Could not reach the issue tracker. Your report was not submitted.');
+      }
+      if (!response.ok) return fail(502, 'feedback_upstream_rejected', 'The issue tracker could not accept this report. Please try again later.');
+      let created;
+      try { created = await response.json(); } catch { return fail(502, 'feedback_upstream_invalid', 'The issue tracker returned an invalid response. Please try again later.'); }
+      if (!Number.isInteger(created.number) || typeof created.html_url !== 'string' || !created.html_url.startsWith('https://github.com/')) {
+        return fail(502, 'feedback_upstream_invalid', 'The issue tracker returned an invalid response. Please try again later.');
+      }
+      return json({ ok: true, number: created.number, url: created.html_url }, 201, cors);
     }
     if (path === '/api/stats/live' || path === '/api/stats/live/badge.svg') {
       if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'GET' } });

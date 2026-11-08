@@ -481,8 +481,8 @@ fun ListenTogetherScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
     ) {
         Text(
             text = stringResource(R.string.listen_together),

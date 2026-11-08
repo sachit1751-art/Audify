@@ -97,8 +97,8 @@ fun WearOsScreen(contentPadding: PaddingValues, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
     ) {
         Text(
             text = stringResource(if (installingNode != null) R.string.wear_os_install_title else R.string.wear_os_page_title),

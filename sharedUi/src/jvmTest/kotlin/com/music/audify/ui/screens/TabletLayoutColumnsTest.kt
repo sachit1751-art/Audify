@@ -19,12 +19,8 @@ class TabletLayoutColumnsTest {
     }
 
     @Test
-    fun exploreUsesOneColumnWhenTwoCardsWouldBeTooNarrow() {
-        assertEquals(1, moodColumns(360.dp))
-    }
-
-    @Test
-    fun exploreKeepsTwoColumnsWhenMinimumCardWidthFits() {
+    fun explorePreservesTwoColumnsOnNarrowPhones() {
+        assertEquals(2, moodColumns(360.dp))
         assertEquals(2, moodColumns(400.dp))
     }
 
