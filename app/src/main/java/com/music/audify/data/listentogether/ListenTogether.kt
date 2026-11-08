@@ -1127,6 +1127,9 @@ object ListenTogether {
         val frame = buildJsonObject {
             put("type", "control")
             put("action", action)
+            // Safe for older Go servers (unknown JSON field) and lets the
+            // Durable Object suppress a retransmitted control after reconnect.
+            put("eventId", UUID.randomUUID().toString())
             body()
         }
         send(frame)

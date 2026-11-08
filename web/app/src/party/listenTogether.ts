@@ -337,7 +337,7 @@ function send(frame: Record<string, unknown>): void {
 }
 
 function control(action: string, body: Record<string, unknown> = {}): void {
-  send({ type: 'control', action, ...body });
+  send({ type: 'control', action, eventId: crypto.randomUUID(), ...body });
 }
 
 export const party = {

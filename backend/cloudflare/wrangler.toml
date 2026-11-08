@@ -1,0 +1,22 @@
+﻿name = "audify-listen-together"
+main = "worker.js"
+compatibility_date = "2026-11-08"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+JAM_ALLOWED_ORIGINS = "https://audify.in,https://audify-8bw.pages.dev"
+JAM_MAX_PARTIES = "50"
+JAM_PRESENCE_MAX_ENTRIES = "200000"
+JAM_PRESENCE_RATE_LIMIT_MAX_IPS = "100000"
+JAM_RATE_LIMIT_MAX_ENTRIES = "10000"
+
+[[durable_objects.bindings]]
+name = "PARTY_ROOMS"
+class_name = "PartyRoom"
+
+[exports.PartyRoom]
+type = "durable-object"
+storage = "sqlite"
