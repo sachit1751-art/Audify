@@ -22,7 +22,7 @@ import uuid
 import websockets
 from urllib.request import Request, urlopen
 
-DEFAULT_SERVER = "https://audify-67v8.onrender.com"
+DEFAULT_SERVER = "https://audify-listen-together.sachit1751.workers.dev"
 
 
 def post(url, body):

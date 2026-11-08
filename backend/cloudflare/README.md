@@ -17,9 +17,9 @@ From this directory, run `npx wrangler deploy`. The `wrangler.toml` declares the
 
 Set the exact browser origins in `JAM_ALLOWED_ORIGINS` (the repository's production web origins are configured in `wrangler.toml`). Native clients send no `Origin` header. Do not use a wildcard. No paid Durable Object, D1, KV, R2, or third-party service is configured here.
 
-## Production cutover gate
+## Production cutover
 
-The Worker is deployed and remote protocol checks pass, but client defaults intentionally remain on Render. The deployed script reports Cloudflare `usage_model=standard`. The connected Cloudflare OAuth connection does not have Billing Read permission, so the account's current Workers Free/Paid subscription cannot be verified; Cloudflare documents a $5/month minimum for Workers Paid. No subscription or plan was created or changed by this migration. Confirm the account is on Workers Free (or explicitly approve its existing Paid plan) before switching production clients. The connected account also does not expose an AUDIFY Pages project, so its production `VITE_PARTY_SERVER_URL` cannot be changed here; configure it in the actual Pages project when access is available.
+The account owner confirmed that the connected account is on Workers Free. Production Android, Android TV, CI builds and the web build workflow now use `https://audify-listen-together.sachit1751.workers.dev`. No plan or billing change was made. The connected account exposes only the unrelated `sachit-portfolio` Pages project, not AUDIFY's Pages project; set `VITE_PARTY_SERVER_URL` to this Worker URL in the actual AUDIFY Pages project's production and preview environments before publishing a web release. Until then, an independently deployed Pages app may retain its previous environment value.
 
 For local protocol checks, use `npx wrangler dev`. Run `npm test` for lifecycle tests and `npm run test:integration` with a local Worker at `127.0.0.1:8787` for the REST/WebSocket suite. Set `WORKER_URL` to the deployed URL to run the remote suite; its fixed-source-IP rate-limit case is intentionally skipped remotely.
 
@@ -39,7 +39,7 @@ This configuration uses SQLite Durable Objects and Workers only. Cloudflare's cu
 
 ## Rollback
 
-Rollback is an endpoint/configuration change, not a data migration. Restore the Android default to `https://audify-listen-together-qdbd.onrender.com`, the TV default to `https://audify-listen-together.onrender.com`, and the web Pages `VITE_PARTY_SERVER_URL` to the previous production value, then rebuild/redeploy affected clients. Keep the Worker deployed during the rollback window. Rooms are not replicated between Render and Cloudflare; active rooms created on one backend do not move to the other.
+Rollback is an endpoint/configuration change, not a data migration. Restore the Android default and CI `LISTEN_TOGETHER_SERVER` values to `https://audify-listen-together-qdbd.onrender.com` (Android) and `https://audify-listen-together.onrender.com` (TV), restore `backend/tools/jam_probe.py` to its previous Render URL, and restore Pages `VITE_PARTY_SERVER_URL` to its previous production value. Rebuild/redeploy affected clients. Keep the Worker deployed during the rollback window. Rooms are not replicated between Render and Cloudflare; active rooms created on one backend do not move to the other.
 
 ## Runtime bindings
 

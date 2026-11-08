@@ -56,4 +56,4 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          VITE_PARTY_SERVER_URL: https://party.example.com
+          VITE_PARTY_SERVER_URL: https://audify-listen-together.sachit1751.workers.dev

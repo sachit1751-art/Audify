@@ -67,7 +67,7 @@ Then open `http://localhost:5173/extension`. It shows "Installed", with the vers
 | `AUDIFY_STORE_BUILD=1` | extension build | Leaves out the dev `key` for a Chrome Web Store upload |
 | `VITE_EXTENSION_ID_CHROMIUM` | app (`app/.env.local`) | The pinned dev id. Set it for a store-built extension |
 | `VITE_ANDROID_APP_URL` | app | The GitHub releases page |
-| `VITE_PARTY_SERVER_URL` | app (`app/.env.local`, Pages env) | None. The Listen Together server; `vite build` fails without it |
+| `VITE_PARTY_SERVER_URL` | app (`app/.env.local`, Pages env) | `https://audify-listen-together.sachit1751.workers.dev`. The Listen Together Worker; `vite build` fails without it |
 
 ## Deploy (Cloudflare Pages)
 
@@ -76,7 +76,7 @@ Then open `http://localhost:5173/extension`. It shows "Installed", with the vers
 | Root directory | `web` |
 | Build command | `pnpm build:site` |
 | Output directory | `app/dist` |
-| Environment | `NODE_VERSION=22`, `VITE_PARTY_SERVER_URL` |
+| Environment | `NODE_VERSION=22`, `VITE_PARTY_SERVER_URL=https://audify-listen-together.sachit1751.workers.dev` |
 
 `build:site` packages the extension first, so each deploy publishes the zips and `downloads/extension.json` with the version from `web/extension/package.json`. The Extension page polls that file and offers the update when it's newer than the installed one. Bump that version to make an update show.
 

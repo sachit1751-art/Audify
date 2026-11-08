@@ -279,6 +279,13 @@ Check it with `curl https://<domain>/healthz`. Logs are in
 
 ## Deploying to Render
 
+Render remains the rollback backend. Production Listen Together clients now
+default to the Cloudflare Durable Objects Worker documented in
+[`cloudflare/README.md`](cloudflare/README.md). Keep this Render service
+available during the Cloudflare cutover window; rooms are not replicated
+between the two backends. To roll back, set `LISTEN_TOGETHER_SERVER` to the
+Render service URL when building the Android/TV clients.
+
 The blueprint is `render.yaml`, but Render reads blueprints from the repository
 root and this one lives in `backend/`. Either copy it up a level, or create the
 service by hand — which is one screen:
