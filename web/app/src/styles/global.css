@@ -417,3 +417,14 @@ Project: AUDIFY
     }
   }
 }
+
+
+/* React Bits Status Mark-inspired pending/download micro-interaction. */
+.download-status-mark { position: relative; display: grid; width: 28px; height: 28px; place-items: center; color: var(--color-key, currentColor); }
+.download-status-orbit { position: absolute; inset: 3px; width: 22px; height: 22px; overflow: visible; }
+.download-status-ring { stroke: currentColor; stroke-width: 1.5; opacity: 0.28; }
+.download-status-arrow { position: relative; transition: transform 180ms ease; }
+a:hover .download-status-ring, a:focus-visible .download-status-ring { stroke-dasharray: 42 16; animation: download-status-pending 1.15s linear infinite; opacity: 0.9; }
+a:hover .download-status-arrow, a:focus-visible .download-status-arrow { transform: translateY(1px); }
+@keyframes download-status-pending { to { stroke-dashoffset: -58; } }
+@media (prefers-reduced-motion: reduce) { a:hover .download-status-ring, a:focus-visible .download-status-ring { animation: none; } }

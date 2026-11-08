@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Sachit. All rights reserved.
 // Project: AUDIFY
-import { ChevronRight } from 'lucide-react';
+import { DownloadStatusMark } from '@/components/DownloadStatusMark';
 import { useState, type ComponentType } from 'react';
 import { FaChrome, FaFirefoxBrowser } from 'react-icons/fa';
 import { SiDiscord, SiSpotify, SiYoutubemusic } from 'react-icons/si';
@@ -174,7 +174,7 @@ export default function ExtensionPage() {
                   build, then reload the extension.
                 </span>
               </span>
-              <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+              <DownloadStatusMark />
             </a>
             {updating && (
               <ol className={settingsUi.steps}>
@@ -208,7 +208,7 @@ export default function ExtensionPage() {
                   {browser === currentBrowser && ' · This browser'}
                 </span>
               </span>
-              <ChevronRight size={16} strokeWidth={2.4} className={settingsUi.chevron} />
+              <DownloadStatusMark />
             </a>
           ))}
         </section>
