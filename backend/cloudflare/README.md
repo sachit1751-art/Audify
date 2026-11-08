@@ -21,6 +21,13 @@ Set the exact browser origins in `JAM_ALLOWED_ORIGINS` (the repository's product
 
 The account owner confirmed that the connected account is on Workers Free. Production Android, Android TV, CI builds and the web build workflow now use `https://audify-listen-together.sachit1751.workers.dev`. No plan or billing change was made. The connected account exposes only the unrelated `sachit-portfolio` Pages project, not AUDIFY's Pages project; set `VITE_PARTY_SERVER_URL` to this Worker URL in the actual AUDIFY Pages project's production and preview environments before publishing a web release. Until then, an independently deployed Pages app may retain its previous environment value.
 
+## Client protocol coverage
+
+- Android and web attach a fresh UUID `eventId` to every control frame. The Worker deduplicates `(memberId, eventId)`; older Go servers safely ignore the extra JSON field.
+- Android TV compiles the Android app's shared `app/src/main/java` source tree, so it uses the same Listen Together transport and idempotency implementation. A regression assertion guards this source-set relationship.
+- The desktop application currently implements Spotify Jam through Spotify Connect, not the AUDIFY `/api/parties` and `/ws/parties` protocol. It is deliberately not redirected to this Worker. A regression assertion guards that boundary; desktop Spotify Jam remains unchanged.
+- `npm run test:integration` checks REST response shapes, presence platform counts and validation, exact SVG badge markup, active/missing/malformed invite pages, Android and browser WebSocket handshakes, multiple participants, duplicate event IDs, playback/queue updates, host controls, reconnect, and client-source boundaries.
+
 For local protocol checks, use `npx wrangler dev`. Run `npm test` for lifecycle tests and `npm run test:integration` with a local Worker at `127.0.0.1:8787` for the REST/WebSocket suite. Set `WORKER_URL` to the deployed URL to run the remote suite; its fixed-source-IP rate-limit case is intentionally skipped remotely.
 
 ## Compatibility checklist

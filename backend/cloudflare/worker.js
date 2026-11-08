@@ -26,6 +26,26 @@ const makeCode = () => [...crypto.getRandomValues(new Uint8Array(CODE_LENGTH))].
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const clampText = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
 
+function inviteHtml({ code, origin, active, members = 0, title = '', artist = '' }) {
+  const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const deep = `audify://party/${encodeURIComponent(code)}?server=${encodeURIComponent(origin)}`;
+  const intent = `intent://party/${encodeURIComponent(code)}?server=${encodeURIComponent(origin)}#Intent;scheme=audify;end`;
+  const activeContent = `<div class="badge"><span class="badge-dot"></span><span>Listen Together • ${members} in party</span></div>
+    <h1>Join the Music Party</h1><p class="subtitle">Opening Audify to sync playback in real time.</p>
+    <div class="code-box"><div class="code-label">Party Code</div><div class="code-val">${safe(code)}</div>
+    ${title ? `<div class="now-playing">🎵 ${safe(title)}${artist ? ` - ${safe(artist)}` : ''}</div>` : ''}</div>
+    <a id="joinBtn" href="${safe(intent)}" class="btn">Join Party in Audify</a>
+    <p class="footer-note">Didn't open automatically? Tap the button above.<br>Don't have Audify yet? <a href="https://github.com/kushagrasinghx/Audify/releases" target="_blank" rel="noopener">Download it here</a>.</p>
+    <script>var intentUri=${JSON.stringify(intent)};var deepLink=${JSON.stringify(deep)};function launch(){window.location.href=/Android/i.test(navigator.userAgent)?intentUri:deepLink;}setTimeout(launch,100);</script>`;
+  const inactiveContent = `<div class="badge"><span class="badge-dot offline"></span><span>Party Inactive</span></div>
+    <h1>Party Not Found</h1><p class="subtitle">This party code has expired or does not exist on this server.</p>
+    <div class="code-box"><div class="code-label">Party Code</div><div class="code-val" style="color:#a1a1aa">${safe(code)}</div></div>
+    <p class="footer-note">Please ask the host for a new invite link or check your server configuration.</p>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Audify Listen Together - Party ${safe(code)}</title><style>
+*{box-sizing:border-box;margin:0;padding:0}body{background:#0b0b0e;color:#f3f3f7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.container{background:rgba(22,22,30,.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.08);border-radius:28px;max-width:440px;width:100%;padding:36px 28px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 40px rgba(124,77,255,.1)}.badge{display:inline-flex;align-items:center;gap:6px;background:rgba(124,77,255,.15);color:#b388ff;font-size:13px;font-weight:600;padding:6px 14px;border-radius:9999px;margin-bottom:20px;letter-spacing:.5px}.badge-dot{width:8px;height:8px;background:#00e676;border-radius:50%;box-shadow:0 0 8px #00e676}.badge-dot.offline{background:#ff5252;box-shadow:0 0 8px #ff5252}h1{font-size:24px;font-weight:700;margin-bottom:8px;letter-spacing:-.5px}.subtitle{color:#9e9ea7;font-size:15px;line-height:1.5;margin-bottom:28px}.code-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:16px 20px;margin-bottom:28px}.code-label{font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}.code-val{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:32px;font-weight:800;letter-spacing:6px;color:#fff}.now-playing{font-size:14px;color:#d1d1d6;margin-top:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.btn{display:block;width:100%;padding:16px 24px;background:linear-gradient(135deg,#7c4dff,#3d5afe);color:#fff;font-size:16px;font-weight:600;text-decoration:none;border-radius:16px;border:none;cursor:pointer;transition:transform .15s ease,opacity .15s ease;box-shadow:0 8px 24px rgba(124,77,255,.35)}.btn:hover{transform:translateY(-1px);opacity:.95}.btn:active{transform:scale(.98)}.footer-note{margin-top:24px;font-size:13px;color:#71717a;line-height:1.5}.footer-note a{color:#b388ff;text-decoration:none}.footer-note a:hover{text-decoration:underline}
+</style></head><body><div class="container">${active ? activeContent : inactiveContent}</div></body></html>`;
+}
+
 function validJoin(body) {
   if (!isObject(body)) return 'Malformed JSON body.';
   body.userId = clampText(body.userId, 129).trim();
@@ -260,13 +280,16 @@ export class PartyRoom extends DurableObject {
       return json({ ok: true });
     }
     if (path === '/internal/invite' && request.method === 'GET') {
-      const room = this.load(); if (!room) return err(404, 'no_such_party', 'No party with that code.');
-      const p = room.playback, song = p.track ? `${p.track.title || ''}${p.track.artist ? ` — ${p.track.artist}` : ''}` : 'Nothing playing yet';
+      const room = this.load();
+      if (!room) {
+        const code = normalise(request.headers.get('x-invite-code'));
+        const origin = this.env.JAM_PUBLIC_ORIGIN || request.headers.get('x-public-origin') || 'https://audify.app';
+        return new Response(inviteHtml({ code, origin, active: false }), { status: 404, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+      }
+      const p = room.playback;
       const code = room.code, origin = this.env.JAM_PUBLIC_ORIGIN || request.headers.get('x-public-origin') || 'https://audify.app';
-      const deep = `audify://party/${code}?server=${encodeURIComponent(origin)}`;
-      const intent = `intent://party/${code}?server=${encodeURIComponent(origin)}#Intent;scheme=audify;end`;
-      const safe = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-      return new Response(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Join AUDIFY Listen Together</title></head><body><main><h1>Join a listening party</h1><p>Code: <strong>${safe(code)}</strong></p><p>${safe(song)}</p><p>${room.members.length} listeners</p><a href="${safe(deep)}">Open in AUDIFY</a><p><a href="${safe(intent)}">Open on Android</a></p></main></body></html>`, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+      return new Response(inviteHtml({ code, origin, active: true, members: room.members.length,
+        title: p.track?.title ?? '', artist: p.track?.artist ?? '' }), { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
     }
     if (path === '/internal/create' && request.method === 'POST') {
       if (this.load()) return err(409, 'code_collision', 'Party code already exists.');
@@ -532,14 +555,15 @@ export default {
     if (path === '/api/stats/live/badge.svg') {
       const stats = await global.fetch('https://room.internal/internal/stats').then(r => r.json()), value = String(stats.online);
       const valueWidth = 8.25 * value.length + 24, width = 124.25 + valueWidth;
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="28" role="img" aria-label="LISTENING NOW: ${value}"><title>LISTENING NOW: ${value}</title><rect width="124.25" height="28" fill="#0d1117"/><rect x="124.25" width="${valueWidth}" height="28" fill="#fb4f67"/><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="10"><text x="62.125" y="18">LISTENING NOW</text><text x="${124.25 + valueWidth / 2}" y="18" font-weight="bold">${value}</text></g></svg>`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="28" role="img" aria-label="LISTENING NOW: ${value}"><title>LISTENING NOW: ${value}</title><g shape-rendering="crispEdges"><rect width="124.25" height="28" fill="#0d1117"/><rect x="124.25" width="${valueWidth}" height="28" fill="#fb4f67"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="100"><text transform="scale(.1)" x="621.25" y="175" textLength="1002.5">LISTENING NOW</text><text transform="scale(.1)" x="${(124.25 + valueWidth / 2) * 10}" y="175" textLength="${82.5 * value.length}" font-weight="bold">${value}</text></g></svg>`;
       return new Response(svg, { headers: { ...cors, 'access-control-allow-origin': '*', 'content-type': 'image/svg+xml;charset=utf-8', 'cache-control': 'no-cache, no-store, must-revalidate, max-age=0' } });
     }
     const invite = path.match(/^\/invite\/([^/]+)$/);
     if (invite) {
       if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'GET' } });
-      const code = normalise(invite[1]); if (code.length !== CODE_LENGTH) return fail(400, 'bad_code', 'Invalid party code.');
-      const response = await env.PARTY_ROOMS.getByName(code).fetch('https://room.internal/internal/invite', { headers: { 'x-public-origin': url.origin } });
+      const code = normalise(invite[1]);
+      if (code.length !== CODE_LENGTH) return new Response(inviteHtml({ code: invite[1], origin: env.JAM_PUBLIC_ORIGIN || url.origin, active: false }), { status: 400, headers: { ...cors, 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+      const response = await env.PARTY_ROOMS.getByName(code).fetch('https://room.internal/internal/invite', { headers: { 'x-public-origin': env.JAM_PUBLIC_ORIGIN || url.origin, 'x-invite-code': code } });
       return new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), ...cors } });
     }
     const match = path.match(/^\/(?:api\/parties\/([^/]+)(?:\/(join|preview|leave))?|ws\/parties\/([^/]+))$/);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import tls from 'node:tls';
 import { randomBytes } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 
 const base = (process.env.WORKER_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
 let host, guest, other, hostSocket, guestSocket, otherSocket;
@@ -189,10 +190,60 @@ test('presence, public stats, SVG badge and invite landing are compatible', asyn
   assert.equal(ping.status, 200); assert.equal((await json(ping)).intervalSec, 300);
   const stats = await json(await request('/api/stats/live'));
   assert.ok(stats.online >= 1); assert.ok('updatedAt' in stats);
-  assert.match(await (await request('/api/stats/live/badge.svg')).text(), /<svg/);
-  assert.match(await (await request(`/invite/${host.code}`)).text(), /audify:\/\/party/);
+  const badgeResponse = await request('/api/stats/live/badge.svg');
+  const badge = await badgeResponse.text();
+  assert.equal(badgeResponse.headers.get('content-type'), 'image/svg+xml;charset=utf-8');
+  const value = String(stats.online), valueWidth = 8.25 * value.length + 24;
+  const expectedBadge = `<svg xmlns="http://www.w3.org/2000/svg" width="${124.25 + valueWidth}" height="28" role="img" aria-label="LISTENING NOW: ${value}"><title>LISTENING NOW: ${value}</title><g shape-rendering="crispEdges"><rect width="124.25" height="28" fill="#0d1117"/><rect x="124.25" width="${valueWidth}" height="28" fill="#fb4f67"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="100"><text transform="scale(.1)" x="621.25" y="175" textLength="1002.5">LISTENING NOW</text><text transform="scale(.1)" x="${(124.25 + valueWidth / 2) * 10}" y="175" textLength="${82.5 * value.length}" font-weight="bold">${value}</text></g></svg>`;
+  assert.equal(badge, expectedBadge, 'SVG badge geometry and markup must match the Go backend');
+  const inviteResponse = await request(`/invite/${host.code}`);
+  const invite = await inviteResponse.text();
+  assert.equal(inviteResponse.status, 200);
+  assert.equal(inviteResponse.headers.get('content-type'), 'text/html; charset=utf-8');
+  assert.match(invite, /Listen Together • 2 in party/);
+  assert.match(invite, /Join the Music Party/);
+  assert.match(invite, /audify:\/\/party/);
+  assert.match(invite, /intent:\/\/party/);
+  assert.match(invite, /setTimeout\(launch,100\)/);
+  const missing = await request('/invite/ZZZZZZ');
+  assert.equal(missing.status, 404);
+  assert.match(await missing.text(), /Party Not Found/);
+  const malformed = await request('/invite/not-a-code');
+  assert.equal(malformed.status, 400);
+  assert.match(await malformed.text(), /Party Not Found/);
   await request('/api/presence', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://audify.in' },
     body: JSON.stringify({ id, platform: 'browser', open: false }) });
+});
+
+test('presence validation and all supported platform counters match the Go contract', async () => {
+  const androidId = crypto.randomUUID(), pcId = crypto.randomUUID();
+  for (const [id, platform] of [[androidId, 'android'], [pcId, 'pc']]) {
+    const response = await request('/api/presence', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, platform, open: true }) });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await json(response), { intervalSec: 300 });
+  }
+  assert.equal((await request('/api/presence', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status, 422);
+  assert.equal((await request('/api/presence', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id: crypto.randomUUID(), platform: 'browser', open: true }) })).status, 403);
+  const stats = await json(await request('/api/stats/live'));
+  assert.ok(stats.android >= 1); assert.ok(stats.pc >= 1);
+  assert.equal(stats.online, stats.android + stats.pc + stats.browser);
+  for (const id of [androidId, pcId]) await request('/api/presence', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, platform: id === androidId ? 'android' : 'pc', open: false }) });
+});
+
+test('Android and web control producers attach fresh idempotency identifiers; TV shares Android implementation', async () => {
+  const android = await readFile(new URL('../../app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt', import.meta.url), 'utf8');
+  const web = await readFile(new URL('../../web/app/src/party/listenTogether.ts', import.meta.url), 'utf8');
+  const tv = await readFile(new URL('../../tv/build.gradle.kts', import.meta.url), 'utf8');
+  const desktop = await readFile(new URL('../../desktop/crates/music/src/spotify/connect.rs', import.meta.url), 'utf8');
+  assert.match(android, /put\("eventId",\s*UUID\.randomUUID\(\)\.toString\(\)\)/);
+  assert.match(web, /eventId:\s*crypto\.randomUUID\(\)/);
+  assert.match(tv, /kotlin\.directories \+= "\.\.\/app\/src\/main\/java"/);
+  assert.match(desktop, /JAM_CURRENT|JAM_INFO/);
+  assert.doesNotMatch(desktop, /audify-listen-together|\/api\/parties\//,
+    'desktop currently uses Spotify Jam APIs, not the AUDIFY Listen Together protocol; do not silently retarget it');
 });
 
 test('host departure hands host role to remaining participant', async () => {
