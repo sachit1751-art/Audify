@@ -77,9 +77,9 @@ fun TvPodcastsScreen(
         categories.orEmpty().filter { it.shows.isNotEmpty() }.forEach { category ->
             add(HomeShelf(
                 title = category.title,
-                subtitle = "YouTube Music playlist search results · not verified podcast shows",
+                subtitle = "Verified YouTube Music podcast shows",
                 items = category.shows.map { show ->
-                    ShelfItem(show.title, "Playlist result · ${show.subtitle}", show.thumbnailUrl, null, show.browseId)
+                    ShelfItem(show.title, show.subtitle, show.thumbnailUrl, null, show.browseId)
                 },
             ))
         }
@@ -95,7 +95,7 @@ fun TvPodcastsScreen(
         )
         shelves.isEmpty() -> TvEmptyState(
             title = "No Podcasts Yet",
-            message = "Save a podcast show in YouTube Music, or try discovery again later.",
+            message = "No verified YouTube Music podcast shows are available right now. Try again later.",
             modifier = modifier,
             action = { TvButton(text = "Retry", onClick = { refreshKey++ }) },
         )

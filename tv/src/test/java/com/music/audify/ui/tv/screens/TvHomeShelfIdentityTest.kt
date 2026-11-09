@@ -1,6 +1,7 @@
 package com.music.audify.ui.tv.screens
 
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.ShelfItem
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -22,5 +23,10 @@ class TvHomeShelfIdentityTest {
         val after = HomeShelf("Podcasts", listOf(ShelfItem("Show B", "Saved", null, null, "show-b")))
 
         assertEquals(before.feedKey(0), after.feedKey(0))
+    }
+
+    @Test
+    fun providerPodcastBrowseIdsOpenAsPlaylistDetailPages() {
+        assertEquals(BrowseType.PLAYLIST, browseTypeOf("MPSPverifiedShowId"))
     }
 }

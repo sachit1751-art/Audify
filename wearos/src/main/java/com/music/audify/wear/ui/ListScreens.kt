@@ -118,14 +118,16 @@ fun PodcastCatalogueScreen(
         ) {
             item(key = "podcast-header") { Header("Podcasts") }
             item(key = "podcast-subtitle") {
-                Hint(if (phoneDisconnected) "Offline catalogue · reconnect your phone to refresh or play" else "Your phone subscriptions")
+                Hint(if (phoneDisconnected) "Offline catalogue · reconnect your phone to refresh or play" else "Saved YouTube Music shows and RSS subscriptions")
             }
             when {
                 catalogueState == PodcastCatalogueState.OFFLINE_EMPTY -> item(key = "podcast-offline-empty") {
                     Hint("Phone disconnected. No cached subscriptions are available yet.")
                 }
                 catalogueState == PodcastCatalogueState.LOADING -> item(key = "podcast-loading") { Hint("Loading subscriptions…") }
-                catalogueState == PodcastCatalogueState.EMPTY -> item(key = "podcast-empty") { Hint("No RSS / Atom subscriptions on your phone") }
+                catalogueState == PodcastCatalogueState.EMPTY -> item(key = "podcast-empty") {
+                    Hint("No saved YouTube Music shows or RSS / Atom subscriptions on your phone")
+                }
                 catalogueState == PodcastCatalogueState.CONTENT -> shows.orEmpty().groupBy { it.category }.forEach { (category, categoryShows) ->
                     item(key = "podcast-category:$category") { Header(category) }
                     items(categoryShows, key = { it.id }) { show ->

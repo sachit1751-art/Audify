@@ -57,13 +57,17 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
     var message by remember { mutableStateOf<String?>(null) }
     var providerShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
     var discoveryCategories by remember { mutableStateOf<List<PodcastDiscoveryCategory>>(emptyList()) }
+    var providerSearchResults by remember { mutableStateOf<List<PodcastProviderShow>?>(null) }
+    var providerSearchBusy by remember { mutableStateOf(false) }
     var selectedProvider by remember { mutableStateOf<PodcastProviderShow?>(null) }
     var providerEpisodes by remember { mutableStateOf<List<ShelfItem>>(emptyList()) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(selected) { episodes = selected?.let(PodcastRepository::episodes).orEmpty() }
     LaunchedEffect(Unit) {
-        YtMusicRepository.libraryPodcastShows().onSuccess { providerShows = it }
-        YtMusicRepository.podcastDiscoveryCategories().onSuccess { discoveryCategories = it }
+        kotlinx.coroutines.coroutineScope {
+            launch { YtMusicRepository.libraryPodcastShows().onSuccess { providerShows = it } }
+            launch { YtMusicRepository.podcastDiscoveryCategories().onSuccess { discoveryCategories = it } }
+        }
     }
 
     LazyColumn(
@@ -75,9 +79,21 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
             Text("Podcasts", style = MaterialTheme.typography.headlineLarge)
             Text("Discover shows and pick up where you left off", style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 3.dp, bottom = 10.dp))
-            OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(), label = { Text("Search your podcasts") },
-                placeholder = { Text("Shows, episodes, creators") }, singleLine = true)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it; providerSearchResults = null },
+                    modifier = Modifier.weight(1f), label = { Text("Search podcasts") },
+                    placeholder = { Text("Show or topic") }, singleLine = true)
+                Button(enabled = searchQuery.isNotBlank() && !providerSearchBusy, onClick = {
+                    providerSearchBusy = true
+                    message = null
+                    scope.launch {
+                        YtMusicRepository.searchPodcastShows(searchQuery)
+                            .onSuccess { providerSearchResults = it }
+                            .onFailure { message = it.message ?: "YouTube Music podcast search failed" }
+                        providerSearchBusy = false
+                    }
+                }) { Text(if (providerSearchBusy) "Searching…" else "Search") }
+            }
             message?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
         }
         if (selected == null && selectedProvider == null) {
@@ -89,7 +105,29 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                 .sortedByDescending { it.playbackPositionMs }
             item {
                 Text("Discover podcasts", style = MaterialTheme.typography.headlineSmall)
-                Text("Shows from YouTube Music and your RSS subscriptions", style = MaterialTheme.typography.bodySmall)
+                Text("Public YouTube Music podcast shows · no Premium required", style = MaterialTheme.typography.bodySmall)
+            }
+            providerSearchResults?.let { results ->
+                item { Text("YouTube Music results", style = MaterialTheme.typography.titleLarge) }
+                if (results.isEmpty()) item {
+                    Text("No verified podcast shows were returned. Ordinary playlists are not shown as podcasts.", style = MaterialTheme.typography.bodySmall)
+                } else item {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 2.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        items(results, key = { "search:${it.browseId}" }) { show ->
+                            PodcastArtworkCard(show.title, show.subtitle, show.thumbnailUrl, onClick = {
+                                selectedProvider = show
+                                busy = true
+                                message = null
+                                scope.launch {
+                                    YtMusicRepository.podcastEpisodes(show.browseId)
+                                        .onSuccess { providerEpisodes = it }
+                                        .onFailure { message = it.message ?: "Could not load episodes" }
+                                    busy = false
+                                }
+                            })
+                        }
+                    }
+                }
             }
             discoveryCategories.forEach { category ->
                 val categoryShows = category.shows.filter { searchQuery.isBlank() || it.title.contains(searchQuery, true) || it.subtitle.contains(searchQuery, true) }
@@ -97,7 +135,7 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                     item(key = "discovery:${category.title}") {
                         Column {
                             Text(category.title, style = MaterialTheme.typography.titleLarge)
-                            Text("From YouTube Music search", style = MaterialTheme.typography.bodySmall)
+                            Text("Verified YouTube Music podcast shows", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     item(key = "discovery-row:${category.title}") {
@@ -144,7 +182,7 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
             }
             item { Text("Your YouTube Music shows", style = MaterialTheme.typography.titleLarge) }
             if (matchingProviderShows.isEmpty()) item {
-                Text("Sign in to YouTube Music to load your saved podcast shows.", style = MaterialTheme.typography.bodySmall)
+                Text("Sign in to YouTube Music to see your saved shows. Public discovery and RSS subscriptions do not require Premium.", style = MaterialTheme.typography.bodySmall)
             } else item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 2.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(matchingProviderShows, key = { "ytm:" + it.browseId }) { show ->
@@ -229,9 +267,32 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                 }
                 Text(selectedProvider?.title.orEmpty(), style = MaterialTheme.typography.headlineSmall)
                 Text("YouTube Music episodes", style = MaterialTheme.typography.titleLarge)
+                val providerShow = selectedProvider
+                val isSaved = providerShow != null && providerShows.any { it.browseId == providerShow.browseId }
+                TextButton(enabled = providerShow != null && !busy, onClick = {
+                    val show = providerShow ?: return@TextButton
+                    busy = true
+                    scope.launch {
+                        YtMusicRepository.setPodcastShowSaved(show.browseId, saved = !isSaved)
+                            .onSuccess {
+                                providerShows = if (isSaved) {
+                                    providerShows.filterNot { it.browseId == show.browseId }
+                                } else {
+                                    (providerShows + show).distinctBy(PodcastProviderShow::browseId)
+                                }
+                                YtMusicRepository.libraryPodcastShows().onSuccess { providerShows = it }
+                                message = if (isSaved) "Removed from your YouTube Music library" else "Saved to your YouTube Music library"
+                            }
+                            .onFailure { message = it.message ?: "Could not update your YouTube Music library" }
+                        busy = false
+                    }
+                }) { Text(if (isSaved) "Remove from YouTube Music library" else "Save to YouTube Music library") }
+                Text("Saving requires a signed-in YouTube Music account, not Premium.", style = MaterialTheme.typography.bodySmall)
                 message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
-            if (providerEpisodes.isEmpty()) item { Text("No episode rows were returned for this show.") }
+            if (providerEpisodes.isEmpty()) item {
+                Text(if (busy) "Loading podcast episodes…" else "No podcast episodes were returned for this show.")
+            }
             items(providerEpisodes, key = { it.browseId ?: it.videoId ?: it.title + it.subtitle }) { episode ->
                 Card(onClick = { if (episode.videoId != null) onPlayProvider(episode) else message = "This YouTube Music row has no playable episode ID." }, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp)) {

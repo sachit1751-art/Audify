@@ -16,6 +16,7 @@ import com.music.audify.data.model.LibraryState
 import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.MoodGenre
 import com.music.audify.data.model.MoodGenreSection
+import com.music.audify.data.model.PodcastProviderShow
 import com.music.audify.data.model.SearchResult
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.Song
@@ -582,6 +583,79 @@ object InnertubeParser {
             )
         }
         return LibraryItemPage(out.values.toList(), continuationToken(root))
+    }
+
+    /**
+     * Search results that YouTube Music itself identifies as podcast shows.
+     * Podcast browse ids use the MPSP namespace; ordinary PL/VL playlists are
+     * deliberately excluded even when their title contains the word podcast.
+     */
+    fun parsePodcastSearchShows(root: JsonElement): List<PodcastProviderShow> {
+        val shows = LinkedHashMap<String, PodcastProviderShow>()
+        fun add(browseId: String?, title: String, subtitle: String, thumbnail: String?) {
+            if (browseId?.startsWith("MPSP") != true || title.isBlank()) return
+            shows.putIfAbsent(browseId, PodcastProviderShow(browseId, title, subtitle, thumbnail))
+        }
+
+        collectRenderers(root, "musicTwoRowItemRenderer").forEach { renderer ->
+            val item = parseTwoRowItem(renderer) ?: return@forEach
+            add(item.browseId, item.title, item.subtitle, item.thumbnailUrl)
+        }
+        collectRenderers(root, "musicResponsiveListItemRenderer").forEach { renderer ->
+            val item = parseBrowseItem(renderer) ?: return@forEach
+            add(item.browseId, item.title, item.subtitle, item.thumbnailUrl)
+        }
+        collectRenderers(root, "musicCardShelfRenderer").forEach { renderer ->
+            val item = parseCardShelfBrowse(renderer) ?: return@forEach
+            add(item.browseId, item.title, item.subtitle, item.thumbnailUrl)
+        }
+        return shows.values.toList()
+    }
+
+    data class PodcastEpisodePage(val episodes: List<ShelfItem>, val continuation: String?)
+
+    /** Read only episode rows from a real MPSP podcast page, never suggestions or generic tracks. */
+    fun parsePodcastEpisodePage(root: JsonElement): PodcastEpisodePage {
+        val episodes = LinkedHashMap<String, ShelfItem>()
+        collectRenderers(root, "musicResponsiveListItemRenderer").forEach { renderer ->
+            val columns = renderer.a("flexColumns").orEmpty()
+            val titleColumn = columns.getOrNull(0).o("musicResponsiveListItemFlexColumnRenderer").o("text")
+            val title = titleColumn.runs()
+            if (title.isBlank()) return@forEach
+
+            val overlayPlay = renderer.o("overlay").o("musicItemThumbnailOverlayRenderer")
+                .o("content").o("musicPlayButtonRenderer").o("playNavigationEndpoint")
+            val onTap = renderer.o("onTap").o("watchEndpoint")
+            val videoId = renderer.o("playlistItemData").s("videoId")
+                ?: overlayPlay.o("watchEndpoint").s("videoId")
+                ?: onTap.s("videoId")
+                ?: return@forEach
+            val videoType = overlayPlay.o("watchEndpoint")
+                .o("watchEndpointMusicSupportedConfigs").o("watchEndpointMusicConfig").s("musicVideoType")
+                ?: onTap.o("watchEndpointMusicSupportedConfigs").o("watchEndpointMusicConfig").s("musicVideoType")
+            val browseId = titleColumn.a("runs")?.firstNotNullOfOrNull { run ->
+                run.o("navigationEndpoint").o("browseEndpoint").s("browseId")
+            }
+            // MPED is YouTube Music's non-music-audio episode page namespace.
+            // A music-video-type marker is also accepted when the title run
+            // does not expose its browse endpoint in this renderer variant.
+            if (videoType != "MUSIC_VIDEO_TYPE_PODCAST_EPISODE" && browseId?.startsWith("MPED") != true) {
+                return@forEach
+            }
+            val subtitle = columns.getOrNull(1)
+                .o("musicResponsiveListItemFlexColumnRenderer").o("text").runs()
+            val duration = renderer.o("playbackProgress").o("musicPlaybackProgressRenderer")
+                .o("durationText").a("runs")?.getOrNull(1).s("text")
+                ?: renderer.a("fixedColumns").orEmpty().firstNotNullOfOrNull { column ->
+                    column.o("musicResponsiveListItemFixedColumnRenderer").o("text").runs()
+                }
+            val metadata = listOf(subtitle, duration.orEmpty()).filter(String::isNotBlank).joinToString(" · ")
+            val thumbnail = renderer.o("thumbnail").o("musicThumbnailRenderer")
+                .o("thumbnail").a("thumbnails").best()
+            val episodeBrowseId = browseId?.takeIf { it.startsWith("MPED") } ?: "MPED$videoId"
+            episodes.putIfAbsent(videoId, ShelfItem(title, metadata, thumbnail, videoId, episodeBrowseId))
+        }
+        return PodcastEpisodePage(episodes.values.toList(), continuationToken(root))
     }
 
     /**

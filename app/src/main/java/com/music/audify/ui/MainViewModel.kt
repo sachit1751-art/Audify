@@ -3050,6 +3050,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             browseId.startsWith(LocalGroups.PREFIX) -> LocalGroups.typeOf(browseId) ?: fallback
             browseId.startsWith("UC") -> BrowseType.ARTIST
             browseId.startsWith("MPREb") || browseId.startsWith("VLOLAK") || browseId.startsWith("OLAK") -> BrowseType.ALBUM
+            browseId.startsWith("MPSP") -> BrowseType.PLAYLIST
             browseId.startsWith("VL") || browseId.startsWith("PL") -> BrowseType.PLAYLIST
             else -> fallback
         }
@@ -3199,6 +3200,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             } else {
                                 UiState.Success(filterExplicitSongs(page.songs).withArtwork(thumbnailUrl ?: artwork))
                             }
+                        },
+                        onFailure = { UiState.Error(it.friendly()) },
+                    )
+                }
+                browseId.startsWith("MPSP") -> {
+                    // Podcast shows use their own MPSP browse endpoint and
+                    // podcast-episode rows. The generic playlist parser treats
+                    // this two-column page as empty.
+                    YtMusicRepository.podcastEpisodes(browseId).fold(
+                        onSuccess = { episodes ->
+                            val podcastSongs = episodes.mapNotNull { episode ->
+                                val videoId = episode.videoId ?: return@mapNotNull null
+                                Song(videoId, episode.title, episode.subtitle, episode.thumbnailUrl)
+                            }
+                            if (podcastSongs.isEmpty()) UiState.Error(text(R.string.no_tracks_here))
+                            else UiState.Success(podcastSongs.withArtwork(thumbnailUrl ?: artwork))
                         },
                         onFailure = { UiState.Error(it.friendly()) },
                     )

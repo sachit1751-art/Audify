@@ -33,6 +33,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.util.Locale
@@ -983,38 +985,94 @@ object YtMusicRepository {
     suspend fun libraryPodcastShows(): Result<List<PodcastProviderShow>> = call("podcasts:library") {
         libraryItemsPaged(LIBRARY_PODCASTS)
             .mapNotNull { item ->
-                val id = item.browseId?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+                // Only provider podcast pages use MPSP. A normal playlist saved
+                // by a user is not silently promoted into a podcast show.
+                val id = item.browseId?.takeIf { it.startsWith("MPSP") } ?: return@mapNotNull null
                 PodcastProviderShow(id, item.title, item.subtitle, item.thumbnailUrl)
             }
             .distinctBy(PodcastProviderShow::browseId)
     }
 
-    /** Curated discovery shelves backed by live YouTube Music playlist search results. */
+    /**
+     * Public podcast discovery. Search is explicitly anonymous, so browsing
+     * genuine public podcast pages does not require Premium or a signed-in
+     * YouTube Music session. Results are accepted only when YouTube Music
+     * returns its MPSP podcast-show browse namespace; ordinary playlists are
+     * never relabelled as podcasts.
+     */
     suspend fun podcastDiscoveryCategories(): Result<List<PodcastDiscoveryCategory>> = call("podcasts:discover") {
         val categories = listOf(
-            "Trending podcasts" to "trending podcasts",
+            "Popular podcasts" to "podcasts",
             "News podcasts" to "news podcasts",
             "Comedy podcasts" to "comedy podcasts",
-            "True crime podcasts" to "true crime podcasts",
-            "Science & technology podcasts" to "science technology podcasts",
-            "Education podcasts" to "educational podcasts",
+            "Science & technology podcasts" to "science and technology podcasts",
+            "Education podcasts" to "education podcasts",
+            "History podcasts" to "history podcasts",
         )
-        categories.mapNotNull { (title, query) ->
-            val rows = InnertubeParser.parseSearchPage(
-                Innertube.search(query, SearchFilter.PLAYLISTS.params),
-            ).rows.mapNotNull { result ->
-                val item = (result as? SearchResult.Browse)?.item ?: return@mapNotNull null
-                if (item.type != BrowseType.PLAYLIST) return@mapNotNull null
-                PodcastProviderShow(item.browseId, item.title, item.subtitle, item.thumbnailUrl)
-            }.distinctBy(PodcastProviderShow::browseId).take(12)
-            rows.takeIf(List<PodcastProviderShow>::isNotEmpty)?.let { PodcastDiscoveryCategory(title, it) }
+        coroutineScope {
+            val permits = Semaphore(3)
+            categories.map { (title, query) ->
+                async {
+                    permits.withPermit {
+                        try {
+                            val rows = InnertubeParser.parsePodcastSearchShows(
+                                Innertube.search(query, anonymous = true),
+                            ).distinctBy(PodcastProviderShow::browseId).take(12)
+                            Result.success(rows.takeIf(List<PodcastProviderShow>::isNotEmpty)
+                                ?.let { listOf(PodcastDiscoveryCategory(title, it)) } ?: emptyList())
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (failure: Exception) {
+                            Result.failure(failure)
+                        }
+                    }
+                }
+            }.awaitAll().let(::combineHomeFallbackCategoryResults).getOrThrow()
         }
     }
-    /** Episode rows for a provider podcast show, following the feed's opaque continuation tokens. */
-    suspend fun podcastEpisodes(browseId: String): Result<List<ShelfItem>> = call("podcasts:episodes:$browseId") {
-        require(browseId.isNotBlank()) { "Podcast browse id is required" }
-        itemsPaged(browseId)
+    /** Public, anonymous search for verified YouTube Music podcast-show entities. */
+    suspend fun searchPodcastShows(query: String): Result<List<PodcastProviderShow>> =
+        call("podcasts:search") {
+            require(query.isNotBlank()) { "Enter a podcast name or topic" }
+            InnertubeParser.parsePodcastSearchShows(Innertube.search(query.trim(), anonymous = true))
+                .distinctBy(PodcastProviderShow::browseId)
+                .take(30)
+        }
+    /** Episode rows for a provider podcast show, following its own episode continuation. */
+    suspend fun podcastEpisodes(
+        browseId: String,
+        limit: Int = Int.MAX_VALUE,
+    ): Result<List<ShelfItem>> = call("podcasts:episodes:$browseId") {
+        require(browseId.startsWith("MPSP")) { "This is not a verified YouTube Music podcast show" }
+        require(limit > 0) { "Episode limit must be positive" }
+        val out = LinkedHashMap<String, ShelfItem>()
+        var response = Innertube.browse(browseId)
+        var page = 1
+        while (true) {
+            val parsed = InnertubeParser.parsePodcastEpisodePage(response)
+            parsed.episodes.forEach { episode ->
+                if (out.size >= limit) return@forEach
+                val id = episode.videoId ?: return@forEach
+                out.putIfAbsent(id, episode)
+            }
+            if (out.size >= limit) break
+            val token = parsed.continuation ?: break
+            if (page++ >= MAX_PAGES) break
+            response = Innertube.browseContinuation(token)
+        }
+        out.values.toList()
     }
+
+    /** Add/remove a genuine YouTube Music podcast show from the account library. Premium is not required. */
+    suspend fun setPodcastShowSaved(browseId: String, saved: Boolean): Result<Unit> =
+        call("podcasts:save:$browseId") {
+            require(browseId.startsWith("MPSP") && browseId.length > 4) {
+                "This is not a verified YouTube Music podcast show"
+            }
+            // MPSP is the podcast browse namespace; ratePlaylist expects the
+            // underlying playlist id, as documented by YouTube Music clients.
+            Innertube.ratePlaylist(browseId.removePrefix("MPSP"), saved)
+        }
     /** Saved albums only, for compact external browse clients such as Android Auto. */
     suspend fun libraryAlbums(): Result<List<ShelfItem>> = call("libraryAlbums") {
         libraryItemsPaged(LIBRARY_ALBUMS)

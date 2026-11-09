@@ -94,7 +94,7 @@ fun TvHomeScreen(
                     add(ShelfItem(show.title, show.subtitle.ifBlank { "Saved show" }, show.thumbnailUrl, null, show.browseId))
                 }
                 podcastCategories.flatMap { it.shows }.forEach { show ->
-                    add(ShelfItem(show.title, "Playlist search result", show.thumbnailUrl, null, show.browseId))
+                    add(ShelfItem(show.title, "YouTube Music podcast", show.thumbnailUrl, null, show.browseId))
                 }
             }.distinctBy { it.browseId }.take(12)
             // Keep the shelf and See all entry point even when discovery and the
@@ -102,7 +102,7 @@ fun TvHomeScreen(
             // dedicated page becomes unreachable precisely in the empty/error case.
             val podcastShelf = HomeShelf(
                 title = "Podcasts",
-                subtitle = "Saved shows and YouTube Music playlist results",
+                subtitle = "Saved shows and public YouTube Music podcasts",
                 items = podcastShelfItems,
             )
             TvShelfFeed(
@@ -328,6 +328,7 @@ internal fun ShelfItem.toSong(): Song? = videoId?.let {
 internal fun browseTypeOf(browseId: String): BrowseType = when {
     browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist") -> BrowseType.ARTIST
     browseId.startsWith("MPRE") || browseId.startsWith("FEmusic_album") -> BrowseType.ALBUM
+    browseId.startsWith("MPSP") -> BrowseType.PLAYLIST
     browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD") || browseId == "LM" -> BrowseType.PLAYLIST
     else -> BrowseType.OTHER
 }

@@ -11,7 +11,7 @@ class PodcastPlayRequestTest {
     }
 
     @Test fun roundTripsYouTubeMusicDiscoveryEpisodeRequests() {
-        val request = PodcastPlayRequest("ytm:FEpodcast_show_123", "videoId_abc123")
+        val request = PodcastPlayRequest("ytm:MPSPshow_123", "videoId_abc123")
         assertEquals(request, PodcastPlayRequest.decode(request.encode()))
     }
 

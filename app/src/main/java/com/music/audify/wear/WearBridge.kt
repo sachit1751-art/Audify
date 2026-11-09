@@ -71,6 +71,9 @@ import com.music.audify.playback.cast.CastSink
 import com.music.audify.playback.cast.RemoteSpeaker
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,6 +87,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -242,13 +247,14 @@ object WearBridge {
         put(app, request)
     }
 
-    /** Sends a bounded, phone-owned RSS/Atom catalogue snapshot to the watch. */
+    /** Sends a bounded phone-owned catalogue of RSS/Atom subscriptions and saved YouTube Music shows. */
     internal fun publishPodcasts(context: Context) {
         val app = context.applicationContext
         scope.launch {
-            // Only subscribed RSS / Atom feeds are verified podcast shows.
             val request = PutDataMapRequest.create(P.PATH_PODCASTS)
             val rows = ArrayList<DataMap>()
+            // Audify RSS/Atom subscriptions remain independent from the
+            // YouTube Music account library and are always included first.
             PodcastRepository.subscribedShows().take(20).forEach { show ->
                 val episodes = ArrayList<DataMap>()
                 PodcastRepository.episodes(show.id).take(12).forEach { episode ->
@@ -270,6 +276,44 @@ object WearBridge {
                     putDataMapArrayList(P.KEY_PODCAST_EPISODES, episodes)
                 }
             }
+
+            // Saved YouTube Music podcast shows are available on free accounts
+            // too. The phone fetches public show episodes and sends only their
+            // stable video ids/metadata; the watch asks the phone to play them.
+            val savedYtmShows = YtMusicRepository.libraryPodcastShows()
+                .getOrDefault(emptyList()).take(10)
+            val permits = Semaphore(3)
+            val ytmRows = coroutineScope {
+                savedYtmShows.map { show ->
+                    async {
+                        permits.withPermit {
+                            val feedId = "ytm:${show.browseId}"
+                            val episodes = YtMusicRepository.podcastEpisodes(show.browseId, limit = 10)
+                                .getOrDefault(emptyList())
+                            val episodeRows = ArrayList<DataMap>()
+                            episodes.forEach { episode ->
+                                val videoId = episode.videoId ?: return@forEach
+                                episodeRows += DataMap().apply {
+                                    putString(P.KEY_PODCAST_EPISODE_ID, videoId)
+                                    putString(P.KEY_PODCAST_EPISODE_TITLE, episode.title)
+                                    putString(P.KEY_PODCAST_PUBLISHED, episode.subtitle)
+                                    putLong(P.KEY_PODCAST_DURATION_MS, 0L)
+                                    putLong(P.KEY_PODCAST_POSITION_MS, 0L)
+                                    putBoolean(P.KEY_PODCAST_COMPLETED, false)
+                                }
+                            }
+                            DataMap().apply {
+                                putString(P.KEY_PODCAST_FEED_ID, feedId)
+                                putString(P.KEY_PODCAST_SHOW_TITLE, show.title)
+                                putString(P.KEY_PODCAST_DESCRIPTION, show.subtitle)
+                                putString(P.KEY_PODCAST_CATEGORY, "YouTube Music saved shows")
+                                putDataMapArrayList(P.KEY_PODCAST_EPISODES, episodeRows)
+                            }
+                        }
+                    }
+                }.awaitAll()
+            }
+            rows.addAll(ytmRows)
             request.dataMap.apply {
                 putDataMapArrayList(P.KEY_PODCAST_SHOWS, rows)
                 putLong(P.KEY_POSITION_AT, System.currentTimeMillis())
@@ -716,7 +760,7 @@ class WearCommandService : WearableListenerService() {
     private fun execute(controller: MediaController, command: String, arg: String) {
         if (command == P.CMD_PODCAST_PLAY) {
             val request = PodcastPlayRequest.decode(arg) ?: return
-if (request.feedId.startsWith("ytm:")) {
+            if (request.feedId.startsWith("ytm:")) {
                 val song = runBlocking { YtMusicRepository.trackLinks(request.episodeId).getOrNull() } ?: return
                 controller.setMediaItems(listOf(song.toMediaItem()), true)
                 controller.prepare()
