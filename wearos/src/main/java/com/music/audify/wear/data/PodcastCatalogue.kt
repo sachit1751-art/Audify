@@ -36,3 +36,7 @@ internal fun podcastCatalogueState(
     phoneDisconnected -> PodcastCatalogueState.OFFLINE_EMPTY
     else -> PodcastCatalogueState.LOADING
 }
+
+/** A late cached Data Layer read must never replace a newer live snapshot. */
+internal fun shouldApplyPodcastSnapshot(incomingAt: Long, currentAt: Long): Boolean =
+    incomingAt >= currentAt

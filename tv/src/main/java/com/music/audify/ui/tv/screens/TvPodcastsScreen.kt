@@ -45,8 +45,8 @@ fun TvPodcastsScreen(
     var savedLoading by remember { mutableStateOf(true) }
     var refreshKey by remember { mutableStateOf(0) }
     LaunchedEffect(refreshKey) {
-        categories = null
-        savedShows = null
+        // Keep the last successful catalogue visible while refreshing. A
+        // transient failure must not turn a populated page into an empty one.
         discoveryError = null
         savedError = null
         savedLoading = true
@@ -54,13 +54,13 @@ fun TvPodcastsScreen(
         coroutineScope {
             launch {
                 val saved = YtMusicRepository.libraryPodcastShows()
-                savedShows = saved.getOrNull()
+                savedShows = retainLastSuccessful(savedShows, saved)
                 savedError = saved.exceptionOrNull()?.message
                 savedLoading = false
             }
             launch {
                 val discovery = YtMusicRepository.podcastDiscoveryCategories()
-                categories = discovery.getOrNull()
+                categories = retainLastSuccessful(categories, discovery)
                 discoveryError = discovery.exceptionOrNull()?.message
                 discoveryLoading = false
             }
@@ -125,3 +125,7 @@ fun TvPodcastsScreen(
         )
     }
 }
+
+/** Keep the last known-good provider snapshot when a refresh fails. */
+internal fun <T> retainLastSuccessful(current: T?, result: Result<T>): T? =
+    result.getOrNull() ?: current

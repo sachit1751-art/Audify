@@ -94,6 +94,7 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     private var artId: String? = null
     private var artJob: Job? = null
     private var started = false
+    private var podcastSnapshotAt = 0L
 
     private class Hold<T>(val value: T, val until: Long)
 
@@ -248,10 +249,14 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     override fun onDataChanged(events: DataEventBuffer) {
         // Copied out before returning: the buffer is released after this call.
-        val changes = events.mapNotNull { event ->
-            if (event.type != DataEvent.TYPE_CHANGED) return@mapNotNull null
-            val item = event.dataItem
-            Triple(item.uri.path, item.uri.host, DataMapItem.fromDataItem(item).dataMap)
+        val changes = try {
+            events.mapNotNull { event ->
+                if (event.type != DataEvent.TYPE_CHANGED) return@mapNotNull null
+                val item = event.dataItem
+                Triple(item.uri.path, item.uri.host, DataMapItem.fromDataItem(item).dataMap)
+            }
+        } finally {
+            events.release()
         }
         changes.forEach { (path, host, map) ->
             // Fresh state is proof of a live phone, and says which node it is.
@@ -289,6 +294,9 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     }
 
     private fun applyPodcasts(map: DataMap) {
+        val snapshotAt = map.getLong(P.KEY_POSITION_AT)
+        if (!shouldApplyPodcastSnapshot(snapshotAt, podcastSnapshotAt)) return
+        podcastSnapshotAt = snapshotAt
         _podcasts.value = map.getDataMapArrayList(P.KEY_PODCAST_SHOWS).orEmpty().map { show ->
             val feedId = show.getString(P.KEY_PODCAST_FEED_ID).orEmpty()
             PodcastShowRow(

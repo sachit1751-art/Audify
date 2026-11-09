@@ -49,6 +49,7 @@ import com.music.audify.ui.tv.components.TvShelfPlaceholder
 import com.music.audify.ui.tv.dialogs.TvSongMenu
 import com.music.audify.ui.tv.theme.TvDimensions
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -68,8 +69,16 @@ fun TvHomeScreen(
     var podcastCategories by remember { mutableStateOf<List<PodcastDiscoveryCategory>>(emptyList()) }
     var savedPodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
     LaunchedEffect(Unit) {
-        YtMusicRepository.libraryPodcastShows().onSuccess { savedPodcastShows = it }
-        YtMusicRepository.podcastDiscoveryCategories().onSuccess { podcastCategories = it }
+        // These are independent provider requests. Do not make discovery wait
+        // behind the saved-library request (or vice versa) on the Home shelf.
+        coroutineScope {
+            launch {
+                YtMusicRepository.libraryPodcastShows().onSuccess { savedPodcastShows = it }
+            }
+            launch {
+                YtMusicRepository.podcastDiscoveryCategories().onSuccess { podcastCategories = it }
+            }
+        }
     }
 
     when (val state = homeState) {

@@ -29,11 +29,13 @@ class TvSettingsPinTest {
 
         val rawStored = fakePrefs.getString("tv_profile_pin_$profileId", null)
         assertTrue("Stored value should not be null", rawStored != null)
-        // Ensure plaintext PIN is never stored directly
-        assertFalse("Raw PIN must not appear in stored preference", rawStored!!.contains(plainPin))
+        val stored = requireNotNull(rawStored)
+        // A random salt/hash can coincidentally contain the PIN as a substring;
+        // only reject storing the exact plaintext value.
+        assertNotEquals("Raw PIN must not be stored verbatim", plainPin, stored)
         // Verify format pbkdf2_sha256:<iterations>:<saltHex>:<hashHex>
-        assertTrue("Stored value must start with pbkdf2_sha256 prefix", rawStored.startsWith("pbkdf2_sha256:"))
-        val parts = rawStored.split(':')
+        assertTrue("Stored value must start with pbkdf2_sha256 prefix", stored.startsWith("pbkdf2_sha256:"))
+        val parts = stored.split(':')
         assertEquals("Stored hash should have 4 colon-separated parts", 4, parts.size)
         assertEquals("Algorithm prefix", "pbkdf2_sha256", parts[0])
         assertEquals("Iterations", "120000", parts[1])
@@ -126,7 +128,7 @@ class TvSettingsPinTest {
 
         val upgraded = fakePrefs.getString("tv_profile_pin_$profileId", null)!!
         assertTrue("Legacy PIN must be migrated to PBKDF2 hash", upgraded.startsWith("pbkdf2_sha256:"))
-        assertFalse("Plaintext must no longer be present", upgraded.contains(plainPin))
+        assertNotEquals("Migrated PIN must not be stored verbatim", plainPin, upgraded)
 
         // Subsequent verification works with the newly upgraded hash
         assertTrue(TvSettings.verifyProfilePin(profileId, plainPin))

@@ -24,4 +24,19 @@ class PodcastCatalogueStateTest {
         val show = PodcastShowRow("feed", "Show", "", episodes = emptyList())
         assertEquals(PodcastCatalogueState.CONTENT, podcastCatalogueState(listOf(show), phoneDisconnected = true))
     }
+
+    @Test
+    fun lateCachedSnapshotCannotReplaceNewerLiveCatalogue() {
+        assertEquals(false, shouldApplyPodcastSnapshot(incomingAt = 100L, currentAt = 200L))
+    }
+
+    @Test
+    fun newerLiveSnapshotReplacesCachedCatalogue() {
+        assertEquals(true, shouldApplyPodcastSnapshot(incomingAt = 201L, currentAt = 200L))
+    }
+
+    @Test
+    fun equalTimestampSnapshotCanBeReapplied() {
+        assertEquals(true, shouldApplyPodcastSnapshot(incomingAt = 200L, currentAt = 200L))
+    }
 }
