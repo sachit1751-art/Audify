@@ -56,8 +56,8 @@ jobs:
 
       - run: chmod +x gradlew
 
-      - name: Android and shared tests
-        run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
+      - name: Android, TV, Wear OS and shared tests
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :tv:testProdDebugUnitTest :wearos:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
 
       - name: Android lint
         run: ./gradlew --no-daemon --max-workers=2 :app:lintDevDebug
