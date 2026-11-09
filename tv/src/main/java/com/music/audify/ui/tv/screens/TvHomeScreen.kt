@@ -211,7 +211,7 @@ internal fun TvShelfFeed(
             val onItem: (ShelfItem) -> Unit = { item ->
                 val browseId = item.browseId
                 if (item.videoId == null && browseId != null && shelf.isPodcastShelf()) {
-                    onNavigateToDetail(browseId, item.title, item.subtitle, item.thumbnailUrl, BrowseType.PLAYLIST)
+                    onNavigateToDetail(browseId, item.title, item.subtitle, item.thumbnailUrl, BrowseType.PODCAST)
                 } else {
                     openShelfItem(item, onPlaySong, onNavigateToDetail)
                 }
@@ -328,7 +328,7 @@ internal fun ShelfItem.toSong(): Song? = videoId?.let {
 internal fun browseTypeOf(browseId: String): BrowseType = when {
     browseId.startsWith("UC") || browseId.startsWith("FEmusic_artist") -> BrowseType.ARTIST
     browseId.startsWith("MPRE") || browseId.startsWith("FEmusic_album") -> BrowseType.ALBUM
-    browseId.startsWith("MPSP") -> BrowseType.PLAYLIST
+    browseId.startsWith("MPSP") -> BrowseType.PODCAST
     browseId.startsWith("VL") || browseId.startsWith("PL") || browseId.startsWith("RD") || browseId == "LM" -> BrowseType.PLAYLIST
     else -> BrowseType.OTHER
 }

@@ -428,6 +428,7 @@ private fun searchSections(rows: List<SearchResult>, filter: SearchFilter): List
         SearchSection("Artists", rows.filterIsInstance<SearchResult.Browse>().filter { it.item.type == BrowseType.ARTIST }),
         SearchSection("Albums", rows.filterIsInstance<SearchResult.Browse>().filter { it.item.type == BrowseType.ALBUM }),
         SearchSection("Playlists", rows.filterIsInstance<SearchResult.Browse>().filter { it.item.type == BrowseType.PLAYLIST }),
+        SearchSection("Podcasts", rows.filterIsInstance<SearchResult.Browse>().filter { it.item.type == BrowseType.PODCAST }),
         SearchSection("More", rows.filterIsInstance<SearchResult.Browse>().filter { it.item.type == BrowseType.OTHER }),
     ).filter { it.rows.isNotEmpty() }
 }

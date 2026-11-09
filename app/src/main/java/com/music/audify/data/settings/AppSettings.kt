@@ -435,6 +435,9 @@ object AppSettings {
     /** Blurs unfocused lyric lines, keeping the active line sharp. */
     val lyricsBlur = MutableStateFlow(true)
 
+    /** Word-level MOTION renderer: glyph rise, swell, LiquidFlow sweep and glow. */
+    val liquidFlow = MutableStateFlow(true)
+
     /** Positive values delay synced lyrics; negative values bring them forward. */
     val lyricsOffsetMs = MutableStateFlow(0)
 
@@ -927,6 +930,7 @@ object AppSettings {
         progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, true)
         liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, false)
         lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
+        liquidFlow.value = prefs.getBoolean(KEY_LIQUID_FLOW, true)
         lyricsOffsetMs.value = prefs.getInt(KEY_LYRICS_OFFSET_MS, 0)
             .coerceIn(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
         translationLanguage.value = prefs.getString(KEY_TRANSLATION_LANGUAGE, "").orEmpty()
@@ -1411,6 +1415,11 @@ object AppSettings {
     fun setLyricsBlur(value: Boolean) {
         lyricsBlur.value = value
         prefs.edit { putBoolean(KEY_LYRICS_BLUR, value) }
+    }
+
+    fun setLiquidFlow(value: Boolean) {
+        liquidFlow.value = value
+        prefs.edit { putBoolean(KEY_LIQUID_FLOW, value) }
     }
 
     fun setLyricsOffsetMs(value: Int) {
@@ -2161,6 +2170,7 @@ object AppSettings {
     private const val KEY_PROGRESSIVE_SCROLL_EDGE_BLUR = "progressive_scroll_edge_blur"
     private const val KEY_LIQUID_GLASS = "liquid_glass"
     private const val KEY_LYRICS_BLUR = "lyrics_blur"
+    private const val KEY_LIQUID_FLOW = "lyrics_liquid_flow"
     private const val KEY_LYRICS_OFFSET_MS = "lyrics_offset_ms"
     private const val KEY_TRANSLATION_LANGUAGE = "translation_language"
     private const val KEY_ANIMATED_CANVAS = "animated_canvas"

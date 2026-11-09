@@ -21,6 +21,7 @@ import com.music.audify.data.model.playlistMoves
 import com.music.audify.data.model.PlaylistPrivacy
 import com.music.audify.data.model.PodcastProviderShow
 import com.music.audify.data.model.PodcastDiscoveryCategory
+import com.music.audify.data.model.PodcastProviderPage
 import com.music.audify.data.model.SearchFilter
 import com.music.audify.data.model.SearchResult
 import com.music.audify.data.model.ShelfItem
@@ -1062,6 +1063,31 @@ object YtMusicRepository {
         }
         out.values.toList()
     }
+
+    /** Fetch the provider show header, description and episode pages as one operation. */
+    suspend fun podcastPage(show: PodcastProviderShow, limit: Int = 40): Result<PodcastProviderPage> =
+        call("podcasts:page:${show.browseId}") {
+            require(show.browseId.startsWith("MPSP")) { "This is not a verified YouTube Music podcast show" }
+            require(limit > 0) { "Episode limit must be positive" }
+            val firstResponse = Innertube.browse(show.browseId)
+            val (details, description) = InnertubeParser.parsePodcastShowDetails(firstResponse, show)
+            val out = LinkedHashMap<String, ShelfItem>()
+            var response = firstResponse
+            var page = 1
+            while (true) {
+                val parsed = InnertubeParser.parsePodcastEpisodePage(response)
+                parsed.episodes.forEach { episode ->
+                    if (out.size >= limit) return@forEach
+                    val id = episode.videoId ?: return@forEach
+                    out.putIfAbsent(id, episode)
+                }
+                if (out.size >= limit) break
+                val token = parsed.continuation ?: break
+                if (page++ >= MAX_PAGES) break
+                response = Innertube.browseContinuation(token)
+            }
+            PodcastProviderPage(details, description, out.values.toList())
+        }
 
     /** Add/remove a genuine YouTube Music podcast show from the account library. Premium is not required. */
     suspend fun setPodcastShowSaved(browseId: String, saved: Boolean): Result<Unit> =

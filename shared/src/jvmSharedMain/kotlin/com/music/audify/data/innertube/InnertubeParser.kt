@@ -188,6 +188,7 @@ object InnertubeParser {
                 "ALBUM" in pageType -> BrowseType.ALBUM
                 "ARTIST" in pageType -> BrowseType.ARTIST
                 "PLAYLIST" in pageType -> BrowseType.PLAYLIST
+                "PODCAST" in pageType -> BrowseType.PODCAST
                 else -> BrowseType.OTHER
             },
             isExplicit = renderer.hasExplicitBadge(),
@@ -594,7 +595,8 @@ object InnertubeParser {
         val shows = LinkedHashMap<String, PodcastProviderShow>()
         fun add(browseId: String?, title: String, subtitle: String, thumbnail: String?) {
             if (browseId?.startsWith("MPSP") != true || title.isBlank()) return
-            shows.putIfAbsent(browseId, PodcastProviderShow(browseId, title, subtitle, thumbnail))
+            val cleanTitle = title.replace(Regex("\\s*[|·]\\s*Podcast$", RegexOption.IGNORE_CASE), "").trim()
+            shows.putIfAbsent(browseId, PodcastProviderShow(browseId, cleanTitle, subtitle, thumbnail))
         }
 
         collectRenderers(root, "musicTwoRowItemRenderer").forEach { renderer ->
@@ -656,6 +658,19 @@ object InnertubeParser {
             episodes.putIfAbsent(videoId, ShelfItem(title, metadata, thumbnail, videoId, episodeBrowseId))
         }
         return PodcastEpisodePage(episodes.values.toList(), continuationToken(root))
+    }
+
+    /** Show metadata belongs to the show's own MPSP page, not a search card. */
+    fun parsePodcastShowDetails(root: JsonElement, fallback: PodcastProviderShow): Pair<PodcastProviderShow, String?> {
+        val header = parseBrowseHeader(root)
+        val show = fallback.copy(
+            title = header?.title?.takeIf(String::isNotBlank)
+                ?.replace(Regex("\\s*[|·]\\s*Podcast$", RegexOption.IGNORE_CASE), "")?.trim()
+                ?: fallback.title,
+            subtitle = header?.subtitle?.takeIf(String::isNotBlank) ?: fallback.subtitle,
+            thumbnailUrl = header?.thumbnailUrl ?: fallback.thumbnailUrl,
+        )
+        return show to parseDescription(root)
     }
 
     /**
@@ -875,6 +890,7 @@ object InnertubeParser {
                 "ALBUM" in pageType -> BrowseType.ALBUM
                 "ARTIST" in pageType -> BrowseType.ARTIST
                 "PLAYLIST" in pageType -> BrowseType.PLAYLIST
+                "PODCAST" in pageType -> BrowseType.PODCAST
                 else -> BrowseType.OTHER
             },
             isExplicit = renderer["subtitleBadges"].hasExplicitBadge(),

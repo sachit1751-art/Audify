@@ -74,6 +74,8 @@ class LocaleStringsTest(private val tag: String) {
             "pipeline_pcm_data_rate",
             "spotify_import_language_preference",
             "spotify_import_language_hint",
+            "liquid_flow",
+            "liquid_flow_subtitle",
         )
 
         private val baseKeys: Set<String> by lazy {

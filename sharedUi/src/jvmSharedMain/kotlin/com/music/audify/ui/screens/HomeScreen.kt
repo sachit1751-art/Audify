@@ -99,6 +99,8 @@ import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.stableShelfComposeKeys
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
+import com.music.audify.data.model.PodcastProviderShow
+import com.music.audify.data.YtMusicRepository
 import java.util.Locale
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -223,6 +225,7 @@ fun HomeScreen(
     profileThumbnailUrl: String? = null,
     onMoodClick: ((String) -> Unit)? = null,
     onListenTogetherClick: (() -> Unit)? = null,
+    onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
     onPlayAllQuickPicks: ((HomeShelf) -> Unit)? = null,
     userName: String? = null,
     greetingMorning: String = "Good morning",
@@ -235,6 +238,17 @@ fun HomeScreen(
     val openAudioOutput = rememberOutputPicker { showAudioOutput = true }
     val featuredItemIds = remember(timeAwareShelf) {
         timeAwareShelf?.items.orEmpty().mapNotNull { it.videoId ?: it.browseId }.toSet()
+    }
+    var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        // Keep the Home shelf lightweight: saved shows load first, then public
+        // discovery fills the row when the library is empty or incomplete.
+        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
+        homePodcastShows = saved
+        YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
+            .flatMap { it.shows }
+            .let { discovered -> (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12) }
+            .also { homePodcastShows = it }
     }
     val isChronologicalHistoryShelf: (HomeShelf) -> Boolean = { shelf ->
         shelf.title.trim().lowercase(Locale.ROOT) in setOf("recents", "recently played")
@@ -336,6 +350,8 @@ fun HomeScreen(
                         isPlaying = isPlaying,
                         onMoodClick = onMoodClick,
                         onListenTogetherClick = onListenTogetherClick,
+                        podcastShows = homePodcastShows,
+                        onPodcastsClick = onPodcastsClick,
                         firstIsHero = leadHero && !recentlyPlayedLoading,
                         recentsViewType = recentsViewType,
                         onRecentsViewTypeToggle = {
@@ -450,11 +466,24 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     isPlaying: Boolean,
     onMoodClick: ((String) -> Unit)?,
     onListenTogetherClick: (() -> Unit)?,
+    podcastShows: List<PodcastProviderShow>,
+    onPodcastsClick: ((PodcastProviderShow?) -> Unit)?,
     firstIsHero: Boolean = true,
     recentsViewType: LibraryViewType,
     onRecentsViewTypeToggle: () -> Unit,
 ) {
-    shelves.forEachIndexed { index, shelf ->
+    val quickPicksIndex = shelves.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
+    val albumsIndex = shelves.indexOfFirst { it.title.contains("Albums", ignoreCase = true) }
+    val orderedShelves = if (quickPicksIndex >= 0 && albumsIndex >= 0 && albumsIndex < quickPicksIndex) {
+        shelves.toMutableList().apply { add(quickPicksIndex, removeAt(albumsIndex)) }
+    } else shelves
+    var podcastShelfInserted = false
+    orderedShelves.forEachIndexed { index, shelf ->
+        if (!podcastShelfInserted && shelf.title.contains("Albums", ignoreCase = true)) {
+            item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
+            item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+            podcastShelfInserted = true
+        }
         item(key = shelf.title + index) {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
             if (index == 0 && shelf.title.equals(RECENTS_TITLE, ignoreCase = true)) {
@@ -491,11 +520,80 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             item(key = "home-listen-together") {
                 ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
             }
+            if (!podcastShelfInserted) {
+                item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+                podcastShelfInserted = true
+            }
         }
     }
-    if (shelves.none { it.title.equals("Quick picks", ignoreCase = true) }) {
-        item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
-        item(key = "home-listen-together") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
+    if (!podcastShelfInserted) {
+        item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
+        item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+    }
+}
+
+@Composable
+private fun HomePodcastsShelf(shows: List<PodcastProviderShow>, onOpen: ((PodcastProviderShow?) -> Unit)?) {
+    Column(Modifier.padding(bottom = 22.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Podcasts", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            if (onOpen != null) {
+                Text("See all", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onOpen(null) })
+            }
+        }
+        ShelfRow(
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            if (shows.isEmpty()) {
+                item(key = "home-podcasts-discover") {
+                    Card(
+                        onClick = { onOpen?.invoke(null) },
+                        modifier = Modifier.width(SHELF_CARD_WIDTH).height(SHELF_CARD_WIDTH),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    ) {
+                        Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center) {
+                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(34.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text("Discover podcasts", style = MaterialTheme.typography.titleSmall)
+                            Text("Browse shows and episodes", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+            items(shows, key = { "home-podcast:${it.browseId}" }) { show ->
+                Column(Modifier.width(SHELF_CARD_WIDTH)) {
+                    Card(
+                        onClick = { onOpen?.invoke(show) },
+                        modifier = Modifier.size(SHELF_CARD_WIDTH),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        if (!show.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = show.thumbnailUrl,
+                                contentDescription = show.title,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(42.dp))
+                            }
+                        }
+                    }
+                    Text(show.title, style = MaterialTheme.typography.titleMedium, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
+                    if (show.subtitle.isNotBlank()) Text(show.subtitle, style = MaterialTheme.typography.bodyMedium, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 

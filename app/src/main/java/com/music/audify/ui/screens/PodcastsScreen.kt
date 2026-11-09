@@ -43,10 +43,17 @@ import com.music.audify.data.model.PodcastProviderShow
 import com.music.audify.data.model.PodcastDiscoveryCategory
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.playback.PodcastEpisodeRef
+import com.music.audify.ui.components.SearchField
+import com.music.audify.ui.components.SHELF_CARD_WIDTH
 import kotlinx.coroutines.launch
 
 @Composable
-fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfItem) -> Unit, modifier: Modifier = Modifier) {
+fun PodcastsScreen(
+    onPlay: (PodcastEpisodeRef) -> Unit,
+    onPlayProvider: (ShelfItem) -> Unit,
+    modifier: Modifier = Modifier,
+    initialProviderShow: PodcastProviderShow? = null,
+) {
     var feedUrl by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
     var shows by remember { mutableStateOf(PodcastRepository.subscribedShows()) }
@@ -61,12 +68,57 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
     var providerSearchBusy by remember { mutableStateOf(false) }
     var selectedProvider by remember { mutableStateOf<PodcastProviderShow?>(null) }
     var providerEpisodes by remember { mutableStateOf<List<ShelfItem>>(emptyList()) }
+    var providerDescription by remember { mutableStateOf<String?>(null) }
+    var providerLoading by remember { mutableStateOf(false) }
+    var providerLoaded by remember { mutableStateOf(false) }
+    var providerLoadError by remember { mutableStateOf<String?>(null) }
+    var discoveryLoading by remember { mutableStateOf(true) }
+    var discoveryError by remember { mutableStateOf<String?>(null) }
+    var libraryLoading by remember { mutableStateOf(true) }
+    var libraryError by remember { mutableStateOf<String?>(null) }
+    var providerSearchError by remember { mutableStateOf<String?>(null) }
+    var rssLoading by remember { mutableStateOf(false) }
+    var rssLoadError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(selected) { episodes = selected?.let(PodcastRepository::episodes).orEmpty() }
+
+    fun openProviderShow(show: PodcastProviderShow) {
+        selectedProvider = show
+        providerEpisodes = emptyList()
+        providerDescription = null
+        providerLoadError = null
+        providerLoaded = false
+        providerLoading = true
+        scope.launch {
+            YtMusicRepository.podcastPage(show)
+                .onSuccess { page ->
+                    selectedProvider = page.show
+                    providerDescription = page.description
+                    providerEpisodes = page.episodes
+                    providerLoaded = true
+                }
+                .onFailure { providerLoadError = it.message ?: "Could not load this podcast" }
+            providerLoading = false
+        }
+    }
+
+    LaunchedEffect(initialProviderShow?.browseId) {
+        initialProviderShow?.let(::openProviderShow)
+    }
     LaunchedEffect(Unit) {
         kotlinx.coroutines.coroutineScope {
-            launch { YtMusicRepository.libraryPodcastShows().onSuccess { providerShows = it } }
-            launch { YtMusicRepository.podcastDiscoveryCategories().onSuccess { discoveryCategories = it } }
+            launch {
+                YtMusicRepository.libraryPodcastShows()
+                    .onSuccess { providerShows = it }
+                    .onFailure { libraryError = it.message ?: "Could not load your YouTube Music podcast library" }
+                libraryLoading = false
+            }
+            launch {
+                YtMusicRepository.podcastDiscoveryCategories()
+                    .onSuccess { discoveryCategories = it }
+                    .onFailure { discoveryError = it.message ?: "Could not load podcast discovery" }
+                discoveryLoading = false
+            }
         }
     }
 
@@ -79,21 +131,25 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
             Text("Podcasts", style = MaterialTheme.typography.headlineLarge)
             Text("Discover shows and pick up where you left off", style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 3.dp, bottom = 10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it; providerSearchResults = null },
-                    modifier = Modifier.weight(1f), label = { Text("Search podcasts") },
-                    placeholder = { Text("Show or topic") }, singleLine = true)
-                Button(enabled = searchQuery.isNotBlank() && !providerSearchBusy, onClick = {
+            SearchField(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it; providerSearchResults = null },
+                placeholder = "Search podcasts",
+                onSubmit = {
+                    if (searchQuery.isBlank() || providerSearchBusy) return@SearchField
                     providerSearchBusy = true
-                    message = null
+                    providerSearchError = null
                     scope.launch {
                         YtMusicRepository.searchPodcastShows(searchQuery)
                             .onSuccess { providerSearchResults = it }
-                            .onFailure { message = it.message ?: "YouTube Music podcast search failed" }
+                            .onFailure { providerSearchError = it.message ?: "YouTube Music podcast search failed" }
                         providerSearchBusy = false
                     }
-                }) { Text(if (providerSearchBusy) "Searching…" else "Search") }
-            }
+                },
+            )
+            if (providerSearchBusy) Text("Searching…", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            providerSearchError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
             message?.let { Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp)) }
         }
         if (selected == null && selectedProvider == null) {
@@ -115,20 +171,19 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                     LazyRow(contentPadding = PaddingValues(horizontal = 2.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         items(results, key = { "search:${it.browseId}" }) { show ->
                             PodcastArtworkCard(show.title, show.subtitle, show.thumbnailUrl, onClick = {
-                                selectedProvider = show
-                                busy = true
-                                message = null
-                                scope.launch {
-                                    YtMusicRepository.podcastEpisodes(show.browseId)
-                                        .onSuccess { providerEpisodes = it }
-                                        .onFailure { message = it.message ?: "Could not load episodes" }
-                                    busy = false
-                                }
+                                openProviderShow(show)
                             })
                         }
                     }
                 }
             }
+            if (discoveryLoading) item {
+                Text("Loading podcast discovery…", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            discoveryError?.let { error -> item {
+                Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            } }
             discoveryCategories.forEach { category ->
                 val categoryShows = category.shows.filter { searchQuery.isBlank() || it.title.contains(searchQuery, true) || it.subtitle.contains(searchQuery, true) }
                 if (categoryShows.isNotEmpty()) {
@@ -146,13 +201,7 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                                     subtitle = show.subtitle,
                                     artwork = show.thumbnailUrl,
                                     onClick = {
-                                        selectedProvider = show; busy = true; message = null
-                                        scope.launch {
-                                            YtMusicRepository.podcastEpisodes(show.browseId)
-                                                .onSuccess { providerEpisodes = it }
-                                                .onFailure { message = it.message ?: "Could not load episodes" }
-                                            busy = false
-                                        }
+                                        openProviderShow(show)
                                     },
                                 )
                             }
@@ -181,8 +230,13 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                 }
             }
             item { Text("Your YouTube Music shows", style = MaterialTheme.typography.titleLarge) }
-            if (matchingProviderShows.isEmpty()) item {
-                Text("Sign in to YouTube Music to see your saved shows. Public discovery and RSS subscriptions do not require Premium.", style = MaterialTheme.typography.bodySmall)
+            if (libraryLoading) item {
+                Text("Loading your saved shows…", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (libraryError != null) item {
+                Text(libraryError.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            } else if (matchingProviderShows.isEmpty()) item {
+                Text("No saved YouTube Music podcast shows. Public discovery and RSS subscriptions remain available without Premium.", style = MaterialTheme.typography.bodySmall)
             } else item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 2.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(matchingProviderShows, key = { "ytm:" + it.browseId }) { show ->
@@ -191,13 +245,7 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                             subtitle = show.subtitle,
                             artwork = show.thumbnailUrl,
                             onClick = {
-                                selectedProvider = show; busy = true; message = null
-                                scope.launch {
-                                    YtMusicRepository.podcastEpisodes(show.browseId)
-                                        .onSuccess { providerEpisodes = it }
-                                        .onFailure { message = it.message ?: "Could not load episodes" }
-                                    busy = false
-                                }
+                                openProviderShow(show)
                             },
                         )
                     }
@@ -253,21 +301,34 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
         } else if (selectedProvider != null) {
             item {
                 Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = { selectedProvider = null; providerEpisodes = emptyList() }) { Text("Back to podcasts") }
                     TextButton(onClick = {
-                        val id = selectedProvider?.browseId ?: return@TextButton
-                        busy = true
-                        scope.launch {
-                            YtMusicRepository.podcastEpisodes(id)
-                                .onSuccess { providerEpisodes = it }
-                                .onFailure { message = it.message ?: "Could not load episodes" }
-                            busy = false
-                        }
-                    }) { Text(if (busy) "Loading..." else "Reload") }
+                        selectedProvider = null
+                        providerEpisodes = emptyList()
+                        providerDescription = null
+                        providerLoadError = null
+                        providerLoaded = false
+                    }) { Text("Back to podcasts") }
+                    TextButton(onClick = {
+                        selectedProvider?.let(::openProviderShow)
+                    }, enabled = !providerLoading) { Text(if (providerLoading) "Loading…" else "Reload") }
                 }
-                Text(selectedProvider?.title.orEmpty(), style = MaterialTheme.typography.headlineSmall)
-                Text("YouTube Music episodes", style = MaterialTheme.typography.titleLarge)
                 val providerShow = selectedProvider
+                if (!providerShow?.thumbnailUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = providerShow?.thumbnailUrl,
+                        contentDescription = providerShow?.title,
+                        modifier = Modifier.size(196.dp).clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                Text(providerShow?.title.orEmpty(), style = MaterialTheme.typography.headlineLarge)
+                if (!providerShow?.subtitle.isNullOrBlank()) {
+                    Text(providerShow?.subtitle.orEmpty(), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                providerDescription?.takeIf(String::isNotBlank)?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                }
                 val isSaved = providerShow != null && providerShows.any { it.browseId == providerShow.browseId }
                 TextButton(enabled = providerShow != null && !busy, onClick = {
                     val show = providerShow ?: return@TextButton
@@ -288,17 +349,27 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                     }
                 }) { Text(if (isSaved) "Remove from YouTube Music library" else "Save to YouTube Music library") }
                 Text("Saving requires a signed-in YouTube Music account, not Premium.", style = MaterialTheme.typography.bodySmall)
-                message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            }
-            if (providerEpisodes.isEmpty()) item {
-                Text(if (busy) "Loading podcast episodes…" else "No podcast episodes were returned for this show.")
+                providerLoadError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                if (providerLoading) Text("Loading show and episodes…", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (providerLoaded && providerEpisodes.isEmpty()) Text("This show currently has no playable episodes.",
+                    style = MaterialTheme.typography.bodySmall)
+                Text("Episodes", style = MaterialTheme.typography.titleLarge)
             }
             items(providerEpisodes, key = { it.browseId ?: it.videoId ?: it.title + it.subtitle }) { episode ->
                 Card(onClick = { if (episode.videoId != null) onPlayProvider(episode) else message = "This YouTube Music row has no playable episode ID." }, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(episode.title, style = MaterialTheme.typography.titleMedium)
-                        Text(episode.subtitle, style = MaterialTheme.typography.bodySmall)
-                        Text(if (episode.videoId != null) "Tap to play" else "Unavailable", style = MaterialTheme.typography.labelSmall)
+                    Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        if (!episode.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(model = episode.thumbnailUrl, contentDescription = episode.title,
+                                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(episode.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                            Text(episode.subtitle, style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                            Text(if (episode.videoId != null) "Play episode" else "Unavailable", style = MaterialTheme.typography.labelSmall)
+                        }
                     }
                 }
             }
@@ -309,19 +380,23 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                     TextButton(onClick = { selected = null }) { Text("All podcasts") }
                     TextButton(onClick = {
                         val id = selected ?: return@TextButton
-                        busy = true; scope.launch {
+                        busy = true
+                        rssLoading = true
+                        rssLoadError = null
+                        scope.launch {
                             runCatching { PodcastRepository.refresh(id) }
                                 .onSuccess { shows = PodcastRepository.subscribedShows(); episodes = PodcastRepository.episodes(id); message = "Episodes updated" }
-                                .onFailure { message = it.message ?: "Refresh failed" }
+                                .onFailure { rssLoadError = it.message ?: "Could not refresh this podcast feed" }
+                            rssLoading = false
                             busy = false
                         }
                     }) { Text(if (busy) "Refreshing..." else "Refresh") }
                 }
                 if (!show?.artworkUrl.isNullOrBlank()) {
                     AsyncImage(model = show?.artworkUrl, contentDescription = show?.title,
-                        modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
+                        modifier = Modifier.size(196.dp).clip(RoundedCornerShape(12.dp)), contentScale = ContentScale.Crop)
                 }
-                Text(show?.title ?: "Podcast", style = MaterialTheme.typography.headlineMedium)
+                Text(show?.title ?: "Podcast", style = MaterialTheme.typography.headlineLarge)
                 Text(show?.siteUrl ?: "RSS / Atom podcast", style = MaterialTheme.typography.labelMedium)
                 show?.let { currentShow ->
                     TextButton(onClick = { PodcastRepository.unsubscribe(currentShow.id); shows = PodcastRepository.subscribedShows(); selected = null }) {
@@ -330,21 +405,40 @@ fun PodcastsScreen(onPlay: (PodcastEpisodeRef) -> Unit, onPlayProvider: (ShelfIt
                 }
                 show?.description?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
                 message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                rssLoadError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     Text("Episodes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp))
                     TextButton(onClick = { newestFirst = !newestFirst }) { Text(if (newestFirst) "Newest first" else "Oldest first") }
                 }
             }
-            if (episodes.isEmpty()) item { Text("No episodes loaded. Refresh this show to fetch its feed.") }
+            if (episodes.isEmpty()) item {
+                Text(when {
+                    rssLoading -> "Refreshing episodes…"
+                    rssLoadError != null -> "The feed could not be refreshed. Your saved episode catalogue is unchanged."
+                    else -> "This feed currently contains no episodes."
+                }, style = MaterialTheme.typography.bodySmall,
+                    color = if (rssLoadError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             items(if (newestFirst) episodes.sortedByDescending { it.published.orEmpty() } else episodes.sortedBy { it.published.orEmpty() }, key = { it.ref.stableId }) { episode ->
                 Card(onClick = { onPlay(episode.ref) }, modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(episode.ref.episodeTitle, style = MaterialTheme.typography.titleMedium)
-                        episode.published?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-                        episode.ref.description?.let { Text(it.take(260), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp)) }
-                        Text(when { episode.completed -> "Played"; episode.playbackPositionMs > 0 -> "Resume - ${episode.playbackPositionMs / 60_000} min"; else -> "Tap to play" },
-                            style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
+                    Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        episode.ref.artworkUri?.let { artwork ->
+                            AsyncImage(model = artwork, contentDescription = episode.ref.episodeTitle,
+                                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(episode.ref.episodeTitle, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                            episode.published?.let { Text(it, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                            episode.ref.description?.takeIf(String::isNotBlank)?.let {
+                                Text(it.take(180), style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(when { episode.completed -> "Played"; episode.playbackPositionMs > 0 -> "Resume · ${episode.playbackPositionMs / 60_000} min"; else -> "Play episode" },
+                                style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 3.dp))
+                        }
                     }
                 }
             }
@@ -359,9 +453,9 @@ private fun PodcastArtworkCard(
     artwork: String?,
     onClick: () -> Unit,
 ) {
-    Column(modifier = Modifier.width(184.dp)) {
-        Card(onClick = onClick, shape = RoundedCornerShape(14.dp)) {
-            Box(modifier = Modifier.size(184.dp)) {
+    Column(modifier = Modifier.width(SHELF_CARD_WIDTH)) {
+        Card(onClick = onClick, shape = RoundedCornerShape(12.dp), modifier = Modifier.size(SHELF_CARD_WIDTH)) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 if (!artwork.isNullOrBlank()) {
                     AsyncImage(
                         model = artwork,
@@ -371,14 +465,17 @@ private fun PodcastArtworkCard(
                     )
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                        Text("â™«", style = MaterialTheme.typography.displayLarge)
+                        Text("♫", style = MaterialTheme.typography.displayLarge)
                     }
                 }
             }
         }
-        Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2,
-            modifier = Modifier.padding(top = 8.dp))
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 10.dp))
+        if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

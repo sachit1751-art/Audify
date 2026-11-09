@@ -276,6 +276,7 @@ fun SettingsScreen(
     val liquidGlass by AppSettings.liquidGlass.collectAsStateWithLifecycle()
     val liquidGlassSupported = isGlassSupported()
     val lyricsBlur by AppSettings.lyricsBlur.collectAsStateWithLifecycle()
+    val liquidFlow by AppSettings.liquidFlow.collectAsStateWithLifecycle()
     val animatedCanvas by AppSettings.animatedCanvas.collectAsStateWithLifecycle()
     val canvasOverCellular by AppSettings.canvasOverCellular.collectAsStateWithLifecycle()
     val signatureApiEnabled by AppSettings.signatureApiEnabled.collectAsStateWithLifecycle()
@@ -1345,6 +1346,25 @@ fun SettingsScreen(
                             )
                         },
                         onClick = { AppSettings.setLyricsBlur(!lyricsBlur) },
+                    )
+                }
+                val liquidFlowTitle = stringResource(R.string.liquid_flow)
+                row(liquidFlowTitle, "lyrics", "liquidflow", "motion", "effect") {
+                    SettingsRow(
+                        icon = Icons.Rounded.Waves,
+                        title = liquidFlowTitle,
+                        subtitle = stringResource(R.string.liquid_flow_subtitle),
+                        trailing = {
+                            Switch(
+                                checked = liquidFlow,
+                                onCheckedChange = AppSettings::setLiquidFlow,
+                                colors = SwitchDefaults.colors(
+                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                    checkedBorderColor = MaterialTheme.colorScheme.primary,
+                                ),
+                            )
+                        },
+                        onClick = { AppSettings.setLiquidFlow(!liquidFlow) },
                     )
                 }
                 val lyricsSourcesTitle = stringResource(R.string.lyrics_sources)

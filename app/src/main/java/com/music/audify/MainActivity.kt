@@ -317,6 +317,9 @@ import androidx.media3.common.Player
 import com.music.audify.data.YtMusicRepository
 import com.music.audify.ui.player.NowPlayingScreen
 import com.music.audify.ui.player.PlayerSheetMotion
+import com.music.audify.ui.player.LocalMotionLyricLine
+import com.motion.lyrics.MotionLyricLine
+import com.motion.lyrics.toMotionWords
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.window.DialogWindowProvider
@@ -443,6 +446,18 @@ class MainActivity : AppCompatActivity() {
                     LocalOverscrollFactory provides iosOverscrollFactory,
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
                     LocalAppBackdrop provides appBackdrop,
+                    LocalMotionLyricLine provides { line, position, style, inactive, active, lyricModifier ->
+                        val motionWords = remember(line) { line.toMotionWords() }
+                        MotionLyricLine(
+                            text = line.text,
+                            words = motionWords,
+                            positionProvider = position,
+                            style = style,
+                            inactiveColor = inactive,
+                            activeColor = active,
+                            modifier = lyricModifier,
+                        )
+                    },
                 ) {
                     AudifyApp(
                         darkTheme = darkTheme,
@@ -3020,8 +3035,9 @@ private fun AudifyApp(
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
                                 },
                             )
-                        } else if (pageRoute == AppRoute.Podcasts) {
+                        } else if (pageRoute is AppRoute.Podcasts) {
                             com.music.audify.ui.screens.PodcastsScreen(
+                                initialProviderShow = pageRoute.initialShow,
                                 onPlay = { episode ->
                                     val item = com.music.audify.playback.PlayableMedia.Podcast(episode)
                                         .toMediaItem(com.music.audify.playback.QueueEntryMetadata(java.util.UUID.randomUUID().toString()))
@@ -3481,6 +3497,7 @@ HomeScreen(
                                     }
                                 },
                                 onListenTogetherClick = { navigator.push(AppRoute.ListenTogether) },
+                                onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
                                 onPlayAllQuickPicks = { shelf ->
                                     val songs = shelf.items.mapNotNull(shelfSong).map { song ->
                                         song.copy(
@@ -3600,14 +3617,25 @@ SearchScreen(
                                             else -> EntityType.TRACK
                                         },
                                     ))
-                                    viewModel.openDetail(
-                                        browseId = item.browseId,
-                                        title = item.title,
-                                        subtitle = item.subtitle,
-                                        thumbnailUrl = item.thumbnailUrl,
-                                        type = item.type,
-                                        isExplicit = item.isExplicit,
-                                    )
+                                    if (item.type == BrowseType.PODCAST) {
+                                        navigator.push(AppRoute.Podcasts(
+                                            com.music.audify.data.model.PodcastProviderShow(
+                                                browseId = item.browseId,
+                                                title = item.title,
+                                                subtitle = item.subtitle,
+                                                thumbnailUrl = item.thumbnailUrl,
+                                            ),
+                                        ))
+                                    } else {
+                                        viewModel.openDetail(
+                                            browseId = item.browseId,
+                                            title = item.title,
+                                            subtitle = item.subtitle,
+                                            thumbnailUrl = item.thumbnailUrl,
+                                            type = item.type,
+                                            isExplicit = item.isExplicit,
+                                        )
+                                    }
                                 },
                                 onBrowseLongPress = { item ->
                                     // A search row does say what it is, so its own type is
@@ -3748,7 +3776,7 @@ LibraryScreen(
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
                                 deviceEmptyText = stringResource(R.string.on_device_empty),
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
-                                onPodcasts = { navigator.push(AppRoute.Podcasts) },
+                                onPodcasts = { navigator.push(AppRoute.Podcasts()) },
                             )
                             }
                         }
@@ -3861,7 +3889,7 @@ LibraryScreen(
                     title = when (route) {
                         AppRoute.Profile -> "Profile"
                         AppRoute.Spotify -> stringResource(R.string.spotify)
-                        AppRoute.Podcasts -> "Podcasts"
+                        is AppRoute.Podcasts -> "Podcasts"
                         AppRoute.Discord -> "Discord"
                         AppRoute.History -> stringResource(R.string.history)
                         is AppRoute.LibraryShowAll -> route.shelf.title

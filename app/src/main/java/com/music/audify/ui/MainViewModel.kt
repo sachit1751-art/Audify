@@ -3050,7 +3050,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             browseId.startsWith(LocalGroups.PREFIX) -> LocalGroups.typeOf(browseId) ?: fallback
             browseId.startsWith("UC") -> BrowseType.ARTIST
             browseId.startsWith("MPREb") || browseId.startsWith("VLOLAK") || browseId.startsWith("OLAK") -> BrowseType.ALBUM
-            browseId.startsWith("MPSP") -> BrowseType.PLAYLIST
+            browseId.startsWith("MPSP") -> BrowseType.PODCAST
             browseId.startsWith("VL") || browseId.startsWith("PL") -> BrowseType.PLAYLIST
             else -> fallback
         }

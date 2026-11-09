@@ -26,7 +26,7 @@ class TvHomeShelfIdentityTest {
     }
 
     @Test
-    fun providerPodcastBrowseIdsOpenAsPlaylistDetailPages() {
-        assertEquals(BrowseType.PLAYLIST, browseTypeOf("MPSPverifiedShowId"))
+    fun providerPodcastBrowseIdsKeepTheirPodcastIdentity() {
+        assertEquals(BrowseType.PODCAST, browseTypeOf("MPSPverifiedShowId"))
     }
 }

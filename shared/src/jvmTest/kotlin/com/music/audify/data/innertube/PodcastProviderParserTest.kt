@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
 class PodcastProviderParserTest {
     @Test
@@ -12,7 +13,7 @@ class PodcastProviderParserTest {
             """
             {
               "musicTwoRowItemRenderer": {
-                "title": { "runs": [{ "text": "Verified show" }] },
+                "title": { "runs": [{ "text": "Verified show | Podcast" }] },
                 "subtitle": { "runs": [{ "text": "Publisher" }] },
                 "navigationEndpoint": { "browseEndpoint": { "browseId": "MPSPshow123" } },
                 "thumbnailRenderer": { "musicThumbnailRenderer": { "thumbnail": { "thumbnails": [
@@ -83,5 +84,45 @@ class PodcastProviderParserTest {
         assertEquals("episode123", episodes.single().videoId)
         assertEquals("MPEDepisode123", episodes.single().browseId)
         assertTrue(episodes.single().subtitle.contains("Verified show"))
+    }
+
+    @Test
+    fun podcastShowDetailsUseTheShowHeaderAndEditorialDescription() {
+        val fallback = com.music.audify.data.model.PodcastProviderShow(
+            "MPSPshow123", "Search title", "Search publisher", "https://example.test/search.jpg",
+        )
+        val response = Json.parseToJsonElement(
+            """
+            {
+              "musicDetailHeaderRenderer": {
+                "title": { "runs": [{ "text": "Canonical show title" }] },
+                "subtitle": { "runs": [{ "text": "Actual publisher" }] },
+                "thumbnail": { "musicThumbnailRenderer": { "thumbnail": { "thumbnails": [
+                  { "url": "https://example.test/detail.jpg" }
+                ] } } }
+              },
+              "musicDescriptionShelfRenderer": {
+                "description": { "runs": [{ "text": "The real show description." }] }
+              }
+            }
+            """.trimIndent(),
+        )
+
+        val (show, description) = InnertubeParser.parsePodcastShowDetails(response, fallback)
+
+        assertEquals("Canonical show title", show.title)
+        assertEquals("Actual publisher", show.subtitle)
+        assertEquals("https://example.test/detail.jpg", show.thumbnailUrl)
+        assertEquals("The real show description.", description)
+    }
+
+    @Test
+    fun podcastShowDetailsKeepCardMetadataWhenThePageOmitsOptionalFields() {
+        val fallback = com.music.audify.data.model.PodcastProviderShow(
+            "MPSPshow123", "Search title", "Search publisher", "https://example.test/search.jpg",
+        )
+        val (show, description) = InnertubeParser.parsePodcastShowDetails(Json.parseToJsonElement("{}"), fallback)
+        assertEquals(fallback, show)
+        assertNull(description)
     }
 }

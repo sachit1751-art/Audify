@@ -343,6 +343,7 @@ private fun LazyListScope.groupedResults(
         BrowseType.ARTIST to "Artists",
         BrowseType.ALBUM to "Albums",
         BrowseType.PLAYLIST to "Playlists",
+        BrowseType.PODCAST to "Podcasts",
         BrowseType.OTHER to "More",
     ).forEach { (type, title) ->
         val group = browse.filter { it.type == type }

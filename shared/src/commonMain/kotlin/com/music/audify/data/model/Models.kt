@@ -360,7 +360,7 @@ const val NOTIFICATION_ART_PX = 544
  */
 const val PLAYER_ART_PX = 1200
 
-enum class BrowseType { ALBUM, ARTIST, PLAYLIST, OTHER }
+enum class BrowseType { ALBUM, ARTIST, PLAYLIST, PODCAST, OTHER }
 
 /** A queue-level origin shown above Now Playing, in the style of Spotify. */
 enum class PlaybackSourceType {
@@ -374,7 +374,7 @@ enum class PlaybackSourceType {
     QUEUE,
 }
 
-/** A non-track search result: album, artist or playlist. */
+/** A non-track search result: album, artist, playlist or podcast show. */
 data class BrowseItem(
     val browseId: String,
     val title: String,
@@ -423,6 +423,13 @@ data class ShelfItem(
 data class PodcastProviderShow(val browseId: String, val title: String, val subtitle: String, val thumbnailUrl: String?)
 
 data class PodcastDiscoveryCategory(val title: String, val shows: List<PodcastProviderShow>)
+
+/** A provider show page and its verified episode catalogue, fetched together. */
+data class PodcastProviderPage(
+    val show: PodcastProviderShow,
+    val description: String?,
+    val episodes: List<ShelfItem>,
+)
 
 enum class ShelfLayout {
     CARDS,

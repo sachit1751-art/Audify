@@ -951,6 +951,8 @@ Project: AUDIFY
     <string name="blur_unfocused_lyrics">Blur unfocused lyrics</string>
 
     <string name="blur_unfocused_lyrics_subtitle">Keeps the spotlight on the current line</string>
+    <string name="liquid_flow">LiquidFlow lyrics</string>
+    <string name="liquid_flow_subtitle">Word-level motion, glow and particle effects</string>
 
     <string name="advanced_options">Advanced &amp; experimental options</string>
 <string name="source_needs_lossless_output">Needs a lossless output · use a lossless supported device</string>

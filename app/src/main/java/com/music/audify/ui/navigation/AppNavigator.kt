@@ -5,6 +5,7 @@ package com.music.audify.ui.navigation
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateListOf
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.PodcastProviderShow
 
 /**
  * A page pushed over the tabs: Settings and every page under it, and the
@@ -28,7 +29,7 @@ sealed interface AppRoute {
     data object History : AppRoute
     data object Discord : AppRoute
     data object Spotify : AppRoute
-    data object Podcasts : AppRoute
+    data class Podcasts(val initialShow: PodcastProviderShow? = null) : AppRoute
 
     /** A Library shelf's "Show all" — its own cards laid out again as a grid. */
     data class LibraryShowAll(val shelf: HomeShelf) : AppRoute

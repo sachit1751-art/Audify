@@ -899,6 +899,22 @@ fun NowPlayingScreen(
         mutableStateOf(restoredPlayerScreen == LastPlayerScreen.LYRICS)
     }
     var queueControlsOpen by remember { mutableStateOf(true) }
+    // Keep the outgoing panel composed during a Queue <-> Lyrics handover so
+    // both surfaces crossfade together instead of one replacing the other.
+    var leavingQueue by remember { mutableStateOf(false) }
+    var leavingLyrics by remember { mutableStateOf(false) }
+    val paneSwap = remember { mutableFloatStateOf(1f) }
+    var paneSwapTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(paneSwapTick) {
+        if (paneSwapTick == 0) return@LaunchedEffect
+        animate(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 340, easing = FastOutSlowInEasing),
+        ) { value, _ -> paneSwap.floatValue = value }
+        leavingQueue = false
+        leavingLyrics = false
+    }
     // Shared with Spotify's title placement below. The deck and credits must
     // read one clock: the weighted region changes size as this value moves, so
     // independently animating the title towards that moving target makes it
@@ -924,6 +940,12 @@ fun NowPlayingScreen(
     // open but the half-player was not, so every trip into lyrics briefly
     // started an exit animation and reversed it on the following frame.
     val openLyrics: () -> Unit = {
+        if (queueOpen && queueSlide.floatValue >= 0.99f) {
+            paneSwap.floatValue = 0f
+            leavingQueue = true
+            leavingLyrics = false
+            paneSwapTick++
+        }
         lyricsControlsOpen = true
         lyricsOpen = true
         queueOpen = false
@@ -937,7 +959,13 @@ fun NowPlayingScreen(
     }
     val toggleQueue: () -> Unit = {
         val opening = !queueOpen
-        if (opening && lyricsOpen) queueSlide.floatValue = 1f
+        if (opening && lyricsOpen) {
+            queueSlide.floatValue = 1f
+            paneSwap.floatValue = 0f
+            leavingLyrics = true
+            leavingQueue = false
+            paneSwapTick++
+        }
         // With the queue rather than after it, for the reason [openLyrics]
         // gives: left to the effect above, it was a second recomposition of
         // the whole player on the sleeve's first frame of moving.
@@ -3334,7 +3362,8 @@ fun NowPlayingScreen(
                         // panel, and doesn't then listen for the sleeve leaving the
                         // header — which is its first frame of moving.
                         val lyricsPanelVisible = lyricsOpen && collapseDone
-                        if (lyricsPanelVisible || playerPrewarmStage >= 2) {
+                        val lyricsPanelShown = lyricsPanelVisible || (leavingLyrics && !lyricsOpen)
+                        if (lyricsPanelShown || playerPrewarmStage >= 2) {
                                 LyricsTranslationMotion(
                                     trigger = lyricsTranslation.transition,
                                     reduceMotion = lyricsTranslation.reduceMotion,
@@ -3344,7 +3373,7 @@ fun NowPlayingScreen(
                                         // Keep the prepared list measured but completely
                                         // outside hit-testing/drawing until it is needed.
                                         .offset {
-                                            if (lyricsPanelVisible) IntOffset.Zero else IntOffset(100_000, 0)
+                                            if (lyricsPanelShown) IntOffset.Zero else IntOffset(100_000, 0)
                                         }
                                         // Arrives after the sleeve has finished collapsing
                                         // into the header rather than during — see
@@ -3352,7 +3381,25 @@ fun NowPlayingScreen(
                                         // still mid-collapse doubled the same movement in
                                         // two places on screen at once, and composing them
                                         // there was what made the collapse stutter.
-                                        .graphicsLayer { alpha = if (lyricsPanelVisible) panelFade.value else 0f },
+                                        .graphicsLayer {
+                                            val swap = paneSwap.floatValue
+                                            val travel = 18.dp.toPx()
+                                            if (lyricsPanelVisible) {
+                                                alpha = panelFade.value * swap
+                                                translationY = (1f - swap) * travel
+                                                val scale = 0.97f + 0.03f * swap
+                                                scaleX = scale
+                                                scaleY = scale
+                                            } else if (lyricsPanelShown) {
+                                                alpha = panelFade.value * (1f - swap)
+                                                translationY = -swap * travel * 0.5f
+                                                val scale = 1f - 0.03f * swap
+                                                scaleX = scale
+                                                scaleY = scale
+                                            } else {
+                                                alpha = 0f
+                                            }
+                                        },
                                 ) { particleProgress ->
                                     LyricsPanel(
                                         lines = lyrics.orEmpty(),
@@ -3452,26 +3499,35 @@ fun NowPlayingScreen(
                         // for that frame was a recomposition on it.
                         val queuePanelVisible = !lyricsOpen &&
                             (queueDragging || (queueOpen && queueShowing && collapseDone))
-                        if (queuePanelVisible || playerPrewarmStage >= 3) {
+                        val queuePanelShown = queuePanelVisible || (leavingQueue && lyricsOpen)
+                        if (queuePanelShown || playerPrewarmStage >= 3) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(top = HEADER_HEIGHT)
                                     .offset {
-                                        if (queuePanelVisible) IntOffset.Zero else IntOffset(100_000, 0)
+                                        if (queuePanelShown) IntOffset.Zero else IntOffset(100_000, 0)
                                     }
                                     .graphicsLayer {
-                                        alpha = if (!queuePanelVisible) {
-                                            0f
-                                        } else if (queueDragging) {
-                                            ((queueSlide.floatValue - 0.45f) / 0.55f).coerceIn(0f, 1f)
+                                        val swap = paneSwap.floatValue
+                                        val travel = 18.dp.toPx()
+                                        if (!queuePanelVisible) {
+                                            alpha = if (queuePanelShown) panelFade.value * (1f - swap) else 0f
+                                            translationY = if (queuePanelShown) -swap * travel * 0.5f else 0f
+                                            val scale = if (queuePanelShown) 1f - 0.03f * swap else 1f
+                                            scaleX = scale
+                                            scaleY = scale
                                         } else {
-                                            panelFade.value
-                                        }
-                                        translationY = if (queuePanelVisible) {
-                                            (1f - queueSlide.floatValue) * 26.dp.toPx()
-                                        } else {
-                                            0f
+                                            alpha = if (queueDragging) {
+                                                ((queueSlide.floatValue - 0.45f) / 0.55f).coerceIn(0f, 1f)
+                                            } else {
+                                                panelFade.value * swap
+                                            }
+                                            translationY = (1f - queueSlide.floatValue) * 26.dp.toPx() +
+                                                (1f - swap) * travel
+                                            val scale = 0.97f + 0.03f * swap
+                                            scaleX = scale
+                                            scaleY = scale
                                         }
                                     },
                             ) {

@@ -2375,6 +2375,7 @@ private val KIND_WORDS = setOf(
 private fun BrowseType.localizedLabel(): String? = when (this) {
         BrowseType.ALBUM -> stringResource(R.string.album)
         BrowseType.PLAYLIST -> stringResource(R.string.playlist)
+        BrowseType.PODCAST -> "Podcast"
         BrowseType.ARTIST -> stringResource(R.string.artist)
         BrowseType.OTHER -> null
     }
