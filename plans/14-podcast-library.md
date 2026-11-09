@@ -2,19 +2,19 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-# Plan 14 — Podcast library and episode discovery
+# Plan 14 â€” Podcast library and episode discovery
 
-**Status: blocked — product scope approved; typed playback-model refactor is designed in [Plan 15](15-typed-playable-media.md) and must be implemented and verified before podcast feature work.**
+**Status: in progress — YouTube Music podcast discovery shelves (Trending, News, Comedy, True Crime, Science & Technology, Education) are now wired to live playlist-search results on Android phone, Android TV, Wear OS via the phone bridge, native desktop, and the web library. These are category-specific provider search results, not an official curated podcast API. Android phone RSS/Atom subscriptions and direct playback remain the complete RSS vertical slice; native desktop RSS/Atom subscriptions/direct enclosure playback remain unimplemented. Physical device QA and paired Wear playback QA remain pending.**
 
-**Product approval:** received 2026-11-05 for the Android-phone-only, user-added RSS/Atom, manual-refresh, local-only MVP.
+**Product approval:** expanded 2026-11-09 to YouTube Music Podcasts plus user-added RSS/Atom feeds across Android phone, Android TV, Wear OS, and desktop. Keep subscriptions/progress local until cross-device sync is separately designed.
 
-**Implementation status:** no podcast feature code has been changed. The playback spike/audit found that the existing service cannot safely preserve a podcast content type through its current `Song`-only queue, source-resolution, transition, party-sync, and restart paths. The bounded typed-playback design is now documented in [Plan 15](15-typed-playable-media.md); implement and verify that foundation before starting feed parser/store/UI work.
+**Implementation status (2026-11-09):** Android phone has a bounded HTTPS RSS/Atom reader, local subscription/episode-cache persistence, refresh/unsubscribe, progress persistence, Library entry, and typed queue playback. The shared YtMusicRepository exposes the existing YouTube Music saved-podcast feed and show episode browse pages; Android phone lists those shows and episode rows, while authenticated YouTube Music episode rows use the existing music stream resolver. NPR Planet Money RSS was loaded on the Android 16 portrait emulator; selecting an episode switched the MediaSession to the episode and playback advanced to `PLAYING`. The earlier reported playback failure was a missed tap on the actual episode card, not a reproduced player defect. Native desktop still has only the GPUI YouTube Music saved-episode first slice (`SE` shelf), refresh/loading/error/empty states and existing queue playback; it has no RSS/Atom repository, feed subscriptions, show details or direct enclosure playback. Web library navigation includes the provider Podcasts shelf. Android TV renders the provider Podcasts shelf through its existing dynamic library categories. Wear OS now has a bounded phone-published RSS/Atom subscription/episode catalogue, dedicated watch list/detail screens, and a watch-to-phone episode selection command routed through the phone MediaController. Three Wear protocol tests pass; paired-watch runtime synchronization/playback has not been tested. Parser fixture instrumentation tests have been executed on the emulator, not merely compiled. No physical Wear device was available.
 
 **Audit baseline:** repository `a88ee53c` (2026-11-05). Re-check the listed files and working-tree drift before execution.
 
 ## Objective
 
-Add a separate, RSS/Atom-based podcast library to the Android phone app. A listener can add a podcast by feed URL, browse episodes, play an episode, and resume it later. Podcast state must remain distinct from music identity, music-library actions, and music queue semantics.
+Add a cross-platform podcast library supporting user-added RSS/Atom feeds and YouTube Music podcast shows. A listener can discover provider shows, add a feed by URL, browse episodes, play RSS episodes, and resume them later. Podcast state must remain distinct from music identity, music-library actions, and music queue semantics.
 
 This is not a request to turn every provider result labelled `podcast` into a playable Audify track. Podcast feeds have their own identity, refresh lifecycle, episode identity, direct enclosure URLs, and progress semantics.
 
@@ -22,18 +22,18 @@ This is not a request to turn every provider result labelled `podcast` into a pl
 
 Approve a deliberately narrow first release:
 
-- **Platform:** Android phone only. Do not add TV, Wear OS, desktop, web, Android Auto-specific browse surfaces, or cross-device sync in this plan.
-- **Discovery:** user adds a valid RSS 2.0 or Atom feed URL. No central catalogue, proprietary catalogue scraping, search-provider dependency, or automatic recommendations.
-- **Library:** saved shows, show details, episode list, publication date, duration when supplied, and clear feed-refresh state.
+- **Platforms:** Android phone, Android TV, Wear OS, and desktop. Adapt browse surfaces to each form factor; do not force phone layouts onto TV/watch. Android Auto remains a compact playback/browse projection only where Media3 supports it.
+- **Discovery:** YouTube Music Podcasts library and show/episode pages using supported Innertube responses, plus user-added RSS 2.0/Atom feeds. Do not scrape undocumented web pages or invent endpoints. RSS add-by-URL and manual refresh remain available.
+- **Library:** provider podcast shelves where available, followed/saved shows, show details, episode lists, publication date, duration, playback progress, and clear refresh/loading states. Keep provider subscriptions distinct from RSS subscriptions.
 - **Playback:** play an episode, play next, add to queue, normal transport/seek, and durable resume position plus played state.
-- **Refresh:** manual refresh only in v1. Use conditional HTTP requests when the server supplies validators. No scheduled or background polling.
-- **Persistence:** a dedicated app-private podcast store, separate from the music Room database and `Song` tables. Use bounded, versioned JSON with atomic file replacement for v1; do not add a Room migration under the current project constraints.
+- **Refresh:** manual RSS refresh with conditional HTTP requests. YouTube Music data refreshes on explicit page/library requests using existing repository patterns; no scheduled polling.
+- **Persistence:** dedicated app-private podcast store, separate from music Room tables. Keep RSS subscriptions/progress local; provider subscription state remains owned by YouTube Music. Use bounded, versioned JSON and atomic replacement; no Room migration.
 
-If the product decision differs from this recommendation, revise this plan before implementation rather than silently broadening scope.
+This expanded scope supersedes the original phone-only approval. Implement in vertical slices: RSS core, provider integration, shared discovery experience, then platform-specific surfaces. Do not claim all-platform completion until each target is built and tested.
 
 ## Current architecture audit
 
-### Existing partial support — not a podcast player
+### Existing partial support â€” not a podcast player
 
 - `YtMusicRepository.LIBRARY_FEEDS` includes a YouTube Music `Podcasts` library feed (`FEmusic_library_non_music_audio_list`). This is an account-provider shelf, not a local RSS subscription store.
 - `InnertubeParser.parseBrowseItem` maps page types other than album, artist, and playlist to `BrowseType.OTHER`. Podcast and episode labels appear in subtitle cleanup, but there is no dedicated podcast/episode domain model or feed parser.
@@ -75,7 +75,7 @@ If the product decision differs from this recommendation, revise this plan befor
 
 ### Explicitly out of scope
 
-- Podcast directory/search service, provider catalogue scraping, YouTube Music/Spotify podcast playback, or automatic show recommendations.
+- Podcast directory/search service, provider catalogue scraping, Spotify podcast playback or automatic show recommendations.
 - Automatic subscription import, OPML import/export, account sync, cloud backup, and multi-device progress sync.
 - Background polling, push notifications, automatic downloads, ad insertion, transcript fetching, chapters, video podcasts, and premium feed authentication.
 - Reusing the music `Downloads` pipeline or adding podcast episodes to the music favorites/history/scrobbling model without a separate reviewed design.
@@ -161,15 +161,15 @@ Do not skip the gates or combine all steps into one large change.
 
 ### Existing files likely to change
 
-- `app/src/main/java/com/music/audify/AudifyApplication.kt` — repository initialization, only if required.
-- `app/src/main/java/com/music/audify/MainActivity.kt` — Library entry and route/screen composition.
-- `app/src/main/java/com/music/audify/ui/screens/LibraryPhoneParts.kt` — podcast Library link/shelf.
-- `app/src/main/java/com/music/audify/ui/navigation/AppNavigator.kt` — dedicated show/episode routes.
-- `app/src/main/res/values/sachit_strings.xml` — English UI strings only.
-- `app/src/main/java/com/music/audify/playback/PlayerConnection.kt` — typed MediaItem conversion and round-trip.
-- `app/src/main/java/com/music/audify/playback/PlaybackService.kt` — direct enclosure playback branch and music-feature exclusions.
-- `app/src/main/java/com/music/audify/playback/LastPlayed.kt` — backwards-compatible queue snapshot fields if podcast items share the session queue.
-- `app/src/test/java/com/music/audify/` — parser/store/playback tests.
+- `app/src/main/java/com/music/audify/AudifyApplication.kt` â€” repository initialization, only if required.
+- `app/src/main/java/com/music/audify/MainActivity.kt` â€” Library entry and route/screen composition.
+- `app/src/main/java/com/music/audify/ui/screens/LibraryPhoneParts.kt` â€” podcast Library link/shelf.
+- `app/src/main/java/com/music/audify/ui/navigation/AppNavigator.kt` â€” dedicated show/episode routes.
+- `app/src/main/res/values/sachit_strings.xml` â€” English UI strings only.
+- `app/src/main/java/com/music/audify/playback/PlayerConnection.kt` â€” typed MediaItem conversion and round-trip.
+- `app/src/main/java/com/music/audify/playback/PlaybackService.kt` â€” direct enclosure playback branch and music-feature exclusions.
+- `app/src/main/java/com/music/audify/playback/LastPlayed.kt` â€” backwards-compatible queue snapshot fields if podcast items share the session queue.
+- `app/src/test/java/com/music/audify/` â€” parser/store/playback tests.
 
 This list is a starting scope, not authorization to edit every file. Reconfirm each call site during implementation and keep the diff narrow.
 
@@ -243,4 +243,4 @@ Remove the podcast Library entry, screens, repository initialization, and playba
 
 ## Approval gate
 
-The product owner approved the recommended **Android-phone-only, user-added RSS/Atom, manual-refresh, local-only** scope on 2026-11-05. The typed playback gate did not pass: the current playback service assumes `Song` throughout queue conversion, source resolution, transition handling, party synchronization, and `LastPlayed` restoration. Passing this gate requires implementing and verifying the bounded typed playable-media architecture in [Plan 15](15-typed-playable-media.md). Do not represent an episode with a fabricated song ID, route its enclosure through YouTube resolution, or start an unbounded player rewrite under this plan.
+The product owner approved **YouTube Music Podcasts + RSS/Atom across phone, desktop, Android TV and Wear OS** on 2026-11-09. The typed playback architecture is already present in the current checkout; verify each integration point before extending it. Do not represent episodes with fabricated song IDs, route RSS enclosures through YouTube resolution, or start an unbounded player rewrite.

@@ -332,6 +332,7 @@ impl SettingsTab {
 pub enum Destination {
     Home,
     History,
+    Podcasts,
     Library(LibraryTab),
     Local(LibraryTab),
     Album(SharedString),

@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.YtMusicRepository
+import com.music.audify.data.model.PodcastDiscoveryCategory
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
@@ -34,6 +36,7 @@ import com.music.audify.playback.playSongs
 import com.music.audify.ui.MainViewModel
 import com.music.audify.ui.tv.components.TvActivityIndicator
 import com.music.audify.ui.tv.components.TvCard
+import com.music.audify.ui.tv.components.TvButton
 import com.music.audify.ui.tv.components.TvChromeScrollEffect
 import com.music.audify.ui.tv.components.TvEmptyState
 import com.music.audify.ui.tv.components.TvErrorState
@@ -51,12 +54,15 @@ fun TvHomeScreen(
     mediaController: MediaController?,
     onNavigateToDetail: (browseId: String, title: String, subtitle: String, thumbnailUrl: String?, type: BrowseType) -> Unit,
     onNavigateToNowPlaying: () -> Unit,
+    onOpenPodcasts: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val homeState by viewModel.home.collectAsState()
     val loadingMore by viewModel.homeLoadingMore.collectAsState()
     val scope = rememberCoroutineScope()
     var menuSong by remember { mutableStateOf<Song?>(null) }
+    var podcastCategories by remember { mutableStateOf<List<PodcastDiscoveryCategory>>(emptyList()) }
+    LaunchedEffect(Unit) { YtMusicRepository.podcastDiscoveryCategories().onSuccess { podcastCategories = it } }
 
     when (val state = homeState) {
         is UiState.Loading -> TvShelvesLoading(modifier)
@@ -66,15 +72,31 @@ fun TvHomeScreen(
             modifier = modifier,
         )
         is UiState.Success -> {
-            if (state.data.isEmpty()) {
+            if (state.data.isEmpty() && podcastCategories.isEmpty()) {
                 TvEmptyState(
                     title = "Nothing Here Yet",
                     message = "Sign in from Settings, or check your connection, to see your recommendations.",
                     modifier = modifier,
                 )
             } else {
+                val podcastShelf = podcastCategories.flatMap { it.shows }
+                    .distinctBy { it.browseId }
+                    .take(12)
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { shows -> HomeShelf(
+                        title = "Podcasts",
+                        subtitle = "Discover shows and episodes",
+                        items = shows.map { show -> ShelfItem(
+                            title = show.title,
+                            subtitle = show.subtitle,
+                            thumbnailUrl = show.thumbnailUrl,
+                            videoId = null,
+                            browseId = show.browseId,
+                        ) },
+                    ) }
                 TvShelfFeed(
-                    shelves = state.data,
+                    shelves = if (podcastShelf == null) state.data else
+                        state.data.take(1) + podcastShelf + state.data.drop(1),
                     loadingMore = loadingMore,
                     onNearEnd = { viewModel.loadMoreHome() },
                     onPlaySong = { song ->
@@ -83,6 +105,7 @@ fun TvHomeScreen(
                     },
                     onSongMenu = { menuSong = it },
                     onNavigateToDetail = onNavigateToDetail,
+                    onOpenPodcasts = onOpenPodcasts,
                     picksFirst = true,
                     modifier = modifier,
                 )
@@ -131,6 +154,7 @@ internal fun TvShelfFeed(
     loadingMore: Boolean = false,
     onNearEnd: (() -> Unit)? = null,
     header: (@Composable () -> Unit)? = null,
+    onOpenPodcasts: (() -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
     TvChromeScrollEffect(listState)
@@ -210,6 +234,9 @@ internal fun TvShelfFeed(
                     subtitle = shelf.subtitle.takeIf { it.isNotBlank() },
                     items = shelf.items,
                     key = { it.itemKey() },
+                    trailing = if (shelf.title == "Podcasts" && onOpenPodcasts != null) {
+                        { TvButton(text = "See all", onClick = onOpenPodcasts) }
+                    } else null,
                 ) { item ->
                     TvLockup(
                         title = item.title,

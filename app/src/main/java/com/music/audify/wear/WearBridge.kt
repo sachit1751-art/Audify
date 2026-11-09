@@ -56,9 +56,14 @@ import com.google.android.gms.wearable.ChannelClient
 import com.music.audify.data.settings.AudioQuality
 import com.music.audify.playback.AudioCache
 import com.music.audify.playback.AudioRouting
-import com.music.audify.playback.toMediaItem
 import com.music.audify.playback.toSongOrNull
 import com.music.audify.playback.isPodcastEpisode
+import com.music.audify.playback.toMediaItem
+import com.music.audify.data.podcast.PodcastRepository
+import com.music.audify.data.YtMusicRepository
+import com.music.audify.playback.PlayableMedia
+import com.music.audify.playback.QueueEntryMetadata
+import com.music.audify.wear.PodcastPlayRequest
 import android.os.SystemClock
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -237,6 +242,60 @@ object WearBridge {
         put(app, request)
     }
 
+    /** Sends a bounded, phone-owned RSS/Atom catalogue snapshot to the watch. */
+    internal fun publishPodcasts(context: Context) {
+        val app = context.applicationContext
+        scope.launch {
+            // RSS subscriptions and authenticated YouTube Music discovery are both phone-owned.
+            val request = PutDataMapRequest.create(P.PATH_PODCASTS)
+            val rows = ArrayList<DataMap>()
+            PodcastRepository.subscribedShows().take(20).forEach { show ->
+                val episodes = ArrayList<DataMap>()
+                PodcastRepository.episodes(show.id).take(12).forEach { episode ->
+                    val ref = episode.ref
+                    episodes += DataMap().apply {
+                        putString(P.KEY_PODCAST_EPISODE_ID, ref.episodeId)
+                        putString(P.KEY_PODCAST_EPISODE_TITLE, ref.episodeTitle)
+                        putString(P.KEY_PODCAST_PUBLISHED, episode.published.orEmpty())
+                        putLong(P.KEY_PODCAST_DURATION_MS, ref.durationMs ?: 0L)
+                        putLong(P.KEY_PODCAST_POSITION_MS, episode.playbackPositionMs)
+                        putBoolean(P.KEY_PODCAST_COMPLETED, episode.completed)
+                    }
+                }
+                rows += DataMap().apply {
+                    putString(P.KEY_PODCAST_FEED_ID, show.id)
+                    putString(P.KEY_PODCAST_SHOW_TITLE, show.title)
+                    putString(P.KEY_PODCAST_DESCRIPTION, show.description.orEmpty())
+                    putString(P.KEY_PODCAST_CATEGORY, "Your subscriptions")
+                    putDataMapArrayList(P.KEY_PODCAST_EPISODES, episodes)
+                }
+            }
+            YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty().forEach { category ->
+                category.shows.take(4).forEach { show ->
+                    val episodes = YtMusicRepository.podcastEpisodes(show.browseId).getOrNull().orEmpty()
+                        .filter { !it.videoId.isNullOrBlank() }.take(8).map { episode ->
+                            DataMap().apply {
+                                putString(P.KEY_PODCAST_EPISODE_ID, episode.videoId.orEmpty())
+                                putString(P.KEY_PODCAST_EPISODE_TITLE, episode.title)
+                                putString(P.KEY_PODCAST_PUBLISHED, episode.subtitle)
+                            }
+                        }.let(::ArrayList)
+                    rows += DataMap().apply {
+                        putString(P.KEY_PODCAST_FEED_ID, "ytm:${show.browseId}")
+                        putString(P.KEY_PODCAST_SHOW_TITLE, show.title)
+                        putString(P.KEY_PODCAST_DESCRIPTION, show.subtitle)
+                        putString(P.KEY_PODCAST_CATEGORY, category.title)
+                        putDataMapArrayList(P.KEY_PODCAST_EPISODES, episodes)
+                    }
+                }
+            }
+            request.dataMap.apply {
+                putDataMapArrayList(P.KEY_PODCAST_SHOWS, rows)
+                putLong(P.KEY_POSITION_AT, System.currentTimeMillis())
+            }
+            put(app, request)
+        }
+    }
     internal val queueAhead get() = QUEUE_AHEAD
 
     // ---- Playing on the watch ----
@@ -629,6 +688,11 @@ class WearCommandService : WearableListenerService() {
                 WearBridge.sync(this)
                 return
             }
+            P.CMD_PODCASTS -> {
+                com.music.audify.data.podcast.PodcastRepository.initialize(this)
+                WearBridge.publishPodcasts(this)
+                return
+            }
             P.CMD_VOLUME -> {
                 val steps = arg.toIntOrNull() ?: 0
                 // The crown turns whatever is the speaker.
@@ -669,6 +733,22 @@ class WearCommandService : WearableListenerService() {
     }
 
     private fun execute(controller: MediaController, command: String, arg: String) {
+        if (command == P.CMD_PODCAST_PLAY) {
+            val request = PodcastPlayRequest.decode(arg) ?: return
+if (request.feedId.startsWith("ytm:")) {
+                val song = runBlocking { YtMusicRepository.trackLinks(request.episodeId).getOrNull() } ?: return
+                controller.setMediaItems(listOf(song.toMediaItem()), true)
+                controller.prepare()
+                controller.play()
+                return
+            }
+            val episode = com.music.audify.data.podcast.PodcastRepository.findEpisode(request.feedId, request.episodeId) ?: return
+            val item = PlayableMedia.Podcast(episode).toMediaItem(QueueEntryMetadata(java.util.UUID.randomUUID().toString()))
+            controller.setMediaItems(listOf(item), true)
+            controller.prepare()
+            controller.play()
+            return
+        }
         if (controller.mediaItemCount == 0) {
             WearBridge.sync(this)
             return

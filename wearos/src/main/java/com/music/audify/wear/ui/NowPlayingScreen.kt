@@ -98,6 +98,7 @@ class PlayerActions(
     val seekTo: (Long) -> Unit,
     val openQueue: () -> Unit,
     val openMore: () -> Unit,
+    val openPodcasts: () -> Unit,
 )
 
 /**
@@ -284,6 +285,14 @@ fun NowPlayingScreen(
                     iconSize = glyph,
                     background = Color.White.copy(alpha = 0.14f),
                     onClick = actions.openMore,
+                )
+                GlyphButton(
+                    icon = R.drawable.ic_headphones,
+                    description = "Podcasts",
+                    size = chip,
+                    iconSize = glyph,
+                    background = Color.White.copy(alpha = 0.14f),
+                    onClick = actions.openPodcasts,
                 )
             }
         }

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Sachit. All rights reserved.
 // Project: AUDIFY
-import { ArrowUpRight, ListMusic, Settings } from 'lucide-react';
+import { ArrowUpRight, Headphones, ListMusic, Settings } from 'lucide-react';
 import { MdOutlineExtension } from 'react-icons/md';
 import { PrefetchLink, PrefetchNavLink } from '@/components/PrefetchLink';
 import { LogoMark } from '@/components/icons/LogoMark';
@@ -44,6 +44,7 @@ const LIBRARY_ICONS: Record<Exclude<LibrarySection, 'playlists'>, NavItem['Icon'
   albums: AlbumsIcon,
   songs: SongsIcon,
   'made-for-you': MadeForYouIcon,
+  podcasts: Headphones,
 };
 
 const LIBRARY: NavItem[] = (Object.keys(LIBRARY_ICONS) as (keyof typeof LIBRARY_ICONS)[]).map((section) => ({

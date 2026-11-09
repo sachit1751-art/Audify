@@ -80,6 +80,7 @@ import com.music.audify.ui.tv.screens.TvDetailScreen
 import com.music.audify.ui.tv.screens.TvExploreScreen
 import com.music.audify.ui.tv.screens.TvHomeScreen
 import com.music.audify.ui.tv.screens.TvLibraryScreen
+import com.music.audify.ui.tv.screens.TvPodcastsScreen
 import com.music.audify.ui.tv.screens.TvSearchScreen
 import com.music.audify.ui.tv.screens.TvSettingsScreen
 import com.music.audify.ui.tv.theme.TvGlass
@@ -91,6 +92,7 @@ import kotlinx.coroutines.delay
 /** The tabs of the top bar. Now Playing is a tab too, but it opens the player rather than a page. */
 enum class TvDestination(val label: String) {
     HOME("Home"),
+    PODCASTS("Podcasts"),
     EXPLORE("Explore"),
     LIBRARY("Library"),
     SEARCH("Search"),
@@ -455,6 +457,10 @@ private fun TvMainShell(
                                 mediaController = mediaController,
                                 onNavigateToDetail = openDetail,
                                 onNavigateToNowPlaying = openNowPlaying,
+                                onOpenPodcasts = { select(TvDestination.PODCASTS) },
+                            )
+                            TvDestination.PODCASTS -> TvPodcastsScreen(
+                                onNavigateToDetail = openDetail,
                             )
                             TvDestination.EXPLORE -> TvExploreScreen(
                                 viewModel = viewModel,

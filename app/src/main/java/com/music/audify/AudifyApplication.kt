@@ -128,6 +128,7 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        com.music.audify.data.podcast.PodcastRepository.initialize(this)
         CoroutineScope(Dispatchers.IO).launch {
             runCatching { com.music.audify.data.local.LocalFirstRepository.initialize(this@AudifyApplication) }
                 .onFailure { android.util.Log.e("Audify", "Local Room database initialization failed", it) }

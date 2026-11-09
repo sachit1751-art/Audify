@@ -131,6 +131,7 @@ fun LibraryScreen(
     showTitle: Boolean = true,
     /** Opens the rule-based playlists page, which is implemented by the host app. */
     onSmartPlaylists: (() -> Unit)? = null,
+    onPodcasts: (() -> Unit)? = null,
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -200,6 +201,24 @@ fun LibraryScreen(
                         modifier = Modifier.padding(start = PAGE_GUTTER),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                     )
+                }
+            }
+            if (onPodcasts != null) {
+                item(key = "podcasts-entry") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable(role = Role.Button, onClick = onPodcasts)
+                            .padding(horizontal = PAGE_GUTTER, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                            Text("Podcasts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Discover shows, subscribe and listen", style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(start = PAGE_GUTTER),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
                 }
             }
             if (links.isNotEmpty()) {

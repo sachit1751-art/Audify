@@ -14,6 +14,7 @@ export const LIBRARY_SECTIONS = {
   songs: { title: 'Songs', browseId: 'FEmusic_liked_videos' },
   'made-for-you': { title: 'Made for You', browseId: 'FEmusic_mixed_for_you' },
   playlists: { title: 'All Playlists', browseId: 'FEmusic_liked_playlists' },
+  podcasts: { title: 'Podcasts', browseId: 'FEmusic_library_non_music_audio_list' },
 } as const;
 
 export type LibrarySection = keyof typeof LIBRARY_SECTIONS;

@@ -3020,6 +3020,34 @@ private fun AudifyApp(
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
                                 },
                             )
+                        } else if (pageRoute == AppRoute.Podcasts) {
+                            com.music.audify.ui.screens.PodcastsScreen(
+                                onPlay = { episode ->
+                                    val item = com.music.audify.playback.PlayableMedia.Podcast(episode)
+                                        .toMediaItem(com.music.audify.playback.QueueEntryMetadata(java.util.UUID.randomUUID().toString()))
+                                    val activeController = controller
+                                    if (activeController == null) {
+                                        Toast.makeText(context, "Player is still connecting. Try again in a moment.", Toast.LENGTH_SHORT).show()
+                                        android.util.Log.w("Audify", "Podcast play requested before MediaController connected: ${episode.stableId}")
+                                    } else {
+                                        scope.launch {
+                                            runCatching { activeController.playMediaItems(listOf(item), 0) }
+                                                .onFailure { error ->
+                                                    android.util.Log.e("Audify", "Could not hand podcast episode to playback service: ${episode.stableId}", error)
+                                                    Toast.makeText(context, error.message ?: "Could not start podcast playback", Toast.LENGTH_LONG).show()
+                                                }
+                                        }
+                                    }
+                                },
+                                onPlayProvider = { episode ->
+                                    val videoId = episode.videoId
+                                    if (videoId != null) {
+                                        val song = Song(videoId, episode.title, episode.subtitle, episode.thumbnailUrl)
+                                        playFrom(listOf(song), 0, QueueSource("YouTube Music Podcasts", PlaybackSourceType.BROWSE))
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                            )
                         } else if (pageRoute == AppRoute.Spotify) {
                             SpotifyLibraryScreen(
                                 onOpenPlaylist = { playlist ->
@@ -3720,6 +3748,7 @@ LibraryScreen(
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
                                 deviceEmptyText = stringResource(R.string.on_device_empty),
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
+                                onPodcasts = { navigator.push(AppRoute.Podcasts) },
                             )
                             }
                         }
@@ -3832,6 +3861,7 @@ LibraryScreen(
                     title = when (route) {
                         AppRoute.Profile -> "Profile"
                         AppRoute.Spotify -> stringResource(R.string.spotify)
+                        AppRoute.Podcasts -> "Podcasts"
                         AppRoute.Discord -> "Discord"
                         AppRoute.History -> stringResource(R.string.history)
                         is AppRoute.LibraryShowAll -> route.shelf.title

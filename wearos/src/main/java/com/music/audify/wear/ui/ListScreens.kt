@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.music.audify.wear.data.PhoneLink
 import com.music.audify.wear.data.Queue
 import com.music.audify.wear.data.QueueRow
+import com.music.audify.wear.data.PodcastShowRow
+import com.music.audify.wear.data.PodcastEpisodeRow
 
 /**
  * Up Next. Text first, thumbnails a beat later — see PhoneLink.applyQueue —
@@ -89,6 +91,79 @@ fun QueueScreen(
                         isPast = row.index < live.currentIndex,
                     onClick = { onPlay(row.index) },
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PodcastCatalogueScreen(
+    shows: List<PodcastShowRow>?,
+    onRequest: () -> Unit,
+    onOpenShow: (PodcastShowRow) -> Unit,
+) {
+    LaunchedEffect(Unit) { onRequest() }
+    val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
+    ScreenScaffold(scrollState = state) { padding ->
+        ScalingLazyColumn(
+            state = state,
+            contentPadding = padding,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.background(Color.Black),
+        ) {
+            item(key = "podcast-header") { Header("Podcasts") }
+            item(key = "podcast-subtitle") { Hint("Your phone subscriptions") }
+            when {
+                shows == null -> item(key = "podcast-loading") { Hint("Loading subscriptions…") }
+                shows.isEmpty() -> item(key = "podcast-empty") { Hint("No RSS / Atom subscriptions on your phone") }
+                else -> shows.groupBy { it.category }.forEach { (category, categoryShows) ->
+                    item(key = "podcast-category:$category") { Header(category) }
+                    items(categoryShows, key = { it.id }) { show ->
+                        Cell(onClick = { onOpenShow(show) }) {
+                            Image(painterResource(R.drawable.ic_headphones), contentDescription = null,
+                                modifier = Modifier.size(30.dp), colorFilter = null)
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(show.title, style = WearType.row, color = Color.White, maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis)
+                                Text("${show.episodes.size} episodes", style = WearType.rowSub, color = Secondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PodcastEpisodesScreen(show: PodcastShowRow, onPlay: (PodcastEpisodeRow) -> Unit) {
+    val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
+    ScreenScaffold(scrollState = state) { padding ->
+        ScalingLazyColumn(
+            state = state,
+            contentPadding = padding,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.background(Color.Black),
+        ) {
+            item(key = "episode-header") { Header(show.title) }
+            item(key = "episode-subtitle") { Hint("Choose an episode to play on your phone") }
+            if (show.episodes.isEmpty()) item(key = "episode-empty") { Hint("No cached episodes. Refresh this show on your phone.") }
+            else items(show.episodes, key = { it.episodeId }) { episode ->
+                Cell(onClick = { onPlay(episode) }, stateDescription = if (episode.completed) "Played" else "Play episode") {
+                    Column(Modifier.fillMaxWidth()) {
+                        Text(episode.title, style = WearType.row, color = Color.White, maxLines = 2,
+                            overflow = TextOverflow.Ellipsis)
+                        Text(
+                            text = when {
+                                episode.completed -> "Played"
+                                episode.positionMs > 0L -> "Resume · ${episode.published}"
+                                else -> episode.published
+                            },
+                            style = WearType.rowSub, color = Secondary, maxLines = 1,
+                        )
+                    }
                 }
             }
         }
@@ -150,6 +225,7 @@ fun MoreScreen(
     np: NowPlaying?,
     link: PhoneLink,
     onOpenOutput: () -> Unit,
+    onOpenPodcasts: () -> Unit = {},
     onReplayOnboarding: () -> Unit = {},
 ) {
     val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
@@ -180,6 +256,16 @@ fun MoreScreen(
                     active = false,
                     stateDescription = "Replay setup guide",
                     onClick = onReplayOnboarding,
+                )
+            }
+            item(key = "podcasts") {
+                ToggleCell(
+                    icon = R.drawable.ic_headphones,
+                    label = "Podcasts",
+                    value = "Browse subscriptions",
+                    active = false,
+                    stateDescription = "Browse podcasts",
+                    onClick = onOpenPodcasts,
                 )
             }
             if (np == null) {

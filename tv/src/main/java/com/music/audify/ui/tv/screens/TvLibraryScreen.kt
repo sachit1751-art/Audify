@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.YtMusicRepository
+import com.music.audify.data.model.PodcastDiscoveryCategory
+import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
 import com.music.audify.playback.PlayerState
@@ -81,14 +84,22 @@ fun TvLibraryScreen(
     val library = (libraryState as? UiState.Success)?.data
     val scope = rememberCoroutineScope()
     var menuSong by remember { mutableStateOf<Song?>(null) }
+    var podcastCategories by remember { mutableStateOf<List<PodcastDiscoveryCategory>>(emptyList()) }
+    LaunchedEffect(Unit) { YtMusicRepository.podcastDiscoveryCategories().onSuccess { podcastCategories = it } }
 
-    val categories = remember(library, signedIn) {
+    val podcastShelves = remember(podcastCategories) { podcastCategories.map { category ->
+        HomeShelf(title = category.title, subtitle = "YouTube Music podcasts", items = category.shows.map { show ->
+            ShelfItem(title = show.title, subtitle = show.subtitle, thumbnailUrl = show.thumbnailUrl, videoId = null, browseId = show.browseId)
+        })
+    } }
+    val categories = remember(library, signedIn, podcastShelves) {
         buildList {
             add(LibraryCategory.RecentlyPlayed)
             if (signedIn && library != null) {
                 if (library.likedSongs.isNotEmpty()) add(LibraryCategory.Liked)
                 if (library.librarySongs.isNotEmpty()) add(LibraryCategory.Songs)
                 library.shelves.filter { it.items.isNotEmpty() }.forEach { add(LibraryCategory.Collection(it)) }
+                podcastShelves.forEach { add(LibraryCategory.Collection(it)) }
             }
         }
     }

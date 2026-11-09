@@ -34,6 +34,8 @@ object WearProtocol {
     const val PATH_QUEUE = "/audify/queue"
     const val PATH_COMMAND = "/audify/command"
     const val PATH_OUTPUTS = "/audify/outputs"
+    /** Phone → watch snapshot of RSS/Atom subscriptions and their cached episodes. */
+    const val PATH_PODCASTS = "/audify/podcasts"
 
     /**
      * Phone → watch messages driving the watch as the speaker, the command as
@@ -123,6 +125,10 @@ object WearProtocol {
 
     /** Payload: an [KEY_OUTPUT_ID] from [PATH_OUTPUTS]. Routes the phone's audio there. */
     const val CMD_SELECT_OUTPUT = "select_output"
+    /** Ask the phone for the latest podcast subscriptions and cached episodes. */
+    const val CMD_PODCASTS = "podcasts"
+    /** JSON payload {feedId, episodeId}; playback remains owned by the phone. */
+    const val CMD_PODCAST_PLAY = "podcast_play"
 
     /**
      * Make the watch the speaker. Like casting: the phone keeps its queue,
@@ -189,6 +195,21 @@ object WearProtocol {
     const val KEY_OUTPUT_KIND = "output_kind"
     const val KEY_OUTPUT_ACTIVE = "output_active"
 
+    // ---- Podcast catalogue ----
+    /** DataMap list of shows; each show has [KEY_PODCAST_EPISODES] as a nested DataMap list. */
+    const val KEY_PODCAST_SHOWS = "podcast_shows"
+    const val KEY_PODCAST_EPISODES = "podcast_episodes"
+    const val KEY_PODCAST_FEED_ID = "podcast_feed_id"
+    const val KEY_PODCAST_SHOW_TITLE = "podcast_show_title"
+    const val KEY_PODCAST_DESCRIPTION = "podcast_description"
+    const val KEY_PODCAST_CATEGORY = "podcast_category"
+    const val KEY_PODCAST_EPISODE_ID = "podcast_episode_id"
+    const val KEY_PODCAST_EPISODE_TITLE = "podcast_episode_title"
+    const val KEY_PODCAST_PUBLISHED = "podcast_published"
+    const val KEY_PODCAST_DURATION_MS = "podcast_duration_ms"
+    const val KEY_PODCAST_POSITION_MS = "podcast_position_ms"
+    const val KEY_PODCAST_COMPLETED = "podcast_completed"
+
     // ---- Watch speaker ----
 
     /** On [PATH_NOW_PLAYING] and [PATH_OUTPUTS]: the watch is the speaker. */
@@ -220,4 +241,24 @@ object WearProtocol {
 
     /** Side of each row's thumbnail on [PATH_QUEUE]. */
     const val ROW_ART_PX = 96
+}
+
+/** Length-prefixed watch command; unlike a delimiter split, IDs may contain punctuation safely. */
+data class PodcastPlayRequest(val feedId: String, val episodeId: String) {
+    fun encode(): String = "${feedId.length}:$feedId$episodeId"
+
+    companion object {
+        fun decode(value: String): PodcastPlayRequest? = runCatching {
+            val separator = value.indexOf(':')
+            require(separator in 1..8)
+            val length = value.substring(0, separator).toInt()
+            require(length > 0)
+            val start = separator + 1
+            require(value.length > start + length)
+            PodcastPlayRequest(
+                feedId = value.substring(start, start + length),
+                episodeId = value.substring(start + length),
+            ).also { require(it.feedId.isNotBlank() && it.episodeId.isNotBlank()) }
+        }.getOrNull()
+    }
 }

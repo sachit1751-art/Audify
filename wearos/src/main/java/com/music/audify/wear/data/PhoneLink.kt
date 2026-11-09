@@ -34,6 +34,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import com.music.audify.wear.playback.Speaker
 import com.music.audify.wear.WearProtocol as P
+import com.music.audify.wear.PodcastPlayRequest
 
 /**
  * The watch's whole view of the phone.
@@ -73,6 +74,9 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     private val _queue = MutableStateFlow<Queue?>(null)
     val queue: StateFlow<Queue?> = _queue.asStateFlow()
+
+    private val _podcasts = MutableStateFlow<List<PodcastShowRow>?>(null)
+    val podcasts: StateFlow<List<PodcastShowRow>?> = _podcasts.asStateFlow()
 
     /** The phone's outputs, as its own player lists them. Null until asked. */
     private val _outputs = MutableStateFlow<List<PhoneOutput>?>(null)
@@ -193,6 +197,12 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     fun requestQueue() = send(P.CMD_QUEUE)
 
+    fun requestPodcasts() = send(P.CMD_PODCASTS)
+
+    fun playPodcast(episode: PodcastEpisodeRow) {
+        send(P.CMD_PODCAST_PLAY, PodcastPlayRequest(episode.feedId, episode.episodeId).encode())
+    }
+
     /**
      * The crown. Moves the readout at once and sends the steps in small
      * batches, so a fast spin is a handful of messages rather than dozens.
@@ -251,6 +261,7 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
                 P.PATH_NOW_PLAYING -> applyNowPlaying(map)
                 P.PATH_QUEUE -> applyQueue(map)
                 P.PATH_OUTPUTS -> applyOutputs(map)
+                P.PATH_PODCASTS -> applyPodcasts(map)
             }
         }
     }
@@ -275,6 +286,29 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
                 active = it.getBoolean(P.KEY_OUTPUT_ACTIVE),
             )
         }
+    }
+
+    private fun applyPodcasts(map: DataMap) {
+        _podcasts.value = map.getDataMapArrayList(P.KEY_PODCAST_SHOWS).orEmpty().map { show ->
+            val feedId = show.getString(P.KEY_PODCAST_FEED_ID).orEmpty()
+            PodcastShowRow(
+                id = feedId,
+                title = show.getString(P.KEY_PODCAST_SHOW_TITLE).orEmpty(),
+                description = show.getString(P.KEY_PODCAST_DESCRIPTION).orEmpty(),
+                category = show.getString(P.KEY_PODCAST_CATEGORY) ?: "Subscriptions",
+                episodes = show.getDataMapArrayList(P.KEY_PODCAST_EPISODES).orEmpty().map { episode ->
+                    PodcastEpisodeRow(
+                        feedId = feedId,
+                        episodeId = episode.getString(P.KEY_PODCAST_EPISODE_ID).orEmpty(),
+                        title = episode.getString(P.KEY_PODCAST_EPISODE_TITLE).orEmpty(),
+                        published = episode.getString(P.KEY_PODCAST_PUBLISHED).orEmpty(),
+                        durationMs = episode.getLong(P.KEY_PODCAST_DURATION_MS),
+                        positionMs = episode.getLong(P.KEY_PODCAST_POSITION_MS),
+                        completed = episode.getBoolean(P.KEY_PODCAST_COMPLETED),
+                    )
+                },
+            )
+        }.filter { it.id.isNotBlank() && it.title.isNotBlank() }
     }
 
     private suspend fun readCached() {

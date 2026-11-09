@@ -420,6 +420,10 @@ data class ShelfItem(
  * How a home shelf is presented. Adapted from BitChord's GPL-3.0 home-feed
  * classification: https://github.com/kushagrasinghx/BitChord
  */
+data class PodcastProviderShow(val browseId: String, val title: String, val subtitle: String, val thumbnailUrl: String?)
+
+data class PodcastDiscoveryCategory(val title: String, val shows: List<PodcastProviderShow>)
+
 enum class ShelfLayout {
     CARDS,
     LIST,

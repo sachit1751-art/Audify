@@ -408,6 +408,39 @@ impl MusicApi for YouTubeClient {
         Ok(wire::playlist_detail(detail).tracks)
     }
 
+    async fn podcast_discovery_categories(&self) -> Result<Vec<(String, Vec<Playlist>)>> {
+        let categories = [
+            ("Trending podcasts", "trending podcasts"),
+            ("News podcasts", "news podcasts"),
+            ("Comedy podcasts", "comedy podcasts"),
+            ("True crime podcasts", "true crime podcasts"),
+            (
+                "Science & technology podcasts",
+                "science technology podcasts",
+            ),
+            ("Education podcasts", "educational podcasts"),
+        ];
+        let mut shelves = Vec::new();
+        for (title, query) in categories {
+            let shows = self
+                .api
+                .search_playlists(query)
+                .await?
+                .into_iter()
+                .map(|playlist| wire::playlist(playlist, false, false))
+                .take(10)
+                .collect::<Vec<_>>();
+            if !shows.is_empty() {
+                shelves.push((title.to_string(), shows));
+            }
+        }
+        Ok(shelves)
+    }
+    async fn podcast_episodes(&self) -> Result<Vec<Track>> {
+        let mut detail = self.api.playlist("SE").await?;
+        detail.tracks = self.api.swap_playable(detail.tracks).await;
+        Ok(wire::playlist_detail(detail).tracks)
+    }
     async fn playlist_covers(&self, playlist_id: &str, wanted: usize) -> Result<Vec<String>> {
         let mut tracks = self.api.playlist_page(playlist_id).await?.tracks;
         tracks = self.api.swap_playable(tracks).await;

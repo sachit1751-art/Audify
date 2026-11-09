@@ -19,6 +19,8 @@ import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.MoodGenreSection
 import com.music.audify.data.model.playlistMoves
 import com.music.audify.data.model.PlaylistPrivacy
+import com.music.audify.data.model.PodcastProviderShow
+import com.music.audify.data.model.PodcastDiscoveryCategory
 import com.music.audify.data.model.SearchFilter
 import com.music.audify.data.model.SearchResult
 import com.music.audify.data.model.ShelfItem
@@ -904,6 +906,7 @@ object YtMusicRepository {
     const val PLAYLISTS_SHELF = "Playlists"
 
     private const val LIBRARY_ALBUMS = "FEmusic_liked_albums"
+    private const val LIBRARY_PODCASTS = "FEmusic_library_non_music_audio_list"
 
     private val LIBRARY_FEEDS = listOf(
         PLAYLISTS_SHELF to LIBRARY_PLAYLISTS,
@@ -976,6 +979,42 @@ object YtMusicRepository {
         InnertubeParser.parseLibraryItems(Innertube.browse(LIBRARY_PLAYLISTS))
     }
 
+    /** Saved YouTube Music podcast shows. Uses the provider's dedicated library feed. */
+    suspend fun libraryPodcastShows(): Result<List<PodcastProviderShow>> = call("podcasts:library") {
+        libraryItemsPaged(LIBRARY_PODCASTS)
+            .mapNotNull { item ->
+                val id = item.browseId?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+                PodcastProviderShow(id, item.title, item.subtitle, item.thumbnailUrl)
+            }
+            .distinctBy(PodcastProviderShow::browseId)
+    }
+
+    /** Curated discovery shelves backed by live YouTube Music playlist search results. */
+    suspend fun podcastDiscoveryCategories(): Result<List<PodcastDiscoveryCategory>> = call("podcasts:discover") {
+        val categories = listOf(
+            "Trending podcasts" to "trending podcasts",
+            "News podcasts" to "news podcasts",
+            "Comedy podcasts" to "comedy podcasts",
+            "True crime podcasts" to "true crime podcasts",
+            "Science & technology podcasts" to "science technology podcasts",
+            "Education podcasts" to "educational podcasts",
+        )
+        categories.mapNotNull { (title, query) ->
+            val rows = InnertubeParser.parseSearchPage(
+                Innertube.search(query, SearchFilter.PLAYLISTS.params),
+            ).rows.mapNotNull { result ->
+                val item = (result as? SearchResult.Browse)?.item ?: return@mapNotNull null
+                if (item.type != BrowseType.PLAYLIST) return@mapNotNull null
+                PodcastProviderShow(item.browseId, item.title, item.subtitle, item.thumbnailUrl)
+            }.distinctBy(PodcastProviderShow::browseId).take(12)
+            rows.takeIf(List<PodcastProviderShow>::isNotEmpty)?.let { PodcastDiscoveryCategory(title, it) }
+        }
+    }
+    /** Episode rows for a provider podcast show, following the feed's opaque continuation tokens. */
+    suspend fun podcastEpisodes(browseId: String): Result<List<ShelfItem>> = call("podcasts:episodes:$browseId") {
+        require(browseId.isNotBlank()) { "Podcast browse id is required" }
+        itemsPaged(browseId)
+    }
     /** Saved albums only, for compact external browse clients such as Android Auto. */
     suspend fun libraryAlbums(): Result<List<ShelfItem>> = call("libraryAlbums") {
         libraryItemsPaged(LIBRARY_ALBUMS)

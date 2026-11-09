@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,11 +44,14 @@ import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.music.audify.wear.R
 import com.music.audify.wear.data.Link
 import com.music.audify.wear.data.PhoneLink
+import com.music.audify.wear.data.PodcastShowRow
 
 private const val PLAYER = "player"
 private const val QUEUE = "queue"
 private const val MORE = "more"
 private const val OUTPUT = "output"
+private const val PODCASTS = "podcasts"
+private const val PODCAST_EPISODES = "podcast_episodes"
 
 /** Player at the root; Up Next and More swipe away back to it, as every watch app does. */
 @Composable
@@ -59,6 +64,8 @@ fun WearApp(
     val nav = rememberSwipeDismissableNavController()
     val ambient = LocalAmbient.current
     val np by link.nowPlaying.collectAsStateWithLifecycle()
+    val podcasts by link.podcasts.collectAsStateWithLifecycle()
+    var selectedPodcast by remember { mutableStateOf<PodcastShowRow?>(null) }
     val showAmbient = ambient.active && np != null
     // No pill behind the clock: the mesh runs right up to the bezel.
     AppScaffold(timeText = { TimeText(backgroundColor = Color.Transparent) }) {
@@ -80,6 +87,7 @@ fun WearApp(
                     link = link,
                     openQueue = { nav.navigate(QUEUE) },
                     openMore = { nav.navigate(MORE) },
+                    openPodcasts = { nav.navigate(PODCASTS) },
                 )
             }
             composable(QUEUE) {
@@ -99,7 +107,27 @@ fun WearApp(
                     np = np,
                     link = link,
                     onOpenOutput = { nav.navigate(OUTPUT) },
+                    onOpenPodcasts = { nav.navigate(PODCASTS) },
                     onReplayOnboarding = onReplayOnboarding,
+                )
+            }
+            composable(PODCASTS) {
+                PodcastCatalogueScreen(
+                    shows = podcasts,
+                    onRequest = link::requestPodcasts,
+                    onOpenShow = { show -> selectedPodcast = show; nav.navigate(PODCAST_EPISODES) },
+                )
+            }
+            composable(PODCAST_EPISODES) {
+                selectedPodcast?.let { show ->
+                    PodcastEpisodesScreen(show = show, onPlay = { episode ->
+                        link.playPodcast(episode)
+                        nav.popBackStack(PLAYER, inclusive = false)
+                    })
+                } ?: PodcastCatalogueScreen(
+                    shows = podcasts,
+                    onRequest = link::requestPodcasts,
+                    onOpenShow = { show -> selectedPodcast = show; nav.popBackStack() },
                 )
             }
             composable(OUTPUT) {
@@ -114,7 +142,7 @@ fun WearApp(
 }
 
 @Composable
-private fun PlayerRoute(link: PhoneLink, openQueue: () -> Unit, openMore: () -> Unit) {
+private fun PlayerRoute(link: PhoneLink, openQueue: () -> Unit, openMore: () -> Unit, openPodcasts: () -> Unit) {
     val state by link.link.collectAsStateWithLifecycle()
     val heard by link.heard.collectAsStateWithLifecycle()
     val np by link.nowPlaying.collectAsStateWithLifecycle()
@@ -130,6 +158,7 @@ private fun PlayerRoute(link: PhoneLink, openQueue: () -> Unit, openMore: () -> 
             seekTo = link::seekTo,
             openQueue = openQueue,
             openMore = openMore,
+            openPodcasts = openPodcasts,
         )
     }
 

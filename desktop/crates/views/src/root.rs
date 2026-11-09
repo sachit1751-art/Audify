@@ -30,12 +30,13 @@ use crate::shells::Shell;
 use crate::shells::workspace::Workspace;
 use crate::{
     Adaptive, ArtistView, DetailView, EqualizerView, FullscreenView, GenreView, HistoryView,
-    HomeView, LibraryView, LoginView, SettingsView, SongView, UserView,
+    HomeView, LibraryView, LoginView, PodcastsView, SettingsView, SongView, UserView,
 };
 
 struct Screens {
     home: Entity<HomeView>,
     history: Entity<HistoryView>,
+    podcasts: Entity<PodcastsView>,
     library: Entity<LibraryView>,
     local: Entity<LibraryView>,
     artist: Option<Entity<ArtistView>>,
@@ -210,6 +211,7 @@ impl Root {
         let home = cx.new(|cx| HomeView::new(home_state, playback.clone(), cx));
         let history = Audify::global(cx).history.clone();
         let history = cx.new(|cx| HistoryView::new(history, playback.clone(), window, cx));
+        let podcasts = cx.new(|cx| PodcastsView::new(session.clone(), playback.clone(), cx));
 
         let queries = cx.new(|cx| Search::new(session.clone(), library.clone(), io.clone(), cx));
         let suggestions =
@@ -339,6 +341,7 @@ impl Root {
             screens: Screens {
                 home,
                 history,
+                podcasts,
                 library: library_view,
                 local: local_view,
                 artist: None,
@@ -673,6 +676,7 @@ impl Root {
                 let profile = self.screens.user_profile.clone();
                 Box::new(move |cx| profile.read(cx).is_loading())
             }
+            Destination::Podcasts => return None,
             Destination::Search
             | Destination::Settings(_)
             | Destination::Equalizer
@@ -725,6 +729,10 @@ impl Root {
                 .screens
                 .user_profile
                 .update(cx, |profile, cx| profile.refresh(cx)),
+            Destination::Podcasts => self
+                .screens
+                .podcasts
+                .update(cx, |view, cx| view.refresh(cx)),
             Destination::Search
             | Destination::Settings(_)
             | Destination::Equalizer
@@ -888,6 +896,7 @@ impl Root {
         let content: AnyView = match destination {
             Destination::Fullscreen => return,
             Destination::Home => self.screens.home.clone().into(),
+            Destination::Podcasts => self.screens.podcasts.clone().into(),
             Destination::History => {
                 let history = self.screens.history.clone();
                 history.update(cx, |history, cx| history.refresh(cx));
