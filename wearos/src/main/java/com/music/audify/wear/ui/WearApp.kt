@@ -167,10 +167,10 @@ private fun PlayerRoute(link: PhoneLink, openQueue: () -> Unit, openMore: () -> 
         when {
             // The last state the phone sent is still the best thing to show
             // while it is being asked again; only "no phone at all" replaces it.
-            state == Link.NoPhone -> NoPhone(onRetry = link::retry)
+            state == Link.NoPhone -> NoPhone(onRetry = link::retry, onOpenPodcasts = openPodcasts)
             playing != null -> NowPlayingScreen(np = playing, artwork = artwork, volume = volume, actions = actions)
             !heard -> Connecting()
-            else -> NothingPlaying(onResume = link::togglePlay)
+            else -> NothingPlaying(onResume = link::togglePlay, onOpenPodcasts = openPodcasts)
         }
     }
 }
@@ -187,29 +187,41 @@ private fun Connecting() {
 }
 
 @Composable
-private fun NoPhone(onRetry: () -> Unit) {
+private fun NoPhone(onRetry: () -> Unit, onOpenPodcasts: () -> Unit) {
     Message(
         title = stringResource(R.string.no_phone_title),
         body = stringResource(R.string.no_phone_body),
         action = stringResource(R.string.retry),
         onAction = onRetry,
+        secondaryAction = "Podcasts",
+        onSecondaryAction = onOpenPodcasts,
         mesh = false,
     )
 }
 
 @Composable
-private fun NothingPlaying(onResume: () -> Unit) {
+private fun NothingPlaying(onResume: () -> Unit, onOpenPodcasts: () -> Unit) {
     Message(
         title = stringResource(R.string.nothing_playing),
         body = stringResource(R.string.nothing_playing_body),
         action = stringResource(R.string.resume),
         onAction = onResume,
+        secondaryAction = "Podcasts",
+        onSecondaryAction = onOpenPodcasts,
         mesh = true,
     )
 }
 
 @Composable
-private fun Message(title: String, body: String, action: String, onAction: () -> Unit, mesh: Boolean) {
+private fun Message(
+    title: String,
+    body: String,
+    action: String,
+    onAction: () -> Unit,
+    mesh: Boolean,
+    secondaryAction: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
+) {
     Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
         if (mesh) MeshBackground(emptyList())
         Column(
@@ -233,6 +245,10 @@ private fun Message(title: String, body: String, action: String, onAction: () ->
             Text(body, style = WearType.rowSub, color = Color.White.copy(alpha = 0.7f), textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
             Pill(text = action, onClick = onAction)
+            if (secondaryAction != null && onSecondaryAction != null) {
+                Spacer(Modifier.height(7.dp))
+                Pill(text = secondaryAction, onClick = onSecondaryAction)
+            }
         }
     }
 }

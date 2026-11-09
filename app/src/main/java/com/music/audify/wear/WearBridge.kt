@@ -246,7 +246,7 @@ object WearBridge {
     internal fun publishPodcasts(context: Context) {
         val app = context.applicationContext
         scope.launch {
-            // RSS subscriptions and authenticated YouTube Music discovery are both phone-owned.
+            // Only subscribed RSS / Atom feeds are verified podcast shows.
             val request = PutDataMapRequest.create(P.PATH_PODCASTS)
             val rows = ArrayList<DataMap>()
             PodcastRepository.subscribedShows().take(20).forEach { show ->
@@ -268,25 +268,6 @@ object WearBridge {
                     putString(P.KEY_PODCAST_DESCRIPTION, show.description.orEmpty())
                     putString(P.KEY_PODCAST_CATEGORY, "Your subscriptions")
                     putDataMapArrayList(P.KEY_PODCAST_EPISODES, episodes)
-                }
-            }
-            YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty().forEach { category ->
-                category.shows.take(4).forEach { show ->
-                    val episodes = YtMusicRepository.podcastEpisodes(show.browseId).getOrNull().orEmpty()
-                        .filter { !it.videoId.isNullOrBlank() }.take(8).map { episode ->
-                            DataMap().apply {
-                                putString(P.KEY_PODCAST_EPISODE_ID, episode.videoId.orEmpty())
-                                putString(P.KEY_PODCAST_EPISODE_TITLE, episode.title)
-                                putString(P.KEY_PODCAST_PUBLISHED, episode.subtitle)
-                            }
-                        }.let(::ArrayList)
-                    rows += DataMap().apply {
-                        putString(P.KEY_PODCAST_FEED_ID, "ytm:${show.browseId}")
-                        putString(P.KEY_PODCAST_SHOW_TITLE, show.title)
-                        putString(P.KEY_PODCAST_DESCRIPTION, show.subtitle)
-                        putString(P.KEY_PODCAST_CATEGORY, category.title)
-                        putDataMapArrayList(P.KEY_PODCAST_EPISODES, episodes)
-                    }
                 }
             }
             request.dataMap.apply {

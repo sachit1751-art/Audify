@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.PodcastProviderShow
 import com.music.audify.data.YtMusicRepository
 import com.music.audify.data.model.PodcastDiscoveryCategory
 import com.music.audify.data.model.ShelfItem
@@ -43,10 +45,13 @@ import com.music.audify.ui.tv.components.TvErrorState
 import com.music.audify.ui.tv.components.ProvideTvFeedScrolling
 import com.music.audify.ui.tv.components.TvLockup
 import com.music.audify.ui.tv.components.TvShelf
+import com.music.audify.ui.tv.components.TvShelfTitle
 import com.music.audify.ui.tv.components.TvShelfPlaceholder
 import com.music.audify.ui.tv.dialogs.TvSongMenu
 import com.music.audify.ui.tv.theme.TvDimensions
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalTime
 
 @Composable
 fun TvHomeScreen(
@@ -62,7 +67,11 @@ fun TvHomeScreen(
     val scope = rememberCoroutineScope()
     var menuSong by remember { mutableStateOf<Song?>(null) }
     var podcastCategories by remember { mutableStateOf<List<PodcastDiscoveryCategory>>(emptyList()) }
-    LaunchedEffect(Unit) { YtMusicRepository.podcastDiscoveryCategories().onSuccess { podcastCategories = it } }
+    var savedPodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        YtMusicRepository.libraryPodcastShows().onSuccess { savedPodcastShows = it }
+        YtMusicRepository.podcastDiscoveryCategories().onSuccess { podcastCategories = it }
+    }
 
     when (val state = homeState) {
         is UiState.Loading -> TvShelvesLoading(modifier)
@@ -72,31 +81,30 @@ fun TvHomeScreen(
             modifier = modifier,
         )
         is UiState.Success -> {
-            if (state.data.isEmpty() && podcastCategories.isEmpty()) {
+            if (state.data.isEmpty() && podcastCategories.isEmpty() && savedPodcastShows.isEmpty()) {
                 TvEmptyState(
                     title = "Nothing Here Yet",
                     message = "Sign in from Settings, or check your connection, to see your recommendations.",
                     modifier = modifier,
                 )
             } else {
-                val podcastShelf = podcastCategories.flatMap { it.shows }
-                    .distinctBy { it.browseId }
-                    .take(12)
+                val podcastShelfItems = buildList {
+                    savedPodcastShows.forEach { show ->
+                        add(ShelfItem(show.title, show.subtitle.ifBlank { "Saved show" }, show.thumbnailUrl, null, show.browseId))
+                    }
+                    podcastCategories.flatMap { it.shows }.forEach { show ->
+                        add(ShelfItem(show.title, "Playlist search result", show.thumbnailUrl, null, show.browseId))
+                    }
+                }.distinctBy { it.browseId }.take(12)
+                val podcastShelf = podcastShelfItems
                     .takeIf { it.isNotEmpty() }
-                    ?.let { shows -> HomeShelf(
+                    ?.let { items -> HomeShelf(
                         title = "Podcasts",
-                        subtitle = "Discover shows and episodes",
-                        items = shows.map { show -> ShelfItem(
-                            title = show.title,
-                            subtitle = show.subtitle,
-                            thumbnailUrl = show.thumbnailUrl,
-                            videoId = null,
-                            browseId = show.browseId,
-                        ) },
+                        subtitle = "Saved shows and YouTube Music playlist results",
+                        items = items,
                     ) }
                 TvShelfFeed(
-                    shelves = if (podcastShelf == null) state.data else
-                        state.data.take(1) + podcastShelf + state.data.drop(1),
+                    shelves = if (podcastShelf == null) state.data else listOf(podcastShelf) + state.data,
                     loadingMore = loadingMore,
                     onNearEnd = { viewModel.loadMoreHome() },
                     onPlaySong = { song ->
@@ -106,7 +114,9 @@ fun TvHomeScreen(
                     onSongMenu = { menuSong = it },
                     onNavigateToDetail = onNavigateToDetail,
                     onOpenPodcasts = onOpenPodcasts,
+                    header = { TvHomeGreeting() },
                     picksFirst = true,
+                    picksFirstIndex = if (podcastShelf == null) 0 else 1,
                     modifier = modifier,
                 )
             }
@@ -151,6 +161,7 @@ internal fun TvShelfFeed(
     onNavigateToDetail: (browseId: String, title: String, subtitle: String, thumbnailUrl: String?, type: BrowseType) -> Unit,
     modifier: Modifier = Modifier,
     picksFirst: Boolean = false,
+    picksFirstIndex: Int = 0,
     loadingMore: Boolean = false,
     onNearEnd: (() -> Unit)? = null,
     header: (@Composable () -> Unit)? = null,
@@ -171,7 +182,8 @@ internal fun TvShelfFeed(
 
     // The first shelf's cards rest just under its title: ContentTop, the title's
     // line, then the row's own top padding. Every focused shelf stops there.
-    ProvideTvFeedScrolling(anchor = TvDimensions.ContentTop + 19.dp + 11.dp) {
+    val headerOffset = if (header != null) 40.dp else 0.dp
+    ProvideTvFeedScrolling(anchor = TvDimensions.ContentTop + headerOffset + 19.dp + 11.dp) {
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -186,20 +198,25 @@ internal fun TvShelfFeed(
             key = { index, shelf -> "${shelf.title}#$index" },
             contentType = { index, shelf ->
                 when {
-                    picksFirst && index == 0 -> "picks"
+                    picksFirst && index == picksFirstIndex -> "picks"
                     shelf.isArtistShelf() -> "artists"
                     else -> "lockups"
                 }
             },
         ) { index, shelf ->
             val onItem: (ShelfItem) -> Unit = { item ->
-                openShelfItem(item, onPlaySong, onNavigateToDetail)
+                val browseId = item.browseId
+                if (item.videoId == null && browseId != null && shelf.isPodcastShelf()) {
+                    onNavigateToDetail(browseId, item.title, item.subtitle, item.thumbnailUrl, BrowseType.PLAYLIST)
+                } else {
+                    openShelfItem(item, onPlaySong, onNavigateToDetail)
+                }
             }
             val onItemMenu: (ShelfItem) -> (() -> Unit)? = { item ->
                 item.toSong()?.let { song -> { onSongMenu(song) } }
             }
             when {
-                picksFirst && index == 0 -> TvShelf(
+                picksFirst && index == picksFirstIndex -> TvShelf(
                     title = shelf.title,
                     subtitle = shelf.subtitle.takeIf { it.isNotBlank() },
                     items = shelf.items,
@@ -260,10 +277,32 @@ internal fun TvShelfFeed(
     }
 }
 
+@Composable
+private fun TvHomeGreeting() {
+    val greeting by produceState(initialValue = tvHomeGreeting()) {
+        while (true) {
+            value = tvHomeGreeting()
+            delay(60_000L)
+        }
+    }
+    TvShelfTitle(title = greeting)
+}
+
+private fun tvHomeGreeting(): String = when (LocalTime.now().hour) {
+    in 5..11 -> "Good morning"
+    in 12..16 -> "Good afternoon"
+    else -> "Good evening"
+}
+
 private fun ShelfItem.itemKey(): String = videoId ?: browseId ?: title
 
 private fun HomeShelf.isArtistShelf(): Boolean =
     items.isNotEmpty() && items.count { it.browseId?.startsWith("UC") == true } * 2 > items.size
+
+private fun HomeShelf.isPodcastShelf(): Boolean =
+    title.equals("Podcasts", ignoreCase = true) ||
+        title.equals("Saved shows", ignoreCase = true) ||
+        title.endsWith("podcasts", ignoreCase = true)
 
 internal fun ShelfItem.toSong(): Song? = videoId?.let {
     Song(videoId = it, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl)
