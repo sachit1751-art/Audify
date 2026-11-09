@@ -65,6 +65,8 @@ fun WearApp(
     val ambient = LocalAmbient.current
     val np by link.nowPlaying.collectAsStateWithLifecycle()
     val podcasts by link.podcasts.collectAsStateWithLifecycle()
+    val linkState by link.link.collectAsStateWithLifecycle()
+    val phoneDisconnected = linkState == Link.NoPhone
     var selectedPodcast by remember { mutableStateOf<PodcastShowRow?>(null) }
     val showAmbient = ambient.active && np != null
     // No pill behind the clock: the mesh runs right up to the bezel.
@@ -114,18 +116,26 @@ fun WearApp(
             composable(PODCASTS) {
                 PodcastCatalogueScreen(
                     shows = podcasts,
+                    phoneDisconnected = phoneDisconnected,
                     onRequest = link::requestPodcasts,
                     onOpenShow = { show -> selectedPodcast = show; nav.navigate(PODCAST_EPISODES) },
                 )
             }
             composable(PODCAST_EPISODES) {
                 selectedPodcast?.let { show ->
-                    PodcastEpisodesScreen(show = show, onPlay = { episode ->
-                        link.playPodcast(episode)
-                        nav.popBackStack(PLAYER, inclusive = false)
-                    })
+                    PodcastEpisodesScreen(
+                        show = show,
+                        phoneDisconnected = phoneDisconnected,
+                        onPlay = { episode ->
+                            if (!phoneDisconnected) {
+                                link.playPodcast(episode)
+                                nav.popBackStack(PLAYER, inclusive = false)
+                            }
+                        },
+                    )
                 } ?: PodcastCatalogueScreen(
                     shows = podcasts,
+                    phoneDisconnected = phoneDisconnected,
                     onRequest = link::requestPodcasts,
                     onOpenShow = { show -> selectedPodcast = show; nav.popBackStack() },
                 )

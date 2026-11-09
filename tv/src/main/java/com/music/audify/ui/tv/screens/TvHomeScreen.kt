@@ -40,7 +40,6 @@ import com.music.audify.ui.tv.components.TvActivityIndicator
 import com.music.audify.ui.tv.components.TvCard
 import com.music.audify.ui.tv.components.TvButton
 import com.music.audify.ui.tv.components.TvChromeScrollEffect
-import com.music.audify.ui.tv.components.TvEmptyState
 import com.music.audify.ui.tv.components.TvErrorState
 import com.music.audify.ui.tv.components.ProvideTvFeedScrolling
 import com.music.audify.ui.tv.components.TvLockup
@@ -81,45 +80,38 @@ fun TvHomeScreen(
             modifier = modifier,
         )
         is UiState.Success -> {
-            if (state.data.isEmpty() && podcastCategories.isEmpty() && savedPodcastShows.isEmpty()) {
-                TvEmptyState(
-                    title = "Nothing Here Yet",
-                    message = "Sign in from Settings, or check your connection, to see your recommendations.",
-                    modifier = modifier,
-                )
-            } else {
-                val podcastShelfItems = buildList {
-                    savedPodcastShows.forEach { show ->
-                        add(ShelfItem(show.title, show.subtitle.ifBlank { "Saved show" }, show.thumbnailUrl, null, show.browseId))
-                    }
-                    podcastCategories.flatMap { it.shows }.forEach { show ->
-                        add(ShelfItem(show.title, "Playlist search result", show.thumbnailUrl, null, show.browseId))
-                    }
-                }.distinctBy { it.browseId }.take(12)
-                val podcastShelf = podcastShelfItems
-                    .takeIf { it.isNotEmpty() }
-                    ?.let { items -> HomeShelf(
-                        title = "Podcasts",
-                        subtitle = "Saved shows and YouTube Music playlist results",
-                        items = items,
-                    ) }
-                TvShelfFeed(
-                    shelves = if (podcastShelf == null) state.data else listOf(podcastShelf) + state.data,
-                    loadingMore = loadingMore,
-                    onNearEnd = { viewModel.loadMoreHome() },
-                    onPlaySong = { song ->
-                        scope.launch { mediaController?.playSongs(listOf(song), 0) }
-                        onNavigateToNowPlaying()
-                    },
-                    onSongMenu = { menuSong = it },
-                    onNavigateToDetail = onNavigateToDetail,
-                    onOpenPodcasts = onOpenPodcasts,
-                    header = { TvHomeGreeting() },
-                    picksFirst = true,
-                    picksFirstIndex = if (podcastShelf == null) 0 else 1,
-                    modifier = modifier,
-                )
-            }
+            val podcastShelfItems = buildList {
+                savedPodcastShows.forEach { show ->
+                    add(ShelfItem(show.title, show.subtitle.ifBlank { "Saved show" }, show.thumbnailUrl, null, show.browseId))
+                }
+                podcastCategories.flatMap { it.shows }.forEach { show ->
+                    add(ShelfItem(show.title, "Playlist search result", show.thumbnailUrl, null, show.browseId))
+                }
+            }.distinctBy { it.browseId }.take(12)
+            // Keep the shelf and See all entry point even when discovery and the
+            // saved library are empty or temporarily unavailable. Otherwise the
+            // dedicated page becomes unreachable precisely in the empty/error case.
+            val podcastShelf = HomeShelf(
+                title = "Podcasts",
+                subtitle = "Saved shows and YouTube Music playlist results",
+                items = podcastShelfItems,
+            )
+            TvShelfFeed(
+                shelves = listOf(podcastShelf) + state.data,
+                loadingMore = loadingMore,
+                onNearEnd = { viewModel.loadMoreHome() },
+                onPlaySong = { song ->
+                    scope.launch { mediaController?.playSongs(listOf(song), 0) }
+                    onNavigateToNowPlaying()
+                },
+                onSongMenu = { menuSong = it },
+                onNavigateToDetail = onNavigateToDetail,
+                onOpenPodcasts = onOpenPodcasts,
+                header = { TvHomeGreeting() },
+                picksFirst = true,
+                picksFirstIndex = 1,
+                modifier = modifier,
+            )
         }
     }
 
@@ -195,7 +187,10 @@ internal fun TvShelfFeed(
         }
         itemsIndexed(
             items = shelves,
-            key = { index, shelf -> "${shelf.title}#$index" },
+            // Podcast discovery arrives after the music feed. Its insertion at
+            // index 0 must not change the keys of every existing shelf: doing
+            // so disposes their LazyRow state and drops D-pad focus restoration.
+            key = { index, shelf -> shelf.feedKey(index) },
             contentType = { index, shelf ->
                 when {
                     picksFirst && index == picksFirstIndex -> "picks"
@@ -303,6 +298,19 @@ private fun HomeShelf.isPodcastShelf(): Boolean =
     title.equals("Podcasts", ignoreCase = true) ||
         title.equals("Saved shows", ignoreCase = true) ||
         title.endsWith("podcasts", ignoreCase = true)
+
+internal fun HomeShelf.feedKey(index: Int): String {
+    if (title.equals("Podcasts", ignoreCase = true)) return "podcasts"
+    val first = items.firstOrNull()
+    val identity = first?.videoId ?: first?.browseId ?: moreBrowseId
+    return buildString {
+        append(title)
+        append('#')
+        append(discoveryCategory.orEmpty())
+        append('#')
+        append(identity ?: "empty-$index")
+    }
+}
 
 internal fun ShelfItem.toSong(): Song? = videoId?.let {
     Song(videoId = it, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl)

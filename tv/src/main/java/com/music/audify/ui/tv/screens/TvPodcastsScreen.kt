@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import com.music.audify.data.YtMusicRepository
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.HomeShelf
@@ -39,18 +41,30 @@ fun TvPodcastsScreen(
     var savedShows by remember { mutableStateOf<List<PodcastProviderShow>?>(null) }
     var discoveryError by remember { mutableStateOf<String?>(null) }
     var savedError by remember { mutableStateOf<String?>(null) }
+    var discoveryLoading by remember { mutableStateOf(true) }
+    var savedLoading by remember { mutableStateOf(true) }
     var refreshKey by remember { mutableStateOf(0) }
     LaunchedEffect(refreshKey) {
         categories = null
         savedShows = null
         discoveryError = null
         savedError = null
-        val saved = YtMusicRepository.libraryPodcastShows()
-        val discovery = YtMusicRepository.podcastDiscoveryCategories()
-        savedShows = saved.getOrNull()
-        categories = discovery.getOrNull()
-        savedError = saved.exceptionOrNull()?.message
-        discoveryError = discovery.exceptionOrNull()?.message
+        savedLoading = true
+        discoveryLoading = true
+        coroutineScope {
+            launch {
+                val saved = YtMusicRepository.libraryPodcastShows()
+                savedShows = saved.getOrNull()
+                savedError = saved.exceptionOrNull()?.message
+                savedLoading = false
+            }
+            launch {
+                val discovery = YtMusicRepository.podcastDiscoveryCategories()
+                categories = discovery.getOrNull()
+                discoveryError = discovery.exceptionOrNull()?.message
+                discoveryLoading = false
+            }
+        }
     }
     val shelves = buildList {
         savedShows.orEmpty().takeIf { it.isNotEmpty() }?.let { shows ->
@@ -60,7 +74,7 @@ fun TvPodcastsScreen(
                 items = shows.map { show -> ShelfItem(show.title, show.subtitle, show.thumbnailUrl, null, show.browseId) },
             ))
         }
-        categories.orEmpty().forEach { category ->
+        categories.orEmpty().filter { it.shows.isNotEmpty() }.forEach { category ->
             add(HomeShelf(
                 title = category.title,
                 subtitle = "YouTube Music playlist search results · not verified podcast shows",
@@ -71,8 +85,9 @@ fun TvPodcastsScreen(
         }
     }
     val errors = listOfNotNull(savedError?.let { "Saved shows: $it" }, discoveryError?.let { "Discovery: $it" })
+    val loading = savedLoading || discoveryLoading
     when {
-        categories == null && savedShows == null && errors.isEmpty() -> TvShelvesLoading(modifier)
+        shelves.isEmpty() && loading -> TvShelvesLoading(modifier)
         shelves.isEmpty() && errors.isNotEmpty() -> TvErrorState(
             message = errors.joinToString("\n"),
             onRetry = { refreshKey++ },
@@ -90,6 +105,7 @@ fun TvPodcastsScreen(
             onSongMenu = {},
             onNavigateToDetail = onNavigateToDetail,
             modifier = modifier,
+            loadingMore = loading,
             header = if (errors.isNotEmpty()) ({
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = TvDimensions.SafeMarginHorizontal),

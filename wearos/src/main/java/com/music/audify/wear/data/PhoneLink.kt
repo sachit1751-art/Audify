@@ -312,11 +312,23 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     }
 
     private suspend fun readCached() {
-        val uri = Uri.Builder().scheme(PutDataRequest.WEAR_URI_SCHEME).path(P.PATH_NOW_PLAYING).build()
+        readCachedPath(P.PATH_NOW_PLAYING, ::applyNowPlaying)
+        // The Data Layer retains the last catalogue snapshot while the phone is
+        // offline. Read it before connect() so the Podcasts action remains useful
+        // on a disconnected watch instead of spinning forever on a null state.
+        readCachedPath(P.PATH_PODCASTS, ::applyPodcasts)
+    }
+
+    private suspend fun readCachedPath(path: String, apply: (DataMap) -> Unit) {
+        val uri = Uri.Builder().scheme(PutDataRequest.WEAR_URI_SCHEME).path(path).build()
         val items = runCatching { dataClient.getDataItems(uri).await() }.getOrNull() ?: return
-        val maps = items.map { DataMapItem.fromDataItem(it).dataMap }
-        items.release()
-        maps.lastOrNull()?.let(::applyNowPlaying)
+        try {
+            items.map { DataMapItem.fromDataItem(it).dataMap }
+                .maxByOrNull { it.getLong(P.KEY_POSITION_AT) }
+                ?.let(apply)
+        } finally {
+            items.release()
+        }
     }
 
     private suspend fun connect() {

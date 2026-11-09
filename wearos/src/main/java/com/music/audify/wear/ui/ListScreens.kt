@@ -56,6 +56,8 @@ import com.music.audify.wear.data.Queue
 import com.music.audify.wear.data.QueueRow
 import com.music.audify.wear.data.PodcastShowRow
 import com.music.audify.wear.data.PodcastEpisodeRow
+import com.music.audify.wear.data.PodcastCatalogueState
+import com.music.audify.wear.data.podcastCatalogueState
 
 /**
  * Up Next. Text first, thumbnails a beat later — see PhoneLink.applyQueue —
@@ -100,11 +102,13 @@ fun QueueScreen(
 @Composable
 fun PodcastCatalogueScreen(
     shows: List<PodcastShowRow>?,
+    phoneDisconnected: Boolean = false,
     onRequest: () -> Unit,
     onOpenShow: (PodcastShowRow) -> Unit,
 ) {
     LaunchedEffect(Unit) { onRequest() }
     val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
+    val catalogueState = podcastCatalogueState(shows, phoneDisconnected)
     ScreenScaffold(scrollState = state) { padding ->
         ScalingLazyColumn(
             state = state,
@@ -113,11 +117,16 @@ fun PodcastCatalogueScreen(
             modifier = Modifier.background(Color.Black),
         ) {
             item(key = "podcast-header") { Header("Podcasts") }
-            item(key = "podcast-subtitle") { Hint("Your phone subscriptions") }
+            item(key = "podcast-subtitle") {
+                Hint(if (phoneDisconnected) "Offline catalogue · reconnect your phone to refresh or play" else "Your phone subscriptions")
+            }
             when {
-                shows == null -> item(key = "podcast-loading") { Hint("Loading subscriptions…") }
-                shows.isEmpty() -> item(key = "podcast-empty") { Hint("No RSS / Atom subscriptions on your phone") }
-                else -> shows.groupBy { it.category }.forEach { (category, categoryShows) ->
+                catalogueState == PodcastCatalogueState.OFFLINE_EMPTY -> item(key = "podcast-offline-empty") {
+                    Hint("Phone disconnected. No cached subscriptions are available yet.")
+                }
+                catalogueState == PodcastCatalogueState.LOADING -> item(key = "podcast-loading") { Hint("Loading subscriptions…") }
+                catalogueState == PodcastCatalogueState.EMPTY -> item(key = "podcast-empty") { Hint("No RSS / Atom subscriptions on your phone") }
+                catalogueState == PodcastCatalogueState.CONTENT -> shows.orEmpty().groupBy { it.category }.forEach { (category, categoryShows) ->
                     item(key = "podcast-category:$category") { Header(category) }
                     items(categoryShows, key = { it.id }) { show ->
                         Cell(onClick = { onOpenShow(show) }) {
@@ -138,7 +147,11 @@ fun PodcastCatalogueScreen(
 }
 
 @Composable
-fun PodcastEpisodesScreen(show: PodcastShowRow, onPlay: (PodcastEpisodeRow) -> Unit) {
+fun PodcastEpisodesScreen(
+    show: PodcastShowRow,
+    phoneDisconnected: Boolean = false,
+    onPlay: (PodcastEpisodeRow) -> Unit,
+) {
     val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
     ScreenScaffold(scrollState = state) { padding ->
         ScalingLazyColumn(
@@ -148,10 +161,21 @@ fun PodcastEpisodesScreen(show: PodcastShowRow, onPlay: (PodcastEpisodeRow) -> U
             modifier = Modifier.background(Color.Black),
         ) {
             item(key = "episode-header") { Header(show.title) }
-            item(key = "episode-subtitle") { Hint("Choose an episode to play on your phone") }
+            item(key = "episode-subtitle") {
+                Hint(if (phoneDisconnected) "Offline catalogue · reconnect your phone to play" else "Choose an episode to play on your phone")
+            }
             if (show.episodes.isEmpty()) item(key = "episode-empty") { Hint("No cached episodes. Refresh this show on your phone.") }
             else items(show.episodes, key = { it.episodeId }) { episode ->
-                Cell(onClick = { onPlay(episode) }, stateDescription = if (episode.completed) "Played" else "Play episode") {
+                Cell(
+                    onClick = { onPlay(episode) },
+                    dimmed = phoneDisconnected,
+                    enabled = !phoneDisconnected,
+                    stateDescription = when {
+                        phoneDisconnected -> "Reconnect phone to play episode"
+                        episode.completed -> "Played"
+                        else -> "Play episode"
+                    },
+                ) {
                     Column(Modifier.fillMaxWidth()) {
                         Text(episode.title, style = WearType.row, color = Color.White, maxLines = 2,
                             overflow = TextOverflow.Ellipsis)
@@ -379,6 +403,7 @@ private fun ToggleCell(
 private fun Cell(
     onClick: () -> Unit,
     dimmed: Boolean = false,
+    enabled: Boolean = true,
     stateDescription: String? = null,
     semanticRole: Role = Role.Button,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
@@ -392,7 +417,7 @@ private fun Cell(
             .graphicsLayer { alpha = if (dimmed) 0.5f else 1f }
             .clip(RoundedCornerShape(22.dp))
             .background(if (pressed) Color(0xFF2C2C2E) else Cell)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics {
                 role = semanticRole
                 if (stateDescription != null) this.stateDescription = stateDescription

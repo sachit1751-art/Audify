@@ -19,3 +19,20 @@ data class PodcastShowRow(
     val category: String = "Subscriptions",
     val episodes: List<PodcastEpisodeRow>,
 )
+
+internal enum class PodcastCatalogueState {
+    LOADING,
+    OFFLINE_EMPTY,
+    EMPTY,
+    CONTENT,
+}
+
+internal fun podcastCatalogueState(
+    shows: List<PodcastShowRow>?,
+    phoneDisconnected: Boolean,
+): PodcastCatalogueState = when {
+    shows != null && shows.isNotEmpty() -> PodcastCatalogueState.CONTENT
+    shows != null -> PodcastCatalogueState.EMPTY
+    phoneDisconnected -> PodcastCatalogueState.OFFLINE_EMPTY
+    else -> PodcastCatalogueState.LOADING
+}
