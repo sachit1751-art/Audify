@@ -1798,11 +1798,21 @@ internal fun ShelfCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
-            ShelfItemTitle(
-                item = item,
+            if (item.isExplicit == true) {
+                ExplicitBadge(if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground)
+                Spacer(Modifier.width(6.dp))
+            }
+            // Keep the title Text directly in this Row. ShelfItemTitle creates
+            // another fillMaxWidth Row; as an unweighted child of this Row it
+            // is measured with loose horizontal constraints and can draw past
+            // the card edge, stacking titles over neighbouring cards on phones.
+            Text(
+                text = item.title,
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
                 maxLines = titleMaxLines,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
         }
         val displaySubtitle = localizeCardSubtitle(item.subtitle)
