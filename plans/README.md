@@ -78,6 +78,11 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [088 - Desktop popover entrance](088-desktop-popover-entrance.md) | Trigger-origin-aware popover entrance | **TODO - LOW; independent** |
 | [089 - Android micro-interactions](089-android-micro-interactions.md) | Balanced-premium touch, icon, slider and feedback motion | **Implemented locally; device QA pending** |
 | [090 - Personalization Engine and Control Centre](090-personalization-and-control-center.md) | Appearance, Home layout, player presentation, configurable gestures and personalization profiles | **Planned for v1.9.2; reconcile with Plans 09, 11, 080 and 081 before implementation** |
+| [091 - AUDIFY Identity and Lightweight Social Layer](091-audify-identity-and-social-layer.md) | First-party accounts, profiles, username discovery, follow graph and shared identity foundation | **P0 — FIRST PRIORITY; prerequisite for Plan 075 and Issue #23** |
+
+## Critical execution priority
+
+**Plan 091 — AUDIFY Identity and Lightweight Social Layer is P0 and the first plan to execute before other new feature work.** It establishes first-party AUDIFY identity and durable social storage. Plan 075 (Collaborative Playlists) is blocked until Plan 091's verified identity and storage prerequisites are complete. This priority does not interrupt unrelated bug fixes, release work, or playback stability.
 
 ## Recommended motion execution order
 
