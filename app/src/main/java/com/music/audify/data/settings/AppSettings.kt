@@ -11,6 +11,8 @@ import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.Uri
+import java.io.File
 import androidx.media3.common.Player
 import com.music.audify.BuildConfig
 import com.music.audify.auth.AuthStore
@@ -104,6 +106,11 @@ enum class ThemeMode(val label: String) {
     SYSTEM("System"), LIGHT("Light"), DARK("Dark")
 }
 
+/** Built-in app-wide wallpaper treatments. A user photo takes precedence. */
+enum class AppBackgroundStyle(val label: String) {
+    PLAIN("Plain"), AURORA("Aurora"), OCEAN("Ocean"), SUNSET("Sunset"), NEBULA("Nebula")
+}
+
 /** App-wide typeface preference. AUDIFY keeps its bundled display face by default. */
 enum class AppFontChoice(val label: String) {
     AUDIFY("Audify"), SYSTEM("System"), SERIF("Serif")
@@ -159,6 +166,7 @@ enum class SongSort {
 object AppSettings {
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
 
     /** Only for the Discord, WebDAV and SMB secrets — everything else on here is plain prefs. */
     private lateinit var authStore: AuthStore
@@ -364,6 +372,11 @@ object AppSettings {
     val playbackSpeed = MutableStateFlow(1.0f)
     val themeMode = MutableStateFlow(ThemeMode.DARK)
     val fontChoice = MutableStateFlow(AppFontChoice.AUDIFY)
+    val themePaletteId = MutableStateFlow(ThemePacks.CLASSIC_ID)
+    val customThemePacks = MutableStateFlow<List<ThemePack>>(emptyList())
+    val themeBackgroundUri = MutableStateFlow("")
+    val backgroundStyle = MutableStateFlow(AppBackgroundStyle.PLAIN)
+    val launcherIconId = MutableStateFlow("default")
 
     /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
@@ -620,6 +633,9 @@ object AppSettings {
      */
     val detailSongSorts = MutableStateFlow<Map<String, SongSort>>(emptyMap())
 
+    /** Per-track half-open skip ranges, shared by every player surface on this device. */
+    val skipSegments = MutableStateFlow<Map<String, List<SkipSegment>>>(emptyMap())
+
     /** Empty means every MediaStore folder; otherwise this is a persisted SAF tree URI. */
     val localMusicFolderUri = MutableStateFlow("")
 
@@ -831,6 +847,7 @@ object AppSettings {
      * one here was a measurable slice of cold start.
      */
     fun init(context: Context, authStore: AuthStore) {
+        appContext = context.applicationContext
         prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         this.authStore = authStore
         com.music.audify.data.spotify.LocalPlaylistStore.init(context)
@@ -904,6 +921,27 @@ object AppSettings {
         themeMode.value = runCatching {
             ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "DARK")
         }.getOrDefault(ThemeMode.DARK)
+        customThemePacks.value = ThemePacks.decodeLibrary(prefs.getString(KEY_CUSTOM_THEME_PACKS, null))
+        themePaletteId.value = prefs.getString(KEY_THEME_PALETTE, ThemePacks.CLASSIC_ID)
+            ?.takeIf { id -> ThemePacks.builtIns.any { it.id == id } || customThemePacks.value.any { it.id == id } }
+            ?: ThemePacks.CLASSIC_ID
+        val savedBackground = prefs.getString(KEY_THEME_BACKGROUND_URI, "").orEmpty()
+        val backgroundValid = savedBackground.isBlank() || if (savedBackground.startsWith("content://")) {
+            appContext.contentResolver.persistedUriPermissions.any {
+                it.uri.toString() == savedBackground && it.isReadPermission
+            }
+        } else {
+            File(savedBackground).let { it.isFile && it.length() > 0L }
+        }
+        themeBackgroundUri.value = savedBackground.takeIf { backgroundValid }.orEmpty()
+        if (!backgroundValid) prefs.edit { remove(KEY_THEME_BACKGROUND_URI) }
+        backgroundStyle.value = runCatching {
+            AppBackgroundStyle.valueOf(prefs.getString(KEY_BACKGROUND_STYLE, AppBackgroundStyle.PLAIN.name) ?: AppBackgroundStyle.PLAIN.name)
+        }.getOrDefault(AppBackgroundStyle.PLAIN)
+        skipSegments.value = SkipSegmentStore.decode(prefs.getString(KEY_SKIP_SEGMENTS, null))
+        launcherIconId.value = prefs.getString(KEY_LAUNCHER_ICON, "default")
+            ?.takeIf { it in LAUNCHER_ICON_ALIASES.keys } ?: "default"
+        applyLauncherIcon(appContext, launcherIconId.value)
         fontChoice.value = runCatching {
             AppFontChoice.valueOf(prefs.getString(KEY_FONT_CHOICE, null) ?: AppFontChoice.AUDIFY.name)
         }.getOrDefault(AppFontChoice.AUDIFY)
@@ -1302,6 +1340,154 @@ object AppSettings {
         themeMode.value = value
         prefs.edit { putString(KEY_THEME, value.name) }
     }
+
+    fun setThemePalette(id: String) {
+        if (ThemePacks.builtIns.none { it.id == id } && customThemePacks.value.none { it.id == id }) return
+        themePaletteId.value = id
+        prefs.edit { putString(KEY_THEME_PALETTE, id) }
+    }
+
+    fun saveCustomThemePack(pack: ThemePack) {
+        if (pack.name.isBlank() || !ThemePacks.isValidHex(pack.primaryHex) ||
+            !ThemePacks.isValidHex(pack.secondaryHex) || !ThemePacks.isValidHex(pack.tertiaryHex)
+        ) return
+        val updated = (customThemePacks.value.filterNot { it.id == pack.id } + pack).takeLast(24)
+        customThemePacks.value = updated
+        prefs.edit { putString(KEY_CUSTOM_THEME_PACKS, ThemePacks.encodeLibrary(updated)) }
+        setThemePalette(pack.id)
+    }
+
+    fun deleteCustomThemePack(id: String) {
+        val updated = customThemePacks.value.filterNot { it.id == id }
+        if (updated.size == customThemePacks.value.size) return
+        customThemePacks.value = updated
+        prefs.edit { putString(KEY_CUSTOM_THEME_PACKS, ThemePacks.encodeLibrary(updated)) }
+        if (themePaletteId.value == id) setThemePalette(ThemePacks.CLASSIC_ID)
+    }
+
+    fun resetAppearance() {
+        setThemeMode(ThemeMode.DARK)
+        setThemePalette(ThemePacks.CLASSIC_ID)
+        setThemeBackgroundUri("")
+        setBackgroundStyle(AppBackgroundStyle.PLAIN)
+    }
+
+    fun setBackgroundStyle(value: AppBackgroundStyle) {
+        backgroundStyle.value = value
+        prefs.edit { putString(KEY_BACKGROUND_STYLE, value.name) }
+    }
+
+    fun importThemePack(json: String): Result<ThemePack> = runCatching {
+        ThemePacks.decode(json).also(::saveCustomThemePack)
+    }
+
+    fun exportThemePack(id: String): String = ThemePacks.encode(
+        ThemePacks.resolve(id, customThemePacks.value),
+    )
+
+    fun setThemeBackgroundUri(uri: String) {
+        if (uri.isBlank()) {
+            val previous = themeBackgroundUri.value
+            if (previous.isNotBlank() && !previous.startsWith("content://")) File(previous).delete()
+            themeBackgroundUri.value = ""
+            prefs.edit { remove(KEY_THEME_BACKGROUND_URI) }
+            return
+        }
+        val source = Uri.parse(uri)
+        val mime = appContext.contentResolver.getType(source).orEmpty()
+        require(mime.startsWith("image/")) { "Choose a valid image file" }
+        val directory = File(appContext.filesDir, "appearance").apply { mkdirs() }
+        val temporary = File(directory, "custom-background.tmp")
+        val destination = File(directory, "custom-background.img")
+        try {
+            var total = 0L
+            appContext.contentResolver.openInputStream(source)?.use { input ->
+                temporary.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(16 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        require(total <= 25L * 1024L * 1024L) { "Images must be 25 MB or smaller" }
+                        output.write(buffer, 0, count)
+                    }
+                }
+            } ?: error("Could not read the selected image")
+            require(total > 0L) { "The selected image is empty" }
+            if (destination.exists()) destination.delete()
+            check(temporary.renameTo(destination)) { "Could not save the selected image" }
+            val previous = themeBackgroundUri.value
+            themeBackgroundUri.value = destination.absolutePath
+            prefs.edit { putString(KEY_THEME_BACKGROUND_URI, destination.absolutePath) }
+            if (previous.isNotBlank() && !previous.startsWith("content://") && previous != destination.absolutePath) {
+                File(previous).delete()
+            }
+        } catch (error: Throwable) {
+            temporary.delete()
+            throw error
+        }
+    }
+
+    fun setSkipSegments(videoId: String, segments: List<SkipSegment>) {
+        if (videoId.isBlank() || videoId.length > 128) return
+        val normalized = SkipSegmentStore.normalize(segments)
+        val updated = skipSegments.value.toMutableMap().apply {
+            if (normalized.isEmpty()) remove(videoId) else put(videoId, normalized)
+        }.entries.take(SkipSegmentStore.MAX_TRACKS).associate { it.toPair() }
+        skipSegments.value = updated
+        prefs.edit { putString(KEY_SKIP_SEGMENTS, SkipSegmentStore.encode(updated)) }
+    }
+
+    fun addSkipSegment(videoId: String, segment: SkipSegment): Boolean {
+        val existing = skipSegments.value[videoId].orEmpty()
+        val overlapsExisting = existing.any { segment.startMs <= it.endMs && segment.endMs >= it.startMs }
+        if (existing.size >= SkipSegmentStore.MAX_SEGMENTS_PER_TRACK && !overlapsExisting) return false
+        val normalized = SkipSegmentStore.normalize(existing + segment)
+        if (normalized.isEmpty() || normalized == existing) return false
+        setSkipSegments(videoId, normalized)
+        return skipSegments.value[videoId].orEmpty() == normalized
+    }
+
+    fun removeSkipSegment(videoId: String, segment: SkipSegment) {
+        setSkipSegments(videoId, skipSegments.value[videoId].orEmpty().filterNot { it == segment })
+    }
+
+    fun setLauncherIcon(context: Context, id: String) {
+        val safeId = id.takeIf { it in LAUNCHER_ICON_ALIASES.keys } ?: "default"
+        launcherIconId.value = safeId
+        prefs.edit { putString(KEY_LAUNCHER_ICON, safeId) }
+        applyLauncherIcon(context, safeId)
+    }
+
+    private fun applyLauncherIcon(context: Context, selectedId: String) {
+        val packageManager = context.packageManager
+        val aliases = LAUNCHER_ICON_ALIASES.mapValues { (_, className) ->
+            android.content.ComponentName(context, "${context.packageName}.$className")
+        }
+        val selected = aliases[selectedId] ?: aliases.getValue("default")
+        // Enable the new entry first so the launcher never observes a moment
+        // with no enabled launcher activity.
+        packageManager.setComponentEnabledSetting(
+            selected,
+            android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            android.content.pm.PackageManager.DONT_KILL_APP,
+        )
+        aliases.values.filterNot { it == selected }.forEach { component ->
+            packageManager.setComponentEnabledSetting(
+                component,
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP,
+            )
+        }
+    }
+
+    private val LAUNCHER_ICON_ALIASES = mapOf(
+        "default" to "LauncherDefault",
+        "previous" to "LauncherPrevious",
+        "ocean" to "LauncherOcean",
+        "sunset" to "LauncherSunset",
+        "violet" to "LauncherViolet",
+    )
 
     fun setFontChoice(value: AppFontChoice) {
         fontChoice.value = value
@@ -2148,6 +2334,12 @@ object AppSettings {
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_FONT_CHOICE = "font_choice"
+    private const val KEY_THEME_PALETTE = "theme_palette"
+    private const val KEY_CUSTOM_THEME_PACKS = "custom_theme_packs"
+    private const val KEY_THEME_BACKGROUND_URI = "theme_background_uri"
+    private const val KEY_BACKGROUND_STYLE = "background_style"
+    private const val KEY_SKIP_SEGMENTS = "skip_segments_v1"
+    private const val KEY_LAUNCHER_ICON = "launcher_icon"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"

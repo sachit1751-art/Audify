@@ -410,6 +410,8 @@ class MainActivity : AppCompatActivity() {
         installFirstDrawWarmupGate()
         setContent {
             val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
+            val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
+            val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
             val highPerformance by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
             val liquidGlassEnabled by AppSettings.liquidGlass.collectAsStateWithLifecycle()
             val iosOverscrollFactory = rememberIosOverscrollFactory()
@@ -435,9 +437,12 @@ class MainActivity : AppCompatActivity() {
                 // the floor the pages have always been drawn against, so it is
                 // laid down here too and the recording is opaque like the screen.
                 val windowBackground = MaterialTheme.colorScheme.background
-                val paintBackdrop: ContentDrawScope.() -> Unit = remember(windowBackground) {
+                val paintBackdrop: ContentDrawScope.() -> Unit = remember(windowBackground, themeBackgroundUri, backgroundStyle) {
                     {
-                        drawRect(windowBackground)
+                        // Keep the selected wallpaper visible through the shared
+                        // backdrop while retaining enough tint for legibility.
+                        val hasBackdrop = themeBackgroundUri.isNotBlank() || backgroundStyle != com.music.audify.data.settings.AppBackgroundStyle.PLAIN
+                        drawRect(windowBackground.copy(alpha = if (hasBackdrop) .24f else 1f))
                         drawContent()
                     }
                 }
@@ -2804,8 +2809,7 @@ private fun AudifyApp(
 
     Box(
         Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .fillMaxSize(),
     ) {
         // A pushed page replaces the tab content but leaves the tab bar and
         // mini player in place.
@@ -3776,7 +3780,6 @@ LibraryScreen(
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
                                 deviceEmptyText = stringResource(R.string.on_device_empty),
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
-                                onPodcasts = { navigator.push(AppRoute.Podcasts()) },
                             )
                             }
                         }
@@ -4049,7 +4052,7 @@ LibraryScreen(
                                         // than as "something about your device".
                                         Icons.Rounded.Upgrade,
                                         contentDescription = stringResource(R.string.update_available, update.version),
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                                     )
                                 }
                             }
@@ -6030,7 +6033,7 @@ private fun FrostedSortMenu(
                 Icon(
                     Icons.Rounded.ArrowUpward,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                     modifier = Modifier.rotate(arrowRotation),
                 )
             }
@@ -6149,7 +6152,7 @@ private fun FrostedMenuRow(
             Icon(
                 Icons.Rounded.Check,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
             )
         } else if (icon != null) {
             Spacer(Modifier.width(16.dp))

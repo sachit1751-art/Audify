@@ -854,6 +854,9 @@ class PlaybackService : MediaLibraryService() {
     private var serviceLyrics: List<LyricLine>? = null
     private var lastPublishedSubtitle: String? = null
     private var lyricsTickerJob: Job? = null
+    private var skipSegmentTickerJob: Job? = null
+    private var lastSkippedSegmentKey: String? = null
+    private var pendingSkipSeekTargetMs: Long? = null
 
     /**
      * Everything the service books against the player it is currently on.
@@ -875,6 +878,7 @@ class PlaybackService : MediaLibraryService() {
             val exoPlayer = player ?: return
             val podcast = exoPlayer.currentMediaItem?.takeIf { it.isPodcastEpisode }
                 ?.let { runCatching { it.toPlayableMedia() as? PlayableMedia.Podcast }.getOrNull() }
+            if (isPlaying && podcast == null) startSkipSegmentTicker() else stopSkipSegmentTicker()
             // The only number that describes what a listener actually
             // waits through. Every other timing in this app measures one
             // leg of getting a track started — a resolve, a client walk, an
@@ -995,6 +999,8 @@ class PlaybackService : MediaLibraryService() {
         ) {
             val exoPlayer = player ?: return
             if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                if (pendingSkipSeekTargetMs != newPosition.positionMs) lastSkippedSegmentKey = null
+                pendingSkipSeekTargetMs = null
                 if (exoPlayer.isPlaying) pushDiscordPresence(exoPlayer)
                 updateLyricSubtitle()
                 // The watch extrapolates its progress ring from the last
@@ -1007,6 +1013,8 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            lastSkippedSegmentKey = null
+            pendingSkipSeekTargetMs = null
             if (mediaItem?.hasSupportedPlayableKind == false) {
                 TrackLog.w("Audify", "Rejected unsupported media kind at playback transition", about = mediaItem.mediaId)
                 exoPlayer.pause()
@@ -7489,6 +7497,10 @@ class PlaybackService : MediaLibraryService() {
         publishWidgetState(playing = false)
         lyricsTickerJob?.cancel()
         lyricsTickerJob = null
+        skipSegmentTickerJob?.cancel()
+        skipSegmentTickerJob = null
+        lastSkippedSegmentKey = null
+        pendingSkipSeekTargetMs = null
         serviceLyricsJob?.cancel()
         serviceLyricsJob = null
         serviceLyrics = null
@@ -7635,6 +7647,46 @@ class PlaybackService : MediaLibraryService() {
         lyricsTickerJob?.cancel()
         lyricsTickerJob = null
         updateLyricSubtitle()
+    }
+
+    /** Applies saved per-track skip ranges to the active local or Cast session player. */
+    private fun startSkipSegmentTicker() {
+        if (skipSegmentTickerJob?.isActive == true) return
+        skipSegmentTickerJob = scope.launch(Dispatchers.Main.immediate) {
+            while (isActive) {
+                val activePlayer: Player? = mediaSession?.player ?: player
+                val song = activePlayer?.currentMediaItem?.toSongOrNull()
+                val position = activePlayer?.currentPosition ?: 0L
+                val segment = if (activePlayer?.isPlaying == true && song != null) {
+                    com.music.audify.data.settings.SkipSegmentStore.matchingSegment(
+                        song.videoId, position, AppSettings.skipSegments.value,
+                    )
+                } else null
+                if (segment == null || song == null) {
+                    lastSkippedSegmentKey = null
+                } else {
+                    val key = "${song.videoId}:${segment.startMs}:${segment.endMs}"
+                    if (lastSkippedSegmentKey != key) {
+                        lastSkippedSegmentKey = key
+                        pendingSkipSeekTargetMs = segment.endMs
+                        TrackLog.d(
+                            "Audify",
+                            "Skipping saved segment ${segment.startMs}-${segment.endMs}ms",
+                            about = song.videoId,
+                        )
+                        activePlayer.seekTo(segment.endMs)
+                    }
+                }
+                delay(150L)
+            }
+        }
+    }
+
+    private fun stopSkipSegmentTicker() {
+        skipSegmentTickerJob?.cancel()
+        skipSegmentTickerJob = null
+        lastSkippedSegmentKey = null
+        pendingSkipSeekTargetMs = null
     }
 
     private fun updateLyricSubtitle() {

@@ -293,7 +293,7 @@ private fun SyllableSyncToggle(checked: Boolean, onToggle: () -> Unit) {
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = stringResource(R.string.enabled),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.size(19.dp),
             )
         }
@@ -569,7 +569,7 @@ private fun ReorderableSourceList(
                             Icon(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = stringResource(R.string.enabled),
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                                 modifier = Modifier.size(19.dp),
                             )
                         }

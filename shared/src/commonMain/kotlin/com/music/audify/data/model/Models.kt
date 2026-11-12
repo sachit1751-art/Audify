@@ -507,6 +507,16 @@ fun List<Song>.stableSongComposeKeys(): List<String> {
     }
 }
 
+/** Stable, collision-free keys for lazy columns made from groups of tracks. */
+fun List<Song>.stableSongColumnComposeKeys(columnSize: Int): List<String> {
+    require(columnSize > 0) { "columnSize must be positive" }
+    return stableSongComposeKeys().chunked(columnSize).map { column ->
+        // Length-prefixing makes the composite unambiguous even when a provider
+        // ID contains punctuation that would otherwise be used as a separator.
+        column.joinToString(separator = "") { key -> "${key.length}:$key" }
+    }
+}
+
 data class HomeShelf(
     val title: String,
     val items: List<ShelfItem>,
@@ -519,6 +529,18 @@ data class HomeShelf(
     /** Source-derived layout, appended to preserve existing positional constructors. */
     val layout: ShelfLayout = ShelfLayout.CARDS,
 )
+
+/** Stable, duplicate-safe keys for the sections of an artist's page. */
+fun List<HomeShelf>.stableHomeShelfComposeKeys(): List<String> {
+    val occurrences = HashMap<String, Int>()
+    return map { shelf ->
+        val identity = shelf.moreBrowseId?.takeIf(String::isNotBlank)?.let { "browse:$it" }
+            ?: "text:${shelf.title}:${shelf.subtitle}"
+        val occurrence = occurrences.getOrDefault(identity, 0)
+        occurrences[identity] = occurrence + 1
+        "$identity#$occurrence"
+    }
+}
 
 /**
  * These shelves minus any that mostly repeat one already on the page, or one earlier in this

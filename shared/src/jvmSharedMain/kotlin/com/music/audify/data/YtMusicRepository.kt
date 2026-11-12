@@ -839,7 +839,7 @@ object YtMusicRepository {
             val albumRows = InnertubeParser.collectSongsDeep(response).size
             albumPlaylistOf(response, albumRows)?.let { response = it }
         }
-        var page = 1
+        val paging = ContinuationPagingGuard(MAX_PAGES)
         while (true) {
             // Same shelf-scoping as pageOf: a playlist (Liked Music and the
             // Library Songs auto-playlist included) is read from its own
@@ -847,8 +847,14 @@ object YtMusicRepository {
             val shelf = InnertubeParser.parsePlaylistShelf(response)
             (shelf?.songs ?: InnertubeParser.collectSongsDeep(response)).forEach { out[it.videoId] = it }
             val token = shelf?.continuation ?: InnertubeParser.continuationToken(response)
-            if (token == null || page++ >= MAX_PAGES) break
-            response = runCatching { Innertube.browseContinuation(token) }.getOrNull() ?: break
+            if (!paging.shouldFetch(token)) break
+            response = try {
+                Innertube.browseContinuation(token!!)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                break
+            }
         }
         return out.values.toList()
     }
@@ -865,7 +871,7 @@ object YtMusicRepository {
     private suspend fun itemsPaged(browseId: String, params: String? = null): List<ShelfItem> {
         val out = LinkedHashMap<String, ShelfItem>()
         var response = Innertube.browse(browseId, params)
-        var page = 1
+        val paging = ContinuationPagingGuard(MAX_PAGES)
         while (true) {
             val parsed = InnertubeParser.parseLibraryItemPage(response)
             parsed.items.forEach { item ->
@@ -873,8 +879,14 @@ object YtMusicRepository {
                 out.putIfAbsent(key, item)
             }
             val token = parsed.continuation ?: break
-            if (page++ >= MAX_PAGES) break
-            response = runCatching { Innertube.browseContinuation(token) }.getOrNull() ?: break
+            if (!paging.shouldFetch(token)) break
+            response = try {
+                Innertube.browseContinuation(token)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                break
+            }
         }
         return out.values.toList()
     }
@@ -1197,16 +1209,26 @@ object YtMusicRepository {
         coroutineScope {
             val fullSongsDeferred = async {
                 page.moreSongsBrowseId?.let { playlistId ->
-                    runCatching { songsPaged(playlistId) }.getOrNull()
+                    try {
+                        songsPaged(playlistId)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
             }
             val shelvesDeferred = page.sections.map { shelf ->
                 async {
                     val moreBrowseId = shelf.moreBrowseId
                     if (moreBrowseId != null) {
-                        val fullItems = runCatching {
+                        val fullItems = try {
                             itemsPaged(moreBrowseId, shelf.moreParams)
-                        }.getOrNull()
+                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
+                        }
                         if (!fullItems.isNullOrEmpty()) {
                             shelf.copy(items = fullItems)
                         } else {
@@ -1219,7 +1241,8 @@ object YtMusicRepository {
             }
             val fullSongs = fullSongsDeferred.await()
             val fullShelves = shelvesDeferred.awaitAll()
-            val resolvedSongs = if (!fullSongs.isNullOrEmpty()) fullSongs else page.songs
+            val resolvedSongs = (if (!fullSongs.isNullOrEmpty()) fullSongs else page.songs)
+                .distinctBy { it.videoId }
             page.copy(songs = resolvedSongs, sections = fullShelves)
         }
     }
@@ -1245,4 +1268,21 @@ object YtMusicRepository {
                 .onSuccess { Log.d(TAG, "$label ok") }
                 .onFailure { Log.w(TAG, "$label failed: ${it.message}") }
         }
+}
+
+/** Bounds continuation walks and stops immediately when a provider repeats a token. */
+internal class ContinuationPagingGuard(private val maxPages: Int) {
+    init {
+        require(maxPages > 0) { "maxPages must be positive" }
+    }
+
+    private var fetchedPages = 1
+    private val seenTokens = HashSet<String>()
+
+    fun shouldFetch(token: String?): Boolean {
+        if (token.isNullOrBlank() || fetchedPages >= maxPages) return false
+        if (!seenTokens.add(token)) return false
+        fetchedPages += 1
+        return true
+    }
 }

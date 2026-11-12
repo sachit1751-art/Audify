@@ -698,7 +698,7 @@ private fun TrailingGlyph(selected: Boolean, palette: ArtworkPalette) {
     Icon(
         imageVector = if (selected) Icons.Rounded.CheckCircle else AudifyIcons.ChevronRight,
         contentDescription = if (selected) stringResource(R.string.audify_selected) else null,
-        tint = if (selected) MaterialTheme.colorScheme.primary else palette.onBackgroundVariant,
+        tint = if (selected) com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface) else palette.onBackgroundVariant,
         modifier = Modifier.size(if (selected) 22.dp else 16.dp),
     )
 }
@@ -734,7 +734,7 @@ internal fun LocalFolderSelectionBar(
             Icon(
                 Icons.Rounded.Check,
                 contentDescription = stringResource(R.string.select_all),
-                tint = if (dark) Color.White else MaterialTheme.colorScheme.primary,
+                tint = if (dark) Color.White else com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.size(20.dp),
             )
         }

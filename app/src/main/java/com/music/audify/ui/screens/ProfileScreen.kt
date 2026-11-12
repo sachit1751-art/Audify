@@ -439,7 +439,7 @@ private fun EmptyStatsState() {
                 Icons.Rounded.Headphones,
                 contentDescription = null,
                 modifier = Modifier.size(30.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
             )
             Text("Your listening story starts here", fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium)

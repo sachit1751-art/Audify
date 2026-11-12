@@ -798,7 +798,7 @@ private fun ChoiceRow(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = stringResource(R.string.audify_selected),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                 modifier = Modifier.size(19.dp),
             )
         }

@@ -5,12 +5,17 @@ package com.music.audify
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.SystemClock
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaBrowser
 import androidx.media3.session.SessionToken
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.music.audify.data.model.Song
 import com.music.audify.playback.PlaybackService
+import com.music.audify.playback.toMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -21,6 +26,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -71,6 +80,53 @@ class AndroidAutoMediaLibraryTest {
         assertNotNull("Library root item must not be null", rootResult.value)
         assertEquals("root", rootResult.value?.mediaId)
         assertTrue("Root must be browsable", rootResult.value?.mediaMetadata?.isBrowsable == true)
+    }
+
+    @Test
+    fun transportControlsAndMetadataStaySynchronizedAcrossTrackTransitions() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val firstFile = createSilentWav(context.cacheDir.resolve("android-auto-first.wav"))
+        val secondFile = createSilentWav(context.cacheDir.resolve("android-auto-second.wav"))
+        val first = Song(
+            videoId = Uri.fromFile(firstFile).toString(),
+            title = "Android Auto first track",
+            artist = "Audify test",
+            thumbnailUrl = null,
+        ).toMediaItem()
+        val second = Song(
+            videoId = Uri.fromFile(secondFile).toString(),
+            title = "Android Auto second track",
+            artist = "Audify test",
+            thumbnailUrl = null,
+        ).toMediaItem()
+
+        withContext(Dispatchers.Main) {
+            mediaBrowser.setMediaItems(listOf(first, second), 0, 0L)
+            mediaBrowser.prepare()
+        }
+
+        awaitPlayerState("first local test track to become ready") {
+            mediaBrowser.currentMediaItem?.mediaId == first.mediaId &&
+                mediaBrowser.playbackState == Player.STATE_READY
+        }
+        withContext(Dispatchers.Main) {
+            assertEquals("Android Auto first track", mediaBrowser.mediaMetadata.title?.toString())
+            assertTrue(mediaBrowser.isCommandAvailable(Player.COMMAND_PLAY_PAUSE))
+            assertTrue(mediaBrowser.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM))
+        }
+
+        withContext(Dispatchers.Main) { mediaBrowser.seekToNextMediaItem() }
+        awaitPlayerState("next-track command and metadata to synchronize") {
+            mediaBrowser.currentMediaItem?.mediaId == second.mediaId
+        }
+        withContext(Dispatchers.Main) {
+            assertEquals("Android Auto second track", mediaBrowser.mediaMetadata.title?.toString())
+        }
+
+        withContext(Dispatchers.Main) { mediaBrowser.play() }
+        awaitPlayerState("play command to reach the session") { mediaBrowser.playWhenReady }
+        withContext(Dispatchers.Main) { mediaBrowser.pause() }
+        awaitPlayerState("pause command to reach the session") { !mediaBrowser.playWhenReady }
     }
 
     @Test
@@ -239,5 +295,42 @@ class AndroidAutoMediaLibraryTest {
         }
         assertNotNull("Search result should not be null", results)
         assertNotNull("Search result items should not be null", results.value)
+    }
+
+    private fun createSilentWav(file: File): File {
+        val sampleRate = 8_000
+        val dataSize = sampleRate * 5 * 2 // five seconds, mono, 16-bit PCM
+        val bytes = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN)
+        bytes.put("RIFF".toByteArray(StandardCharsets.US_ASCII))
+        bytes.putInt(36 + dataSize)
+        bytes.put("WAVE".toByteArray(StandardCharsets.US_ASCII))
+        bytes.put("fmt ".toByteArray(StandardCharsets.US_ASCII))
+        bytes.putInt(16)
+        bytes.putShort(1) // PCM
+        bytes.putShort(1) // mono
+        bytes.putInt(sampleRate)
+        bytes.putInt(sampleRate * 2)
+        bytes.putShort(2)
+        bytes.putShort(16)
+        bytes.put("data".toByteArray(StandardCharsets.US_ASCII))
+        bytes.putInt(dataSize)
+        while (bytes.hasRemaining()) bytes.put(0)
+        file.writeBytes(bytes.array())
+        return file
+    }
+
+    private fun awaitPlayerState(description: String, timeoutMs: Long = 5_000L, condition: () -> Boolean) {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        var satisfied = false
+        while (!satisfied) {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                satisfied = condition()
+            }
+            if (satisfied) break
+            if (SystemClock.elapsedRealtime() >= deadline) {
+                throw AssertionError("Timed out waiting for $description")
+            }
+            Thread.sleep(20L)
+        }
     }
 }

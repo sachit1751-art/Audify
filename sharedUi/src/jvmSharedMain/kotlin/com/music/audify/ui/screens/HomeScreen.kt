@@ -844,7 +844,7 @@ private fun HomeTitle(
         Icon(
             painter = painterResource(Res.drawable.ic_logo),
             contentDescription = "Audify",
-            tint = MaterialTheme.colorScheme.primary,
+            tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
             modifier = Modifier.width(40.dp).height(27.dp),
         )
         Spacer(Modifier.width(10.dp))
@@ -1744,7 +1744,7 @@ internal fun NewShelfCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                     modifier = Modifier.size(34.dp),
                 )
             }

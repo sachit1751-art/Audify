@@ -336,7 +336,8 @@ object InnertubeParser {
         sections.forEach { section ->
             section.o("musicShelfRenderer")?.let { shelf ->
                 shelf.a("contents").orEmpty().forEach { row ->
-                    parseResponsiveListItem(row.o("musicResponsiveListItemRenderer"), credit)
+                    runCatching { parseResponsiveListItem(row.o("musicResponsiveListItemRenderer"), credit) }
+                        .getOrNull()
                         ?.let(songs::add)
                 }
                 if (moreSongs == null) {
@@ -348,8 +349,8 @@ object InnertubeParser {
                 val header = carousel.o("header").o("musicCarouselShelfBasicHeaderRenderer")
                 val title = header.o("title").runs()
                 if (VIDEO_WORD.containsMatchIn(title)) return@let
-                val items = carousel.a("contents").orEmpty().mapNotNull {
-                    parseTwoRowItem(it.o("musicTwoRowItemRenderer"))
+                val items = carousel.a("contents").orEmpty().mapNotNull { row ->
+                    runCatching { parseTwoRowItem(row.o("musicTwoRowItemRenderer")) }.getOrNull()
                 }.filter { it.browseId != null }
                 val moreEndpoint = header.o("title").a("runs")?.firstNotNullOfOrNull {
                     it.o("navigationEndpoint").o("browseEndpoint")
@@ -376,7 +377,7 @@ object InnertubeParser {
             }
         }
         return ArtistPage(
-            songs, moreSongs, shelves,
+            songs.distinctBy { it.videoId }, moreSongs, shelves,
             thumbnailUrl = artistThumbnail(header),
             name = credit.artistName,
             description = parseDescription(response),

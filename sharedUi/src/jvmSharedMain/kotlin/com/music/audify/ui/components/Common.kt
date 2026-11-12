@@ -17,6 +17,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.music.audify.ui.motion.MotionTokens
 import com.music.audify.ui.motion.microPressScale
@@ -67,6 +68,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import kotlin.math.abs
@@ -98,7 +100,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.text.style.TextAlign
@@ -116,6 +117,14 @@ import com.music.audify.data.model.isMatchMissing
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.CircularProgressIndicator
 import com.music.audify.data.model.artworkAt
+
+/** Keeps accent hue while adding foreground contrast across every theme pack. */
+fun accessibleThemeIconTint(accent: Color, foreground: Color): Color = Color(
+    red = accent.red * .55f + foreground.red * .45f,
+    green = accent.green * .55f + foreground.green * .45f,
+    blue = accent.blue * .55f + foreground.blue * .45f,
+    alpha = 1f,
+)
 
 /**
  * The left and right inset every page's content sits at — the artist page's
@@ -493,7 +502,7 @@ private fun QueueSwipeLabel(playNext: Boolean) {
         Icon(
             if (playNext) Icons.AutoMirrored.Rounded.PlaylistPlay else Icons.AutoMirrored.Rounded.PlaylistAdd,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(6.dp))

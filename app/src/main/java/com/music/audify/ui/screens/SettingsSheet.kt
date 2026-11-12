@@ -86,6 +86,8 @@ import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.LocalOffer
 import androidx.compose.material.icons.rounded.MusicOff
 import androidx.compose.material.icons.rounded.MotionPhotosOff
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Draw
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -288,6 +290,11 @@ fun SettingsScreen(
     val translationLanguage by AppSettings.translationLanguage.collectAsStateWithLifecycle()
     val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
     val fontChoice by AppSettings.fontChoice.collectAsStateWithLifecycle()
+    val themePaletteId by AppSettings.themePaletteId.collectAsStateWithLifecycle()
+    val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
+    val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
+    val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+    val launcherIconId by AppSettings.launcherIconId.collectAsStateWithLifecycle()
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
     val outputPcmMode by AppSettings.outputPcmMode.collectAsStateWithLifecycle()
     val preferUsbDac by AppSettings.preferUsbDac.collectAsStateWithLifecycle()
@@ -380,6 +387,7 @@ fun SettingsScreen(
     var exportStatus by remember { mutableStateOf<String?>(null) }
     var importStatus by remember { mutableStateOf<String?>(null) }
     var confirmImport by remember { mutableStateOf(false) }
+    var pendingThemeBackgroundUri by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var importPreview by remember { mutableStateOf<Backup.Preview?>(null) }
     var youtubeSyncDetails by remember { mutableStateOf<String?>(null) }
@@ -388,6 +396,21 @@ fun SettingsScreen(
     var showPerformanceWarning by remember { mutableStateOf(false) }
     var showPerformanceConfirmation by remember { mutableStateOf(false) }
     val backupScope = rememberCoroutineScope()
+    var customThemeName by rememberSaveable { mutableStateOf("My theme") }
+    var customThemePrimary by rememberSaveable { mutableStateOf("#55C7F2") }
+    var customThemeSecondary by rememberSaveable { mutableStateOf("#80E0D0") }
+    var customThemeTertiary by rememberSaveable { mutableStateOf("#3478F6") }
+    var themePackStatus by remember { mutableStateOf<String?>(null) }
+    val selectedThemePack = remember(themePaletteId, customThemePacks) {
+        com.music.audify.data.settings.ThemePacks.resolve(themePaletteId, customThemePacks)
+    }
+    val selectedCustomTheme = customThemePacks.firstOrNull { it.id == themePaletteId }
+    LaunchedEffect(themePaletteId, customThemePacks) {
+        customThemeName = selectedThemePack.name
+        customThemePrimary = selectedThemePack.primaryHex
+        customThemeSecondary = selectedThemePack.secondaryHex
+        customThemeTertiary = selectedThemePack.tertiaryHex
+    }
 
     val batterySettingsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -405,6 +428,51 @@ fun SettingsScreen(
             )
         }
         AppSettings.setLocalMusicFolderUri(folder.toString())
+    }
+    val themeBackgroundPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            // Keep the current wallpaper until the user confirms the preview.
+            pendingThemeBackgroundUri = uri.toString()
+        }
+    }
+    val themePackImportPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            themePackStatus = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(2048)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        require(output.size() + count <= 16_384) { "Theme files must be 16 KB or smaller" }
+                        output.write(buffer, 0, count)
+                    }
+                    String(output.toByteArray(), Charsets.UTF_8)
+                } ?: error("Could not read the selected theme file")
+            }.fold(
+                onSuccess = { json -> AppSettings.importThemePack(json).fold(
+                    onSuccess = { "Imported ${it.name}" },
+                    onFailure = { "Theme import failed: ${it.message ?: "invalid file"}" },
+                ) },
+                onFailure = { "Theme import failed: ${it.message ?: "could not read file"}" },
+            )
+        }
+    }
+    val themePackExportPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        if (uri != null) {
+            themePackStatus = runCatching {
+                val json = AppSettings.exportThemePack(themePaletteId)
+                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(json) }
+                    ?: error("Could not write the theme file")
+                "Theme exported"
+            }.getOrElse { "Theme export failed: ${it.message ?: "write error"}" }
+        }
     }
 
     /**
@@ -1074,6 +1142,144 @@ fun SettingsScreen(
                     options = AppFontChoice.entries.map { it.label },
                     selectedIndex = AppFontChoice.entries.indexOf(fontChoice),
                     onSelect = { AppSettings.setFontChoice(AppFontChoice.entries[it]) },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                )
+            }
+            val paletteTitle = "Colour themes"
+            row(paletteTitle, "palette", "accent", "community", "custom", "theme pack") {
+                SettingsRow(
+                    icon = Icons.Rounded.Palette,
+                    title = paletteTitle,
+                    subtitle = "Choose a style or import a community theme",
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        .padding(start = ROW_INSET, end = ROW_INSET, bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    (com.music.audify.data.settings.ThemePacks.builtIns + customThemePacks).forEach { pack ->
+                        val selected = themePaletteId == pack.id
+                        Column(
+                            modifier = Modifier.width(92.dp).clip(RoundedCornerShape(14.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { AppSettings.setThemePalette(pack.id) }
+                                .padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            val surfacePreview = when (pack.surfaceStyle) {
+                                com.music.audify.data.settings.ThemeSurfaceStyle.DEFAULT -> Color(0xFF17191F)
+                                com.music.audify.data.settings.ThemeSurfaceStyle.AMOLED -> Color.Black
+                                com.music.audify.data.settings.ThemeSurfaceStyle.MIDNIGHT -> Color(0xFF080D18)
+                                com.music.audify.data.settings.ThemeSurfaceStyle.GRAPHITE -> Color(0xFF15171B)
+                                com.music.audify.data.settings.ThemeSurfaceStyle.DEEP_PURPLE -> Color(0xFF120D1D)
+                                com.music.audify.data.settings.ThemeSurfaceStyle.WARM -> Color(0xFF19130F)
+                                com.music.audify.data.settings.ThemeSurfaceStyle.SLATE -> Color(0xFF101820)
+                            }
+                            Box(Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(6.dp)).background(surfacePreview))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { hex ->
+                                    Box(Modifier.size(18.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))))
+                                }
+                            }
+                            Text(pack.name, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                            Text(
+                                when (pack.surfaceStyle) {
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.DEFAULT -> "Classic dark"
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.AMOLED -> "Pure black"
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.MIDNIGHT -> "Blue dark"
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.GRAPHITE -> "Soft dark"
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.DEEP_PURPLE -> "Deep purple"
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.WARM -> "Warm dark"
+                                    com.music.audify.data.settings.ThemeSurfaceStyle.SLATE -> "Slate blue"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            if (selected) Text("Selected", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+                Text("Create your own", modifier = Modifier.padding(start = ROW_INSET, top = 4.dp), style = MaterialTheme.typography.titleSmall)
+                OutlinedTextField(value = customThemeName, onValueChange = { customThemeName = it.take(32) }, label = { Text("Theme name") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 4.dp))
+                Row(Modifier.fillMaxWidth().padding(horizontal = ROW_INSET), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = customThemePrimary, onValueChange = { customThemePrimary = it.take(7).uppercase() }, label = { Text("Primary") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = customThemeSecondary, onValueChange = { customThemeSecondary = it.take(7).uppercase() }, label = { Text("Secondary") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                OutlinedTextField(value = customThemeTertiary, onValueChange = { customThemeTertiary = it.take(7).uppercase() }, label = { Text("Tertiary") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 4.dp))
+                Button(
+                    onClick = {
+                        val values = listOf(customThemePrimary, customThemeSecondary, customThemeTertiary)
+                        if (customThemeName.isBlank() || values.any { !com.music.audify.data.settings.ThemePacks.isValidHex(it) }) {
+                            themePackStatus = "Enter a name and three colours in #RRGGBB format"
+                        } else {
+                            val pack = com.music.audify.data.settings.ThemePack(
+                                selectedCustomTheme?.id ?: java.util.UUID.randomUUID().toString(),
+                                customThemeName.trim(), customThemePrimary, customThemeSecondary, customThemeTertiary,
+                                selectedThemePack.surfaceStyle,
+                            )
+                            AppSettings.saveCustomThemePack(pack)
+                            themePackStatus = "Saved ${pack.name}"
+                        }
+                    },
+                    modifier = Modifier.padding(start = ROW_INSET, top = 4.dp),
+                ) { Text(if (selectedCustomTheme == null) "Save theme" else "Update theme") }
+                Row(Modifier.fillMaxWidth().padding(horizontal = ROW_INSET), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { themePackExportPicker.launch("audify-${themePaletteId}.audifytheme.json") }) { Text("Export selected") }
+                    TextButton(onClick = { themePackImportPicker.launch(arrayOf("application/json", "text/*", "application/octet-stream")) }) { Text("Import theme") }
+                    if (selectedCustomTheme != null) TextButton(onClick = {
+                        AppSettings.deleteCustomThemePack(themePaletteId)
+                        themePackStatus = "Deleted custom theme"
+                    }) { Text("Delete") }
+                    TextButton(onClick = {
+                        AppSettings.resetAppearance()
+                        themePackStatus = "Appearance reset to default"
+                    }) { Text("Reset") }
+                }
+                themePackStatus?.let { Text(it, modifier = Modifier.padding(horizontal = ROW_INSET, vertical = 4.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary) }
+            }
+            val backgroundTitle = "Custom background"
+            row(backgroundTitle, "wallpaper", "image", "photo", "background") {
+                SettingsRow(
+                    icon = Icons.Rounded.Image,
+                    title = "Built-in background",
+                    subtitle = if (themeBackgroundUri.isNotBlank()) "Your photo is currently overriding this style" else "Choose a gradient wallpaper for the whole app",
+                )
+                SegmentedControl(
+                    options = listOf("Plain", "Aurora", "Ocean", "Sunset", "Nebula"),
+                    selectedIndex = com.music.audify.data.settings.AppBackgroundStyle.entries.indexOf(backgroundStyle).coerceAtLeast(0),
+                    onSelect = { index ->
+                        AppSettings.setBackgroundStyle(com.music.audify.data.settings.AppBackgroundStyle.entries[index])
+                    },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 10.dp),
+                )
+                SettingsRow(
+                    icon = Icons.Rounded.Image,
+                    title = backgroundTitle,
+                    subtitle = if (themeBackgroundUri.isBlank()) "Use a photo behind app surfaces" else "A custom photo is active",
+                    onClick = { themeBackgroundPicker.launch(arrayOf("image/*")) },
+                )
+                Row(Modifier.fillMaxWidth().padding(start = ROW_INSET, end = ROW_INSET, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { themeBackgroundPicker.launch(arrayOf("image/*")) }) { Text("Choose photo") }
+                    if (themeBackgroundUri.isNotBlank()) TextButton(onClick = { AppSettings.setThemeBackgroundUri("") }) { Text("Remove") }
+                }
+                if (themeBackgroundUri.isNotBlank()) {
+                    AsyncImage(
+                        model = if (themeBackgroundUri.startsWith("content://")) Uri.parse(themeBackgroundUri) else java.io.File(themeBackgroundUri),
+                        contentDescription = "Current app background preview",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(112.dp).padding(horizontal = ROW_INSET)
+                            .clip(RoundedCornerShape(14.dp)),
+                    )
+                }
+            }
+            val launcherIconTitle = "App icon"
+            row(launcherIconTitle, "launcher", "logo", "home screen icon") {
+                SettingsRow(icon = Icons.Rounded.Apps, title = launcherIconTitle, subtitle = "Changes the icon shown by your launcher")
+                SegmentedControl(
+                    options = listOf("Current", "Previous", "Ocean", "Sunset", "Violet"),
+                    selectedIndex = listOf("default", "previous", "ocean", "sunset", "violet").indexOf(launcherIconId).coerceAtLeast(0),
+                    onSelect = { AppSettings.setLauncherIcon(context, listOf("default", "previous", "ocean", "sunset", "violet")[it]) },
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
                 )
             }
@@ -2052,6 +2258,48 @@ fun SettingsScreen(
         }
     }
 
+    pendingThemeBackgroundUri?.let { candidateUri ->
+        AlertDialog(
+            onDismissRequest = { pendingThemeBackgroundUri = null },
+            title = { Text("Preview wallpaper") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AsyncImage(
+                        model = Uri.parse(candidateUri),
+                        contentDescription = "Preview of the selected wallpaper",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(230.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                    )
+                    Text(
+                        "Use this photo as the background throughout Audify? Your current wallpaper will remain until you apply this one.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    runCatching { AppSettings.setThemeBackgroundUri(candidateUri) }
+                        .onSuccess {
+                            themePackStatus = "Background applied"
+                            pendingThemeBackgroundUri = null
+                        }
+                        .onFailure {
+                            Toast.makeText(
+                                context,
+                                "Could not use that image: ${it.message ?: "unsupported image"}",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                }) { Text("Apply wallpaper") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingThemeBackgroundUri = null }) { Text("Cancel") }
+            },
+        )
+    }
+
     // Everything in the Cached songs folder goes with it, so say so first.
     if (confirmClearSongCache) {
         AlertDialog(
@@ -2721,7 +2969,7 @@ private fun QualitySheet(
                     Icon(
                         Icons.Rounded.Check,
                         contentDescription = stringResource(R.string.audify_selected),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -2798,7 +3046,7 @@ private fun AutomixPerformanceSheet(
                     Icon(
                         Icons.Rounded.Check,
                         contentDescription = stringResource(R.string.audify_selected),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -2880,7 +3128,7 @@ private fun DownloadQualitySheet(
                     Icon(
                         Icons.Rounded.Check,
                         contentDescription = stringResource(R.string.audify_selected),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                         modifier = Modifier.size(22.dp),
                     )
                 }
@@ -3045,7 +3293,9 @@ private fun SettingsCategoryCard(
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = .12f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
+            Icon(icon, contentDescription = null, tint = com.music.audify.ui.components.accessibleThemeIconTint(
+                MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface,
+            ), modifier = Modifier.size(23.dp))
         }
         Spacer(Modifier.width(10.dp))
         Text(
@@ -3221,14 +3471,18 @@ internal fun SettingsRow(
             Icon(
                 painter = iconPainter,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground,
+                tint = com.music.audify.ui.components.accessibleThemeIconTint(
+                    MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface,
+                ),
                 modifier = Modifier.size(ICON_SIZE),
             )
         } else if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground,
+                tint = com.music.audify.ui.components.accessibleThemeIconTint(
+                    MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface,
+                ),
                 modifier = Modifier.size(ICON_SIZE),
             )
         }

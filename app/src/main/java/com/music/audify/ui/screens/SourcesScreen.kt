@@ -650,7 +650,7 @@ private fun AddSourceRow(onClick: () -> Unit) {
         Icon(
             imageVector = Icons.Rounded.Add,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
             modifier = Modifier.size(ICON_SIZE),
         )
         Spacer(Modifier.width(ICON_GAP))
@@ -726,7 +726,7 @@ private fun BluetoothCodecPermissionRow() {
         Icon(
             imageVector = Icons.Rounded.Bluetooth,
             contentDescription = null,
-            tint = if (denied) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            tint = if (denied) MaterialTheme.colorScheme.error else com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
             modifier = Modifier.size(ICON_SIZE),
         )
         Spacer(Modifier.width(ICON_GAP))

@@ -4,4 +4,8 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
+    <color name="launcher_previous_background">#1B253A</color>
+    <color name="launcher_ocean_background">#123D68</color>
+    <color name="launcher_sunset_background">#713B50</color>
+    <color name="launcher_violet_background">#44366F</color>
 </resources>

@@ -150,6 +150,8 @@ import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.stableShelfComposeKeys
+import com.music.audify.data.model.stableHomeShelfComposeKeys
+import com.music.audify.data.model.stableSongColumnComposeKeys
 import com.music.audify.data.settings.SongSort
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.SubscriptionState
@@ -354,6 +356,9 @@ fun DetailScreen(
     reorder: (@Composable (ArtworkPalette) -> Unit)? = null,
 ) {
     val rawSongs = (page.songs as? UiState.Success)?.data.orEmpty()
+    // The section keys are computed in the composable scope, not inside the
+    // LazyListScope builder below (which is a regular DSL receiver).
+    val sectionKeys = remember(page.sections) { page.sections.stableHomeShelfComposeKeys() }
     // A folder keeps its own sort — the one its top bar menu sets — rather
     // than the per-page one a release takes.
     val folderSort = folder?.sort
@@ -706,6 +711,10 @@ fun DetailScreen(
                     // it pages sideways four at a time and stops at twenty.
                     item(key = "detail:top-songs") {
                         val top = state.data.take(MAX_ARTIST_SONGS)
+                        val topColumns = remember(top) { top.chunked(SONGS_PER_COLUMN) }
+                        val topColumnKeys = remember(top) {
+                            top.stableSongColumnComposeKeys(SONGS_PER_COLUMN)
+                        }
                         val isCurrentRow = playingRowMatcher(top, currentSong)
                         SectionHeading(
                             title = stringResource(R.string.top_songs),
@@ -721,13 +730,14 @@ fun DetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 flingBehavior = rememberSnapFlingBehavior(lazyListState = topSongsState),
                             ) {
-                                items(top.chunked(SONGS_PER_COLUMN), key = { column -> column.joinToString("|") { it.videoId } }) { column ->
+                                itemsIndexed(topColumns, key = { index, _ -> topColumnKeys[index] }) { columnIndex, column ->
                                     Column(Modifier.width(columnWidth)) {
-                                        column.forEach { song ->
+                                        column.forEachIndexed { songOffset, song ->
+                                            val songIndex = columnIndex * SONGS_PER_COLUMN + songOffset
                                             CompactSongRow(
                                                 song = song,
                                                 palette = palette,
-                                                onClick = { onSongClick(top, top.indexOf(song)) },
+                                                onClick = { onSongClick(top, songIndex) },
                                                 onLongPress = { onSongLongPress(song) },
                                                 downloadedTint = downloadedTint,
                                                 isCurrent = isCurrentRow(song),
@@ -823,7 +833,7 @@ fun DetailScreen(
             }
 
             // Albums / Singles & EPs carousels (artist pages).
-            items(page.sections, key = { it.moreBrowseId ?: "${it.title}:${it.subtitle}" }) { shelf ->
+            itemsIndexed(page.sections, key = { index, _ -> sectionKeys[index] }) { _, shelf ->
                 val canShowAll = shelf.items.size > ARTIST_ROW_MAX_ITEMS
                 val displayItems = remember(shelf.items) {
                     if (canShowAll) shelf.items.take(ARTIST_ROW_MAX_ITEMS) else shelf.items

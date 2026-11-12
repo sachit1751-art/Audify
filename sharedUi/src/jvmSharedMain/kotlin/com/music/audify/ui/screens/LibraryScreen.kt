@@ -131,7 +131,6 @@ fun LibraryScreen(
     showTitle: Boolean = true,
     /** Opens the rule-based playlists page, which is implemented by the host app. */
     onSmartPlaylists: (() -> Unit)? = null,
-    onPodcasts: (() -> Unit)? = null,
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -181,7 +180,7 @@ fun LibraryScreen(
                         Icon(
                             imageVector = Icons.Rounded.AutoAwesome,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = libraryIconTint(),
                             modifier = Modifier.size(24.dp),
                         )
                         Column(Modifier.weight(1f).padding(start = 14.dp)) {
@@ -201,24 +200,6 @@ fun LibraryScreen(
                         modifier = Modifier.padding(start = PAGE_GUTTER),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                     )
-                }
-            }
-            if (onPodcasts != null) {
-                item(key = "podcasts-entry") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .clickable(role = Role.Button, onClick = onPodcasts)
-                            .padding(horizontal = PAGE_GUTTER, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                            Text("Podcasts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                            Text("Discover shows, subscribe and listen", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    HorizontalDivider(modifier = Modifier.padding(start = PAGE_GUTTER),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
                 }
             }
             if (links.isNotEmpty()) {
@@ -356,7 +337,7 @@ private fun LibraryLinkList(links: List<LibraryLink>, onClick: (ShelfItem) -> Un
                     Icon(
                         imageVector = link.icon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = libraryIconTint(),
                         modifier = Modifier.size(LINK_ICON_SIZE),
                     )
                 }
@@ -389,6 +370,15 @@ private fun LibraryLinkList(links: List<LibraryLink>, onClick: (ShelfItem) -> Un
 
 private val LINK_ICON_SIZE = 24.dp
 private val LINK_ICON_GAP = 16.dp
+
+/** Keeps the selected accent hue while mixing enough foreground for legibility. */
+@Composable
+private fun libraryIconTint(): Color {
+    return com.music.audify.ui.components.accessibleThemeIconTint(
+        MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.onSurface,
+    )
+}
 
 /**
  * The one shelf on this page that can be written to: it leads with the tile

@@ -584,7 +584,7 @@ internal fun JoinConfirmSheet(
                 Icon(
                     Icons.Rounded.Person,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(6.dp))

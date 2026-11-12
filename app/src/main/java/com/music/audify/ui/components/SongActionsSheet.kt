@@ -52,11 +52,15 @@ import androidx.compose.material.icons.rounded.ThumbDownOffAlt
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -84,6 +88,9 @@ import coil3.compose.AsyncImage
 import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.Song
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.settings.SkipSegment
+import com.music.audify.data.settings.SkipSegmentStore
 import com.music.audify.data.model.artworkAt
 import com.music.audify.data.webdav.WebDavUploads
 import com.music.audify.download.DownloadState
@@ -206,6 +213,11 @@ fun SongActionsSheet(
 ) {
     var showingSongInfo by remember(song.videoId) { mutableStateOf(false) }
     var pickingSleepTimer by remember { mutableStateOf(false) }
+    var editingSkipSegments by remember(song.videoId) { mutableStateOf(false) }
+    var skipStartText by remember(song.videoId) { mutableStateOf("") }
+    var skipEndText by remember(song.videoId) { mutableStateOf("") }
+    var skipSegmentError by remember(song.videoId) { mutableStateOf<String?>(null) }
+    val savedSkipSegments by AppSettings.skipSegments.collectAsStateWithLifecycle()
     val menu = presentation == SongActionsPresentation.Menu
     // The held-row menu has no pages to swap, so there Song Info opens as a dialog.
     if (menu && showingSongInfo) SongInfoDialog(song) { showingSongInfo = false }
@@ -365,6 +377,12 @@ fun SongActionsSheet(
         ActionRow(Icons.Rounded.Info, stringResource(R.string.song_info), accent = palette.accent) {
             showingSongInfo = true
         }
+        ActionRow(
+            icon = Icons.Rounded.Tune,
+            label = "Skip segments",
+            value = savedSkipSegments[song.videoId]?.size?.takeIf { it > 0 }?.let { "$it saved" },
+            accent = palette.accent,
+        ) { editingSkipSegments = true }
         if (showSleepTimer) {
             ActionRow(
                 icon = Icons.Rounded.Bedtime,
@@ -396,6 +414,64 @@ fun SongActionsSheet(
         onCopyLog?.let {
             ActionRow(Icons.Rounded.BugReport, stringResource(R.string.copy_log), accent = palette.accent, onClick = it)
         }
+    }
+
+    if (editingSkipSegments) {
+        val segments = savedSkipSegments[song.videoId].orEmpty()
+        AlertDialog(
+            onDismissRequest = { editingSkipSegments = false },
+            title = { Text("Skip segments") },
+            text = {
+                Column {
+                    Text("Save ranges to skip automatically whenever this track plays.")
+                    OutlinedTextField(
+                        value = skipStartText,
+                        onValueChange = { skipStartText = it.take(12); skipSegmentError = null },
+                        label = { Text("Start (e.g. 1:17)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = skipEndText,
+                        onValueChange = { skipEndText = it.take(12); skipSegmentError = null },
+                        label = { Text("End (e.g. 1:52)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = {
+                            val start = SkipSegmentStore.parseTimestamp(skipStartText)
+                            val end = SkipSegmentStore.parseTimestamp(skipEndText)
+                            when {
+                                start == null || end == null -> skipSegmentError = "Use mm:ss or h:mm:ss timestamps"
+                                end <= start -> skipSegmentError = "End must be after start"
+                                !AppSettings.addSkipSegment(song.videoId, SkipSegment(start, end)) ->
+                                    skipSegmentError = "Could not add another range (maximum ${SkipSegmentStore.MAX_SEGMENTS_PER_TRACK} per track)"
+                                else -> {
+                                    skipStartText = ""
+                                    skipEndText = ""
+                                    skipSegmentError = null
+                                }
+                            }
+                        },
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) { Text("Add range") }
+                    skipSegmentError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    segments.forEach { segment ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${SkipSegmentStore.formatTimestamp(segment.startMs)} – ${SkipSegmentStore.formatTimestamp(segment.endMs)}",
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(onClick = { AppSettings.removeSkipSegment(song.videoId, segment) }) {
+                                Text("Remove")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { editingSkipSegments = false }) { Text("Done") } },
+        )
     }
 
     if (menu) {

@@ -84,6 +84,35 @@ class ModelsTest {
     }
 
     @Test
+    fun songColumnKeysRemainUniqueWhenAnArtistRepeatsAWholeTrackGroup() {
+        val group = listOf("a", "b", "c", "d").map { id ->
+            Song(videoId = id, title = id, artist = "Artist", thumbnailUrl = null)
+        }
+        val repeated = group + group
+
+        val keys = repeated.stableSongColumnComposeKeys(columnSize = 4)
+
+        assertEquals(2, keys.size)
+        assertEquals(2, keys.toSet().size)
+        assertEquals(keys, repeated.stableSongColumnComposeKeys(columnSize = 4))
+    }
+
+    @Test
+    fun artistSectionKeysAreUniqueForRepeatedBrowseIdsAndFallbackTitles() {
+        val sections = listOf(
+            HomeShelf("Albums", emptyList(), moreBrowseId = "browse-albums"),
+            HomeShelf("Albums", emptyList(), moreBrowseId = "browse-albums"),
+            HomeShelf("Singles", emptyList()),
+            HomeShelf("Singles", emptyList()),
+        )
+
+        val keys = sections.stableHomeShelfComposeKeys()
+
+        assertEquals(sections.size, keys.toSet().size)
+        assertEquals(keys, sections.stableHomeShelfComposeKeys())
+    }
+
+    @Test
     fun aReorderedReleaseShelfUnderAnotherTitleIsARepeat() {
         val albums = HomeShelf("Albums & singles", (1..10).map { album("a$it") })
         val reordered = HomeShelf("New albums & singles", (10 downTo 2).map { album("a$it") } + album("b"))
