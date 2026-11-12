@@ -15,6 +15,9 @@ Project: AUDIFY
     <string name="replay_section_subtitle" translatable="false">A look at what you have been listening to.</string>
     <string name="weekly_recap_setting">Weekly Home recap</string>
     <string name="weekly_recap_setting_subtitle">Show a private summary of this weekâ€™s listening on Home</string>
+    <!-- LiquidFlow is a branded, English-only experimental lyrics presentation. -->
+    <string name="liquid_flow" translatable="false">LiquidFlow lyrics</string>
+    <string name="liquid_flow_subtitle" translatable="false">Word-level motion, glow and particle effects</string>
     <string name="progressive_scroll_edge_blur" translatable="false">Progressive scroll-edge blur</string>
     <string name="progressive_scroll_edge_blur_subtitle" translatable="false">Soften content as it scrolls beneath the top and bottom edges</string>
     <string name="time_aware_shelf_setting" translatable="false">Time-aware discovery shelf</string>
