@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,7 +29,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,6 +106,7 @@ fun UpdateAvailableDialog(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()
+    var showReleaseNotes by remember(version) { mutableStateOf(false) }
     val shape = RoundedCornerShape(ALERT_CORNER)
 
     BoxWithConstraints(
@@ -241,32 +245,44 @@ fun UpdateAvailableDialog(
                 // whole point of reading this before installing.
                 if (!notes.isNullOrBlank()) {
                     AlertRule(modifier = Modifier.padding(top = 12.dp))
-                    Text(
-                        text = stringResource(R.string.whats_new),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.W600,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Start,
-                    )
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .heightIn(max = NOTES_MAX_HEIGHT)
-                            .verticalScroll(rememberScrollState()),
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
+                            .clickable { showReleaseNotes = !showReleaseNotes }
+                            .padding(vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // RichText's Material3 Text leans on LocalContentColor,
-                        // which nothing here provides — this card is a plain
-                        // Column.background(...), not a Surface, so without
-                        // this the notes render at LocalContentColor's black
-                        // default regardless of theme.
-                        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-                            RichText(style = RichTextStyle.Default) {
-                                Markdown(notes)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.whats_new),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.W600),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = if (showReleaseNotes) "Hide release notes" else "Release highlights and changes",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            text = if (showReleaseNotes) "Hide" else "View",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (showReleaseNotes) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .heightIn(max = NOTES_MAX_HEIGHT)
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            // RichText uses LocalContentColor; provide the card's
+                            // foreground explicitly so notes remain legible in
+                            // both light and dark themes.
+                            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                                RichText(style = RichTextStyle.Default) {
+                                    Markdown(notes)
+                                }
                             }
                         }
                     }

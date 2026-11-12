@@ -45,6 +45,7 @@ import com.music.audify.data.model.ShelfItem
 import com.music.audify.playback.PodcastEpisodeRef
 import com.music.audify.ui.components.SearchField
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
+import com.music.audify.ui.components.ShimmerBox
 import kotlinx.coroutines.launch
 
 @Composable
@@ -178,8 +179,7 @@ fun PodcastsScreen(
                 }
             }
             if (discoveryLoading) item {
-                Text("Loading podcast discovery…", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                PodcastShelfSkeleton()
             }
             discoveryError?.let { error -> item {
                 Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -231,8 +231,7 @@ fun PodcastsScreen(
             }
             item { Text("Your YouTube Music shows", style = MaterialTheme.typography.titleLarge) }
             if (libraryLoading) item {
-                Text("Loading your saved shows…", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                PodcastShelfSkeleton()
             } else if (libraryError != null) item {
                 Text(libraryError.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             } else if (matchingProviderShows.isEmpty()) item {
@@ -350,8 +349,7 @@ fun PodcastsScreen(
                 }) { Text(if (isSaved) "Remove from YouTube Music library" else "Save to YouTube Music library") }
                 Text("Saving requires a signed-in YouTube Music account, not Premium.", style = MaterialTheme.typography.bodySmall)
                 providerLoadError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-                if (providerLoading) Text("Loading show and episodes…", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (providerLoading) PodcastEpisodeSkeleton()
                 if (providerLoaded && providerEpisodes.isEmpty()) Text("This show currently has no playable episodes.",
                     style = MaterialTheme.typography.bodySmall)
                 Text("Episodes", style = MaterialTheme.typography.titleLarge)
@@ -476,6 +474,38 @@ private fun PodcastArtworkCard(
         if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun PodcastShelfSkeleton() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ShimmerBox(Modifier.width(164.dp).height(18.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            repeat(3) {
+                Column(Modifier.width(SHELF_CARD_WIDTH), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ShimmerBox(Modifier.size(SHELF_CARD_WIDTH), RoundedCornerShape(12.dp))
+                    ShimmerBox(Modifier.fillMaxWidth(0.82f).height(13.dp))
+                    ShimmerBox(Modifier.fillMaxWidth(0.56f).height(11.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PodcastEpisodeSkeleton() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        repeat(4) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ShimmerBox(Modifier.size(64.dp), RoundedCornerShape(8.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    ShimmerBox(Modifier.fillMaxWidth(0.78f).height(14.dp))
+                    ShimmerBox(Modifier.fillMaxWidth(0.48f).height(11.dp))
+                    ShimmerBox(Modifier.fillMaxWidth(0.3f).height(10.dp))
+                }
+            }
+        }
     }
 }
 

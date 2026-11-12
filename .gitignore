@@ -64,3 +64,8 @@ desktop/build/
 desktop/.gradle/
 desktop/target/
 desktop/dist/
+
+# Release signing material must stay outside version control, including docs backups.
+/docs/keystore.properties
+/docs/*.jks
+/docs/*.keystore

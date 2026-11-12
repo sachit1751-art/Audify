@@ -28,7 +28,6 @@ private const val SCROLL_EDGE_BLUR_PEAK = 0.38f
 @Composable
 fun ProgressiveScrollEdgeBlur(
     hazeState: HazeState,
-    pageColor: Color,
     edge: ScrollBlurEdge,
     modifier: Modifier = Modifier,
 ) {
@@ -47,7 +46,11 @@ fun ProgressiveScrollEdgeBlur(
             .then(if (edge == ScrollBlurEdge.Bottom) Modifier.rotate(180f) else Modifier)
             .hazeBlur(
                 input = HazeInput.Sources(hazeState),
-                style = HazeMaterials.ultraThin(pageColor).then {
+                // Do not tint the sampled backdrop with the page's base colour:
+                // on custom-wallpaper pages that colour is often near-black,
+                // which reads as an opaque black veil instead of a blur.
+                // The blur remains active; only the material wash is removed.
+                style = HazeMaterials.ultraThin(Color.Transparent).then {
                     progressive(
                         HazeProgressive.verticalGradient(
                             easing = EaseOutCubic,

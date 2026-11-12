@@ -88,7 +88,6 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Tune
 import com.music.audify.ui.icons.AudifyIcons
 import coil3.compose.AsyncImage
@@ -130,9 +129,6 @@ import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.components.trackColumnWidth
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.MeshPalette
-import com.music.audify.ui.player.AudioOutputSheet
-import com.music.audify.ui.player.rememberOutputPicker
-import dev.chrisbanes.haze.HazeState
 
 /** How far the Listen now heading and feed sit above the shared top inset. */
 private val HOME_TITLE_LIFT = 64.dp
@@ -239,10 +235,7 @@ fun HomeScreen(
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
     val homeLayout by AppUi.host.homeLayout.collectAsStateWithLifecycle()
-    var showAudioOutput by remember { mutableStateOf(false) }
     var showHomeLayout by remember { mutableStateOf(false) }
-    val outputHaze = remember { HazeState() }
-    val openAudioOutput = rememberOutputPicker { showAudioOutput = true }
     val featuredItemIds = remember(timeAwareShelf) {
         timeAwareShelf?.items.orEmpty().mapNotNull { it.videoId ?: it.browseId }.toSet()
     }
@@ -285,7 +278,6 @@ fun HomeScreen(
                 item(key = "home-compact-header") {
                     HomeTitle(
                         onSearchClick = onSearchClick,
-                        onBluetoothClick = openAudioOutput,
                         onProfileClick = onProfileClick,
                         profileThumbnailUrl = profileThumbnailUrl,
                         userName = userName,
@@ -398,15 +390,6 @@ fun HomeScreen(
         }
     }
 
-    if (showAudioOutput) {
-        AudioOutputSheet(
-            hazeState = outputHaze,
-            accountName = userName,
-            onDismiss = { showAudioOutput = false },
-            onOpenPipeline = null,
-            onOpenCast = { onCastClick?.invoke() },
-        )
-    }
     if (showHomeLayout) {
         HomeLayoutDialog(
             shelves = (state as? UiState.Success)?.data.orEmpty(),
@@ -852,7 +835,6 @@ fun CompactTrackRow(
 @Composable
 private fun HomeTitle(
     onSearchClick: (() -> Unit)?,
-    onBluetoothClick: (() -> Unit)?,
     onProfileClick: (() -> Unit)?,
     profileThumbnailUrl: String?,
     userName: String?,
@@ -887,6 +869,8 @@ private fun HomeTitle(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
             )
             if (!userName.isNullOrBlank()) {
                 Text(
@@ -899,7 +883,6 @@ private fun HomeTitle(
             }
         }
         HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick)
-        HomeHeaderAction(Icons.Rounded.Bluetooth, "Bluetooth audio output", onBluetoothClick)
         HomeHeaderAction(Icons.Rounded.Tune, "Customize Home", onCustomizeClick)
         Box(
             modifier = Modifier.size(48.dp).clip(CircleShape)

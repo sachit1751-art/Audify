@@ -4247,7 +4247,6 @@ LibraryScreen(
                 // bottom edge, above the colour fade and below the glass bars.
                 ProgressiveScrollEdgeBlur(
                     hazeState = hazeState,
-                    pageColor = chromePageColor,
                     edge = ScrollBlurEdge.Bottom,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )

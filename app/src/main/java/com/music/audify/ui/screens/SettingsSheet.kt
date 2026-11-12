@@ -48,15 +48,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.Apps
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOff
@@ -571,26 +570,6 @@ fun SettingsScreen(
             .verticalScroll(scrollState)
             .padding(contentPadding),
     ) {
-        if (selectedCategory != null) {
-            Row(
-                modifier = Modifier
-                .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        selectedCategory = null
-                        searchQuery = ""
-                    }
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text(
-                    text = stringResource(R.string.settings),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        }
         Text(
             text = selectedCategory ?: stringResource(R.string.settings),
             style = MaterialTheme.typography.displayLarge,
@@ -1233,6 +1212,11 @@ fun SettingsScreen(
                             Color(android.graphics.Color.parseColor(com.music.audify.data.settings.ThemePacks.contentColorHex(customThemePrimary)))
                         } else Color.Black
                     }
+                    val previewSecondaryText = remember(customThemeSecondary) {
+                        if (com.music.audify.data.settings.ThemePacks.isValidHex(customThemeSecondary)) {
+                            Color(android.graphics.Color.parseColor(com.music.audify.data.settings.ThemePacks.contentColorHex(customThemeSecondary)))
+                        } else Color.Black
+                    }
                     // A compact, realistic app-surface preview rather than a full-card gradient.
                     Column(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
@@ -1266,8 +1250,21 @@ fun SettingsScreen(
                             Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(previewPrimary).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
                                 Text("Play", color = previewText, style = MaterialTheme.typography.labelLarge)
                             }
-                            listOf(previewPrimary, previewSecondary, previewTertiary).forEach { color ->
-                                Box(Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(color))
+                            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(previewSecondary).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                                Text("Shuffle", color = previewSecondaryText, style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                            listOf("Primary" to previewPrimary, "Secondary" to previewSecondary, "Tertiary" to previewTertiary).forEach { (label, color) ->
+                                Row(
+                                    Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                                        .background(Color.White.copy(alpha = 0.07f)).padding(7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                ) {
+                                    Box(Modifier.size(12.dp).clip(CircleShape).background(color))
+                                    Text(label, color = Color.White.copy(alpha = 0.78f), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                }
                             }
                         }
                     }
@@ -3764,20 +3761,24 @@ private fun ThemeColourPicker(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Canvas(
             Modifier.fillMaxWidth().height(184.dp).clip(RoundedCornerShape(14.dp))
-                .pointerInput(hue) {
+                .pointerInput(Unit) {
                     fun select(x: Float, y: Float) = publish(
                         nextSaturation = (x / size.width).coerceIn(0f, 1f),
                         nextBrightness = (1f - y / size.height).coerceIn(0f, 1f),
                     )
-                    detectTapGestures { select(it.x, it.y) }
-                }
-                .pointerInput(hue) {
-                    detectDragGestures { change, _ ->
-                        change.consume()
-                        publish(
-                            nextSaturation = (change.position.x / size.width).coerceIn(0f, 1f),
-                            nextBrightness = (1f - change.position.y / size.height).coerceIn(0f, 1f),
-                        )
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false).also { down ->
+                            down.consume()
+                            select(down.position.x, down.position.y)
+                        }
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.first()
+                            if (change.pressed) {
+                                change.consume()
+                                select(change.position.x, change.position.y)
+                            }
+                        } while (event.changes.any { it.pressed })
                     }
                 },
         ) {
@@ -3792,12 +3793,19 @@ private fun ThemeColourPicker(
             Modifier.fillMaxWidth().height(22.dp).clip(CircleShape)
                 .pointerInput(Unit) {
                     fun select(x: Float) = publish(nextHue = (x / size.width * 360f).coerceIn(0f, 360f))
-                    detectTapGestures { select(it.x) }
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures { change, _ ->
-                        change.consume()
-                        publish(nextHue = (change.position.x / size.width * 360f).coerceIn(0f, 360f))
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false).also { down ->
+                            down.consume()
+                            select(down.position.x)
+                        }
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.first()
+                            if (change.pressed) {
+                                change.consume()
+                                select(change.position.x)
+                            }
+                        } while (event.changes.any { it.pressed })
                     }
                 },
         ) {
