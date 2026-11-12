@@ -289,8 +289,8 @@ async fn otp_input_reads_as_a_named_field_with_its_code(cx: &mut TestAppContext)
         "otp input exposes no accessible name, screen readers announce nothing: {lines:?}"
     );
     assert!(
-        lines.iter().any(|line| line.contains("text=Some(\"123\")")),
-        "otp input exposes no value or keeps more than its digits: {lines:?}"
+        lines.iter().any(|line| line.contains("text=Some(\"12A3\")")),
+        "otp input does not expose its normalised alphanumeric code: {lines:?}"
     );
 }
 

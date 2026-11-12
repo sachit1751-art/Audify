@@ -1319,4 +1319,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Sprawdź połączenie i spróbuj ponownie</string>
     <string name="hide_explicit_content">Ukryj treści jawne</string>
     <string name="hide_explicit_content_subtitle">Wykluczaj z odkrywania i rekomendacji utwory i albumy oznaczone w katalogu jako zawierające treści jawne. Nieoznaczone pozycje pozostają widoczne.</string>
+    <string name="liquid_flow">Teksty LiquidFlow</string>
+    <string name="liquid_flow_subtitle">Ruch na poziomie słów, poświata i efekty cząsteczkowe</string>
 </resources>

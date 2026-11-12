@@ -1232,4 +1232,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">接続を確認してもう一度お試しください</string>
     <string name="hide_explicit_content">露骨なコンテンツを非表示</string>
     <string name="hide_explicit_content_subtitle">カタログで露骨とマークされた曲やアルバムを探索とおすすめから除外します。ラベルのない項目は引き続き表示されます。</string>
+    <string name="liquid_flow">LiquidFlow の歌詞</string>
+    <string name="liquid_flow_subtitle">単語ごとの動き、発光、パーティクル効果</string>
 </resources>

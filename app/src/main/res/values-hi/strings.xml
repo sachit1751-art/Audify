@@ -1259,4 +1259,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">अपना कनेक्शन जाँचें और फिर कोशिश करें</string>
     <string name="hide_explicit_content">स्पष्ट सामग्री छिपाएँ</string>
     <string name="hide_explicit_content_subtitle">कैटलॉग द्वारा स्पष्ट के रूप में चिह्नित गानों और एल्बम को खोज और सुझावों से हटाएँ। बिना लेबल वाली सामग्री दिखाई देती रहेगी।</string>
+    <string name="liquid_flow">LiquidFlow लिरिक्स</string>
+    <string name="liquid_flow_subtitle">शब्द-स्तरीय गति, चमक और कण प्रभाव</string>
 </resources>

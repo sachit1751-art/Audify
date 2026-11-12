@@ -1232,4 +1232,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Bağlantınızı kontrol edip tekrar deneyin</string>
     <string name="hide_explicit_content">Müstehcen içeriği gizle</string>
     <string name="hide_explicit_content_subtitle">Katalogda müstehcen olarak işaretlenen şarkıları ve albümleri keşif ve önerilerden çıkarır. Etiketi olmayan öğeler görünür kalır.</string>
+    <string name="liquid_flow">LiquidFlow şarkı sözleri</string>
+    <string name="liquid_flow_subtitle">Kelime düzeyinde hareket, parlama ve parçacık efektleri</string>
 </resources>

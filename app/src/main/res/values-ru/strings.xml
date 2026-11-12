@@ -1300,4 +1300,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Проверьте подключение и повторите попытку</string>
     <string name="hide_explicit_content">Скрывать контент с пометкой 18+</string>
     <string name="hide_explicit_content_subtitle">Исключать из рекомендаций и поиска песни и альбомы, помеченные каталогом как содержащие откровенный контент. Элементы без пометки остаются видимыми.</string>
+    <string name="liquid_flow">Тексты LiquidFlow</string>
+    <string name="liquid_flow_subtitle">Пословная анимация, свечение и эффекты частиц</string>
 </resources>

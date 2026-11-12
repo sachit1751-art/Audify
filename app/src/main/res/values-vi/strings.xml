@@ -1225,4 +1225,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Kiểm tra kết nối rồi thử lại</string>
     <string name="hide_explicit_content">Ẩn nội dung nhạy cảm</string>
     <string name="hide_explicit_content_subtitle">Loại các bài hát và album được danh mục đánh dấu là có nội dung nhạy cảm khỏi mục khám phá và đề xuất. Các mục không có nhãn vẫn hiển thị.</string>
+    <string name="liquid_flow">Lời bài hát LiquidFlow</string>
+    <string name="liquid_flow_subtitle">Chuyển động theo từng từ, hiệu ứng phát sáng và hạt</string>
 </resources>

@@ -1269,4 +1269,6 @@ Project: AUDIFY
     <string name="smart_playlists">智能播放清單</string>
     <string name="auto_empty_albums_title">沒有可用的專輯</string>
     <string name="auto_empty_albums_subtitle">請檢查網絡連線後重試</string>
+    <string name="liquid_flow">LiquidFlow 歌詞</string>
+    <string name="liquid_flow_subtitle">逐字動態效果、發光和粒子效果</string>
 </resources>

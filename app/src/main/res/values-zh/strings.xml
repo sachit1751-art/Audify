@@ -1232,4 +1232,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">请检查网络连接后重试</string>
     <string name="hide_explicit_content">隐藏露骨内容</string>
     <string name="hide_explicit_content_subtitle">将目录标记为露骨内容的歌曲和专辑从发现页和推荐中排除。未标记的内容仍会显示。</string>
+    <string name="liquid_flow">LiquidFlow 歌词</string>
+    <string name="liquid_flow_subtitle">逐词动态效果、发光和粒粒效果</string>
 </resources>

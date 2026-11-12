@@ -1209,4 +1209,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">ตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง</string>
     <string name="hide_explicit_content">ซ่อนเนื้อหาที่โจ่งแจ้ง</string>
     <string name="hide_explicit_content_subtitle">นำเพลงและอัลบั้มที่แค็ตตาล็อกระบุว่าเป็นเนื้อหาโจ่งแจ้งออกจากหน้าค้นพบและคำแนะนำ รายการที่ไม่มีป้ายกำกับยังคงแสดงอยู่</string>
+    <string name="liquid_flow">เนื้อเพลง LiquidFlow</string>
+    <string name="liquid_flow_subtitle">การเคลื่อนไหวระดับคำ เอฟเฟกต์เรืองแสงและอนุภาค</string>
 </resources>

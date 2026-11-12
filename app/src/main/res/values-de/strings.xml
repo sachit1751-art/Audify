@@ -1259,4 +1259,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Prüfe deine Verbindung und versuche es erneut</string>
     <string name="hide_explicit_content">Explizite Inhalte ausblenden</string>
     <string name="hide_explicit_content_subtitle">Schließt vom Katalog als explizit gekennzeichnete Songs und Alben aus Entdecken und Empfehlungen aus. Nicht gekennzeichnete Inhalte bleiben sichtbar.</string>
+    <string name="liquid_flow">LiquidFlow-Lyrics</string>
+    <string name="liquid_flow_subtitle">Wortbewegungen, Leuchten und Partikeleffekte</string>
 </resources>

@@ -1286,4 +1286,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Vérifiez votre connexion et réessayez</string>
     <string name="hide_explicit_content">Masquer le contenu explicite</string>
     <string name="hide_explicit_content_subtitle">Exclut de la découverte et des recommandations les morceaux et albums signalés comme explicites par le catalogue. Les éléments sans étiquette restent visibles.</string>
+    <string name="liquid_flow">Paroles LiquidFlow</string>
+    <string name="liquid_flow_subtitle">Animation mot à mot, lueur et effets de particules</string>
 </resources>

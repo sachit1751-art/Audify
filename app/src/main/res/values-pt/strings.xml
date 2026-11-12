@@ -1290,4 +1290,6 @@ Project: AUDIFY
     <string name="auto_empty_albums_subtitle">Verifique a conexão e tente novamente</string>
     <string name="hide_explicit_content">Ocultar conteúdo explícito</string>
     <string name="hide_explicit_content_subtitle">Exclui da descoberta e das recomendações músicas e álbuns marcados como explícitos no catálogo. Itens sem marcação continuam visíveis.</string>
+    <string name="liquid_flow">Letras LiquidFlow</string>
+    <string name="liquid_flow_subtitle">Movimento palavra por palavra, brilho e efeitos de partículas</string>
 </resources>
