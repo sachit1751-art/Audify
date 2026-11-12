@@ -18,6 +18,7 @@ import com.music.audify.BuildConfig
 import com.music.audify.auth.AuthStore
 import com.music.audify.data.canvas.SpotifyToken
 import com.music.audify.data.lyrics.LyricsSource
+import com.music.audify.data.model.HomeLayout
 import com.music.audify.data.sources.SourceKind
 import com.music.audify.playback.EqLayout
 import com.music.audify.playback.EqualizerPreset
@@ -422,6 +423,8 @@ object AppSettings {
 
     /** Swiping a song row plays it next instead of adding it to the end of the queue. */
     val swipeToPlayNext = MutableStateFlow(false)
+    /** User-defined Home shelf order and visibility. */
+    val homeLayout = MutableStateFlow(HomeLayout())
 
     /** Once a song has been suggested or played this session, AutoPlay won't offer it again. */
     val dontRepeatSuggestions = MutableStateFlow(false)
@@ -961,6 +964,7 @@ object AppSettings {
         hideSongStatus.value = prefs.getBoolean(KEY_HIDE_SONG_STATUS, false)
         showQueueHistory.value = prefs.getBoolean(KEY_SHOW_QUEUE_HISTORY, false)
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
+        homeLayout.value = HomeLayout.decode(prefs.getString(KEY_HOME_LAYOUT, null))
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
@@ -1541,6 +1545,11 @@ object AppSettings {
     fun setSwipeToPlayNext(value: Boolean) {
         swipeToPlayNext.value = value
         prefs.edit { putBoolean(KEY_SWIPE_TO_PLAY_NEXT, value) }
+    }
+
+    fun setHomeLayout(value: HomeLayout) {
+        homeLayout.value = value
+        prefs.edit { putString(KEY_HOME_LAYOUT, value.encode()) }
     }
 
     fun setDontRepeatSuggestions(value: Boolean) {
@@ -2355,6 +2364,7 @@ object AppSettings {
     private const val KEY_HIDE_SONG_STATUS = "hide_song_status"
     private const val KEY_SHOW_QUEUE_HISTORY = "show_queue_history"
     private const val KEY_SWIPE_TO_PLAY_NEXT = "swipe_to_play_next"
+    private const val KEY_HOME_LAYOUT = "home_layout_v1"
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
     private const val KEY_PREFER_MUSIC_ONLY = "prefer_music_only"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"

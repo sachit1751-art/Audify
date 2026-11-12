@@ -40,6 +40,7 @@ import com.music.audify.data.model.AccountChannel
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.DetailPage
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.homeShelfKey
 import com.music.audify.data.model.withoutRepeatsOf
 import com.music.audify.data.model.LibraryPage
 import com.music.audify.data.model.LibraryState
@@ -1966,21 +1967,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadHome() {
         val identity = listenerKey()
         val generation = homeLoadGeneration.incrementAndGet()
+        val layout = AppSettings.homeLayout.value
+        val hideRecents = layout.isHidden(homeShelfKey("Recents")) ||
+            layout.isHidden(homeShelfKey("Recently played"))
+        // The new-releases endpoint is a dedicated shelf request; do not spend
+        // a network round-trip when that row is hidden in the saved layout.
+        val supplementIds = YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.filterNot { browseId ->
+            browseId == "FEmusic_new_releases" && layout.isHidden(homeShelfKey("New releases"))
+        }
         homePagingGeneration.incrementAndGet()
         homeSessionSeed = Random.nextLong() xor homeVariationSeed
         homePreviousSessionVideoIds.clear()
         homePreviousSessionVideoIds.addAll(homeSeenVideoIds)
-        _home.value = UiState.Loading
+        // Keep the current row tree mounted during a reload. The first visit
+        // still gets its skeleton; subsequent loads update shelves in place.
+        if (_home.value !is UiState.Success) _home.value = UiState.Loading
         homeContinuation = null
         homeSeenTitles.clear()
         homeSeenVideoIds.clear()
         homeSeenContinuationTokens.clear()
         _homeLoadingMore.value = false
-        _homeRecentlyPlayedLoading.value = _signedIn.value
+        _homeRecentlyPlayedLoading.value = _signedIn.value && !hideRecents
         // The core feed plus one browse per supplement. Recently played is left
         // out: it has its own skeleton at the head of the page rather than the
         // one at the tail.
-        _homePendingShelves.value = 1 + YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.size
+        _homePendingShelves.value = 1 + supplementIds.size
         viewModelScope.launch {
             launch {
                 try {
@@ -2022,7 +2033,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     homeShelfRequestSettled(identity, generation)
                 }
             }
-            if (_signedIn.value) {
+            if (_signedIn.value && !hideRecents) {
                 launch {
                     YtMusicRepository.homeRecentlyPlayed()
                         .onSuccess { shelf ->
@@ -2036,7 +2047,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         }
                 }
             }
-            YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.forEach { browseId ->
+            supplementIds.forEach { browseId ->
                 launch {
                     try {
                         YtMusicRepository.homeSupplement(browseId).onSuccess { shelves ->
@@ -2073,7 +2084,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         prepend: Boolean = false,
         prioritize: Boolean = false,
     ) {
-        val visibleShelves = filterExplicitHomeShelves(shelves)
+        // Apply the saved layout before diversification/deduplication so hidden
+        // shelves do not consume client-side processing or enter Home state.
+        // The provider's FEmusic_home endpoint is aggregated, so its response
+        // bytes still include server-selected shelves; only its dedicated
+        // per-shelf requests can be omitted at request time.
+        val visibleShelves = AppSettings.homeLayout.value.arrange(
+            filterExplicitHomeShelves(shelves),
+            keyOf = { homeShelfKey(it.title) },
+        )
         val variedShelves = diversifyHomeShelves(varyHomeFeed(visibleShelves, homeSessionSeed)).map { shelf ->
             diversifyHomeShelf(shelf, homeSessionSeed xor shelf.title.hashCode().toLong())
         }
@@ -2142,7 +2161,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         homeContinuation = null
         homePreviousSessionVideoIds.clear()
         homePreviousSessionVideoIds.addAll(previousSessionVideoIds)
-        val recent = if (_signedIn.value) async { YtMusicRepository.homeRecentlyPlayed() } else null
+        val layout = AppSettings.homeLayout.value
+        val hideRecents = layout.isHidden(homeShelfKey("Recents")) ||
+            layout.isHidden(homeShelfKey("Recently played"))
+        val recent = if (_signedIn.value && !hideRecents) async { YtMusicRepository.homeRecentlyPlayed() } else null
         val primary = YtMusicRepository.home().getOrNull()
         val useFallback = primary == null || (primary.shelves.isEmpty() && primary.continuation == null)
         val feed = if (useFallback) {
@@ -2170,7 +2192,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         homeSeenTitles.clear()
         homeSeenVideoIds.clear()
         homeSeenContinuationTokens.clear()
-        val varied = diversifyHomeShelves(varyHomeFeed(filterExplicitHomeShelves(feed.shelves), refreshSeed)).map { shelf ->
+        val visibleFeedShelves = AppSettings.homeLayout.value.arrange(
+            filterExplicitHomeShelves(feed.shelves),
+            keyOf = { homeShelfKey(it.title) },
+        )
+        val varied = diversifyHomeShelves(varyHomeFeed(visibleFeedShelves, refreshSeed)).map { shelf ->
             diversifyHomeShelf(shelf, refreshSeed xor shelf.title.hashCode().toLong())
         }.let { prioritizeFreshHomeTracks(it, previousSessionVideoIds) }
             .withoutRepeatsOf(emptyList())
@@ -2858,11 +2884,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
-    private fun filterExplicitHomeShelves(shelves: List<HomeShelf>): List<HomeShelf> =
-        if (!AppSettings.hideExplicitContent.value) shelves else shelves.mapNotNull { shelf ->
+    private fun filterExplicitHomeShelves(shelves: List<HomeShelf>): List<HomeShelf> {
+        val layout = AppSettings.homeLayout.value
+        val visible = shelves.filterNot { shelf -> layout.isHidden(homeShelfKey(shelf.title)) }
+        return if (!AppSettings.hideExplicitContent.value) visible else visible.mapNotNull { shelf ->
             val items = shelf.items.filterNot { !isVisibleWithExplicitFilter(it.isExplicit, hideExplicitContent = true) }
             shelf.copy(items = items).takeIf { items.isNotEmpty() }
         }
+    }
     private fun searchResultKey(row: SearchResult): String = when (row) {
         is SearchResult.TopTrack -> "v:${row.song.videoId}"
         is SearchResult.Track -> "v:${row.song.videoId}"

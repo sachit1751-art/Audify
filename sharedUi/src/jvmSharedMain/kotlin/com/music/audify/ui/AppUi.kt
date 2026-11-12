@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.music.audify.data.settings.LibrarySort
 import com.music.audify.data.settings.LibraryViewType
+import com.music.audify.data.model.HomeLayout
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -23,6 +24,10 @@ interface AppUiHost {
     val homeRecentsViewType: StateFlow<LibraryViewType>
 
     fun setHomeRecentsViewType(value: LibraryViewType)
+
+    /** Saved order and visibility of Home's recommendation rows. */
+    val homeLayout: StateFlow<HomeLayout>
+    fun setHomeLayout(value: HomeLayout)
 
     /** Whether the weekly listening recap is enabled on Home. */
     val showWeeklyRecapCard: StateFlow<Boolean>

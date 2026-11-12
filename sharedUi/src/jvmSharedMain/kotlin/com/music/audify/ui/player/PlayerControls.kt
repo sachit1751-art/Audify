@@ -46,6 +46,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -730,6 +731,7 @@ internal fun CircleGlyph(
 ) {
     val haptics = rememberHaptics()
     val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val discAlpha by animateFloatAsState(
         targetValue = if (active) 0.34f else 0.18f,
@@ -806,6 +808,7 @@ private fun TransportGlyph(
 ) {
     val haptics = rememberHaptics()
     val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     // Faded rather than hidden: the row keeps its shape at the ends of a queue.
     val alpha by animateFloatAsState(
@@ -816,6 +819,14 @@ private fun TransportGlyph(
         modifier = Modifier
             .size(touchSize)
             .microPressScale(interactionSource, enabled = enabled)
+            .graphicsLayer {
+                // A short directional kick gives skip keys a physical response;
+                // reduced-motion mode keeps the control completely still.
+                if (!reduceAnimation && playPauseState == null && enabled && pressed) {
+                    rotationZ = if (icon == Res.drawable.ic_player_next) 5f else -5f
+                    translationX = if (icon == Res.drawable.ic_player_next) 2.5.dp.toPx() else -2.5.dp.toPx()
+                }
+            }
             .clickable(
                 interactionSource = interactionSource,
                 // The play/pause target stays fully interactive, but should

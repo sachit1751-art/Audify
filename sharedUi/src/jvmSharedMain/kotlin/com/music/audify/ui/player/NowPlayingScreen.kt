@@ -954,6 +954,16 @@ fun NowPlayingScreen(
         lyricsControlsOpen = false
         lyricsOpen = false
     }
+    // Lyrics belong to the track being read. When playback moves to another
+    // track, return to Now Playing on every form factor rather than leaving a
+    // reader on a panel whose content has silently changed underneath them.
+    var lyricsTrackId by remember { mutableStateOf(song.videoId) }
+    LaunchedEffect(song.videoId) {
+        if (lyricsTrackId != song.videoId) {
+            if (lyricsOpen) closeLyrics()
+            lyricsTrackId = song.videoId
+        }
+    }
     val toggleLyrics: () -> Unit = {
         if (lyricsOpen) closeLyrics() else openLyrics()
     }
@@ -997,12 +1007,6 @@ fun NowPlayingScreen(
         haptics = haptics,
         onCard = { lyricsShare = it },
     )
-    // Nothing here resets [lyricsOpen] on a track change, deliberately. The
-    // panel is a place, not a property of the track: someone reading along who
-    // skips — or who simply lets the queue run on — means to carry on reading,
-    // so the words change underneath them and the panel stays. Closing it
-    // dropped them back onto the artwork every few minutes with no gesture of
-    // their own behind it.
     // A brief, non-modal confirmation that the three-dot menu now contains a
     // way back to the original YouTube rendition. The control keeps its usual
     // action — opening the menu — so the cue teaches rather than surprises.

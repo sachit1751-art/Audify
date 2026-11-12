@@ -98,7 +98,7 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import com.music.audify.ui.components.rememberElasticRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -1172,9 +1172,9 @@ private fun AudifyApp(
 
     // Pull-to-refresh: the drag lives with the feed, but the indicator is the
     // line under the top bar, so the state has to be visible to both.
-    val homePull = rememberPullToRefreshState()
-    val explorePull = rememberPullToRefreshState()
-    val libraryPull = rememberPullToRefreshState()
+    val homePull = rememberElasticRefreshState()
+    val explorePull = rememberElasticRefreshState()
+    val libraryPull = rememberElasticRefreshState()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val currentFeed = when {
         route != null || detail != null -> null

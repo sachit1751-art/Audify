@@ -85,8 +85,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -816,25 +814,19 @@ fun DownloadedBadge(videoId: String, tint: Color, modifier: Modifier = Modifier)
  * is why [state] is hoisted: the bar lives beside this content, not inside it,
  * and has to follow the same drag.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PullToRefresh(
     refreshing: Boolean,
     onRefresh: () -> Unit,
-    state: PullToRefreshState,
+    state: ElasticRefreshState,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    if (!LocalPullToRefreshEnabled.current) {
-        Box(modifier.fillMaxSize()) { content() }
-        return
-    }
-    PullToRefreshBox(
-        isRefreshing = refreshing,
+    ElasticPullToRefresh(
+        refreshing = refreshing,
         onRefresh = onRefresh,
         state = state,
-        modifier = modifier.fillMaxSize(),
-        indicator = {},
+        modifier = modifier,
     ) {
         content()
     }

@@ -9,6 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,8 +32,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.media3.session.MediaController
+import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.model.BrowseType
+import com.music.audify.data.model.HomeLayout
+import com.music.audify.data.model.HomeSlot
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.homeShelfKey
 import com.music.audify.data.model.PodcastProviderShow
 import com.music.audify.data.YtMusicRepository
 import com.music.audify.data.model.PodcastDiscoveryCategory
@@ -46,6 +56,9 @@ import com.music.audify.ui.tv.components.TvLockup
 import com.music.audify.ui.tv.components.TvShelf
 import com.music.audify.ui.tv.components.TvShelfTitle
 import com.music.audify.ui.tv.components.TvShelfPlaceholder
+import com.music.audify.ui.tv.components.TvDialog
+import com.music.audify.ui.tv.components.TvDialogButton
+import com.music.audify.ui.tv.components.TvListRow
 import com.music.audify.ui.tv.dialogs.TvSongMenu
 import com.music.audify.ui.tv.theme.TvDimensions
 import kotlinx.coroutines.delay
@@ -64,8 +77,11 @@ fun TvHomeScreen(
 ) {
     val homeState by viewModel.home.collectAsState()
     val loadingMore by viewModel.homeLoadingMore.collectAsState()
+    val savedLayout by AppSettings.homeLayout.collectAsState()
     val scope = rememberCoroutineScope()
     var menuSong by remember { mutableStateOf<Song?>(null) }
+    var showLayoutEditor by remember { mutableStateOf(false) }
+    var lastSuccessfulShelves by remember { mutableStateOf<List<HomeShelf>?>(null) }
     var podcastCategories by remember { mutableStateOf<List<PodcastDiscoveryCategory>>(emptyList()) }
     var savedPodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
     LaunchedEffect(Unit) {
@@ -81,14 +97,20 @@ fun TvHomeScreen(
         }
     }
 
-    when (val state = homeState) {
-        is UiState.Loading -> TvShelvesLoading(modifier)
-        is UiState.Error -> TvErrorState(
-            message = state.message,
-            onRetry = { viewModel.refresh(MainViewModel.Feed.HOME) },
-            modifier = modifier,
-        )
-        is UiState.Success -> {
+    LaunchedEffect(homeState) {
+        (homeState as? UiState.Success)?.let { lastSuccessfulShelves = it.data }
+    }
+    val currentShelves = (homeState as? UiState.Success)?.data ?: lastSuccessfulShelves
+    if (currentShelves == null) {
+        when (val state = homeState) {
+            is UiState.Error -> TvErrorState(
+                message = state.message,
+                onRetry = { viewModel.refresh(MainViewModel.Feed.HOME) },
+                modifier = modifier,
+            )
+            else -> TvShelvesLoading(modifier)
+        }
+    } else {
             val podcastShelfItems = buildList {
                 savedPodcastShows.forEach { show ->
                     add(ShelfItem(show.title, show.subtitle.ifBlank { "Saved show" }, show.thumbnailUrl, null, show.browseId))
@@ -105,8 +127,9 @@ fun TvHomeScreen(
                 subtitle = "Saved shows and public YouTube Music podcasts",
                 items = podcastShelfItems,
             )
+            val arrangedShelves = savedLayout.arrange(currentShelves, keyOf = { homeShelfKey(it.title) })
             TvShelfFeed(
-                shelves = listOf(podcastShelf) + state.data,
+                shelves = listOf(podcastShelf) + arrangedShelves,
                 loadingMore = loadingMore,
                 onNearEnd = { viewModel.loadMoreHome() },
                 onPlaySong = { song ->
@@ -116,12 +139,36 @@ fun TvHomeScreen(
                 onSongMenu = { menuSong = it },
                 onNavigateToDetail = onNavigateToDetail,
                 onOpenPodcasts = onOpenPodcasts,
-                header = { TvHomeGreeting() },
+                header = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.weight(1f)) { TvHomeGreeting() }
+                        TvButton(
+                            text = "Refresh",
+                            onClick = { viewModel.refresh(MainViewModel.Feed.HOME) },
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        TvButton(text = "Customize Home", onClick = { showLayoutEditor = true })
+                    }
+                },
                 picksFirst = true,
                 picksFirstIndex = 1,
                 modifier = modifier,
             )
-        }
+    }
+
+    if (showLayoutEditor) {
+        val availableKeys = currentShelves.orEmpty()
+            .map { homeShelfKey(it.title) }
+            .distinct()
+        TvHomeLayoutDialog(
+            layout = savedLayout,
+            availableKeys = availableKeys,
+            onSave = AppSettings::setHomeLayout,
+            onDismiss = { showLayoutEditor = false },
+        )
     }
 
     menuSong?.let { song ->
@@ -132,6 +179,78 @@ fun TvHomeScreen(
             onNavigateToDetail = onNavigateToDetail,
             onDismiss = { menuSong = null },
         )
+    }
+}
+
+@Composable
+private fun TvHomeLayoutDialog(
+    layout: HomeLayout,
+    availableKeys: List<String>,
+    onSave: (HomeLayout) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var order by remember(layout, availableKeys) {
+        mutableStateOf(layout.editorOrder(availableKeys))
+    }
+    var hidden by remember(layout, availableKeys) {
+        mutableStateOf<Set<String>>(order.filterTo(linkedSetOf(), layout::isHidden))
+    }
+    TvDialog(
+        onDismissRequest = onDismiss,
+        title = "Customize Home",
+        message = "Choose which shelves appear and arrange their order. Select a row to show or hide it.",
+        width = 620.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 650.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            order.forEachIndexed { index, key ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TvListRow(
+                        title = key.removePrefix("shelf:").replace('-', ' ').replaceFirstChar { it.uppercase() },
+                        subtitle = if (key in hidden) "Hidden · select to restore" else "Visible · select to hide",
+                        value = "${index + 1}",
+                        onClick = {
+                            hidden = hidden.toMutableSet().apply {
+                                if (!add(key)) remove(key)
+                            }
+                            onSave(HomeLayout(order.map { HomeSlot(it, it in hidden) }))
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    TvButton(
+                        text = "Up",
+                        enabled = index > 0,
+                        onClick = {
+                            order = order.toMutableList().apply { add(index - 1, removeAt(index)) }
+                            onSave(HomeLayout(order.map { HomeSlot(it, it in hidden) }))
+                        },
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    TvButton(
+                        text = "Down",
+                        enabled = index < order.lastIndex,
+                        onClick = {
+                            order = order.toMutableList().apply { add(index + 1, removeAt(index)) }
+                            onSave(HomeLayout(order.map { HomeSlot(it, it in hidden) }))
+                        },
+                    )
+                }
+            }
+            Spacer(Modifier.width(1.dp))
+            TvDialogButton(text = "Reset layout", onClick = {
+                order = availableKeys
+                hidden = emptySet<String>()
+                onSave(HomeLayout())
+            })
+            TvDialogButton(text = "Done", onClick = onDismiss, initialFocus = true)
+        }
     }
 }
 

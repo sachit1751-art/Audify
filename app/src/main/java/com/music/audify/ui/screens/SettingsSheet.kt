@@ -26,6 +26,7 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -47,6 +48,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
@@ -141,6 +144,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -155,6 +161,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -1200,13 +1208,110 @@ fun SettingsScreen(
                         }
                     }
                 }
-                Text("Create your own", modifier = Modifier.padding(start = ROW_INSET, top = 4.dp), style = MaterialTheme.typography.titleSmall)
-                OutlinedTextField(value = customThemeName, onValueChange = { customThemeName = it.take(32) }, label = { Text("Theme name") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 4.dp))
-                Row(Modifier.fillMaxWidth().padding(horizontal = ROW_INSET), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = customThemePrimary, onValueChange = { customThemePrimary = it.take(7).uppercase() }, label = { Text("Primary") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = customThemeSecondary, onValueChange = { customThemeSecondary = it.take(7).uppercase() }, label = { Text("Secondary") }, singleLine = true, modifier = Modifier.weight(1f))
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 8.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f))
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text("Theme studio", style = MaterialTheme.typography.titleMedium)
+                        Text("Build a palette and see how it looks before saving.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    val previewPrimary = remember(customThemePrimary) {
+                        runCatching { Color(android.graphics.Color.parseColor(customThemePrimary)) }.getOrDefault(Color(0xFF55C7F2))
+                    }
+                    val previewSecondary = remember(customThemeSecondary) {
+                        runCatching { Color(android.graphics.Color.parseColor(customThemeSecondary)) }.getOrDefault(Color(0xFF80E0D0))
+                    }
+                    val previewTertiary = remember(customThemeTertiary) {
+                        runCatching { Color(android.graphics.Color.parseColor(customThemeTertiary)) }.getOrDefault(Color(0xFF3478F6))
+                    }
+                    val previewText = remember(customThemePrimary) {
+                        if (com.music.audify.data.settings.ThemePacks.isValidHex(customThemePrimary)) {
+                            Color(android.graphics.Color.parseColor(com.music.audify.data.settings.ThemePacks.contentColorHex(customThemePrimary)))
+                        } else Color.Black
+                    }
+                    // A compact, realistic app-surface preview rather than a full-card gradient.
+                    Column(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF111318)).padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("AUDIFY  /  THEME PREVIEW", color = Color.White.copy(alpha = 0.58f), style = MaterialTheme.typography.labelSmall)
+                                Text(customThemeName.ifBlank { "Your theme" }, color = Color.White, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                            }
+                            Box(Modifier.size(34.dp).clip(CircleShape).background(previewPrimary), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.Palette, contentDescription = null, tint = previewText)
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(88.dp).clip(RoundedCornerShape(12.dp)).background(
+                                Brush.linearGradient(listOf(previewPrimary, previewSecondary, previewTertiary)),
+                            ), contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.LibraryMusic, contentDescription = null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.size(34.dp))
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Midnight drive", color = Color.White, style = MaterialTheme.typography.titleSmall)
+                                Text("A sample track · Audify", color = Color.White.copy(alpha = 0.62f), style = MaterialTheme.typography.bodySmall)
+                                Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.16f))) {
+                                    Box(Modifier.fillMaxWidth(0.42f).height(3.dp).clip(CircleShape).background(previewPrimary))
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(previewPrimary).padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                                Text("Play", color = previewText, style = MaterialTheme.typography.labelLarge)
+                            }
+                            listOf(previewPrimary, previewSecondary, previewTertiary).forEach { color ->
+                                Box(Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(color))
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = customThemeName,
+                        onValueChange = { customThemeName = it.take(32) },
+                        label = { Text("Theme name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    var activeColour by rememberSaveable { mutableStateOf(0) }
+                    val colourValues = listOf(customThemePrimary, customThemeSecondary, customThemeTertiary)
+                    val colourLabels = listOf("Primary", "Secondary", "Tertiary")
+                    val setColour: (String) -> Unit = { value ->
+                        when (activeColour) {
+                            0 -> customThemePrimary = value
+                            1 -> customThemeSecondary = value
+                            else -> customThemeTertiary = value
+                        }
+                    }
+                    Text("Choose a colour", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        colourValues.forEachIndexed { index, value ->
+                            val selected = activeColour == index
+                            Column(
+                                Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
+                                    .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                                    .clickable { activeColour = index }.padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Box(Modifier.fillMaxWidth().height(28.dp).clip(RoundedCornerShape(8.dp)).background(
+                                    runCatching { Color(android.graphics.Color.parseColor(value)) }.getOrDefault(MaterialTheme.colorScheme.outline),
+                                ))
+                                Text(colourLabels[index], style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            }
+                        }
+                    }
+                    ThemeColourPicker(
+                        colourHex = colourValues[activeColour],
+                        onColourChange = setColour,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text("Drag in the colour field, then fine-tune with the hue strip. Your preview updates instantly.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                OutlinedTextField(value = customThemeTertiary, onValueChange = { customThemeTertiary = it.take(7).uppercase() }, label = { Text("Tertiary") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = ROW_INSET, vertical = 4.dp))
                 Button(
                     onClick = {
                         val values = listOf(customThemePrimary, customThemeSecondary, customThemeTertiary)
@@ -1222,7 +1327,7 @@ fun SettingsScreen(
                             themePackStatus = "Saved ${pack.name}"
                         }
                     },
-                    modifier = Modifier.padding(start = ROW_INSET, top = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(start = ROW_INSET, top = 4.dp, end = ROW_INSET),
                 ) { Text(if (selectedCustomTheme == null) "Save theme" else "Update theme") }
                 Row(Modifier.fillMaxWidth().padding(horizontal = ROW_INSET), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { themePackExportPicker.launch("audify-${themePaletteId}.audifytheme.json") }) { Text("Export selected") }
@@ -3624,6 +3729,115 @@ internal fun Chevron() {
         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
         modifier = Modifier.size(20.dp),
     )
+}
+
+/** Touch-first HSV picker: a saturation/value field plus a continuous hue rail. */
+@Composable
+private fun ThemeColourPicker(
+    colourHex: String,
+    onColourChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val initial = remember(colourHex) {
+        FloatArray(3).also { hsv ->
+            val parsed = runCatching { android.graphics.Color.parseColor(colourHex) }
+                .getOrDefault(android.graphics.Color.rgb(85, 199, 242))
+            android.graphics.Color.colorToHSV(parsed, hsv)
+        }
+    }
+    var hue by remember(colourHex) { mutableStateOf(initial[0]) }
+    var saturation by remember(colourHex) { mutableStateOf(initial[1]) }
+    var brightness by remember(colourHex) { mutableStateOf(initial[2]) }
+    val hueColour = Color.hsv(hue, 1f, 1f)
+    val currentColour = Color.hsv(hue, saturation, brightness)
+    val hueStops = listOf(
+        Color.Red, Color.Yellow, Color.Green, Color.Cyan,
+        Color.Blue, Color.Magenta, Color.Red,
+    )
+    fun publish(nextSaturation: Float = saturation, nextBrightness: Float = brightness, nextHue: Float = hue) {
+        saturation = nextSaturation.coerceIn(0f, 1f)
+        brightness = nextBrightness.coerceIn(0f, 1f)
+        hue = nextHue.coerceIn(0f, 360f)
+        val argb = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness))
+        onColourChange(String.format(Locale.ROOT, "#%02X%02X%02X", android.graphics.Color.red(argb), android.graphics.Color.green(argb), android.graphics.Color.blue(argb)))
+    }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Canvas(
+            Modifier.fillMaxWidth().height(184.dp).clip(RoundedCornerShape(14.dp))
+                .pointerInput(hue) {
+                    fun select(x: Float, y: Float) = publish(
+                        nextSaturation = (x / size.width).coerceIn(0f, 1f),
+                        nextBrightness = (1f - y / size.height).coerceIn(0f, 1f),
+                    )
+                    detectTapGestures { select(it.x, it.y) }
+                }
+                .pointerInput(hue) {
+                    detectDragGestures { change, _ ->
+                        change.consume()
+                        publish(
+                            nextSaturation = (change.position.x / size.width).coerceIn(0f, 1f),
+                            nextBrightness = (1f - change.position.y / size.height).coerceIn(0f, 1f),
+                        )
+                    }
+                },
+        ) {
+            drawRect(Brush.horizontalGradient(listOf(Color.White, hueColour)))
+            drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+            val x = size.width * saturation
+            val y = size.height * (1f - brightness)
+            drawCircle(Color.Black.copy(alpha = 0.72f), radius = 10.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y), style = Stroke(width = 3.dp.toPx()))
+            drawCircle(Color.White, radius = 8.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, y), style = Stroke(width = 2.dp.toPx()))
+        }
+        Canvas(
+            Modifier.fillMaxWidth().height(22.dp).clip(CircleShape)
+                .pointerInput(Unit) {
+                    fun select(x: Float) = publish(nextHue = (x / size.width * 360f).coerceIn(0f, 360f))
+                    detectTapGestures { select(it.x) }
+                }
+                .pointerInput(Unit) {
+                    detectDragGestures { change, _ ->
+                        change.consume()
+                        publish(nextHue = (change.position.x / size.width * 360f).coerceIn(0f, 360f))
+                    }
+                },
+        ) {
+            drawRect(Brush.horizontalGradient(hueStops))
+            val x = size.width * (hue / 360f)
+            drawCircle(Color.Black.copy(alpha = 0.75f), radius = 11.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, size.height / 2f), style = Stroke(width = 3.dp.toPx()))
+            drawCircle(Color.White, radius = 9.dp.toPx(), center = androidx.compose.ui.geometry.Offset(x, size.height / 2f), style = Stroke(width = 2.dp.toPx()))
+        }
+        // Keep the direct-manipulation canvases, but never make colour choice
+        // depend on touch precision alone. These Material sliders expose the
+        // same HSV channels to TalkBack, Switch Access, keyboard and TV-style
+        // focus navigation, and provide a precise alternative on small screens.
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Hue", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text("${hue.toInt()}°", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Slider(value = hue, onValueChange = { publish(nextHue = it) }, valueRange = 0f..360f)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Saturation", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text("${(saturation * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Slider(value = saturation, onValueChange = { publish(nextSaturation = it) }, valueRange = 0f..1f)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Brightness", style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text("${(brightness * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Slider(value = brightness, onValueChange = { publish(nextBrightness = it) }, valueRange = 0f..1f)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(9.dp)).background(currentColour)
+                    .semantics { contentDescription = "Selected colour $colourHex" },
+            )
+            Column(Modifier.weight(1f)) {
+                Text("${colourHex.uppercase(Locale.ROOT)}", style = MaterialTheme.typography.labelLarge)
+                Text("Selected ${"%.0f".format(Locale.ROOT, hue)}° hue", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 /** A continuous setting: label and current value on one line, track beneath. */

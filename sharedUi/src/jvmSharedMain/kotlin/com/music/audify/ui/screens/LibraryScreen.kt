@@ -42,7 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import com.music.audify.ui.components.ElasticRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -111,7 +111,7 @@ fun LibraryScreen(
     onRetry: () -> Unit,
     refreshing: Boolean,
     onRefresh: () -> Unit,
-    pullState: PullToRefreshState,
+    pullState: ElasticRefreshState,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues,
     /**

@@ -539,9 +539,25 @@ fun GlyphButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val animationsEnabled = remember { ValueAnimator.areAnimatorsEnabled() }
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed && animationsEnabled) 0.91f else 1f,
+        animationSpec = tween(if (animationsEnabled) 105 else 0),
+        label = "wearControlPressScale",
+    )
+    val directionalKick = when (icon) {
+        R.drawable.ic_previous -> -7f
+        R.drawable.ic_next -> 7f
+        else -> 0f
+    }
     Box(
         modifier = modifier
             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+                rotationZ = if (pressed && animationsEnabled) directionalKick else 0f
+            }
             .clickable(
                 enabled = enabled,
                 interactionSource = interaction,

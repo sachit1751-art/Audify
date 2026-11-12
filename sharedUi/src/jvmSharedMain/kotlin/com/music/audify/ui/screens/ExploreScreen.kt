@@ -27,7 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import com.music.audify.ui.components.ElasticRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -72,7 +72,7 @@ fun ExploreScreen(
     onRetry: () -> Unit,
     refreshing: Boolean,
     onRefresh: () -> Unit,
-    pullState: PullToRefreshState,
+    pullState: ElasticRefreshState,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     /** The big "Explore" heading; the desktop's pages carry none. */

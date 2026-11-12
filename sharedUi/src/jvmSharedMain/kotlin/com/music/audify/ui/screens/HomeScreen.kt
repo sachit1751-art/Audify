@@ -51,7 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshState
+import com.music.audify.ui.components.ElasticRefreshState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -89,11 +89,15 @@ import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Tune
 import com.music.audify.ui.icons.AudifyIcons
 import coil3.compose.AsyncImage
 import com.music.audify.data.model.CARD_ART_PX
 import com.music.audify.data.model.HEADER_ART_PX
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.HomeLayout
+import com.music.audify.data.model.HOME_SLOT_MOODS
+import com.music.audify.data.model.homeShelfKey
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.stableShelfComposeKeys
@@ -113,6 +117,7 @@ import com.music.audify.ui.components.PAGE_GUTTER
 import com.music.audify.ui.components.RowMoreButton
 import com.music.audify.ui.components.PlayingAccent
 import com.music.audify.ui.components.PullToRefresh
+import com.music.audify.ui.components.HomeLayoutDialog
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
 import com.music.audify.ui.components.SearchPlayingBars
 import com.music.audify.ui.components.SignInBanner
@@ -189,7 +194,7 @@ fun HomeScreen(
     onRetry: () -> Unit,
     refreshing: Boolean,
     onRefresh: () -> Unit,
-    pullState: PullToRefreshState,
+    pullState: ElasticRefreshState,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues,
     /** The page's heading, or null for none — the desktop's pages carry no heading. */
@@ -233,7 +238,9 @@ fun HomeScreen(
     greetingEvening: String = "Good evening",
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
+    val homeLayout by AppUi.host.homeLayout.collectAsStateWithLifecycle()
     var showAudioOutput by remember { mutableStateOf(false) }
+    var showHomeLayout by remember { mutableStateOf(false) }
     val outputHaze = remember { HazeState() }
     val openAudioOutput = rememberOutputPicker { showAudioOutput = true }
     val featuredItemIds = remember(timeAwareShelf) {
@@ -285,6 +292,7 @@ fun HomeScreen(
                         greetingMorning = greetingMorning,
                         greetingAfternoon = greetingAfternoon,
                         greetingEvening = greetingEvening,
+                        onCustomizeClick = { showHomeLayout = true },
                     )
                 }
             }
@@ -363,6 +371,7 @@ fun HomeScreen(
                                 },
                             )
                         },
+                        homeLayout = homeLayout,
                     )
                     if (loadingMore) feedMoreSkeleton()
                 }
@@ -396,6 +405,13 @@ fun HomeScreen(
             onDismiss = { showAudioOutput = false },
             onOpenPipeline = null,
             onOpenCast = { onCastClick?.invoke() },
+        )
+    }
+    if (showHomeLayout) {
+        HomeLayoutDialog(
+            shelves = (state as? UiState.Success)?.data.orEmpty(),
+            showMoods = onMoodClick != null,
+            onDismiss = { showHomeLayout = false },
         )
     }
 }
@@ -471,22 +487,39 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     firstIsHero: Boolean = true,
     recentsViewType: LibraryViewType,
     onRecentsViewTypeToggle: () -> Unit,
+    homeLayout: HomeLayout,
 ) {
     val quickPicksIndex = shelves.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
     val albumsIndex = shelves.indexOfFirst { it.title.contains("Albums", ignoreCase = true) }
-    val orderedShelves = if (quickPicksIndex >= 0 && albumsIndex >= 0 && albumsIndex < quickPicksIndex) {
+    val orderedShelves = if (!homeLayout.isCustom && quickPicksIndex >= 0 && albumsIndex >= 0 && albumsIndex < quickPicksIndex) {
         shelves.toMutableList().apply { add(quickPicksIndex, removeAt(albumsIndex)) }
     } else shelves
+    val shelfByKey = orderedShelves.associateBy { homeShelfKey(it.title) }
+    val defaultKeys = buildList {
+        orderedShelves.forEach { shelf ->
+            add(homeShelfKey(shelf.title))
+            if (shelf.title.equals("Quick picks", ignoreCase = true) && onMoodClick != null) add(HOME_SLOT_MOODS)
+        }
+        if (onMoodClick != null && HOME_SLOT_MOODS !in this) add(HOME_SLOT_MOODS)
+    }.distinct()
+    val orderedKeys = homeLayout.arrange(defaultKeys, dropHidden = true) { it }
     var podcastShelfInserted = false
-    orderedShelves.forEachIndexed { index, shelf ->
+    var shelfIndex = 0
+    orderedKeys.forEach { key ->
+        if (key == HOME_SLOT_MOODS) {
+            item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
+            return@forEach
+        }
+        val shelf = shelfByKey[key] ?: return@forEach
         if (!podcastShelfInserted && shelf.title.contains("Albums", ignoreCase = true)) {
             item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
             item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
             podcastShelfInserted = true
         }
-        item(key = shelf.title + index) {
+        val currentShelfIndex = shelfIndex++
+        item(key = "home-shelf:$key") {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
-            if (index == 0 && shelf.title.equals(RECENTS_TITLE, ignoreCase = true)) {
+            if (shelf.title.equals(RECENTS_TITLE, ignoreCase = true) || shelf.title.equals("Recently played", ignoreCase = true)) {
                 RecentShelf(
                     shelf = shelf,
                     onItemClick = openItem,
@@ -496,7 +529,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                     viewType = recentsViewType,
                     onViewTypeToggle = onRecentsViewTypeToggle,
                 )
-            } else if (index == 0 && firstIsHero) {
+            } else if (currentShelfIndex == 0 && firstIsHero) {
                 HeroShelf(
                     shelf = shelf,
                     onItemClick = openItem,
@@ -516,7 +549,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             }
         }
         if (shelf.title.equals("Quick picks", ignoreCase = true)) {
-            item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
             item(key = "home-listen-together") {
                 ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
             }
@@ -827,6 +859,7 @@ private fun HomeTitle(
     greetingMorning: String,
     greetingAfternoon: String,
     greetingEvening: String,
+    onCustomizeClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val greeting by produceState(initialValue = homeGreeting(greetingMorning, greetingAfternoon, greetingEvening)) {
@@ -867,6 +900,7 @@ private fun HomeTitle(
         }
         HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick)
         HomeHeaderAction(Icons.Rounded.Bluetooth, "Bluetooth audio output", onBluetoothClick)
+        HomeHeaderAction(Icons.Rounded.Tune, "Customize Home", onCustomizeClick)
         Box(
             modifier = Modifier.size(48.dp).clip(CircleShape)
                 .clickable(enabled = onProfileClick != null, role = Role.Button) { onProfileClick?.invoke() },
@@ -899,7 +933,11 @@ private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: ((
         modifier = Modifier
             .size(48.dp)
             .clip(CircleShape)
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() }),
+            .clickable(
+                enabled = onClick != null,
+                role = Role.Button,
+                onClick = { onClick?.invoke() },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
