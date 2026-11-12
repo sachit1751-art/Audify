@@ -3,7 +3,6 @@
 package com.music.audify.ui.components
 
 import androidx.compose.animation.core.EaseOutCubic
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,9 +10,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
@@ -59,18 +56,6 @@ private val FADE_RUN = 32.dp
 private const val PEAK = 0.75f
 
 /**
- * How dark the readability scrim starts, at the very top of the strip.
- *
- * Modest on purpose: it is there to give white glyphs a floor on a pale sleeve,
- * not to grey out the artwork. Anything heavier and the bar stops being a fade
- * over a picture and starts being a header with a picture behind it.
- */
-private const val SCRIM_PEAK = 0.42f
-
-/** Enough stops that the ramp does not band across a near-flat colour. */
-private const val SCRIM_STOPS = 12
-
-/**
  * The glass behind artwork-led top bars: full blur along the top edge, ramping
  * to nothing on the way down.
  *
@@ -88,29 +73,9 @@ private const val SCRIM_STOPS = 12
 @Composable
 fun TopFadeBlur(
     hazeState: HazeState,
-    /**
-     * The colour of the page behind this: the theme's background on a feed, a
-     * detail page's artwork wash on one of those. See the effect below for why
-     * it cannot just be the theme's in both cases.
-     */
-    pageColor: Color,
     modifier: Modifier = Modifier,
     /** Cross-fades against the bottom edge treatment as the page scrolls. */
     alpha: Float = 1f,
-    /**
-     * A wash laid over the blur to keep the bar's glyphs readable.
-     *
-     * Blur alone does not settle contrast — it makes a pale sleeve into a pale
-     * blur, and a row of bright artwork scrolling under a feed's title into a
-     * bright smear. The scrim gives the glyphs a floor to sit on whatever
-     * happens to pass beneath them.
-     *
-     * Laid *over* the blur rather than under it, which is the only order that
-     * works: haze samples the content tagged as its source, not whatever
-     * sibling happens to sit between that content and itself, so a scrim
-     * underneath would be painted over by the blurred content and do nothing.
-     */
-    scrimColor: Color,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val progressiveScrollEdgeBlur by AppSettings.progressiveScrollEdgeBlur.collectAsStateWithLifecycle()
@@ -119,9 +84,8 @@ fun TopFadeBlur(
     if (reduceDynamicBlur || !progressiveScrollEdgeBlur) return
 
     // Start at the top of the window and fade through the status bar, top bar,
-    // and its content gap. Starting this layer below the bar creates a visible
-    // horizontal seam across artwork because the blur has a hard layer edge.
-    // The gradient reaches zero before the first content row begins.
+    // and its content gap. Blur the live backdrop only; do not lay a wallpaper-
+    // colour scrim over it, which creates the black strip on custom backgrounds.
     val height = topBarHeight() + TopBarContentGap + FADE_RUN
     val fadeModifier = modifier
         .graphicsLayer { this.alpha = alpha.coerceIn(0f, 1f) }
@@ -131,9 +95,11 @@ fun TopFadeBlur(
             .height(height)
             .hazeBlur(
                 input = HazeInput.Sources(hazeState),
-                // Keyed to the colour of the page underneath, not the theme's.
-                // The progressive ramp is kept in the immutable Blur style.
-                style = HazeMaterials.ultraThin(pageColor).then {
+                // Sample and blur the actual page content without applying a
+                // page-colour wash. Custom wallpapers can be dark or dynamic;
+                // tinting the sampled pixels with chromePageColor produces the
+                // opaque-looking black band that reappears during scrolling.
+                style = HazeMaterials.ultraThin(Color.Transparent).then {
                     progressive(
                         HazeProgressive.verticalGradient(
                             easing = EaseOutCubic,
@@ -148,24 +114,6 @@ fun TopFadeBlur(
             ),
     )
 
-    val scrim = remember(scrimColor) {
-        Brush.verticalGradient(
-            // The same eased-out shape as the blur above it, so the two arrive
-            // at nothing together. A scrim that outlasted the blur would leave
-            // a tinted band hanging below a fade that had already finished —
-            // the one artefact this bar exists to avoid.
-            colorStops = Array(SCRIM_STOPS) { i ->
-                val t = i / (SCRIM_STOPS - 1f)
-                t to scrimColor.copy(alpha = SCRIM_PEAK * (1f - EaseOutCubic.transform(t)))
-            },
-        )
-    }
-    Box(
-        modifier = fadeModifier
-            .fillMaxWidth()
-            .height(height)
-            .background(scrim),
-    )
 }
 
 /**

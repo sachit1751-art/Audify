@@ -90,7 +90,11 @@ fun BottomFadeScrim(
         label = "bottomScrimHeight",
     )
 
-    val brush = remember(pageColor) {
+    // The floating player and tab bar already provide their own glass surface.
+    // A page-colour ramp here becomes a solid black veil on custom backgrounds
+    // and is especially noticeable while scrolling beneath the bars. Keep the
+    // spacer geometry, but never paint a second opaque wallpaper-colour layer.
+    val brush = remember {
         Brush.verticalGradient(
             // A cubic ease-in rather than a straight ramp: the alpha then holds
             // under a few percent for the first half of the strip, which is what
@@ -99,7 +103,7 @@ fun BottomFadeScrim(
             // ramped its radius along, so the strip reads at the same weight.
             colorStops = Array(STOPS) { i ->
                 val t = i / (STOPS - 1f)
-                t to pageColor.copy(alpha = EaseInCubic.transform(t))
+                t to Color.Transparent
             },
         )
     }

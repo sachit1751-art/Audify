@@ -3862,8 +3862,6 @@ LibraryScreen(
                 if (headerListState != null) {
                     TopFadeBlur(
                         hazeState = hazeState,
-                        pageColor = chromePageColor,
-                        scrimColor = chromePageColor,
                         modifier = Modifier.align(Alignment.TopCenter),
                         alpha = topFadeAlpha,
                     )
@@ -3882,8 +3880,6 @@ LibraryScreen(
                     // page-colour scrim that used to become a solid black bar.
                     TopFadeBlur(
                         hazeState = hazeState,
-                        pageColor = chromePageColor,
-                        scrimColor = chromePageColor,
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
                 }
