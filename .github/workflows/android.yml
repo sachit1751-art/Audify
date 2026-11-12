@@ -146,7 +146,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run unit-test gates
-        run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :app:testProdDebugUnitTest :tv:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :app:testProdDebugUnitTest :tv:testProdDebugUnitTest :wearos:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
 
       - name: Run production release lint
         run: ./gradlew --no-daemon --max-workers=2 :app:lintProdRelease :tv:lintProdRelease :wearos:lintProdRelease
@@ -259,7 +259,7 @@ jobs:
 
   publish:
     if: ${{ inputs.dry_run != true }}
-    name: Publish approved GitHub Release
+    name: Prepare GitHub Release draft
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -315,5 +315,5 @@ jobs:
 
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
           gh release upload "$TAG" dist/SHA256SUMS.txt
-          gh release edit "$TAG" --draft=false
+          echo "Release assets uploaded and verified. Leaving $TAG unpublished as a draft for manual review."
           gh release view "$TAG" --json name,tagName,isDraft,url,assets
