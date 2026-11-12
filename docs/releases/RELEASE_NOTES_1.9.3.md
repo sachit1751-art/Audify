@@ -1,4 +1,4 @@
-# Audify 1.9.3
+﻿# Audify 1.9.3
 
 Audify 1.9.3 focuses on a more responsive, personal playback experience, with Home customization and controls adapted to the capabilities of each supported Android form factor.
 
@@ -11,21 +11,29 @@ Audify 1.9.3 focuses on a more responsive, personal playback experience, with Ho
 - **Artwork preference:** Prefer static cover artwork over motion artwork where the player supports animated artwork.
 - **Lyrics navigation:** Selecting a different track from the lyrics view returns to Now Playing for the selected track.
 - **Playback feedback:** Previous and Next controls use short press feedback animations, respecting reduced-motion settings.
-- **Theme Studio:** Customize the player palette with a live preview.
+- **Theme Studio:** Customize the player palette with a live preview and direct primary/secondary colour controls.
+- **Podcast show pages:** Present provider artwork, show metadata, a readable description, library save controls and playable-episode actions in a dedicated detail layout. Episode loading uses content-shaped skeletons instead of placeholder text.
+- **Custom-background edge blur:** Use adaptive top/bottom progressive blur without a dark page-colour overlay; edge blur is enabled by default and remains configurable.
 - **Android TV:** Add a D-pad-accessible Home layout editor and retain the last successful Home shelves while a refresh is loading.
 - **Wear OS:** Add animated press feedback to the watch's skip controls while respecting the system animator setting.
 
 ## Android downloads
 
-The following production APKs will be attached after the release workflow builds them and verifies their package IDs, version metadata, native payloads and approved signing certificate:
+The following production APKs have been built from the verified 1.9.3 production variants. They are attached to the unpublished GitHub draft release after package/version/signature checks:
 
 - **Phone / tablet (universal):** `Audify-1.9.3.apk`.
 - **Phone / tablet (ARM64):** `Audify-1.9.3_arm64-v8a.apk`.
 - **Android TV / Google TV (universal):** `AudifyTV-1.9.3.apk`.
 - **Wear OS (universal):** `AudifyWear-1.9.3.apk`.
-- **Checksums:** `SHA256SUMS.txt` will contain SHA-256 hashes for the attached APKs.
+- **Checksums:** `SHA256SUMS.txt` contains SHA-256 hashes for the four attached APKs.
 
 ## Compatibility and verification
+
+- Production builds completed for phone, Android TV and Wear OS.
+- Phone, TV, Wear OS, shared and shared UI production-debug unit-test tasks passed.
+- All four release APKs passed APK signature verification and match the existing approved signing certificate.
+- Package IDs and version metadata were verified as 1.9.3 (version code 42).
+- The release remains an unpublished draft pending final device-level review.
 
 - Android version: **1.9.3** (version code **42**).
 - Production assets must use the existing approved Audify signing identity (certificate SHA-256: `4bde8155328a9a8659ce6b75d1a0df2e4811c0ccdc555a52ccb3df2a4be94e21`).

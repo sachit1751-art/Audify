@@ -99,7 +99,9 @@ fun TopFadeBlur(
                 // page-colour wash. Custom wallpapers can be dark or dynamic;
                 // tinting the sampled pixels with chromePageColor produces the
                 // opaque-looking black band that reappears during scrolling.
-                style = HazeMaterials.ultraThin(Color.Transparent).then {
+                style = HazeMaterials.ultraThin(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.08f),
+                ).then {
                     progressive(
                         HazeProgressive.verticalGradient(
                             easing = EaseOutCubic,

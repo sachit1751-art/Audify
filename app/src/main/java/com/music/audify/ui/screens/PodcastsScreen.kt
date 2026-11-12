@@ -22,6 +22,8 @@ import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -35,6 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import com.music.audify.data.podcast.PodcastEpisode
 import com.music.audify.data.podcast.PodcastRepository
 import com.music.audify.data.podcast.PodcastShow
@@ -128,7 +132,7 @@ fun PodcastsScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
+        if (selected == null && selectedProvider == null) item {
             Text("Podcasts", style = MaterialTheme.typography.headlineLarge)
             Text("Discover shows and pick up where you left off", style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 3.dp, bottom = 10.dp))
@@ -299,60 +303,147 @@ fun PodcastsScreen(
             }
         } else if (selectedProvider != null) {
             item {
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(onClick = {
-                        selectedProvider = null
-                        providerEpisodes = emptyList()
-                        providerDescription = null
-                        providerLoadError = null
-                        providerLoaded = false
-                    }) { Text("Back to podcasts") }
-                    TextButton(onClick = {
-                        selectedProvider?.let(::openProviderShow)
-                    }, enabled = !providerLoading) { Text(if (providerLoading) "Loading…" else "Reload") }
-                }
                 val providerShow = selectedProvider
-                if (!providerShow?.thumbnailUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = providerShow?.thumbnailUrl,
-                        contentDescription = providerShow?.title,
-                        modifier = Modifier.size(196.dp).clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-                Text(providerShow?.title.orEmpty(), style = MaterialTheme.typography.headlineLarge)
-                if (!providerShow?.subtitle.isNullOrBlank()) {
-                    Text(providerShow?.subtitle.orEmpty(), style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                providerDescription?.takeIf(String::isNotBlank)?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
-                }
                 val isSaved = providerShow != null && providerShows.any { it.browseId == providerShow.browseId }
-                TextButton(enabled = providerShow != null && !busy, onClick = {
-                    val show = providerShow ?: return@TextButton
-                    busy = true
-                    scope.launch {
-                        YtMusicRepository.setPodcastShowSaved(show.browseId, saved = !isSaved)
-                            .onSuccess {
-                                providerShows = if (isSaved) {
-                                    providerShows.filterNot { it.browseId == show.browseId }
-                                } else {
-                                    (providerShows + show).distinctBy(PodcastProviderShow::browseId)
-                                }
-                                YtMusicRepository.libraryPodcastShows().onSuccess { providerShows = it }
-                                message = if (isSaved) "Removed from your YouTube Music library" else "Saved to your YouTube Music library"
+                var descriptionExpanded by remember(providerShow?.browseId) { mutableStateOf(false) }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                    tonalElevation = 2.dp,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (!providerShow?.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = providerShow?.thumbnailUrl,
+                                contentDescription = providerShow?.title?.let { "$it podcast artwork" },
+                                modifier = Modifier.size(184.dp).clip(RoundedCornerShape(20.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            ShimmerBox(Modifier.size(184.dp), RoundedCornerShape(20.dp))
+                        }
+                        Text(
+                            providerShow?.title.orEmpty(),
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            textAlign = TextAlign.Center,
+                        )
+                        providerShow?.subtitle?.takeIf(String::isNotBlank)?.let {
+                            Text(it, style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                        }
+                        Text(
+                            "PODCAST  ·  YOUTUBE MUSIC",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        ) {
+                            Button(
+                                modifier = Modifier.weight(1f),
+                                enabled = providerShow != null && !busy,
+                                onClick = {
+                                    val show = providerShow ?: return@Button
+                                    busy = true
+                                    scope.launch {
+                                        YtMusicRepository.setPodcastShowSaved(show.browseId, saved = !isSaved)
+                                            .onSuccess {
+                                                providerShows = if (isSaved) {
+                                                    providerShows.filterNot { it.browseId == show.browseId }
+                                                } else {
+                                                    (providerShows + show).distinctBy(PodcastProviderShow::browseId)
+                                                }
+                                                YtMusicRepository.libraryPodcastShows().onSuccess { providerShows = it }
+                                                message = if (isSaved) "Removed from your YouTube Music library" else "Saved to your YouTube Music library"
+                                            }
+                                            .onFailure { message = it.message ?: "Could not update your YouTube Music library" }
+                                        busy = false
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                            ) {
+                                Text(when { busy -> "Please wait…"; isSaved -> "Saved to library"; else -> "＋  Add to library" }, maxLines = 1)
                             }
-                            .onFailure { message = it.message ?: "Could not update your YouTube Music library" }
-                        busy = false
+                            val firstPlayableEpisode = providerEpisodes.firstOrNull { it.videoId != null }
+                            if (firstPlayableEpisode != null) {
+                                OutlinedButton(
+                                    modifier = Modifier.weight(0.82f),
+                                    onClick = { onPlayProvider(firstPlayableEpisode) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
+                                ) { Text("▶  Play latest", maxLines = 1) }
+                            }
+                        }
+                        Text(
+                            "Saving requires a signed-in YouTube Music account. Premium is not required.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+
+                        providerDescription?.takeIf(String::isNotBlank)?.let { description ->
+                            androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("About this show", style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.fillMaxWidth())
+                                Text(
+                                    description,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = if (descriptionExpanded) Int.MAX_VALUE else 5,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                )
+                                if (description.length > 260) {
+                                    TextButton(onClick = { descriptionExpanded = !descriptionExpanded }) {
+                                        Text(if (descriptionExpanded) "Show less" else "Read full description")
+                                    }
+                                }
+                            }
+                        }
                     }
-                }) { Text(if (isSaved) "Remove from YouTube Music library" else "Save to YouTube Music library") }
-                Text("Saving requires a signed-in YouTube Music account, not Premium.", style = MaterialTheme.typography.bodySmall)
-                providerLoadError?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                }
+                providerLoadError?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { providerShow?.let(::openProviderShow) }, enabled = !providerLoading) { Text("Try again") }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Episodes", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(if (providerLoading) "Fetching the latest episodes" else "From this show",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    TextButton(onClick = { providerShow?.let(::openProviderShow) }, enabled = !providerLoading) {
+                        Text(if (providerLoading) "Loading…" else "Refresh")
+                    }
+                }
                 if (providerLoading) PodcastEpisodeSkeleton()
-                if (providerLoaded && providerEpisodes.isEmpty()) Text("This show currently has no playable episodes.",
-                    style = MaterialTheme.typography.bodySmall)
-                Text("Episodes", style = MaterialTheme.typography.titleLarge)
+                if (providerLoaded && providerEpisodes.isEmpty()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f),
+                    ) {
+                        Text(
+                            "No playable episodes were returned for this show. Try refreshing, or open the show in YouTube Music to check its catalogue.",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
             items(providerEpisodes, key = { it.browseId ?: it.videoId ?: it.title + it.subtitle }) { episode ->
                 Card(onClick = { if (episode.videoId != null) onPlayProvider(episode) else message = "This YouTube Music row has no playable episode ID." }, modifier = Modifier.fillMaxWidth()) {

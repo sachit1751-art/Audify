@@ -443,7 +443,9 @@ object AppSettings {
     val reduceDynamicBlur = MutableStateFlow(false)
 
     /** Progressive blur feathering at the top and bottom edges of scrollable content. */
-    val progressiveScrollEdgeBlur = MutableStateFlow(false)
+    // Edge blur is part of the default floating-glass experience. Users can
+    // still disable it explicitly in Appearance/Performance settings.
+    val progressiveScrollEdgeBlur = MutableStateFlow(true)
 
     /** Real backdrop-sampled glass (blur, lens refraction) on the floating nav bar, Android 12+ only. */
     val liquidGlass = MutableStateFlow(false)
@@ -969,7 +971,7 @@ object AppSettings {
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
-        progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, false)
+        progressiveScrollEdgeBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_SCROLL_EDGE_BLUR, true)
         liquidGlass.value = prefs.getBoolean(KEY_LIQUID_GLASS, false)
         lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
         liquidFlow.value = prefs.getBoolean(KEY_LIQUID_FLOW, true)
