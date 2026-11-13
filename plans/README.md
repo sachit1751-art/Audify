@@ -79,6 +79,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [089 - Android micro-interactions](089-android-micro-interactions.md) | Balanced-premium touch, icon, slider and feedback motion | **Implemented locally; device QA pending** |
 | [090 - Personalization Engine and Control Centre](090-personalization-and-control-center.md) | Appearance, Home layout, player presentation, configurable gestures and personalization profiles | **Planned for v1.9.2; reconcile with Plans 09, 11, 080 and 081 before implementation** |
 | [091 - AUDIFY Identity and Lightweight Social Layer](091-audify-identity-and-social-layer.md) | First-party accounts, profiles, username discovery, follow graph and shared identity foundation | **P0 — FIRST PRIORITY; prerequisite for Plan 075 and Issue #23** |
+| [092 - Differentiated Listening Experience Roadmap](092-differentiated-listening-experience-roadmap.md) | Umbrella roadmap for personal music identity, intelligent discovery, social music, deeper exploration and cross-device continuity | **Roadmap - reuse Plans 06, 07, 075, 079, 082, 083 and 091; Plan 083 is the easiest first slice** |
 
 ## Critical execution priority
 
