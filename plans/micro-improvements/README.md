@@ -1,9 +1,9 @@
 # AUDIFY Micro Improvements
 
-Small, focused improvements to everyday usability, reliability, and polish. These are brief proposals, not implementation specifications. Before starting any item, inspect the current source and reconcile it with the existing numbered plans linked below.
+Small, focused improvements to everyday usability, reliability, and polish. Each file is a self-contained, agent-executable implementation plan modelled on the depth and gating structure of Plan 06. Before starting any item, inspect the current source and reconcile it with the existing numbered plans linked below.
 
 ## Plan format
-Each plan states the user problem, a brief implementation direction, and the expected outcome. Acceptance signals are suggested verification targets, not claims that the feature already exists.
+Each plan defines the product problem and outcome, canonical owner/dependencies, repository reconnaissance, staged implementation, feature-specific tests, performance/privacy constraints, acceptance criteria, rollback, repository-wide guardrails, and an evidence-based handoff. Paths and capabilities must be re-verified against the live checkout before implementation.
 
 ## Plans
 
