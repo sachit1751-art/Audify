@@ -49,18 +49,6 @@ See Audify as it actually looks. These are captures from the app, not concept mo
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/audit-artifacts/phone/screenshots/audify-tab-explore.png" alt="Audify Explore screen showing music discovery" width="100%">
-      <strong>Explore</strong><br>
-      <sub>Discover music and browse recommendations.</sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="docs/audit-artifacts/phone/screenshots/audify-tab-library.png" alt="Audify Library screen showing saved music" width="100%">
-      <strong>Your library</strong><br>
-      <sub>Keep saved music and playlists organised.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
       <img src="docs/audit-artifacts/phone/screenshots/audify-lyrics-expanded.png" alt="Audify expanded synchronized lyrics screen" width="100%">
       <strong>Now playing</strong><br>
       <sub>Follow along with synchronized lyrics.</sub>
@@ -69,6 +57,18 @@ See Audify as it actually looks. These are captures from the app, not concept mo
       <img src="docs/audit-artifacts/phone/screenshots/audify-lyrics-seek.png" alt="Audify lyric-based playback seeking screen" width="100%">
       <strong>Lyrics navigation</strong><br>
       <sub>Move through a track using its timed lyrics.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/phone/screenshots/audify-tab-explore.png" alt="Audify Explore screen showing music discovery" width="100%">
+      <strong>Explore</strong><br>
+      <sub>Discover music and browse recommendations.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/phone/screenshots/audify-tab-library.png" alt="Audify Library screen showing saved music" width="100%">
+      <strong>Your library</strong><br>
+      <sub>Keep saved music and playlists organised.</sub>
     </td>
   </tr>
 </table>
