@@ -1989,11 +1989,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         if (primary.shelves.isNotEmpty()) publishHomeShelves(primary.shelves, prioritize = true)
                         else _home.value = UiState.Success(emptyList())
                     }
-                    localSpeedDialShelf()?.let { speedDial ->
-                        if (isCurrentHomeLoad(identity, generation)) {
-                            publishHomeShelves(listOf(speedDial), prepend = true)
-                        }
-                    }
                 } finally {
                     homeShelfRequestSettled(identity, generation)
                 }
@@ -2129,33 +2124,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Speed dial built from what this device has played most, best first. Needs
-     * a few songs with a YouTube id and a cover to fill a grid; null before that.
-     */
-    private suspend fun localSpeedDialShelf(): HomeShelf? {
-        val youtubeId = Regex("^[A-Za-z0-9_-]{11}$")
-        val songs = runCatching { ListeningStats.summary(ReplayPeriod.ALL_TIME) }
-            .getOrNull()?.songs.orEmpty()
-            .map { it.song }
-            .filter { !it.thumbnailUrl.isNullOrBlank() && youtubeId.matches(it.videoId) }
-            .distinctBy { it.videoId }
-            .take((19..26).random())
-        if (songs.size < 3) return null
-        return HomeShelf(
-            title = com.music.audify.data.model.LOCAL_SPEED_DIAL_TITLE,
-            items = songs.map { song ->
-                com.music.audify.data.model.ShelfItem(
-                    title = song.title,
-                    subtitle = song.artist,
-                    thumbnailUrl = song.thumbnailUrl,
-                    videoId = song.videoId,
-                    browseId = null,
-                )
-            },
-        )
-    }
-
-    /**
      * One of the parallel first-page requests has finished. Ignored once a newer
      * load has taken over, which has already reset the count for its own fan-out.
      */
@@ -2262,7 +2230,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             primary
         }
         val recentShelf = recent?.await()?.getOrNull()
-        val speedDialShelf = localSpeedDialShelf()
         if (identity != listenerKey() || loadGeneration != homeLoadGeneration.get() ||
             pagingGeneration != homePagingGeneration.get() || feed == null
         ) return@coroutineScope
@@ -2285,9 +2252,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
         _home.value = UiState.Success(filterExplicitHomeShelves(shelves))
 
-        // Recents and Speed Dial are prepended together so they do not jump
-        // around as their independent requests finish.
-        val leadingShelves = listOfNotNull(speedDialShelf, recentShelf)
+        // Recents is prepended after the feed settles so its slot stays stable.
+        val leadingShelves = listOfNotNull(recentShelf)
         if (leadingShelves.isNotEmpty()) publishHomeShelves(leadingShelves, prepend = true)
     }
 

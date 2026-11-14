@@ -165,6 +165,7 @@ import com.music.audify.ui.performance.supportedPerformanceRefreshRates
 import com.music.audify.data.model.Account
 import com.music.audify.data.LocalMediaRepository
 import com.music.audify.data.AppUpdateChecker
+import com.music.audify.data.feedback.FeedbackRepository
 import com.music.audify.data.local.LocalFirstRepository
 import com.music.audify.data.NerdStats
 import com.music.audify.data.scrobbling.LastFM
@@ -581,6 +582,15 @@ fun SettingsScreen(
         }
     }
     var showCreateThemeDialog by rememberSaveable { mutableStateOf(false) }
+    var feedbackKind by rememberSaveable { mutableStateOf("bug") }
+    var showFeedbackDialog by rememberSaveable { mutableStateOf(false) }
+    var feedbackTitle by rememberSaveable { mutableStateOf("") }
+    var feedbackDescription by rememberSaveable { mutableStateOf("") }
+    var feedbackCategory by rememberSaveable { mutableStateOf("Other") }
+    var feedbackDiagnostics by rememberSaveable { mutableStateOf(false) }
+    var feedbackSubmitting by remember { mutableStateOf(false) }
+    val feedbackScope = rememberCoroutineScope()
+    val feedbackCategories = listOf("Playback", "Playlists", "Discovery", "Library", "Downloads", "Lyrics", "Appearance", "Accessibility", "Performance", "Android Auto", "Android TV", "Wear OS", "Other")
     var newThemeName by rememberSaveable { mutableStateOf("") }
     var newThemePrimary by rememberSaveable { mutableStateOf("#55C7F2") }
     var newThemeSecondary by rememberSaveable { mutableStateOf("#80E0D0") }
@@ -995,24 +1005,19 @@ fun SettingsScreen(
                     )
                 }
             }
-            // Automix decides its own length from each pair of tracks â€”
-            // tempo, key, structure â€” so it replaces the manual slider rather
-            // than needing it set to anything first.
-            if (!smartFade) {
-                val crossfadeTitle = stringResource(R.string.crossfade)
-                row(crossfadeTitle, "fade", "gapless") {
-                    BypassedByBitPerfect(bitPerfectReady) {
-                        SliderRow(
-                            icon = SfIcons.Waves,
-                            title = crossfadeTitle,
-                            subtitle = stringResource(R.string.crossfade_subtitle),
-                            value = if (crossfade == 0) stringResource(R.string.off) else "${crossfade}s",
-                            sliderValue = crossfade.toFloat(),
-                            onSliderValue = { AppSettings.setCrossfadeSeconds(it.roundToInt()) },
-                            valueRange = 0f..12f,
-                            steps = 11,
-                        )
-                    }
+            val crossfadeTitle = stringResource(R.string.crossfade)
+            row(crossfadeTitle, "fade", "gapless") {
+                BypassedByBitPerfect(bitPerfectReady) {
+                    SliderRow(
+                        icon = SfIcons.Waves,
+                        title = crossfadeTitle,
+                        subtitle = if (smartFade) "Fallback length" else null,
+                        value = if (crossfade == 0) stringResource(R.string.off) else "${crossfade}s",
+                        sliderValue = crossfade.toFloat(),
+                        onSliderValue = { AppSettings.setCrossfadeSeconds(it.roundToInt()) },
+                        valueRange = 0f..12f,
+                        steps = 11,
+                    )
                 }
             }
             val crossfadeOnSkipTitle = stringResource(R.string.crossfade_on_skip)
@@ -1415,7 +1420,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.MotionPhotosOff,
                     title = reduceAnimationTitle,
-                    subtitle = stringResource(R.string.reduce_animation_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = reduceAnimation,
@@ -1446,7 +1450,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.BlurOff,
                     title = reduceDynamicBlurTitle,
-                    subtitle = stringResource(R.string.reduce_dynamic_blur_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = reduceDynamicBlur,
@@ -1509,7 +1512,6 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.Fullscreen,
                         title = fullScreenCoverArtTitle,
-                        subtitle = stringResource(R.string.full_screen_cover_art_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = fullBleedArtwork,
@@ -1525,7 +1527,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Gradient,
                     title = legacyMeshGradientTitle,
-                    subtitle = stringResource(R.string.legacy_mesh_gradient_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = legacyMeshGradient,
@@ -1541,7 +1542,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Draw,
                     title = artistSignaturesTitle,
-                    subtitle = stringResource(R.string.artist_signatures_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = signatureApiEnabled,
@@ -1582,7 +1582,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Notes,
                     title = syncedLyricsTitle,
-                    subtitle = stringResource(R.string.synced_lyrics_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = syncedLyrics,
@@ -1601,7 +1600,6 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.Notes,
                         title = lyricStripTitle,
-                        subtitle = stringResource(R.string.lyric_strip_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = lyricStrip,
@@ -1616,7 +1614,6 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.BlurOn,
                         title = lyricsBlurTitle,
-                        subtitle = stringResource(R.string.blur_unfocused_lyrics_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = lyricsBlur,
@@ -1631,7 +1628,6 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.Waves,
                         title = liquidFlowTitle,
-                        subtitle = stringResource(R.string.liquid_flow_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = liquidFlow,
@@ -1649,7 +1645,6 @@ fun SettingsScreen(
                         SettingsRow(
                             icon = SfIcons.AutoAwesome,
                             title = lyricsSparkleTitle,
-                            subtitle = stringResource(R.string.lyrics_sparkle_subtitle),
                             trailing = {
                                 IosSwitch(
                                     checked = lyricsSparkle,
@@ -2041,6 +2036,16 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+            row("Report a bug", "feedback", "problem", "issue") {
+                SettingsRow(icon = SfIcons.Info, title = "Report a bug", onClick = {
+                    feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; showFeedbackDialog = true
+                })
+            }
+            row("Suggest a feature", "feedback", "idea", "request") {
+                SettingsRow(icon = SfIcons.AutoAwesome, title = "Suggest a feature", onClick = {
+                    feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; showFeedbackDialog = true
+                })
+            }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
                 WearOsSettingsRow(onClick = onWearOs)
             }
@@ -2068,7 +2073,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.History,
                     title = dontRepeatSongsTitle,
-                    subtitle = stringResource(R.string.dont_repeat_songs_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = dontRepeatSuggestions,
@@ -2083,7 +2087,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.MusicOff,
                     title = stopMusicOnCloseTitle,
-                    subtitle = stringResource(R.string.stop_music_on_close_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = stopOnTaskRemoved,
@@ -2098,7 +2101,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.VolumeOff,
                     title = hideVolumeBarTitle,
-                    subtitle = stringResource(R.string.hide_volume_bar_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = hideVolumeBar,
@@ -2113,7 +2115,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Groups,
                     title = listenTogetherTabTitle,
-                    subtitle = stringResource(R.string.show_listen_together_tab_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = listenTogetherTab,
@@ -2128,7 +2129,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Apps,
                     title = searchTabSeparateTitle,
-                    subtitle = stringResource(R.string.search_tab_separate_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = searchTabSeparate,
@@ -2143,7 +2143,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Groups,
                     title = listenTogetherButtonTitle,
-                    subtitle = stringResource(R.string.show_listen_together_button_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = listenTogetherButton,
@@ -2158,7 +2157,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.WebAssetOff,
                     title = hideStatusBarTitle,
-                    subtitle = stringResource(R.string.hide_status_bar_in_player_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = hideStatusBarInPlayer,
@@ -2173,7 +2171,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.History,
                     title = showQueueHistoryTitle,
-                    subtitle = stringResource(R.string.show_queue_history_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = showQueueHistory,
@@ -2188,7 +2185,6 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.VisibilityOff,
                     title = hideSongStatusTitle,
-                    subtitle = stringResource(R.string.hide_song_status_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = hideSongStatus,
@@ -2405,6 +2401,70 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showFeedbackDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!feedbackSubmitting) showFeedbackDialog = false },
+            title = { Text(if (feedbackKind == "bug") "Report a bug" else "Suggest a feature") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TextButton(onClick = {
+                        val index = feedbackCategories.indexOf(feedbackCategory).coerceAtLeast(0)
+                        feedbackCategory = feedbackCategories[(index + 1) % feedbackCategories.size]
+                    }) { Text("Category: $feedbackCategory · Change") }
+                    OutlinedTextField(
+                        value = feedbackTitle,
+                        onValueChange = { feedbackTitle = it.take(120).replace(Regex("[\\r\\n]"), " ") },
+                        label = { Text("Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = feedbackDescription,
+                        onValueChange = { feedbackDescription = it.take(6000) },
+                        label = { Text("Describe it") },
+                        minLines = 3,
+                        maxLines = 5,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text("Do not include passwords or personal information.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Include device diagnostics", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        IosSwitch(checked = feedbackDiagnostics, onCheckedChange = { feedbackDiagnostics = it })
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !feedbackSubmitting && feedbackTitle.trim().length in 4..120 && feedbackDescription.trim().length in 20..6000,
+                    onClick = {
+                        feedbackSubmitting = true
+                        feedbackScope.launch {
+                            runCatching {
+                                FeedbackRepository.submit(
+                                    kind = feedbackKind,
+                                    category = feedbackCategory,
+                                    title = feedbackTitle,
+                                    description = feedbackDescription,
+                                    includeDiagnostics = feedbackDiagnostics,
+                                )
+                            }.onSuccess { receipt ->
+                                showFeedbackDialog = false
+                                Toast.makeText(context, "Submitted · #${receipt.number}", Toast.LENGTH_LONG).show()
+                                if (receipt.url.startsWith("https://github.com/")) context.openLink(receipt.url)
+                            }.onFailure { error ->
+                                Toast.makeText(context, error.message ?: "Could not submit feedback", Toast.LENGTH_LONG).show()
+                            }
+                            feedbackSubmitting = false
+                        }
+                    },
+                ) { Text(if (feedbackSubmitting) "Sending…" else "Submit") }
+            },
+            dismissButton = {
+                TextButton(enabled = !feedbackSubmitting, onClick = { showFeedbackDialog = false }) { Text("Cancel") }
+            },
+        )
     }
 
     if (showCreateThemeDialog) {
@@ -3367,7 +3427,8 @@ internal fun SettingsRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 5,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

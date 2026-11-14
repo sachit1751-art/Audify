@@ -139,6 +139,7 @@ import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.components.trackColumnWidth
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.MeshPalette
+import kotlinx.coroutines.launch
 
 /** How far the Listen now heading and feed sit above the shared top inset. */
 internal val HOME_TITLE_LIFT = 28.dp
@@ -146,17 +147,13 @@ internal val HOME_TITLE_LIFT = 28.dp
 private const val RECENTS_TITLE = "Recents"
 
 /** Speed dial leads Home, above Listen again and Recents, wherever the feed put it. */
-private fun List<HomeShelf>.withSpeedDialFirst(): List<HomeShelf> {
-    val at = indexOfFirst { shelf -> SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
-    if (at <= 0) return this
-    return toMutableList().also { it.add(0, it.removeAt(at)) }
-}
+private fun List<HomeShelf>.withoutSpeedDial(): List<HomeShelf> =
+    filterNot { shelf -> SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
 private val LISTEN_AGAIN_TITLES = listOf("Listen again", "Nghe lại", "もう一度聴く", "Dengarkan lagi", "Putar ulang", "다시 듣기")
 private val SPEED_DIAL_TITLES = listOf(LOCAL_SPEED_DIAL_TITLE, "Speed dial", "Panggilan cepat", "Quay số nhanh", "スピードダイヤル", "스피드 다이얼")
-private val QUICK_PICKS_TITLES = listOf("Quick picks", "Lựa chọn nhanh", "Chọn nhanh đài phát", "クイック ミックス", "Pilihan cepat", "Pilihan singkat", "빠른 선곡", "빠른 선택") +
-    SPEED_DIAL_TITLES.filterNot { it.equals(LOCAL_SPEED_DIAL_TITLE, ignoreCase = true) }
+private val QUICK_PICKS_TITLES = listOf("Quick picks", "Lựa chọn nhanh", "Chọn nhanh đài phát", "クイック ミックス", "Pilihan cepat", "Pilihan singkat", "빠른 선곡", "빠른 선택")
 
 /**
  * Quick picks menempati slot Listen again (baris kartu persegi di depan),
@@ -647,11 +644,23 @@ fun HomeScreen(
     var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
     LaunchedEffect(Unit) {
         if (onPodcastsClick != null) {
-            val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
-            homePodcastShows = saved
-            val discovered = YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
-                .flatMap { it.shows }
-            homePodcastShows = (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12)
+            // Load both sources independently: a slow or failed library request
+            // must not prevent public discovery from populating the Home shelf.
+            kotlinx.coroutines.coroutineScope {
+                launch {
+                    YtMusicRepository.libraryPodcastShows().onSuccess { saved ->
+                        homePodcastShows = (homePodcastShows + saved)
+                            .distinctBy(PodcastProviderShow::browseId).take(12)
+                    }
+                }
+                launch {
+                    YtMusicRepository.podcastDiscoveryCategories().onSuccess { categories ->
+                        val discovered = categories.flatMap { it.shows }
+                        homePodcastShows = (homePodcastShows + discovered)
+                            .distinctBy(PodcastProviderShow::browseId).take(12)
+                    }
+                }
+            }
         }
     }
     CompositionLocalProvider(
@@ -789,6 +798,11 @@ fun HomeScreen(
                     topPicksWaiting -> topPicksSkeleton()
                 }
             }
+            if (onPodcastsClick != null) {
+                item(key = "home-podcasts") {
+                    HomePodcastsShelf(homePodcastShows, onPodcastsClick)
+                }
+            }
             when (state) {
                 is UiState.Loading -> {
                     if (homeLayout.isCustom) {
@@ -848,11 +862,6 @@ fun HomeScreen(
                             null
                         },
                     )
-                    if (onPodcastsClick != null) {
-                        item(key = "home-podcasts") {
-                            HomePodcastsShelf(homePodcastShows, onPodcastsClick)
-                        }
-                    }
                     if (loadingMore) feedMoreSkeleton()
                 }
             }
@@ -890,7 +899,7 @@ fun HomeScreen(
 fun homeFeedShelves(shelves: List<HomeShelf>, dropEditorial: Boolean = true): List<HomeShelf> {
     val editorial = if (dropEditorial) editorialShelfIndex(shelves) else null
     val kept = if (editorial != null) shelves.filterIndexed { index, _ -> index != editorial } else shelves
-    return kept.withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain().withSpeedDialFirst()
+    return kept.withoutSpeedDial().withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain()
 }
 
 /**
@@ -951,7 +960,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     } else {
         shelves
     }
-    val ordered = withRecentsSlot.withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain().withSpeedDialFirst()
+    val ordered = withRecentsSlot.withoutSpeedDial().withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain()
     // Find Your Mood sits right after Recents, so it never follows another
     // row of cards directly. Without Recents (a guest) it goes after the second shelf.
     val moodAt = (ordered.indexOfFirst { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
@@ -967,19 +976,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             val isQuickPicks = QUICK_PICKS_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
             // Quick picks is one row of square cards, as Recently Played is on
             // Apple Music; Listen again and Recents keep the paged list.
-            if (SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }) {
-                SpeedDialShelf(
-                    shelf = shelf.copy(
-                        title = localizeShelfTitle(shelf.title),
-                        subtitle = localizeShelfSubtitle(shelf.subtitle),
-                    ),
-                    onItemClick = openItem,
-                    onItemLongPress = onItemLongPress,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                    onPlaySongs = onPlaySongs,
-                )
-            } else if (shelf.isMixShelf()) {
+            if (shelf.isMixShelf()) {
                 MixCoverShelf(
                     shelf = shelf,
                     onItemClick = openItem,
@@ -1104,7 +1101,12 @@ private fun HomePodcastsShelf(
                                 .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(42.dp))
+                            Icon(
+                                Icons.Rounded.LibraryMusic,
+                                contentDescription = "Podcasts",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(42.dp),
+                            )
                         }
                         Text("Discover podcasts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
                         Text("Browse shows and episodes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1127,7 +1129,12 @@ private fun HomePodcastsShelf(
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
-                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.align(Alignment.Center).size(42.dp))
+                            Icon(
+                                Icons.Rounded.LibraryMusic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.align(Alignment.Center).size(42.dp),
+                            )
                         }
                     }
                     Text(show.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
@@ -1356,10 +1363,10 @@ private fun HomeHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Image(
+        Icon(
             painter = painterResource(Res.drawable.ic_logo),
             contentDescription = "Audify",
-            contentScale = ContentScale.Fit,
+            tint = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.width(36.dp).height(24.dp),
         )
         Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.Center) {
@@ -1379,15 +1386,6 @@ private fun HomeHeader(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (onSearchClick != null) {
-            Icon(
-                imageVector = Icons.Rounded.Search,
-                contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.size(36.dp).clip(CircleShape)
-                    .clickable(onClick = onSearchClick).padding(8.dp),
-            )
-        }
         if (onCustomizeClick != null) {
             Icon(
                 imageVector = Icons.Rounded.Tune,
@@ -1396,26 +1394,6 @@ private fun HomeHeader(
                 modifier = Modifier.size(36.dp).clip(CircleShape)
                     .clickable(onClick = onCustomizeClick).padding(8.dp),
             )
-        }
-        if (onAccountClick != null) {
-            Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable(onClick = onAccountClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                val avatar = account?.thumbnailUrl
-                if (!avatar.isNullOrBlank()) {
-                    AsyncImage(
-                        model = avatar,
-                        contentDescription = "Account profile",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(32.dp).clip(CircleShape),
-                    )
-                } else {
-                    Icon(Icons.Rounded.Person, contentDescription = "Account profile", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
-                }
-            }
         }
     }
 }
