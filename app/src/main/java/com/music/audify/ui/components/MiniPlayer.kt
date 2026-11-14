@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import com.music.audify.R
@@ -7,10 +5,21 @@ import com.music.audify.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -45,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -52,8 +62,6 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,31 +69,42 @@ import coil3.compose.AsyncImage
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.artworkAt
+import com.music.audify.playback.MusicOnlyPlayback
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.sharedui.resources.Res as SharedRes
 import com.music.audify.sharedui.resources.ic_player_next
+import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import com.music.audify.ui.player.PlayerDock
+import com.music.audify.ui.player.AndroidMusicVideo
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.core.animateDpAsState
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.abs
 import kotlin.math.sqrt
+import kotlin.math.tanh
 
 /**
- * The transport buttons' touch target. Keep the full 48dp target even though
- * the glyph itself is smaller; the row's vertical padding keeps the bar slim.
+ * The transport buttons' touch target. Material's default 48dp is what a bar
+ * this slim is really made of, so it sets the height on its own.
  */
-private val GLYPH_SLOT = 48.dp
+private val GLYPH_SLOT = 40.dp
 
 /**
  * The play and skip glyphs themselves.
  *
- * Deliberately kept smaller than [GLYPH_SLOT], leaving 8dp of clearance to
- * the touch target's edge on every side.
+ * Deliberately grown inside [GLYPH_SLOT] rather than by growing the slot: the
+ * slot is level with the 40dp artwork opposite it, and it is the taller of the
+ * two that sets the row's height — so a bigger slot would make the whole bar
+ * taller, which is not what a bigger glyph is being asked for. At 32 there is
+ * still 4dp of clearance to the slot's edge on every side.
  */
 private val GLYPH_SIZE = 32.dp
 
@@ -107,10 +126,10 @@ private val SPINNER_SIZE = 22.dp
 private val TRANSPORT_GAP = 8.dp
 
 /**
- * Vertical padding, which with the 48dp transport target keeps the bar's
- * height at 56dp and its pill radius at 28.
+ * Vertical padding, which with the 40dp artwork sets the bar's height at 56dp
+ * and so its pill radius at 28.
  */
-private val ROW_PADDING_VERTICAL = 4.dp
+private val ROW_PADDING_VERTICAL = 8.dp
 
 /**
  * Horizontal padding, deliberately larger than the vertical.
@@ -156,6 +175,43 @@ private val PULL_LIFT_EASE = 72.dp
 
 /** The bar's rise per pixel of finger as a pull starts. */
 private const val PULL_LIFT_RATE = 0.5f
+
+/** Seberapa jauh bar boleh bergeser ke samping saat di-swipe (batas lembut). */
+private val JELLY_MAX_OFFSET = 36.dp
+
+/** Melar horizontal saat ditarik, dan gepeng vertikal. 0.12 = 12% pada tarikan penuh. */
+private const val JELLY_STRETCH_X = 0.12f
+private const val JELLY_SQUASH_Y = 0.10f
+
+/** Makin kecil makin bergoyang. Dipakai saat bar dilepas dan memantul balik. */
+private const val JELLY_DAMPING = 0.3f
+
+/**
+ * Goyangan jelly mini player yang dibagikan ke tetangganya di bar inline (tab dan
+ * Search). [miniPlayerGestures] menulisnya, tab bar membacanya saat draw untuk
+ * mendorong tombol di sebelah pill. Semua isinya hanya dibaca di layer, jadi
+ * tidak ada recomposition.
+ */
+class JellyPush {
+    internal val offset = mutableFloatStateOf(0f)
+    internal val squish = mutableFloatStateOf(0f)
+    internal val phase = mutableFloatStateOf(0f)
+    internal val width = mutableFloatStateOf(0f)
+
+    /**
+     * Seberapa jauh (px) tepi kiri atau kanan pill maju melewati posisi diamnya,
+     * dihitung dari geseran ditambah setengah regangannya. Nol kalau tepi itu
+     * justru mundur.
+     */
+    fun advance(towardLeft: Boolean): Float {
+        val p = phase.floatValue
+        val s = squish.floatValue * p
+        val shift = offset.floatValue * p
+        val grow = width.floatValue * JELLY_STRETCH_X * s / 2f
+        val edge = if (towardLeft) -shift + grow else shift + grow
+        return edge.coerceAtLeast(0f)
+    }
+}
 
 /**
  * How far the bar rises for [pulled] pixels of finger: [PULL_LIFT_RATE] of the
@@ -212,6 +268,8 @@ internal fun Modifier.miniPlayerGestures(
     /** Listening in a party whose host holds the controls. Swipes say so instead of skipping. */
     locked: Boolean = false,
     onBlocked: () -> Unit = {},
+    /** Kalau diisi, goyangan jelly dibagikan agar tab dan Search di sebelah pill ikut terdorong. */
+    push: JellyPush? = null,
 ): Modifier {
     // Playback state updates can recompose the bar while a finger is down.
     // Keep the gesture coroutine alive through those updates while still
@@ -226,16 +284,20 @@ internal fun Modifier.miniPlayerGestures(
     // recomposing it.
     val lift = remember { mutableFloatStateOf(0f) }
     val settle = remember { arrayOfNulls<Job>(1) }
-    // Horizontal swipes are acknowledged by a short, autonomous slide rather
-    // than making the bar track the finger. The offset is capped in the
-    // gesture coroutine and springs back after the queue action is dispatched.
-    val horizontalOffset = remember { mutableFloatStateOf(0f) }
-    val horizontalSettle = remember { arrayOfNulls<Job>(1) }
+    // Jelly: geser, gepeng, dan fase pantulan. Hanya dibaca saat draw.
+    val jOffset = push?.offset ?: remember { mutableFloatStateOf(0f) }
+    val jSquish = push?.squish ?: remember { mutableFloatStateOf(0f) }
+    val jPhase = push?.phase ?: remember { mutableFloatStateOf(0f) }
+    val jellyJob = remember { arrayOfNulls<Job>(1) }
     return pointerInput(Unit) {
         val trackThreshold = TRACK_SWIPE_THRESHOLD.toPx()
         val liftEase = PULL_LIFT_EASE.toPx()
-        // A deliberate, bounded slide: 30% of the mini-player's own width.
-        val maxHorizontalSlide = size.width * 0.30f
+        val jellyMax = JELLY_MAX_OFFSET.toPx()
+        val jellyFollow: (Float) -> Unit = { d ->
+            val o = jellyMax * tanh(d / (jellyMax * 2.5f))
+            jOffset.floatValue = o
+            jSquish.floatValue = abs(o) / jellyMax
+        }
         val maxVelocity = viewConfiguration.maximumFlingVelocity
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
@@ -262,43 +324,37 @@ internal fun Modifier.miniPlayerGestures(
             val slopped = start ?: return@awaitEachGesture
 
             if (!vertical) {
+                jellyJob[0]?.cancel()
+                jPhase.floatValue = 1f
                 var dragged = slopped.position.x - down.position.x
+                jellyFollow(dragged)
                 // Read before consuming: a consumed change reports no movement.
                 val finished = drag(pointer) { change ->
                     dragged += change.positionChange().x
                     change.consume()
+                    jellyFollow(dragged)
+                }
+                // Dilepas atau dibatalkan: bar memantul balik seperti jelly.
+                jPhase.floatValue = 1f
+                jellyJob[0] = scope.launch {
+                    animate(
+                        initialValue = 1f,
+                        targetValue = 0f,
+                        animationSpec = spring(
+                            dampingRatio = JELLY_DAMPING,
+                            stiffness = Spring.StiffnessLow,
+                        ),
+                    ) { value, _ -> jPhase.floatValue = value }
+                    jOffset.floatValue = 0f
+                    jSquish.floatValue = 0f
+                    jPhase.floatValue = 1f
                 }
                 if (!finished) return@awaitEachGesture
                 val crossed = dragged <= -trackThreshold || dragged >= trackThreshold
                 when {
                     currentLocked -> if (crossed) currentOnBlocked()
-                    dragged <= -trackThreshold || dragged >= trackThreshold -> {
-                        val direction = if (dragged < 0f) -1f else 1f
-                        // Never stack or restart slide animations: one gesture
-                        // owns one short out-and-back timeline.
-                        if (horizontalSettle[0]?.isActive != true) {
-                            horizontalSettle[0] = scope.launch {
-                                var dispatched = false
-                                animate(
-                                    initialValue = 0f,
-                                    targetValue = 0f,
-                                    animationSpec = keyframes {
-                                        durationMillis = 320
-                                        0f at 0
-                                        (direction * maxHorizontalSlide) at 140
-                                        0f at 320
-                                    },
-                                ) { value, state ->
-                                    horizontalOffset.floatValue = value
-                                    if (!dispatched && abs(value) >= maxHorizontalSlide * 0.98f) {
-                                        dispatched = true
-                                        if (direction < 0f) currentOnNext() else currentOnPrevious()
-                                    }
-                                }
-                                horizontalOffset.floatValue = 0f
-                            }
-                        }
-                    }
+                    dragged <= -trackThreshold -> currentOnNext()
+                    dragged >= trackThreshold -> currentOnPrevious()
                 }
                 return@awaitEachGesture
             }
@@ -339,8 +395,14 @@ internal fun Modifier.miniPlayerGestures(
                 ) { value, _ -> lift.floatValue = value }
             }
         }
-    }.graphicsLayer {
-        translationX = horizontalOffset.floatValue
+    }.then(
+        if (push == null) Modifier else Modifier.onSizeChanged { push.width.floatValue = it.width.toFloat() },
+    ).graphicsLayer {
+        val p = jPhase.floatValue
+        val s = jSquish.floatValue * p
+        translationX = jOffset.floatValue * p
+        scaleX = 1f + JELLY_STRETCH_X * s
+        scaleY = 1f - JELLY_SQUASH_Y * s
         translationY = -lift.floatValue
     }
 }
@@ -373,7 +435,33 @@ internal fun Modifier.playerDockArt(dock: PlayerDock?, corner: Dp): Modifier {
         .graphicsLayer { alpha = if (dock.coversMiniArt) 0f else 1f }
 }
 
+/**
+ * The mini player's whole pill as the START of the player's morph — see
+ * [PlayerDock.morph]. Placed ahead of the pull lift on purpose, so it reports
+ * the pill at rest rather than the bar rising under the finger.
+ */
+@Composable
+internal fun Modifier.playerDockPill(dock: PlayerDock?): Modifier {
+    if (dock == null) return this
+    val placed = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    DisposableEffect(dock) {
+        onDispose { placed[0]?.let(dock::releaseMiniPill) }
+    }
+    return this
+        .onPlaced { coordinates ->
+            placed[0] = coordinates
+            dock.reportMiniPill(coordinates)
+        }
+        // The player's panel is standing where this pill is: it is one surface
+        // with it, so the pill stands aside rather than show under it.
+        .graphicsLayer { alpha = if (dock.panelShown) 0f else 1f }
+}
+
+/** The mini player's cover for a music video: 16:9 at the cover's 40dp height. */
+private val VIDEO_ART_WIDTH = 71.dp
+
 /** Frosted mini player that rides just above the floating tab bar. */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun MiniPlayer(
     song: Song,
@@ -384,7 +472,6 @@ fun MiniPlayer(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onExpand: () -> Unit,
-    modifier: Modifier = Modifier,
     /** @see com.music.audify.data.listentogether.ListenTogether.State.controlsLocked */
     controlsLocked: Boolean = false,
     onBlockedControl: () -> Unit = {},
@@ -392,6 +479,7 @@ fun MiniPlayer(
     dock: PlayerDock? = null,
     /** Dragging the bar up into the player. */
     pull: MiniPlayerPull? = null,
+    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
@@ -403,15 +491,18 @@ fun MiniPlayer(
     Box(
         modifier = modifier
             .padding(horizontal = BAR_GUTTER)
+            .playerDockPill(dock)
             // Ahead of the surface, so a pull lifts the whole of it, frost and all.
             .miniPlayerGestures(
                 pull = pull,
                 onNext = {
                     haptics.play(Haptic.SkipNext)
+                    com.music.audify.ui.components.TrackFlow.hint(true)
                     onNext()
                 },
                 onPrevious = {
                     haptics.play(Haptic.SkipPrevious)
+                    com.music.audify.ui.components.TrackFlow.hint(false)
                     onPrevious()
                 },
                 locked = controlsLocked,
@@ -443,30 +534,57 @@ fun MiniPlayer(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AsyncImage(
-                model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            // A music video plays here at its own 16:9, as the web player's
+            // mini player does, rather than cropped into the square cover.
+            val artWidth by animateDpAsState(
+                targetValue = if (song.isVideo && !VideoThumbnails.square && MusicOnlyPlayback.showsPicture(song.videoId)) VIDEO_ART_WIDTH else 40.dp,
+                label = "miniArtWidth",
+            )
+            Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(width = artWidth, height = 40.dp)
                     .playerDockArt(dock, ART_CORNER)
                     .clip(RoundedCornerShape(ART_CORNER))
+                    .thumbnailBorder(RoundedCornerShape(ART_CORNER))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
+            ) {
+                AsyncImage(
+                    model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // A music video keeps playing in the cover's place, cropped to
+                // it, as the web player's mini player does — the full player,
+                // when it is up, takes the picture over.
+                if (song.isVideo && MusicOnlyPlayback.showsPicture(song.videoId)) {
+                    AndroidMusicVideo(
+                        videoId = song.videoId,
+                        fit = false,
+                        onRenderedChanged = {},
+                        modifier = Modifier.fillMaxSize(),
+                        priority = 0,
+                    )
+                }
+            }
             Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                ExplicitSongTitle(
-                    song = song,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            TrackTextSwitch(song, Modifier.weight(1f)) { shown ->
+                Column {
+                    // The badge in the artist line's colour and a long line faded
+                    // out at its end, as on the glass bar's mini player.
+                    ExplicitSongTitle(
+                        song = shown,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        badgeColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fadeOverflow = true,
+                    )
+                    FadingLine(
+                        text = shown.artist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (isLoading) {
                 Box(Modifier.size(GLYPH_SLOT), contentAlignment = Alignment.Center) {
@@ -477,50 +595,42 @@ fun MiniPlayer(
                     )
                 }
             } else {
-                Box(
-                    modifier = Modifier
-                        .size(GLYPH_SLOT)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            role = Role.Button,
-                        ) {
+                MiniPlayerPlayPauseButton(
+                    isPlaying = isPlaying,
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    slot = GLYPH_SLOT,
+                    glyphSize = GLYPH_SIZE,
+                    onClick = {
                         haptics.play(if (isPlaying) Haptic.Pause else Haptic.Resume)
                         onPlayPause()
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = stringResource(if (isPlaying) R.string.pause else R.string.play),
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(GLYPH_SIZE),
-                    )
-                }
+                    },
+                )
             }
             Spacer(Modifier.width(TRANSPORT_GAP))
             // Faded and inert rather than removed while the host holds the
             // controls, so the bar keeps its shape — see [controlsLocked].
-            IconButton(
+            MiniPlayerNextButton(
+                tint = MaterialTheme.colorScheme.onBackground
+                    .copy(alpha = if (controlsLocked) 0.3f else 1f),
+                enabled = !controlsLocked,
+                slot = GLYPH_SLOT,
                 onClick = {
                     haptics.play(Haptic.SkipNext)
+                    com.music.audify.ui.components.TrackFlow.hint(true)
                     onNext()
                 },
-                enabled = !controlsLocked,
-                modifier = Modifier.size(GLYPH_SLOT),
-            ) {
-                MiniPlayerNextGlyph(
-                    tint = MaterialTheme.colorScheme.onBackground
-                        .copy(alpha = if (controlsLocked) 0.3f else 1f),
-                )
-            }
+            )
         }
     }
 }
 
 /**
- * The skip-forward glyph uses the same visual size as play/pause, so the two
- * transport controls have consistent weight in the mini-player.
+ * The full player's skip-forward glyph, at the mini player's scale.
+ *
+ * Sized against the play glyph beside it the way the full player sizes it
+ * against its own play button — about half as wide again and two thirds as
+ * tall — and squashed by the same 0.85, so the two players' next buttons
+ * read as one glyph at two sizes. Shared with the glass bar's docked player.
  */
 @Composable
 internal fun MiniPlayerNextGlyph(tint: Color) {
@@ -529,7 +639,155 @@ internal fun MiniPlayerNextGlyph(tint: Color) {
         contentDescription = stringResource(R.string.widget_next),
         tint = tint,
         modifier = Modifier
-            .size(GLYPH_SIZE)
+            .size(NEXT_GLYPH_SIZE)
             .graphicsLayer { scaleY = 0.85f },
     )
+}
+
+private val NEXT_GLYPH_SIZE = 25.dp
+
+/**
+ * The mini players' play/pause button, with the full player's feel: the glyph
+ * shrinks under the finger and springs back, and play and pause morph into
+ * each other (scale + fade) instead of swapping in one frame. Shared by the
+ * plain bar, the glass bar and the docked player.
+ */
+@Composable
+internal fun MiniPlayerPlayPauseButton(
+    isPlaying: Boolean,
+    tint: Color,
+    slot: Dp,
+    glyphSize: Dp,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale = animateFloatAsState(
+        targetValue = if (pressed) 0.72f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
+        label = "miniPlayPausePress",
+    )
+    val pressDisc by animateFloatAsState(
+        targetValue = if (pressed) 0.18f else 0f,
+        animationSpec = tween(durationMillis = if (pressed) 70 else 260),
+        label = "miniPlayPauseDisc",
+    )
+    Box(
+        modifier = Modifier
+            .size(slot)
+            .drawBehind {
+                if (pressDisc > 0f) {
+                    drawCircle(
+                        color = tint.copy(alpha = pressDisc),
+                        radius = this.size.minDimension / 2f,
+                    )
+                }
+            }
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                role = androidx.compose.ui.semantics.Role.Button,
+            ) { onClick() },
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = isPlaying,
+            transitionSpec = {
+                (
+                    fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                        scaleIn(
+                            initialScale = 0.55f,
+                            animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    ) togetherWith (
+                    fadeOut(tween(90)) +
+                        scaleOut(targetScale = 0.55f, animationSpec = tween(120))
+                    )
+            },
+            contentAlignment = Alignment.Center,
+            label = "miniPlayPause",
+        ) { playing ->
+            Icon(
+                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                contentDescription = stringResource(if (playing) R.string.pause else R.string.play),
+                tint = tint,
+                modifier = Modifier
+                    .size(glyphSize)
+                    .graphicsLayer {
+                        scaleX = pressScale.value
+                        scaleY = pressScale.value
+                    },
+            )
+        }
+    }
+}
+
+/**
+ * The mini players' skip-forward button, with the full player's press feel:
+ * the glyph shrinks under the finger and springs back, and a tap kicks it
+ * forward with a ring. Shared by the plain bar, the glass bar and the docked
+ * player so all three answer a tap the same way.
+ */
+@Composable
+internal fun MiniPlayerNextButton(
+    tint: Color,
+    enabled: Boolean,
+    slot: Dp,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale = animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.72f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
+        label = "miniNextPress",
+    )
+    val pressDisc by animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.18f else 0f,
+        animationSpec = tween(durationMillis = if (pressed) 70 else 260),
+        label = "miniNextDisc",
+    )
+    val scope = rememberCoroutineScope()
+    val kick = remember { Animatable(0f) }
+    Box(
+        modifier = Modifier
+            .size(slot)
+            .drawBehind {
+                if (pressDisc > 0f) {
+                    drawCircle(
+                        color = tint.copy(alpha = pressDisc),
+                        radius = this.size.minDimension / 2f,
+                    )
+                }
+            }
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                role = androidx.compose.ui.semantics.Role.Button,
+            ) {
+                scope.launch {
+                    kick.snapTo(0f)
+                    kick.animateTo(1f, tween(durationMillis = 80, easing = FastOutSlowInEasing))
+                    kick.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow))
+                }
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(SharedRes.drawable.ic_player_next),
+            contentDescription = stringResource(R.string.widget_next),
+            tint = tint,
+            modifier = Modifier
+                .size(NEXT_GLYPH_SIZE)
+                .graphicsLayer {
+                    val k = kick.value
+                    translationX = k * 6.dp.toPx()
+                    scaleX = pressScale.value * (1f + abs(k) * 0.15f)
+                    // The glyph's own 0.85 squash, kept so it still matches the play glyph.
+                    scaleY = pressScale.value * (1f - abs(k) * 0.06f) * 0.85f
+                },
+        )
+    }
 }

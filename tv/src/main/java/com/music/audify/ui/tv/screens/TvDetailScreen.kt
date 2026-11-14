@@ -112,6 +112,7 @@ fun TvDetailScreen(
     if ((page?.type ?: type) == BrowseType.ARTIST) {
         TvArtistContent(
             page = page,
+            browseId = browseId,
             title = page?.title ?: initialTitle,
             artworkUrl = page?.thumbnailUrl ?: initialThumbnailUrl,
             playingId = playerState.song?.videoId,

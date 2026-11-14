@@ -1,19 +1,13 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify
 
-import androidx.core.net.toUri
-
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.View
-import android.view.ViewTreeObserver
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,35 +16,31 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.content.edit
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,18 +50,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.material.icons.Icons
@@ -79,29 +66,25 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudOff
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.IosShare
+import com.music.audify.ui.icons.SfIcons
 import androidx.compose.material.icons.rounded.MoreHoriz
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Upgrade
 import com.music.audify.data.listentogether.ServerConnectionState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import com.music.audify.ui.components.rememberElasticRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
@@ -116,25 +99,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -144,16 +121,21 @@ import com.music.audify.auth.SpotifyLoginScreen
 import com.music.audify.auth.WebSessionMode
 import com.music.audify.auth.YtMusicLoginScreen
 import com.music.audify.data.AppUpdateChecker
-import com.music.audify.data.innertube.InnerTubeXResolver
 import com.music.audify.data.LocalMediaRepository
+import com.music.audify.data.local.LocalFirstRepository
 import com.music.audify.data.listentogether.JamInviteLink
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.listentogether.partyQueueIndexOf
 import com.music.audify.data.NerdStats
+import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.stats.ReplayPeriod
+import com.music.audify.data.stats.ListeningHourBlock
+import com.music.audify.data.stats.selectTimeAwareHourBlock
+import com.music.audify.data.stats.selectTimeAwareDiscoveryShelf
 import com.music.audify.data.TrackLog
 import com.music.audify.data.innertube.InnertubeParser
 import com.music.audify.data.model.BrowseType
-import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.PlaybackSourceType
 import com.music.audify.data.model.SearchFilter
@@ -161,7 +143,9 @@ import com.music.audify.data.model.SearchResult
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.isUnresolvedSpotify
+import com.music.audify.data.model.isVisibleWithExplicitFilter
 import com.music.audify.data.model.UiState
+import com.music.audify.data.model.withoutVideos
 import com.music.audify.data.model.UserPlaylist
 import com.music.audify.data.model.EntityType
 import com.music.audify.data.model.SearchHistoryEntity
@@ -169,22 +153,31 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.music.audify.data.model.durationMillis
 import com.music.audify.data.scrobbling.LastFM
-import com.music.audify.data.stats.ListeningHourBlock
-import com.music.audify.data.stats.ListeningStats
-import com.music.audify.data.stats.selectTimeAwareDiscoveryShelf
-import com.music.audify.data.stats.selectTimeAwareHourBlock
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.settings.BitPerfectMode
+import com.music.audify.data.settings.LastPlayerScreen
+import com.music.audify.ui.AddonBlockedAlert
 import com.music.audify.data.settings.LibrarySort
 import com.music.audify.data.settings.ThemeMode
-import com.music.audify.ui.animation.ArtworkTransitionContext
-import com.music.audify.ui.animation.LocalArtworkTransition
+import com.music.audify.data.settings.ThemePacks
 import com.music.audify.ui.components.AccountProfileSelector
+import com.music.audify.ui.components.JellyMenuBody
+import com.music.audify.ui.components.iosMenuJelly
+import com.music.audify.ui.components.jellyMenuRow
+import com.music.audify.ui.components.rememberJellyMenuTouch
+import com.music.audify.ui.components.DacVolumeHud
+import com.music.audify.ui.components.LocalPlayingBarsMotion
+import com.music.audify.ui.components.handleDacVolumeKey
+import com.music.audify.ui.components.VolumeHud
 import com.music.audify.ui.navigation.AppDestination
+import com.music.audify.ui.components.CoverFlightHost
+import com.music.audify.ui.components.CoverFlightLayer
+import com.music.audify.ui.components.LocalCoverVisibilityScope
 import com.music.audify.ui.navigation.AppRoute
-import com.music.audify.ui.motion.MotionTokens
+import com.music.audify.ui.screens.EqualizerPresetPage
+import com.music.audify.ui.screens.SettingsChoiceKind
+import com.music.audify.ui.screens.SettingsChoicePage
 import com.music.audify.ui.components.SpotifyImportAlert
-import com.music.audify.ui.screens.WearOsScreen
-import com.music.audify.ui.screens.SmartPlaylistsScreen
 import com.music.audify.ui.screens.AccountAndScrobblingScreen
 import com.music.audify.ui.screens.DiscordDialog
 import com.music.audify.ui.screens.DiscordDialogHost
@@ -200,10 +193,10 @@ import com.music.audify.ui.screens.ListenTogetherScreen
 import com.music.audify.ui.screens.PartyServerEditor
 import com.music.audify.ui.screens.SignatureApiEditor
 import com.music.audify.ui.screens.SettingsScreen
-import com.music.audify.ui.screens.ProfileScreen
+import com.music.audify.ui.screens.WeeklyRecapCardData
+import com.music.audify.ui.screens.WearOsScreen
 import com.music.audify.ui.screens.SourceEditorAlert
 import com.music.audify.ui.screens.SourcesScreen
-import com.music.audify.data.sources.TrackMatcher
 import com.music.audify.ui.screens.SpotifyCanvasAuthScreen
 import com.music.audify.ui.screens.SpotifyLibraryScreen
 import com.music.audify.data.spotify.SPOTIFY_PAGE_PREFIX
@@ -212,52 +205,51 @@ import com.music.audify.playback.LinkRequest
 import com.music.audify.playback.MusicLink
 import com.music.audify.playback.OriginalVersion
 import com.music.audify.playback.PlayerDeepLink
-import com.music.audify.playback.QueueBuilder
 import com.music.audify.playback.QueueCoordinator
-import com.music.audify.playback.TypedQueueComposer
 import com.music.audify.playback.QueueCoordinator.asQueueEntry
 import com.music.audify.playback.QueueShuffle
 import com.music.audify.playback.QueueSource
 import com.music.audify.playback.cast.CastController
 import com.music.audify.data.model.QueueTier
 import com.music.audify.playback.autoplayEnabledFor
-import com.music.audify.playback.autoplaySectionStart
 import com.music.audify.playback.beginRadioQueue
 import com.music.audify.playback.commitRadioQueue
 import com.music.audify.playback.fromAutoplay
 import com.music.audify.playback.hasYouTubeOriginal
 import com.music.audify.playback.loadAutoplayTracks
 import com.music.audify.playback.playSongs
-import com.music.audify.playback.playMediaItems
+import com.music.audify.playback.BoundedQueuePlanner
 import com.music.audify.playback.playBoundedContext
 import com.music.audify.playback.contextEntryKey
 import com.music.audify.playback.toMediaItem
 import com.music.audify.playback.toSong
-import com.music.audify.playback.toSongOrNull
-import com.music.audify.playback.isPodcastEpisode
-import com.music.audify.playback.toDirectYouTubeMediaItem
 import com.music.audify.playback.toggleAutoplay
 import com.music.audify.playback.toggleShuffle
 import com.music.audify.playback.upgradeQuality
 import com.music.audify.playback.revertToOriginal
 import com.music.audify.playback.swapToVersion
 import com.music.audify.playback.smart.VersionAudioAligner
-import com.music.audify.download.DownloadSession
 import com.music.audify.download.DownloadStore
 import com.music.audify.download.MediaTagger
 import com.music.audify.download.DownloadTarget
 import com.music.audify.download.Downloads
-import com.music.audify.ui.components.BrowseActionsSheet
+import com.music.audify.ui.components.BrowseActionsMenu
 import com.music.audify.ui.components.BrowseTarget
 import com.music.audify.ui.components.ConfirmationAlert
-import com.music.audify.ui.components.DownloadManagerSheet
+import com.music.audify.ui.components.InfoAlert
+import com.music.audify.ui.components.DownloadManagerPage
 import com.music.audify.ui.components.PlaylistPickerSheet
 import com.music.audify.ui.components.ReorderPlaylistPage
-import com.music.audify.ui.PlaylistCreationResult
 import com.music.audify.ui.components.LongPressOrigin
-import com.music.audify.ui.components.SongActionsPresentation
-import com.music.audify.ui.components.SongActionsSheet
+import com.music.audify.ui.components.MenuAnchor
+import com.music.audify.ui.components.menuAnchor
+import com.music.audify.ui.components.macOSPopupMorph
+import com.music.audify.ui.components.IosMenuPopover
+import com.music.audify.ui.components.SongActionsMenu
 import com.music.audify.ui.components.HeldContextMenu
+import com.music.audify.ui.components.cancelCoverFlight
+import com.music.audify.ui.components.coverFlightPagesOpen
+import com.music.audify.ui.components.startCoverFlightFor
 import com.music.audify.ui.components.HeldItem
 import androidx.media3.session.MediaController
 import com.music.audify.playback.QualityUpgrade
@@ -267,6 +259,7 @@ import com.music.audify.playback.setQueueDragActive
 import com.music.audify.ui.MainViewModel
 import com.music.audify.ui.SearchSource
 import com.music.audify.ui.components.BottomFadeScrim
+import com.music.audify.ui.components.TopFadeBlur
 import com.music.audify.ui.components.FloatingBarsTapGuard
 import com.music.audify.ui.components.BottomTab
 import com.music.audify.ui.components.FLOATING_BAR_MAX_WIDTH
@@ -276,80 +269,91 @@ import com.music.audify.ui.components.floatingtabbar.rememberFloatingTabBarScrol
 import com.music.audify.ui.components.FrostedTopBar
 import com.music.audify.ui.components.LastfmLoginAlert
 import com.music.audify.ui.components.LocalAppBackdrop
+import com.music.audify.ui.components.AppSegmentedControlStyle
 import com.music.audify.ui.components.LocalLiquidGlassEnabled
+import com.music.audify.ui.components.LocalSegmentedControlStyle
 import com.music.audify.ui.components.backdrop.backdrops.LayerBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.layerBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.rememberLayerBackdrop
+import com.music.audify.ui.components.backdrop.backdrops.rememberSnapshotBackdrop
+import com.music.audify.ui.components.backdrop.backdrops.snapshotBackdropSource
+
+import com.music.audify.ui.components.backdrop.drawPlainBackdrop
+import com.music.audify.ui.components.backdrop.effects.blur
 import com.music.audify.ui.components.isGlassSupported
 import com.music.audify.data.sources.SourceConfig
 import com.music.audify.data.sources.SourceKind
 import com.music.audify.data.sources.SourceRegistry
 import com.music.audify.ui.components.ListenBrainzTokenAlert
 import com.music.audify.ui.components.MiniPlayer
-import com.music.audify.ui.components.PodcastMiniPlayer
-import com.music.audify.ui.components.PodcastNowPlayingScreen
 import com.music.audify.ui.components.QueueActionNotice
 import com.music.audify.ui.components.QueueActionNoticeHost
 import com.music.audify.ui.components.TopBarAccountButton
 import com.music.audify.ui.screens.SegmentedControl
+import com.music.audify.ui.screens.LocalMostPlayedArt
+import com.music.audify.ui.player.LocalMotionLyricLine
+import com.motion.lyrics.MotionLyricLine
+import com.motion.lyrics.toMotionWords
+import com.music.audify.ui.screens.LocalMixCoverBackground
+import com.music.audify.ui.components.OrganicFluidBackground
+import com.music.audify.ui.screens.MostPlayedArt
 import com.music.audify.ui.components.SearchField
 import com.music.audify.sharedui.resources.Res as SharedRes
 import com.music.audify.sharedui.resources.search_hint
 import com.music.audify.sharedui.resources.search_addons_hint
 import com.music.audify.sharedui.resources.search_library_hint
 import com.music.audify.ui.components.TopBarDownloadButton
-import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
-import com.music.audify.ui.components.TopFadeBlur
-import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.optimizedHazeEffect
-import com.music.audify.ui.components.TopBarContentGap
-import com.music.audify.ui.components.topBarHeight
 import com.music.audify.ui.components.topBarContentPadding
+import com.music.audify.ui.components.topBarHeight
 import com.music.audify.ui.components.AppLanguageDialog
+import com.music.audify.ui.components.HomeLayoutDialog
 import com.music.audify.ui.components.TranslationLanguageDialog
 import com.music.audify.ui.components.LyricsSourcesDialog
 import com.music.audify.ui.components.ServerEditorHost
 import com.music.audify.ui.components.UpdateAvailableDialog
 import com.music.audify.ui.components.WebDavConflictAlert
 import com.music.audify.ui.components.FieldConfig
+import com.music.audify.ui.icons.LocalCloseIcon
+import com.music.audify.ui.icons.LocalShareIcon
 import com.music.audify.ui.icons.AudifyIcons
 import androidx.media3.common.Player
 import com.music.audify.data.YtMusicRepository
+import com.music.audify.data.TopPicks
+import com.music.audify.data.model.TopPick
+import com.music.audify.data.model.TopPickKind
+import com.music.audify.data.model.TopPickMood
+import com.music.audify.ui.screens.MoodGridPage
 import com.music.audify.ui.player.NowPlayingScreen
+import com.music.audify.ui.player.MusicVideoEngine
 import com.music.audify.ui.player.PlayerSheetMotion
-import com.music.audify.ui.player.LocalMotionLyricLine
-import com.motion.lyrics.MotionLyricLine
-import com.motion.lyrics.toMotionWords
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.geometry.Size
+import com.music.audify.ui.player.AddSongsRequest
+import com.music.audify.ui.components.AddSongsDialog
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.Density
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.foundation.layout.offset
-import com.music.audify.ui.components.MiniPlayerPull
+import com.music.audify.ui.player.PlayerPanel
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.layout.onSizeChanged
 import com.music.audify.ui.player.LocalPlayerDock
+import com.music.audify.ui.player.recedeBehindPlayer
+import com.music.audify.ui.player.skipDrawWhenPlayerCovers
 import com.music.audify.ui.player.PlayerDock
 import com.music.audify.ui.screens.DetailScreen
 import com.music.audify.ui.screens.sortedForDetail
 import com.music.audify.ui.screens.ExploreScreen
+import com.music.audify.ui.screens.mixKeyColors
 import com.music.audify.ui.screens.LocalFolder
 import com.music.audify.ui.screens.LocalFolderState
+import com.music.audify.ui.screens.LocalFolderTab
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.music.audify.ui.screens.localizedLabel
 import com.music.audify.data.LocalGroups
+import com.music.audify.data.OfflinePlaylists
+import com.music.audify.data.toGroup
 import com.music.audify.data.settings.LibraryViewType
 import com.music.audify.data.settings.LocalMusicSort
 import com.music.audify.ui.screens.HomeScreen
@@ -364,25 +368,22 @@ import com.music.audify.ui.replay.cards
 import com.music.audify.ui.replay.ReplayShareSheet
 import com.music.audify.ui.replay.ReplayStories
 import com.music.audify.ui.replay.ReplayStoryPage
+import com.music.audify.ui.replay.formatListening
 import com.music.audify.ui.replay.rememberReplayState
-import com.music.audify.data.stats.ReplayPeriod
-import com.music.audify.ui.replay.replayCount
 import com.music.audify.ui.theme.AudifyTheme
 import com.music.audify.ui.theme.rememberArtworkPalette
 import com.music.audify.data.canvas.AppleArtistArtRepository
 import com.music.audify.data.canvas.keyColors
 import com.music.audify.ui.theme.SystemBarIcons
-import com.music.audify.ui.utils.guardSheetFromContentTouches
 import com.music.audify.ui.utils.rememberIosOverscrollFactory
 import com.music.audify.ui.performance.resolvePerformanceRefreshRate
 import dev.chrisbanes.haze.HazeState
-import com.music.audify.ui.player.PlayerPlatform
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
 
 /** A full first screen of a native YouTube Music radio before AutoPlay tops it up. */
 /** How much of an artist page's header scrolls away before the top fade begins. */
@@ -393,11 +394,14 @@ private const val TOP_FADE_RAMP = 0.3f
 
 private const val INITIAL_RADIO_TRACKS = 24
 
-class MainActivity : AppCompatActivity() {
-    private val firstDrawWarmupGate = StartupFirstDrawGate {
-        InnerTubeXResolver.onFirstFrameDrawn()
-    }
+internal fun shouldSkipAfterDislike(
+    previousStatus: LikeStatus,
+    targetVideoId: String,
+    currentVideoId: String?,
+): Boolean = previousStatus != LikeStatus.DISLIKE && targetVideoId == currentVideoId
 
+
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -407,11 +411,16 @@ class MainActivity : AppCompatActivity() {
         JamInviteLink.consume(intent)
         // Likewise for a link tapped or shared from another app — see [MusicLink].
         MusicLink.consume(intent)
-        installFirstDrawWarmupGate()
         setContent {
             val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
+            val appFont by AppSettings.appFont.collectAsStateWithLifecycle()
+            val accentColor by AppSettings.accentColor.collectAsStateWithLifecycle()
+            val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
+            val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
             val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
-            val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+            val selectedThemePack = remember(selectedThemePackId, customThemePacks) {
+                ThemePacks.resolve(selectedThemePackId, customThemePacks)
+            }
             val highPerformance by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
             val liquidGlassEnabled by AppSettings.liquidGlass.collectAsStateWithLifecycle()
             val iosOverscrollFactory = rememberIosOverscrollFactory()
@@ -425,8 +434,14 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-            AudifyTheme(darkTheme = darkTheme, windowWidth = maxWidth) {
+            LaunchedEffect(darkTheme) { AppSettings.syncGlassPresetTheme(darkTheme) }
+            AudifyTheme(
+                darkTheme = darkTheme,
+                font = appFont,
+                accent = accentColor,
+                themePack = selectedThemePack,
+                backgroundUri = themeBackgroundUri,
+            ) {
                 // The glass surfaces sample this layer, and a layer records only
                 // what is drawn into it — which, for Audify, is a page that
                 // paints no background of its own. Everywhere a page is not
@@ -437,12 +452,9 @@ class MainActivity : AppCompatActivity() {
                 // the floor the pages have always been drawn against, so it is
                 // laid down here too and the recording is opaque like the screen.
                 val windowBackground = MaterialTheme.colorScheme.background
-                val paintBackdrop: ContentDrawScope.() -> Unit = remember(windowBackground, themeBackgroundUri, backgroundStyle) {
+                val paintBackdrop: ContentDrawScope.() -> Unit = remember(windowBackground) {
                     {
-                        // Keep the selected wallpaper visible through the shared
-                        // backdrop while retaining enough tint for legibility.
-                        val hasBackdrop = themeBackgroundUri.isNotBlank() || backgroundStyle != com.music.audify.data.settings.AppBackgroundStyle.PLAIN
-                        drawRect(windowBackground.copy(alpha = if (hasBackdrop) .24f else 1f))
+                        drawRect(windowBackground)
                         drawContent()
                     }
                 }
@@ -450,9 +462,23 @@ class MainActivity : AppCompatActivity() {
                 CompositionLocalProvider(
                     LocalOverscrollFactory provides iosOverscrollFactory,
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
+                    LocalSegmentedControlStyle provides AppSegmentedControlStyle,
+                    LocalShareIcon provides SfIcons.Share,
+                    LocalCloseIcon provides SfIcons.Close,
+                    LocalMostPlayedArt provides { covers, motion, modifier ->
+                        MostPlayedArt(covers, motion, modifier)
+                    },
+                    LocalMixCoverBackground provides { colors, motion, modifier ->
+                        OrganicFluidBackground(
+                            modifier = modifier,
+                            colors = colors,
+                            animationSpeed = if (motion) 2.2f else 0f,
+                        )
+                    },
                     LocalAppBackdrop provides appBackdrop,
-                    LocalMotionLyricLine provides { line, position, style, inactive, active, lyricModifier ->
+                    LocalMotionLyricLine provides { line, position, style, inactive, active, modifier ->
                         val motionWords = remember(line) { line.toMotionWords() }
+                        val sparkle by AppSettings.lyricsSparkle.collectAsStateWithLifecycle()
                         MotionLyricLine(
                             text = line.text,
                             words = motionWords,
@@ -460,41 +486,46 @@ class MainActivity : AppCompatActivity() {
                             style = style,
                             inactiveColor = inactive,
                             activeColor = active,
-                            modifier = lyricModifier,
+                            modifier = modifier,
+                            sparkle = sparkle,
                         )
                     },
                 ) {
+                com.music.audify.ui.components.PopupTapOriginTracker()
+                // The window's width, measured rather than asked for.
+                //
+                // `Configuration.screenWidthDp` is the wrong question here: in a
+                // freeform or desktop window it can report the display rather
+                // than the window it is actually in, and it lands a beat late
+                // when that window is dragged. The layout downstream splits in
+                // two on the strength of this number and sizes both halves from
+                // it, so a stale one is a player pane sized for a window that no
+                // longer exists and a page squeezed to a sliver to pay for it.
+                // A measured constraint cannot be stale — it is the very width
+                // the split is about to be laid out in.
+                BoxWithConstraints(Modifier.fillMaxSize()) {
                     AudifyApp(
                         darkTheme = darkTheme,
                         windowWidth = maxWidth,
                         windowHeight = maxHeight,
                         appBackdrop = appBackdrop,
                     )
-            }
-            }
+                }
+                }
             }
         }
     }
 
-    /** Start the resolver's delayed warm-up only after the first UI frame was drawn. */
-    private fun installFirstDrawWarmupGate() {
-        val decorView = window.decorView
-        val viewTreeObserver = decorView.viewTreeObserver
-        val callbackPosted = AtomicBoolean(false)
-        val listener = object : ViewTreeObserver.OnDrawListener {
-            override fun onDraw() {
-                if (!callbackPosted.compareAndSet(false, true)) return
-                decorView.post {
-                    if (viewTreeObserver.isAlive) {
-                        viewTreeObserver.removeOnDrawListener(this)
-                    }
-                    reportFullyDrawn()
-                    firstDrawWarmupGate.onFirstDrawn()
-                }
-            }
-        }
-        decorView.viewTreeObserver.addOnDrawListener(listener)
-    }
+    /**
+     * The volume keys move the DAC's own volume while direct USB output owns
+     * it: Android's music stream no longer reaches that DAC, so the system
+     * volume would change nothing anyone hears. Handled here rather than left
+     * to the media session so the app's own HUD answers instead of Android's
+     * remote-volume panel; in the background the session takes them. A sheet
+     * in a window of its own asks the same through [DacVolumeKeys].
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        handleDacVolumeKey(event) || super.dispatchKeyEvent(event)
 
     /**
      * Requests a window refresh rate without forcing a display mode or
@@ -532,8 +563,7 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
-@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AudifyApp(
     darkTheme: Boolean,
@@ -552,7 +582,6 @@ private fun AudifyApp(
     viewModel: MainViewModel = viewModel(),
 ) {
     val context = LocalContext.current
-    val resources = LocalResources.current
     val clipboard = LocalClipboardManager.current
     val hazeState = remember { HazeState() }
     // Recording the backdrop layer costs a draw pass, so it only runs when a
@@ -565,16 +594,27 @@ private fun AudifyApp(
     // solid (see [Modifier.liquidGlass]) and the whole-page layer recording
     // below goes with them, which is the part that costs a draw pass.
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
-    val adaptiveBlurReduction by AppSettings.adaptivePerformancePressure.collectAsStateWithLifecycle()
-    val highPerformanceMode by AppSettings.highPerformanceMode.collectAsStateWithLifecycle()
-    val glassSamplesBackdrop = glassActive && !reduceDynamicBlur && !(highPerformanceMode && adaptiveBlurReduction)
+    val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
+    val glassSamplesBackdrop = glassActive && !reduceDynamicBlur
+    // Local backdrop for the Search tab: records the mood grid so the fixed
+    // header above it can draw a blurred copy of what scrolls underneath.
+    val searchBackdrop = rememberLayerBackdrop()
+    val searchHeaderTint = MaterialTheme.colorScheme.background.copy(alpha = 0.55f)
     // What folds [GlassNavBar] between its expanded and inline shapes. Held here
     // rather than inside the bar because the page's scroll is what drives it,
     // and the page is a sibling of the bar rather than a child.
-    val navBarScroll = rememberFloatingTabBarScrollConnection()
-    // Primary navigation stays in the floating bottom bar on every device and
-    // window size. Adaptive layout decisions must not replace it with a rail.
+    val navBarScroll = rememberFloatingTabBarScrollConnection(expandThreshold = 250.dp)
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    // Explore loads the first time it's shown, not at launch beside Home.
+    LaunchedEffect(selectedTab) {
+        // The Search tab's categories come from the same feed Explore loads.
+        if (selectedTab == TAB_EXPLORE || selectedTab == TAB_SEARCH) viewModel.onExploreShown()
+    }
+    // Charts New dibaca di latar sesaat setelah Home, jadi tab terbuka sudah berisi.
+    LaunchedEffect(Unit) {
+        delay(3_000)
+        viewModel.prefetchExploreCharts()
+    }
     /**
      * Whether the player's sheet is up. The player is always a full-screen
      * take-over raised over the page, on every window size — the library
@@ -582,7 +622,18 @@ private fun AudifyApp(
      * permanent pane.
      */
     var showNowPlaying by remember { mutableStateOf(false) }
-    var showHomeCastDialog by remember { mutableStateOf(false) }
+    // The DAC's own volume while direct USB output owns it; the full player
+    // has its own bar for that, so the HUD stays out of its way.
+    androidx.compose.runtime.SideEffect { VolumeHud.suppressed = showNowPlaying }
+    // The Top Picks and mood artwork loop forever; nobody sees it with the
+    // app in the background or Now Playing pulled up over the page.
+    val appForeground = com.music.audify.ui.rememberIsForeground()
+    val artworkMotion = appForeground && !showNowPlaying
+    // Top Picks turns over each hour; coming back to the app after a
+    // turn-over is an open too.
+    LaunchedEffect(appForeground) {
+        if (appForeground) viewModel.refreshTopPicksIfStale()
+    }
     // Where the two ends of opening and closing the player meet: the mini
     // player's cover reports itself here, the sheet its offset, and the player
     // flies its artwork between them — see [PlayerDock].
@@ -607,16 +658,15 @@ private fun AudifyApp(
     // dock or the motion directly.
     val reducePlayerMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val activeDock = playerDock.takeIf { !reducePlayerMotion }
-    // The mini-player is a separate dialog window. If a search field still
-    // owns focus underneath it, Android can restore that editor when the dialog
-    // closes and Gboard briefly appears before Compose clears it. Relinquish
-    // focus and hide IME before creating the player window, for every entry path.
-    val focusManager = LocalFocusManager.current
-    val softwareKeyboard = LocalSoftwareKeyboardController.current
-    val openPlayer: () -> Unit = {
-        focusManager.clearFocus(force = true)
-        softwareKeyboard?.hide()
-        if (reducePlayerMotion) showNowPlaying = true else playerSheetMotion.open()
+    // Selagi player ditarik/dibuka di atas halaman, animasi hero Most Played
+    // dibekukan. Dibaca lewat snapshotFlow, jadi tidak ada recomposition di sini.
+    LaunchedEffect(activeDock) {
+        try {
+            androidx.compose.runtime.snapshotFlow { (activeDock?.openFraction() ?: 0f) > 0f }
+                .collect { com.music.audify.ui.screens.HeroMotion.frozen = it }
+        } finally {
+            com.music.audify.ui.screens.HeroMotion.frozen = false
+        }
     }
     playerSheetMotion.flingVelocity = with(LocalDensity.current) { PLAYER_PULL_FLING_VELOCITY.toPx() }
     // How the app takes the player down, whatever for: a back press, or a page
@@ -634,7 +684,7 @@ private fun AudifyApp(
     val openPlayerRequested by PlayerDeepLink.pending.collectAsStateWithLifecycle()
     LaunchedEffect(openPlayerRequested) {
         if (openPlayerRequested) {
-            openPlayer()
+            showNowPlaying = true
             PlayerDeepLink.handled()
         }
     }
@@ -662,26 +712,28 @@ private fun AudifyApp(
     // and the mini player, like every other alert in the app.
     var editingSource by remember { mutableStateOf<SourceConfig?>(null) }
     var confirmJioSaavn by remember { mutableStateOf(false) }
+    var confirmBitPerfect by remember { mutableStateOf<BitPerfectMode?>(null) }
+    var confirmFixedVolume by remember { mutableStateOf(false) }
+    /** An addon search row tapped while the quality setting skips its addon; see [AddonBlockedAlert]. */
+    var blockedAddonSong by remember { mutableStateOf<com.music.audify.data.model.Song?>(null) }
+    /** An addon a download just went ahead without, and why; see [SourceRegistry.addonsLeftOutOfDownloads]. */
+    var addonLeftOutOfDownload by remember {
+        mutableStateOf<Pair<String, SourceRegistry.DownloadExclusion>?>(null)
+    }
     var editingPartyServer by remember { mutableStateOf(false) }
     var editingSignatureApi by remember { mutableStateOf(false) }
-    var detailActiveShelf by remember { mutableStateOf<HomeShelf?>(null) }
     var librarySortMenuOpen by remember { mutableStateOf(false) }
     var showLyricsSources by remember { mutableStateOf(false) }
     var showAppLanguage by remember { mutableStateOf(false) }
+    var showHomeLayout by remember { mutableStateOf(false) }
     var showTranslationLanguage by remember { mutableStateOf(false) }
     var showAccountSelector by remember { mutableStateOf(false) }
+    // The popup has started leaving: the header's profile button returns with it.
+    var accountSelectorLeaving by remember { mutableStateOf(false) }
     var showListenBrainzLogin by remember { mutableStateOf(false) }
     var showLastfmLogin by remember { mutableStateOf(false) }
     var showWebDavEditor by remember { mutableStateOf(false) }
     var showSmbEditor by remember { mutableStateOf(false) }
-    /**
-     * Whether the download manager is open.
-     *
-     * Not [rememberSaveable]: the list behind it does not survive the process
-     * either (see [com.music.audify.download.DownloadSession]), and a sheet
-     * restored over an empty one would be a manager with nothing to manage.
-     */
-    var showDownloadManager by remember { mutableStateOf(false) }
     // Discord Rich Presence: its own page under Account & integrations (a
     // route), its own full-screen sign-in, and one slot for whichever of its
     // alerts is open. The alerts live out here rather than on the page because
@@ -691,6 +743,11 @@ private fun AudifyApp(
     var showSpotifyLogin by remember { mutableStateOf(false) }
     var discordDialog by remember { mutableStateOf<DiscordDialog?>(null) }
     var songActions by remember { mutableStateOf<Song?>(null) }
+    // Song Info hidup di luar menu supaya menu bisa menutup di belakangnya.
+    var songInfoTarget by remember { mutableStateOf<Song?>(null) }
+    var songInfoBackdrop by remember {
+        mutableStateOf<com.music.audify.ui.components.backdrop.Backdrop?>(null)
+    }
     var showLyricsOffset by remember { mutableStateOf(false) }
     /**
      * Whether the track menu that is up was opened from the player.
@@ -703,17 +760,43 @@ private fun AudifyApp(
      * question has to be answered by whoever opened the menu.
      */
     var menuFromPlayer by remember { mutableStateOf(false) }
+    /** Whether the track menu was opened from the History screen. */
+    var menuFromHistory by remember { mutableStateOf(false) }
     /**
      * The row or card that was held to open the track menu, or null when it
      * was opened any other way. Non-null lifts that item into
-     * [HeldContextMenu]; null keeps the bottom sheet — which is what the ⋮ on
-     * the very same row still opens.
+     * [HeldContextMenu]; null hangs the menu off [songMenuAnchor] instead —
+     * which is what the ⋮ on the very same row opens.
      */
     var songMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
+    /** The ⋮ or ⋯ the track menu was opened from, for [IosMenuPopover] to hang off. */
+    var songMenuAnchor by remember { mutableStateOf<Rect?>(null) }
+    /**
+     * A still of the player for its ⋯ menu to blur — see the player's sheet
+     * below. Up here so the tap that opens the menu can ask for it: asked any
+     * later, the picture is read back on a frame of the menu's spring.
+     */
+    val playerBackdrop = rememberSnapshotBackdrop()
+    /**
+     * The player live instead, while it is a full-screen Spotify Canvas: that
+     * keeps playing under the ⋯ menu, and a still of it would freeze under the
+     * panel. Recorded only while that is the case — see the player's sheet.
+     */
+    val livePlayerBackdrop = rememberLayerBackdrop()
+    var playerLiveCanvas by remember { mutableStateOf(false) }
+    /**
+     * The same for a ⋮ or ⋯ menu over a page: a still of everything under it —
+     * the page, its bars, the mini player — blurred under the panel. The
+     * page's live haze, under a panel growing on a spring, was re-cut and
+     * rescaled with it on every frame: the blur swam against the panel's
+     * growth, and the whole page was rendered again for it each time.
+     */
+    val pageBackdrop = rememberSnapshotBackdrop()
     /** Holding a row anywhere but the player — the menu without the player's rows. */
     val openSongMenu: (Song) -> Unit = { song ->
         menuFromPlayer = false
         songMenuOrigin = LongPressOrigin.consume()
+        songMenuAnchor = MenuAnchor.consume()
         songActions = song
     }
     // Whether the player's album/artist lookup (below, for the current track)
@@ -727,6 +810,12 @@ private fun AudifyApp(
     // The picker opened from the Library tab, where there is no track and
     // creating the playlist is the whole errand.
     var creatingPlaylist by remember { mutableStateOf(false) }
+    // Playlist yang baru dibuat dan sedang diisi lewat popup "tambah lagu".
+    var addSongsPlaylist by remember { mutableStateOf<UserPlaylist?>(null) }
+    // The same two, over the device's own playlists — for a track that is a
+    // file on it, and for "New playlist" on Local Music's Playlists tab.
+    var offlinePlaylistTarget by remember { mutableStateOf<Song?>(null) }
+    var creatingOfflinePlaylist by remember { mutableStateOf(false) }
     var showSpotifyImportDialog by remember { mutableStateOf(false) }
     // Which album or playlist the collection menu is open on, or null when it
     // is shut. One slot for every surface that can open it — the shelves on
@@ -735,16 +824,19 @@ private fun AudifyApp(
     var browseActions by remember { mutableStateOf<BrowseTarget?>(null) }
     /** The card held to open [browseActions] — see [songMenuOrigin]. */
     var browseMenuOrigin by remember { mutableStateOf<HeldItem?>(null) }
-    /** Rename asked for from the popup, which hands it on to the sheet's form. */
+    /** The ⋯ [browseActions] was opened from — see [songMenuAnchor]. */
+    var browseMenuAnchor by remember { mutableStateOf<Rect?>(null) }
+    /** Rename asked for from the menu, which hands it on to a sheet holding only the form. */
     var browseRenameInSheet by remember { mutableStateOf(false) }
     /** The playlist being rearranged, or null when the reorder page is shut. */
     var reorderTarget by remember { mutableStateOf<UserPlaylist?>(null) }
     /** Its entries as YouTube has them now — fetched fresh when the sheet opens. */
     var reorderEntries by remember { mutableStateOf<UiState<List<Song>>>(UiState.Loading) }
     var reorderSaving by remember { mutableStateOf(false) }
-    /** Holding an album or playlist: the popup when it was a hold, else the sheet. */
+    /** An album or playlist: lifted when it was a hold, else hung off the ⋯ that was tapped. */
     val openBrowseMenu: (BrowseTarget) -> Unit = { target ->
         browseMenuOrigin = LongPressOrigin.consume()
+        browseMenuAnchor = MenuAnchor.consume()
         browseRenameInSheet = false
         browseActions = target
     }
@@ -763,6 +855,9 @@ private fun AudifyApp(
     // signal to focus the input field.
     var searchFocusRequested by remember { mutableStateOf(false) }
     val searchFieldFocus = remember { FocusRequester() }
+    // Whether the top bar's search field has focus. The Search tab shows its
+    // categories while it has none and the recent searches once it does.
+    var searchFieldFocused by remember { mutableStateOf(false) }
     // Invalidates an in-flight radio lookup when a later play request wins.
     var playRequestGeneration by remember { mutableIntStateOf(0) }
     // Starting radio from the item already playing must not replace that media
@@ -787,17 +882,30 @@ private fun AudifyApp(
     // (the gesture or the bar's button alike) undoes exactly that.
     val navigator = viewModel.navigator
     val detailStack by viewModel.detailStack.collectAsStateWithLifecycle()
-    val visibleEntry = navigator.visibleEntry(detailStack.size)
+    val topEntry = navigator.visibleEntry(detailStack.size)
+    // An artist's open shelf is drawn by the artist page itself, so it is not a
+    // route the page area switches to — only the shelf the page is showing.
+    val artistShelfRoute = topEntry?.route as? AppRoute.ArtistShelf
+    val visibleEntry = topEntry?.takeIf { artistShelfRoute == null }
+    val detailActiveShelf = artistShelfRoute?.shelf
     /** The route on screen, or null when a release page or a tab is. */
     val route = visibleEntry?.route
-    // Settings categories are in-screen subpages. The global top-bar Back
-    // button must close one before it pops Settings back to the Library tab.
-    var settingsCategoryBackHandler by remember { mutableStateOf<(() -> Unit)?>(null) }
+    // Halaman pengaturan Kaca Cair dipakai untuk melihat hasil efek, jadi navbar
+    // dikunci di bentuk expanded: mini player tetap di atas pil tab dan tidak
+    // pernah melipat ke tengah bar saat halaman digulir.
+    val glassPreviewPage =
+        (route as? AppRoute.SettingsChoice)?.choice == SettingsChoiceKind.LIQUID_GLASS
+    LaunchedEffect(glassPreviewPage) {
+        if (glassPreviewPage) navBarScroll.expand()
+    }
     /**
      * The release page at the top of its stack, whether or not a route
      * covers it. Most things want [detail] — the one actually on screen.
      */
     val topDetail = detailStack.lastOrNull()
+    androidx.compose.runtime.SideEffect {
+        coverFlightPagesOpen(detailStack.map { it.browseId })
+    }
     /** The release page on screen, or null when a route or a tab is. */
     val detail = topDetail?.takeIf { visibleEntry == null }
     // The reorder list lives on its playlist's page; leaving that page by any
@@ -810,9 +918,52 @@ private fun AudifyApp(
         dark = !darkTheme && !showNowPlaying && route != AppRoute.Replay && replayStory == null && !onboardingVisible,
     )
 
+    var youtubeSyncStatus by remember { mutableStateOf<String?>(null) }
+    val activeSyncAccountId by viewModel.activeAccountId.collectAsStateWithLifecycle()
+    val activeSyncProfileId by viewModel.activeProfileId.collectAsStateWithLifecycle()
+    LaunchedEffect(activeSyncAccountId, activeSyncProfileId) {
+        youtubeSyncStatus = if (activeSyncAccountId == null || activeSyncProfileId == null) {
+            "Sign in to view sync status."
+        } else {
+            runCatching {
+                LocalFirstRepository.initialize(context)
+                LocalFirstRepository.syncStatusText(activeSyncAccountId!!, activeSyncProfileId!!)
+            }
+                .getOrElse { "Sync status unavailable: ${it.message ?: "unknown error"}" }
+        }
+    }
     val homeState by viewModel.home.collectAsStateWithLifecycle()
-    val homeRecentlyPlayedLoading by viewModel.homeRecentlyPlayedLoading.collectAsStateWithLifecycle()
+    val hideHomeRecents by AppSettings.hideHomeRecents.collectAsStateWithLifecycle()
+    val hideHomeBranding by AppSettings.hideHomeBranding.collectAsStateWithLifecycle()
+    val hideHomeVideos by AppSettings.hideHomeVideos.collectAsStateWithLifecycle()
+    val hideExplicitContent by AppSettings.hideExplicitContent.collectAsStateWithLifecycle()
+    val hideHomeTopPicks by AppSettings.hideHomeTopPicks.collectAsStateWithLifecycle()
+    val hideHomeMoods by AppSettings.hideHomeMoods.collectAsStateWithLifecycle()
+    val homeLayout by AppSettings.homeLayout.collectAsStateWithLifecycle()
+    val libraryArtistsRow by AppSettings.libraryArtistsRow.collectAsStateWithLifecycle()
+    val libraryLayout by AppSettings.libraryLayout.collectAsStateWithLifecycle()
+    // Only what Home draws: Top Picks and Explore keep reading the full feed.
+    val visibleHomeState = remember(homeState, hideHomeVideos, hideHomeRecents, hideExplicitContent) {
+        val loaded = homeState as? UiState.Success
+        if (loaded != null && (hideHomeVideos || hideHomeRecents || hideExplicitContent)) {
+            var shelves = loaded.data
+            if (hideHomeRecents) shelves = shelves.filterNot { it.title == YtMusicRepository.RECENT_TITLE }
+            if (hideHomeVideos) shelves = shelves.withoutVideos()
+            if (hideExplicitContent) {
+                shelves = shelves.mapNotNull { shelf ->
+                    val visible = shelf.items.filter { isVisibleWithExplicitFilter(it.isExplicit, true) }
+                    shelf.copy(items = visible).takeIf { visible.isNotEmpty() }
+                }
+            }
+            UiState.Success(shelves)
+        } else {
+            homeState
+        }
+    }
     val homeLoadingMore by viewModel.homeLoadingMore.collectAsStateWithLifecycle()
+    val homeRecentlyPlayedLoading by viewModel.homeRecentlyPlayedLoading.collectAsStateWithLifecycle()
+    val topPicks by viewModel.topPicks.collectAsStateWithLifecycle()
+    val topPicksLoading by viewModel.topPicksLoading.collectAsStateWithLifecycle()
 
     // The top bar's icon is the quiet, always-there nudge; this is the
     // once-per-launch popup version of the same news. `updateDialogShown`
@@ -820,30 +971,7 @@ private fun AudifyApp(
     // doesn't bring it back — only a fresh launch does.
     var updateDialogShown by rememberSaveable { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
-    var showMigrationNotice by rememberSaveable { mutableStateOf(false) }
-    val migrationNoticePreferences = remember(context) {
-        context.getSharedPreferences("audify_migration_notice", Context.MODE_PRIVATE)
-    }
-    val dismissMigrationNotice: () -> Unit = {
-        migrationNoticePreferences.edit { putBoolean("v1_8_9_seen", true) }
-        showMigrationNotice = false
-    }
     val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
-    val latestRelease by AppUpdateChecker.latestRelease.collectAsStateWithLifecycle()
-    val updateCheckInProgress by AppUpdateChecker.checking.collectAsStateWithLifecycle()
-
-    // A clean reinstall cannot know that 1.8.7 was previously present: Android
-    // removes the old app's private data when it is uninstalled. Show the
-    // migration instructions once on the first 1.8.9 launch instead, after
-    // onboarding, so the user sees them even after completing the manual swap.
-    LaunchedEffect(onboardingComplete) {
-        if (
-            onboardingComplete && BuildConfig.VERSION_NAME == "1.8.9" &&
-            !migrationNoticePreferences.getBoolean("v1_8_9_seen", false)
-        ) {
-            showMigrationNotice = true
-        }
-    }
 
     /**
      * The single gate both surfaces read, so the icon can't announce the update
@@ -852,8 +980,8 @@ private fun AudifyApp(
      */
     val updateNotice = updateAvailable
 
-    LaunchedEffect(updateNotice, showMigrationNotice) {
-        if (updateNotice != null && !updateDialogShown && !showMigrationNotice) {
+    LaunchedEffect(updateNotice) {
+        if (updateNotice != null && !updateDialogShown) {
             updateDialogShown = true
             showUpdateDialog = true
         }
@@ -861,6 +989,7 @@ private fun AudifyApp(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     val exploreState by viewModel.explore.collectAsStateWithLifecycle()
+    val exploreCharts by viewModel.exploreCharts.collectAsStateWithLifecycle()
     val selectedMoodGenre by viewModel.selectedMoodGenre.collectAsStateWithLifecycle()
     val moodGenreShelves by viewModel.moodGenreShelves.collectAsStateWithLifecycle()
     val libraryState by viewModel.library.collectAsStateWithLifecycle()
@@ -868,6 +997,14 @@ private fun AudifyApp(
     val searchSource by viewModel.searchSource.collectAsStateWithLifecycle()
     val libraryResults by viewModel.libraryResults.collectAsStateWithLifecycle()
     val addonResults by viewModel.addonResults.collectAsStateWithLifecycle()
+    // Collected rather than read once, so addon rows in search re-dim the
+    // moment the quality setting, the connection or the watch's cap moves.
+    val addonCeiling = AppSettings.ceilingFor(
+        wifi = AppSettings.audioQualityWifi.collectAsStateWithLifecycle().value,
+        cellular = AppSettings.audioQualityCellular.collectAsStateWithLifecycle().value,
+        metered = AppSettings.meteredConnection.collectAsStateWithLifecycle().value,
+        override = AppSettings.streamCeilingOverride.collectAsStateWithLifecycle().value,
+    )
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val incomingJamInvite by JamInviteLink.pending.collectAsStateWithLifecycle()
     var activeJamInviteCode by rememberSaveable { mutableStateOf<String?>(null) }
@@ -927,6 +1064,9 @@ private fun AudifyApp(
     val detailSongSorts by AppSettings.detailSongSorts.collectAsStateWithLifecycle()
     val songSort = topDetail?.browseId?.let { detailSongSorts[it] } ?: SongSort.DEFAULT
     var songSortMenuOpen by remember { mutableStateOf(false) }
+    // Search / sort / overflow on an album or playlist page stay folded into one
+    // button until it is tapped, so the top bar is a single glass circle at rest.
+    var detailActionsExpanded by rememberSaveable(topDetail?.browseId) { mutableStateOf(false) }
     // A device folder's equivalents — its sort and whether it is a grid —
     // kept apart for Downloads and shared by every other folder, as they
     // always were. Up here because both the page and the top bar's menu read
@@ -947,14 +1087,30 @@ private fun AudifyApp(
     // it, and reset with the page so a filter never follows you to the next one.
     var detailSearching by rememberSaveable(topDetail?.browseId) { mutableStateOf(false) }
     val likeStatuses by viewModel.likeStatuses.collectAsStateWithLifecycle()
+    // A device file's heart is the device's Liked playlist, not a YouTube
+    // rating: the file has no identity there to rate. One rule for every
+    // surface that draws a heart — the player and the track menu alike.
+    val offlineLiked by OfflinePlaylists.liked.collectAsStateWithLifecycle()
+    val offlinePlaylists by OfflinePlaylists.playlists.collectAsStateWithLifecycle()
+    val offlinePlaylistGroups = remember(offlinePlaylists) { offlinePlaylists.map { it.toGroup() } }
+    val likeStatusOf: (Song) -> LikeStatus = { song ->
+        val uri = song.localUri
+        when {
+            uri != null -> if (uri in offlineLiked) LikeStatus.LIKE else LikeStatus.INDIFFERENT
+            else -> likeStatuses[song.videoId] ?: LikeStatus.INDIFFERENT
+        }
+    }
+    val toggleLikeOf: (Song) -> Unit = { song ->
+        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId)
+    }
     // Which tracks are being held on YouTube's own upload, so the player's menu
     // offers the way back out of a revert rather than the revert again.
     val pinnedToOriginal by OriginalVersion.pinned.collectAsStateWithLifecycle()
     val qualityUpgradesInFlight by NerdStats.racingLossless.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    // Playlist mana yang terkonfirmasi dibuat akun ini; menentukan tombol Add songs.
+    val ownedPlaylistPages by viewModel.playlistOwned.collectAsStateWithLifecycle()
     val playlistsLoading by viewModel.playlistsLoading.collectAsStateWithLifecycle()
-
-    LaunchedEffect(topDetail?.browseId) { detailActiveShelf = null }
 
     // The Downloads page is a snapshot of the folder, taken when it was opened.
     // Saving a track or deleting one while it is on screen changes what belongs
@@ -980,30 +1136,30 @@ private fun AudifyApp(
     }
     // Playlists imported without (or instead of) a YouTube Music account live
     // in the app's own store, and sit on the same shelf as the downloaded ones.
+    // A pinned Spotify playlist sits in no Library shelf, so its card is
+    // rebuilt from what was saved when it was pinned.
+    val pinnedCards by AppSettings.pinnedCards.collectAsStateWithLifecycle()
+    val spotifyPinnedItems = remember(pinnedCards) {
+        pinnedCards.map { (id, card) ->
+            ShelfItem(
+                title = card.title,
+                subtitle = card.subtitle,
+                thumbnailUrl = card.thumbnailUrl,
+                videoId = null,
+                browseId = id,
+            )
+        }
+    }
     val localPlaylists by com.music.audify.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
     val localPlaylistItems = localPlaylists.map { playlist ->
         ShelfItem(
             title = playlist.title,
-            subtitle = pluralStringResource(
-                R.plurals.local_playlist_subtitle,
-                playlist.songs.size,
-                playlist.songs.size,
-            ),
-            thumbnailUrl = playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+            subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
+            thumbnailUrl = playlist.coverUrl
+                ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
             videoId = null,
             browseId = playlist.browseId,
         )
-    }
-    val pickerPlaylists = remember(playlists, localPlaylists) {
-        playlists + localPlaylists.map { local ->
-            UserPlaylist(
-                playlistId = local.browseId,
-                title = local.title,
-                subtitle = "${local.songs.size} songs · On this device" +
-                    if (local.youtubePlaylistId != null) " · Synced" else "",
-                thumbnailUrl = local.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
-            )
-        }
     }
     // What a browse id is recorded under in Downloads.collections, when it names
     // a release downloaded whole — see BrowseTarget.downloadId. A downloaded
@@ -1013,7 +1169,7 @@ private fun AudifyApp(
     val downloadIdFor: (String?) -> String? = { id ->
         id?.let { Downloads.recordIdOf(it) ?: it }?.takeIf { it in savedCollections }
     }
-    LaunchedEffect(savedDownloads, savedCollections, topDetail?.browseId) {
+    LaunchedEffect(savedDownloads, savedCollections, topDetail?.browseId, localPlaylists) {
         val openPage = topDetail ?: return@LaunchedEffect
         val open = openPage.browseId
         // A downloaded playlist's page is a snapshot of the same folder and goes
@@ -1027,6 +1183,23 @@ private fun AudifyApp(
                 com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(open) != null)
         ) {
             viewModel.reloadLocalDetail(open)
+        }
+    }
+    // Tracks copied into the downloads folder from a file manager while the app
+    // was in the background show up as soon as the page is back in front.
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        val open = topDetail?.browseId ?: return@LifecycleEventEffect
+        if (open == "local:downloads" || LocalGroups.folderOf(open) == "local:downloads") {
+            viewModel.reloadLocalDetail(open)
+        }
+    }
+    // An offline playlist's page is the store's, and follows it: a track
+    // removed from its menu, or a like from the player, leaves no stale row.
+    // Apart from the effect above so a like never re-lists the Downloads folder.
+    LaunchedEffect(topDetail?.browseId, offlinePlaylists) {
+        val openPage = topDetail ?: return@LaunchedEffect
+        if (openPage.songs !is UiState.Loading && OfflinePlaylists.isOfflinePlaylist(openPage.browseId)) {
+            viewModel.reloadLocalDetail(openPage.browseId)
         }
     }
     LaunchedEffect(localMusicFolderUri, filterNonMusicAudio) {
@@ -1047,6 +1220,18 @@ private fun AudifyApp(
     }
     val controller = rememberMediaController()
     val player = rememberPlayerState(controller)
+    // Warna solid latar panel player selagi tumbuh dari mini player. Dibaca dari
+    // cover lagu yang sedang diputar sejak lagu berganti, bukan saat player
+    // dibuka, supaya frame pertama sudah warna cover (bukan warna tema/lagu lama).
+    val panelArtUrl = com.music.audify.ui.components.rememberRemoteArtworkUrl(player.song)
+    val panelArtColor = com.music.audify.ui.theme.rememberArtworkPanelColor(panelArtUrl)
+        ?: androidx.compose.ui.graphics.Color(0xFF151517)
+    androidx.compose.runtime.SideEffect { playerDock.panelColor = panelArtColor }
+    // A music video's picture follows this controller's clock — see [MusicVideoEngine].
+    DisposableEffect(controller) {
+        MusicVideoEngine.attach(controller)
+        onDispose { MusicVideoEngine.attach(null) }
+    }
     // A resume in a party is performed on the instant the server schedules, not
     // when it was pressed, and nothing about the player moves in between — so
     // the transport spends that round trip drawn as though the tap never landed.
@@ -1113,7 +1298,12 @@ private fun AudifyApp(
         }
     }
     val shuffleEnabled by QueueShuffle.enabled.collectAsStateWithLifecycle()
-    val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
+    com.music.audify.ui.components.StarPromptHost(isPlaying = player.isPlaying)
+    // For the version switch's "there is no other version" notice.
+    val versionContext = LocalContext.current
+    // Tracks whose other cut a switch looked for and didn't find: their menu
+    // row reads "not found" from then on instead of offering it again.
+    val missingVersions = remember { mutableStateListOf<String>() }
     // A conversion is deliberately scoped to the current listening session.
     // Keeping the complete original row here lets Revert restore the exact
     // video upload, including its title and playlist identity, rather than
@@ -1130,15 +1320,19 @@ private fun AudifyApp(
     var convertedVideoId by remember { mutableStateOf<String?>(null) }
     // Optimistically updated track for instant UI updates when switching versions
     var optimisticVersionSong by remember { mutableStateOf<Song?>(null) }
-    // Track whether alternate (film/video vs release/audio) version exists for current track
-    var hasAlternateVersion by remember { mutableStateOf(false) }
 
     // Lyrics follow whatever is playing; duration lands a beat after the track.
-    // Keyed on the lyric settings too, so turning a source on or off applies to
-    // the track already playing rather than only the next one.
+    // Keyed on the lyric settings too, so turning a source on or off, reordering
+    // them or changing the syllable preference applies to the track already
+    // playing rather than only the next one.
     val syncedLyricsEnabled by AppSettings.syncedLyrics.collectAsStateWithLifecycle()
     val lyricsSources by AppSettings.lyricsSources.collectAsStateWithLifecycle()
-    LaunchedEffect(player.song?.videoId, player.durationMs, syncedLyricsEnabled, lyricsSources) {
+    val lyricsSourceOrder by AppSettings.lyricsSourceOrder.collectAsStateWithLifecycle()
+    val prioritizeSyllableSync by AppSettings.prioritizeSyllableSync.collectAsStateWithLifecycle()
+    LaunchedEffect(
+        player.song?.videoId, player.durationMs, syncedLyricsEnabled, lyricsSources,
+        lyricsSourceOrder, prioritizeSyllableSync,
+    ) {
         player.song?.let {
             viewModel.loadLyrics(
                 it.videoId,
@@ -1162,16 +1356,18 @@ private fun AudifyApp(
     val libraryListState = rememberLazyListState()
     val historyListState = rememberLazyListState()
     val libraryShowAllGridState = rememberLazyGridState()
+    val moodsGridState = rememberLazyGridState()
     val searchListState = rememberLazyListState()
     val currentListState = when (selectedTab) {
         TAB_HOME -> homeListState
-        TAB_EXPLORE -> if (selectedMoodGenre == null) exploreListState else moodGenreListState
+        TAB_EXPLORE -> exploreListState
         TAB_LIBRARY -> libraryListState
-        else -> searchListState
+        else -> if (selectedMoodGenre == null) searchListState else moodGenreListState
     }
 
-    // Pull-to-refresh: the drag lives with the feed, but the indicator is the
-    // line under the top bar, so the state has to be visible to both.
+
+    // Pull-to-refresh: the whole feed follows the finger, so the state lives
+    // here to survive tab switches while a pull or a refresh is in flight.
     val homePull = rememberElasticRefreshState()
     val explorePull = rememberElasticRefreshState()
     val libraryPull = rememberElasticRefreshState()
@@ -1191,13 +1387,13 @@ private fun AudifyApp(
         // was last fetched is a change to exactly this page.
         if (currentFeed == MainViewModel.Feed.LIBRARY) viewModel.onLibraryShown()
     }
+    // Pindah tab di tengah penerbangan cover: kartu tujuannya sudah bergeser
+    // atau hilang, jadi penerbangan dihentikan, bukan dibiarkan mengikuti.
+    LaunchedEffect(selectedTab) { cancelCoverFlight() }
 
-    val currentPull = when (currentFeed) {
-        MainViewModel.Feed.HOME -> homePull
-        MainViewModel.Feed.EXPLORE -> explorePull
-        MainViewModel.Feed.LIBRARY -> libraryPull
-        null -> null
-    }
+    // State pull yang tertinggal saat feed keluar layar (pindah tab, halaman
+    // mood dibuka di atas Explore) dirapikan oleh PullToRefresh sendiri begitu
+    // feed tampil lagi, jadi tidak perlu dibersihkan dari sini.
     val scrolled by remember(currentListState) {
         derivedStateOf {
             currentListState.firstVisibleItemIndex > 0 ||
@@ -1257,6 +1453,29 @@ private fun AudifyApp(
         pageKeysSeen.removeAll(gone.toSet())
     }
     val detailTitleDrop = with(LocalDensity.current) { DETAIL_TITLE_DROP.toPx() }
+
+    // Jarak scroll halaman yang sedang tampil. Dibaca hanya di dalam lambda
+    // (graphicsLayer bar) supaya tidak merekomposisi layar tiap frame scroll.
+    val pageScroll = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val pageScrollByKey = remember { mutableMapOf<String, Float>() }
+    val pageScrollHolder = remember { object { var key: String = "" } }
+    val pageTitleFadePx = with(LocalDensity.current) { 64.dp.toPx() }
+    val pageScrollConnection = remember {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: androidx.compose.ui.geometry.Offset,
+                available: androidx.compose.ui.geometry.Offset,
+                source: androidx.compose.ui.input.nestedscroll.NestedScrollSource,
+            ): androidx.compose.ui.geometry.Offset {
+                if (consumed.y != 0f) {
+                    val next = (pageScroll.floatValue - consumed.y).coerceAtLeast(0f)
+                    pageScroll.floatValue = next
+                    pageScrollByKey[pageScrollHolder.key] = next
+                }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+        }
+    }
     val detailScrolled by remember(detailListState, detailTitleDrop) {
         derivedStateOf {
             detailListState.firstVisibleItemIndex > 0 ||
@@ -1272,7 +1491,6 @@ private fun AudifyApp(
     // and every glass surface on them recompose once per frame for the length of
     // a fold. Keyed on the labels so a locale change still rebuilds it.
     val homeLabel = stringResource(R.string.home)
-    val playLabel = stringResource(R.string.play)
     val exploreLabel = stringResource(R.string.explore)
     val libraryLabel = stringResource(R.string.library)
     val searchLabel = stringResource(R.string.search)
@@ -1281,6 +1499,7 @@ private fun AudifyApp(
     val replayLabel = stringResource(R.string.replay)
     val queueLabel = stringResource(R.string.queue)
     val sharedLinkLabel = stringResource(R.string.shared_link)
+    val openedFileLabel = stringResource(R.string.opened_file)
     val tabs = remember(homeLabel, exploreLabel, libraryLabel, settingsLabel) {
         listOf(
             BottomTab(homeLabel, AudifyIcons.Home),
@@ -1289,42 +1508,12 @@ private fun AudifyApp(
             BottomTab(settingsLabel, Icons.Rounded.Settings),
         )
     }
+    // Audify's primary navigation remains Home, Explore, Library and Settings.
+    // Search is still a full screen (opened from the Home search action and
+    // other search entry points), while Listen Together remains a destination
+    // inside the app rather than taking over a permanent tab.
 
     val scope = rememberCoroutineScope()
-    val radioStartedFormat = stringResource(R.string.radio_started)
-    val partyQueueFullMessage = resources.getQuantityString(
-        R.plurals.party_queue_full,
-        25,
-        25,
-    )
-    val songAddedToQueueMessage = stringResource(R.string.song_added_to_queue)
-    val songWillPlayNextMessage = stringResource(R.string.song_will_play_next)
-    val artistLabel = stringResource(R.string.artist)
-    val albumLabel = stringResource(R.string.album)
-    val couldntFindFormat = stringResource(R.string.couldnt_find)
-    val couldntOpenLinkMessage = stringResource(R.string.couldnt_open_link)
-    val noTracksHereMessage = stringResource(R.string.no_tracks_here)
-    val couldntLoadTracksMessage = stringResource(R.string.couldnt_load_tracks)
-    val storageRequiredSaveMessage = stringResource(R.string.storage_required_save)
-    val storageRequiredReadMessage = stringResource(R.string.storage_required_read)
-    val wifiOnlyDownloadRefusalMessage = stringResource(R.string.wifi_only_download_refusal)
-    val alreadyDownloadedMessage = stringResource(R.string.already_downloaded)
-    val spotifyLabel = stringResource(R.string.spotify)
-    val searchSourceAddonsLabel = stringResource(R.string.search_source_addons)
-    val localMusicLabel = stringResource(R.string.local_music)
-    val songAddedToPlaylistMessage = stringResource(R.string.song_added_to_playlist)
-    val songAlreadyInPlaylistMessage = stringResource(R.string.song_already_in_playlist)
-    val failedMessage = stringResource(R.string.failed)
-    val spotifyImportLocalFallbackFormat = stringResource(R.string.spotify_import_local_fallback)
-    val spotifyImportDoneFormat = stringResource(R.string.spotify_import_done)
-    val pinnedPlaylistLimitMessage = resources.getQuantityString(
-        R.plurals.pinned_playlist_limit,
-        AppSettings.MAX_PINNED_PLAYLISTS,
-        AppSettings.MAX_PINNED_PLAYLISTS,
-    )
-    val loginFailedMessage = stringResource(R.string.login_failed)
-    val playlistReorderedMessage = stringResource(R.string.playlist_reordered)
-    val reorderFailedMessage = stringResource(R.string.reorder_failed)
 
     // Copies tracks to the WebDAV server, leaving the local files alone.
     // A clash suspends the batch on WebDavUploads.conflict until the dialog
@@ -1334,15 +1523,11 @@ private fun AudifyApp(
             val summary = com.music.audify.data.webdav.WebDavUploads.upload(context, songs)
             if (summary.total > 0) {
                 showQueueNotice(
-                    String.format(
-                        Locale.getDefault(),
-                        resources.getQuantityString(
-                            R.plurals.webdav_upload_summary,
-                            summary.uploaded,
-                            summary.uploaded,
-                            summary.skipped,
-                            summary.failed,
-                        ),
+                    context.getString(
+                        R.string.webdav_upload_summary,
+                        summary.uploaded,
+                        summary.skipped,
+                        summary.failed,
                     ),
                 )
             }
@@ -1387,6 +1572,11 @@ private fun AudifyApp(
             // to release the loading state and resume it immediately.
             if (audio == null || audio.videoId == song.videoId) {
                 TrackLog.w("Player", "audio switch found no distinct official song", song.videoId)
+                // Hanya dianggap "tidak ada versi audio" bila pencarian benar-benar selesai tanpa hasil;
+                // gagal jaringan tidak boleh mengunci tombol sebagai tidak tersedia.
+                val confirmedMissing = audio != null && YtMusicRepository.hasNoAudioVersion(song.videoId)
+                if (confirmedMissing && song.videoId !in missingVersions) missingVersions += song.videoId
+                if (stillCurrent && confirmedMissing) showQueueNotice(versionContext.getString(R.string.no_audio_version))
                 if (stillCurrent && resumeAfterResolution) c.play()
                 return
             }
@@ -1407,7 +1597,10 @@ private fun AudifyApp(
                 playbackSourceType = song.playbackSourceType,
                 playbackSourceId = song.playbackSourceId,
             )
-            if (!holdUntilAligned || VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null) {
+            if (!holdUntilAligned ||
+                VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null ||
+                YtMusicRepository.versionTimeMap(song.videoId, target.videoId) != null
+            ) {
                 optimisticVersionSong = target
             }
             // Let go of the bar *before* the command goes out: the service
@@ -1453,6 +1646,8 @@ private fun AudifyApp(
 
             if (video == null || video.videoId == song.videoId) {
                 TrackLog.w("Player", "video switch found no distinct video", song.videoId)
+                if (song.videoId !in missingVersions) missingVersions += song.videoId
+                if (stillCurrent) showQueueNotice(versionContext.getString(R.string.no_video_version))
                 if (stillCurrent && resumeAfterResolution) c.play()
                 return
             }
@@ -1476,7 +1671,8 @@ private fun AudifyApp(
             // would show a version the player is not playing yet, and would
             // make the switch look finished before it had begun.
             if (!holdUntilAligned ||
-                VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null
+                VersionAudioAligner.getCachedOffsetMs(song.videoId, target.videoId) != null ||
+                YtMusicRepository.versionTimeMap(song.videoId, target.videoId) != null
             ) {
                 optimisticVersionSong = target
             }
@@ -1508,10 +1704,8 @@ private fun AudifyApp(
         scope.launch {
             if (refusedByHost()) return@launch
             val c = controller ?: return@launch
-            val currentItems = (0 until c.mediaItemCount).map(c::getMediaItemAt)
-            val hasPodcast = currentItems.any { it.isPodcastEpisode }
-            val currentTimeline = if (hasPodcast) emptyList() else player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: currentItems.map { it.toSong() }
+            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
+                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
             val currentIndex = c.currentMediaItemIndex
 
             if (ListenTogether.state.value.inParty) {
@@ -1535,12 +1729,12 @@ private fun AudifyApp(
                 // receiver can follow its existing queue semantics. The bounded
                 // service path is local-player-only; the service repeats this
                 // guard for commands that race a newly connected receiver.
-                if (hasPodcast) {
-                    val typedQueue = withContext(Dispatchers.Default) {
-                        TypedQueueComposer.buildContextQueue(currentItems, currentIndex, songs, index, source)
-                    }
-                    c.playMediaItems(typedQueue.items, typedQueue.startIndex)
-                } else if (boundedContext && !CastController.state.value.casting) {
+                //
+                // Any list too long to fit the window goes this way too, whatever
+                // page it came from: a whole library in the player is a whole
+                // library re-sent to every media controller on each queue edit.
+                val bounded = boundedContext || songs.size > BoundedQueuePlanner.MAX_PHYSICAL_CONTEXT
+                if (bounded && !CastController.state.value.casting) {
                     c.playBoundedContext(songs, index, source, continuationToken)
                 } else {
                     val result = QueueCoordinator.buildContextQueue(
@@ -1569,6 +1763,23 @@ private fun AudifyApp(
         )
         playFrom(songs, index, source)
     }
+    // A new track always opens the player on its main screen, never on the
+    // lyrics left over from the previous one. Done here, where the player is
+    // always composed, so it holds whichever way the track changed (Search,
+    // album, queue, next/previous) and also while the player is closed to the
+    // mini player. The first track seen is skipped so a restart still restores
+    // the last screen.
+    var lastTrackId by remember { mutableStateOf(player.song?.videoId) }
+    LaunchedEffect(player.song?.videoId) {
+        val id = player.song?.videoId ?: return@LaunchedEffect
+        val previous = lastTrackId
+        lastTrackId = id
+        if (previous != null && previous != id &&
+            AppSettings.lastPlayerScreen.value == LastPlayerScreen.LYRICS
+        ) {
+            AppSettings.setLastPlayerScreen(LastPlayerScreen.MAIN)
+        }
+    }
     LaunchedEffect(player.song?.videoId) {
         if (optimisticVersionSong?.videoId == player.song?.videoId ||
             (optimisticVersionSong != null && player.song?.videoId != convertedAudioId && player.song?.videoId != convertedVideoId && player.song?.videoId != keepVideoId)
@@ -1589,50 +1800,8 @@ private fun AudifyApp(
         }
     }
 
-    // Start with the video MediaItem so the main player is populated at once,
-    // then resolve its catalogue counterpart behind the loading indicators.
-    // A failed/identical match simply resumes this untouched video.
-    LaunchedEffect(player.song?.videoId, preferMusicOnly) {
-        val song = player.song ?: return@LaunchedEffect
-        if (preferMusicOnly && song.isVideo && song.videoId != keepVideoId) {
-            switchToMusicOnly(song, pauseWhileResolving = true)
-        }
-    }
-
-    // Check if alternate (video vs audio) version exists in background.
-    // Skipped entirely in a Listen Together party: the track playing there is
-    // shared by everyone in it, and a per-listener version switch would put
-    // each member on their own cut of what is supposed to be one song — see
-    // [ListenTogether] and the matching guard server-side in
-    // [PlaybackService.smoothSwapCurrentTrackVersion].
-    LaunchedEffect(player.song?.videoId, convertedAudioId, convertedVideoId, partyState.inParty) {
-        val song = player.song
-        if (song == null || partyState.inParty) {
-            hasAlternateVersion = false
-            return@LaunchedEffect
-        }
-        if ((convertedFromVideo != null && convertedAudioId == song.videoId) ||
-            (convertedFromAudio != null && convertedVideoId == song.videoId)) {
-            hasAlternateVersion = true
-            return@LaunchedEffect
-        }
-        hasAlternateVersion = false
-        val exists = withContext(Dispatchers.IO) {
-            if (song.isVideo) {
-                runCatching {
-                    val resolved = YtMusicRepository.resolveAudio(song)
-                    resolved.videoId != song.videoId
-                }.getOrDefault(false)
-            } else {
-                runCatching {
-                    YtMusicRepository.resolveVideo(song) != null
-                }.getOrDefault(false)
-            }
-        }
-        if (player.song?.videoId == song.videoId) {
-            hasAlternateVersion = exists
-        }
-    }
+    // Konversi music video ke audio dilakukan PlaybackService sebelum lagu diputar
+    // (lihat MusicOnlyPlayback); di sini hanya tombol manual di menu pemutar.
 
     /**
      * A song picked on its own — off a home card or a search hit — starts a
@@ -1647,25 +1816,16 @@ private fun AudifyApp(
         scope.launch {
             if (refusedByHost()) return@launch
             val c = controller ?: return@launch
-            val currentItems = (0 until c.mediaItemCount).map(c::getMediaItemAt)
-            val hasPodcast = currentItems.any { it.isPodcastEpisode }
-            val currentTimeline = if (hasPodcast) emptyList() else player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: currentItems.map { it.toSong() }
+            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
+                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
             val currentIndex = c.currentMediaItemIndex
-            if (hasPodcast) {
-                val typedQueue = withContext(Dispatchers.Default) {
-                    TypedQueueComposer.buildOneOffQueue(currentItems, currentIndex, song, source)
-                }
-                c.playMediaItems(typedQueue.items, typedQueue.startIndex)
-            } else {
-                val oneOffQueue = QueueCoordinator.buildOneOffQueue(
-                    currentTimeline = currentTimeline,
-                    currentIndex = currentIndex,
-                    tappedSong = song,
-                    source = source,
-                )
-                c.playSongs(oneOffQueue, 0)
-            }
+            val oneOffQueue = QueueCoordinator.buildOneOffQueue(
+                currentTimeline = currentTimeline,
+                currentIndex = currentIndex,
+                tappedSong = song,
+                source = source,
+            )
+            c.playSongs(oneOffQueue, 0)
             // Start radio in the mini-player; the user opens the full view by tapping it.
         }
     }
@@ -1748,11 +1908,79 @@ private fun AudifyApp(
                 activeController.commitRadioQueue()
                 Toast.makeText(
                     context,
-                    String.format(Locale.getDefault(), radioStartedFormat, song.title),
+                    context.getString(R.string.radio_started, song.title),
                     Toast.LENGTH_SHORT,
                 ).show()
             }
         }
+    }
+    /**
+     * A Top Picks card: opens the release, or starts the station behind it.
+     *
+     * A station is YouTube Music's own queue for it — the Supermix, the
+     * artist's Mix, a mood playlist's radio — fetched only now, on the tap,
+     * and loaded before the player is touched so a failed request leaves the
+     * current queue playing. It then replaces the queue the way [startRadio]
+     * does, and AutoPlay carries it on past its last track.
+     */
+    val openTopPick: (TopPick, String) -> Unit = { pick, label ->
+        val pageId = when (pick.kind) {
+            TopPickKind.LATEST_RELEASE -> pick.browseId
+            TopPickKind.FEATURED_ARTIST, TopPickKind.ARTIST_AND_SIMILAR -> pick.artistBrowseId
+            TopPickKind.PERSONAL_STATION, TopPickKind.NEW_RELEASE_MIX, TopPickKind.DISCOVERY_STATION ->
+                pick.watch?.playlistId
+                    ?.takeIf { it.isNotBlank() && !it.startsWith("RDAMVM") }
+                    ?.let { if (it.startsWith("VL")) it else "VL$it" }
+            else -> null
+        }
+        if (pick.kind == TopPickKind.MOST_PLAYED) {
+            viewModel.openMostPlayed(pick, label)
+        } else if (pick.kind == TopPickKind.MADE_FOR_YOU_MIX) {
+            viewModel.openMix(pick, label)
+        } else if (pageId != null) {
+            viewModel.openDetail(
+                browseId = pageId,
+                title = pick.title.ifBlank { label },
+                subtitle = pick.artistName.orEmpty(),
+                thumbnailUrl = pick.images.firstOrNull(),
+            )
+        } else if (controller != null && !refusedByHost()) {
+            val request = ++playRequestGeneration
+            scope.launch {
+                val songs = TopPicks.queue(pick).getOrNull().orEmpty()
+                if (request != playRequestGeneration) return@launch
+                val activeController = controller ?: return@launch
+                if (songs.isEmpty()) {
+                    Toast.makeText(context, R.string.couldnt_load_tracks, Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val sourceId = pick.watch?.playlistId ?: pick.mood?.name
+                val station = songs.map {
+                    it.copy(
+                        radioName = label,
+                        playbackSource = label,
+                        playbackSourceType = PlaybackSourceType.HOME,
+                        playbackSourceId = sourceId,
+                    )
+                }
+                activeRadioSeed = null
+                activeController.beginRadioQueue()
+                activeController.playSongs(station, 0)
+                activeController.commitRadioQueue()
+            }
+        }
+    }
+    /**
+     * A Find Your Mood tile, on Home or on its Show all grid: that mood's
+     * station, steered by the same scene words the Mood for You card was
+     * built with.
+     */
+    val playMood: (TopPickMood, String) -> Unit = { mood, title ->
+        val hints = topPicks?.firstOrNull { it.kind == TopPickKind.MOOD }?.hints
+        openTopPick(
+            if (hints != null) TopPicks.moodStation(mood, hints) else TopPicks.moodStation(mood),
+            title,
+        )
     }
     val addToQueue: (Song) -> Unit = { song ->
         scope.launch {
@@ -1760,27 +1988,21 @@ private fun AudifyApp(
             // The end of what the user queued, not the end of the queue: a song
             // asked for by name outranks whatever AutoPlay lined up behind it.
             controller?.let {
-                val currentItems = (0 until it.mediaItemCount).map(it::getMediaItemAt)
-                val hasPodcast = currentItems.any { item -> item.isPodcastEpisode }
                 if (ListenTogether.state.value.inParty) {
-                    if (hasPodcast) {
-                        showQueueNotice(resources.getString(R.string.podcast_party_unsupported))
-                        return@launch
-                    }
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
-                        showQueueNotice(partyQueueFullMessage)
+                        showQueueNotice(context.getString(R.string.party_queue_full, 25))
                         return@launch
                     }
                 }
-                val current = it.currentMediaItem?.toSongOrNull()
-                val at = if (hasPodcast) {
-                    TypedQueueComposer.findUserQueueInsertionIndex(currentItems, it.currentMediaItemIndex, isNext = false)
-                } else {
-                    val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
-                        ?: currentItems.map { item -> item.toSong() }
-                    QueueCoordinator.findUserQueueInsertionIndex(timeline, it.currentMediaItemIndex, isNext = false)
-                }
+                val current = it.currentMediaItem?.toSong()
+                val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
+                    ?: (0 until it.mediaItemCount).map { idx -> it.getMediaItemAt(idx).toSong() }
+                val at = QueueCoordinator.findUserQueueInsertionIndex(
+                    timeline = timeline,
+                    currentIndex = it.currentMediaItemIndex,
+                    isNext = false,
+                )
                 val queued = song.copy(
                     radioName = current?.radioName,
                     playbackSource = current?.playbackSource ?: queueLabel,
@@ -1788,7 +2010,7 @@ private fun AudifyApp(
                     playbackSourceId = current?.playbackSourceId,
                 ).asQueueEntry(QueueTier.USER_QUEUE)
                 it.addMediaItem(at, queued.toMediaItem())
-                showQueueNotice(songAddedToQueueMessage)
+                showQueueNotice(context.getString(R.string.song_added_to_queue))
             }
         }
     }
@@ -1796,27 +2018,21 @@ private fun AudifyApp(
         scope.launch {
             if (refusedByHost()) return@launch
             controller?.let {
-                val currentItems = (0 until it.mediaItemCount).map(it::getMediaItemAt)
-                val hasPodcast = currentItems.any { item -> item.isPodcastEpisode }
                 if (ListenTogether.state.value.inParty) {
-                    if (hasPodcast) {
-                        showQueueNotice(resources.getString(R.string.podcast_party_unsupported))
-                        return@launch
-                    }
                     val upcoming = (it.mediaItemCount - (it.currentMediaItemIndex + 1)).coerceAtLeast(0)
                     if (upcoming >= 25) {
-                        showQueueNotice(partyQueueFullMessage)
+                        showQueueNotice(context.getString(R.string.party_queue_full, 25))
                         return@launch
                     }
                 }
-                val current = it.currentMediaItem?.toSongOrNull()
-                val at = if (hasPodcast) {
-                    TypedQueueComposer.findUserQueueInsertionIndex(currentItems, it.currentMediaItemIndex, isNext = true)
-                } else {
-                    val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
-                        ?: currentItems.map { item -> item.toSong() }
-                    QueueCoordinator.findUserQueueInsertionIndex(timeline, it.currentMediaItemIndex, isNext = true)
-                }
+                val current = it.currentMediaItem?.toSong()
+                val timeline = player.queue.takeIf { q -> q.size == it.mediaItemCount }
+                    ?: (0 until it.mediaItemCount).map { idx -> it.getMediaItemAt(idx).toSong() }
+                val at = QueueCoordinator.findUserQueueInsertionIndex(
+                    timeline = timeline,
+                    currentIndex = it.currentMediaItemIndex,
+                    isNext = true,
+                )
                 val queued = song.copy(
                     radioName = current?.radioName,
                     playbackSource = current?.playbackSource ?: queueLabel,
@@ -1824,7 +2040,7 @@ private fun AudifyApp(
                     playbackSourceId = current?.playbackSourceId,
                 ).asQueueEntry(QueueTier.USER_QUEUE)
                 it.addMediaItem(at, queued.toMediaItem())
-                showQueueNotice(songWillPlayNextMessage)
+                showQueueNotice(context.getString(R.string.song_will_play_next))
             }
         }
     }
@@ -1857,7 +2073,9 @@ private fun AudifyApp(
         artwork: String? = null,
     ) {
         if (browseId != null) {
-            val credit = subtitle ?: if (type == BrowseType.ARTIST) artistLabel else albumLabel
+            val credit = subtitle ?: context.getString(
+                if (type == BrowseType.ARTIST) R.string.artist else R.string.album,
+            )
             viewModel.openDetail(browseId, name, credit, artwork, type)
             return
         }
@@ -1875,7 +2093,7 @@ private fun AudifyApp(
             if (hit == null) {
                 Toast.makeText(
                     context,
-                    String.format(Locale.getDefault(), couldntFindFormat, name),
+                    context.getString(R.string.couldnt_find, name),
                     Toast.LENGTH_SHORT,
                 ).show()
             } else {
@@ -1915,43 +2133,38 @@ private fun AudifyApp(
                     // never gets round to it.
                     play(songs, 0)
                 } else {
-                    val currentItems = (0 until c.mediaItemCount).map(c::getMediaItemAt)
-                    val hasPodcast = currentItems.any { item -> item.isPodcastEpisode }
                     val toAdd = if (ListenTogether.state.value.inParty) {
-                        if (hasPodcast) {
-                            showQueueNotice(resources.getString(R.string.podcast_party_unsupported))
-                            return@launch
-                        }
                         val upcoming = (c.mediaItemCount - (c.currentMediaItemIndex + 1)).coerceAtLeast(0)
                         val slotsLeft = (25 - upcoming).coerceAtLeast(0)
                         if (slotsLeft <= 0) {
-                            showQueueNotice(partyQueueFullMessage)
+                            showQueueNotice(context.getString(R.string.party_queue_full, 25))
                             return@launch
                         }
                         songs.take(slotsLeft)
                     } else {
                         songs
                     }
-                    val current = c.currentMediaItem?.toSongOrNull()
-                    val at = if (hasPodcast) {
-                        TypedQueueComposer.findUserQueueInsertionIndex(currentItems, c.currentMediaItemIndex, next)
-                    } else {
-                        val timeline = player.queue.takeIf { q -> q.size == c.mediaItemCount }
-                            ?: currentItems.map { item -> item.toSong() }
-                        QueueCoordinator.findUserQueueInsertionIndex(timeline, c.currentMediaItemIndex, next)
-                    }
-                    val newItems = withContext(Dispatchers.Default) {
+                    val timeline = player.queue.takeIf { q -> q.size == c.mediaItemCount }
+                        ?: (0 until c.mediaItemCount).map { idx -> c.getMediaItemAt(idx).toSong() }
+                    val at = QueueCoordinator.findUserQueueInsertionIndex(
+                        timeline = timeline,
+                        currentIndex = c.currentMediaItemIndex,
+                        isNext = next,
+                    )
+                    val current = c.currentMediaItem?.toSong()
+                    c.addMediaItems(
+                        at,
                         toAdd.map {
                             it.copy(
                                 radioName = current?.radioName,
                                 playbackSource = current?.playbackSource ?: queueLabel,
-                                playbackSourceType = current?.playbackSourceType ?: PlaybackSourceType.QUEUE,
+                                playbackSourceType = current?.playbackSourceType
+                                    ?: PlaybackSourceType.QUEUE,
                                 playbackSourceId = current?.playbackSourceId,
                             ).asQueueEntry(QueueTier.USER_QUEUE).toMediaItem()
-                        }
-                    }
-                    c.addMediaItems(at, newItems)
-                    val message = resources.getQuantityString(
+                        },
+                    )
+                    val message = context.resources.getQuantityString(
                         if (next) R.plurals.songs_will_play_next else R.plurals.songs_added_to_queue,
                         toAdd.size,
                         toAdd.size,
@@ -1988,7 +2201,7 @@ private fun AudifyApp(
                 if (song == null) {
                     Toast.makeText(
                         context,
-                        couldntOpenLinkMessage,
+                        context.getString(R.string.couldnt_open_link),
                         Toast.LENGTH_SHORT,
                     ).show()
                 } else {
@@ -2029,6 +2242,24 @@ private fun AudifyApp(
             // bounded queue before the controller connects, so this resumes
             // both a live session and one recovered after process death.
             LinkRequest.Resume -> if (session.mediaItemCount > 0) session.play()
+            // A file from a file manager. The read grant that came with the
+            // intent lasts as long as this task; a persistable one, when the
+            // sender offered it, keeps the track playable after a restart.
+            is LinkRequest.LocalFile -> {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        request.uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                    )
+                }
+                val song = LocalMediaRepository.songFromUri(context, request.uri)
+                playFrom(
+                    listOf(song),
+                    0,
+                    QueueSource(openedFileLabel, PlaybackSourceType.SHARED_LINK, song.localUri),
+                )
+                showNowPlaying = true
+            }
         }
         MusicLink.handled()
     }
@@ -2045,7 +2276,12 @@ private fun AudifyApp(
     val onBrowseLongPress: (ShelfItem) -> Unit = { item ->
         val id = item.browseId
         val type = id?.let { viewModel.browseTypeOf(it) }
-        if (id != null && type != BrowseType.ARTIST) {
+        if (id != null && id.startsWith(SPOTIFY_PAGE_PREFIX)) {
+            // Only a pinned card reaches here. The menu's queue and download
+            // rows fetch through YouTube Music and cannot read a Spotify page,
+            // so holding the card unpins it instead of raising a menu that fails.
+            if (id in AppSettings.pinnedPlaylists.value) AppSettings.togglePinnedPlaylist(id)
+        } else if (id != null && type != BrowseType.ARTIST) {
             openBrowseMenu(
                 BrowseTarget(
                     browseId = id,
@@ -2073,6 +2309,7 @@ private fun AudifyApp(
                 title = item.title,
                 artist = InnertubeParser.artistFromSubtitle(item.subtitle),
                 thumbnailUrl = item.thumbnailUrl,
+                isVideo = item.isVideo,
             )
         }
     }
@@ -2125,12 +2362,12 @@ private fun AudifyApp(
         when {
             target.songs.isNotEmpty() -> stamp(target.songs)
             target.browseId == null ->
-                Toast.makeText(context, noTracksHereMessage, Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.no_tracks_here), Toast.LENGTH_SHORT).show()
             else -> viewModel.collectSongs(target.browseId, target.thumbnailUrl) { result ->
                 result.fold(
                     onSuccess = stamp,
                     onFailure = {
-                        val message = it.message ?: couldntLoadTracksMessage
+                        val message = it.message ?: context.getString(R.string.couldnt_load_tracks)
                         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                     },
                 )
@@ -2171,7 +2408,7 @@ private fun AudifyApp(
             // The one case where refusing is fatal: below API 29 there is no
             // other way to reach the Music folder.
             else -> Toast
-                .makeText(context, storageRequiredSaveMessage, Toast.LENGTH_SHORT)
+                .makeText(context, context.getString(R.string.storage_required_save), Toast.LENGTH_SHORT)
                 .show()
         }
     }
@@ -2183,7 +2420,7 @@ private fun AudifyApp(
             viewModel.reloadLocalDetail("local:downloads")
             viewModel.loadLibrarySongs()
         } else {
-            Toast.makeText(context, storageRequiredReadMessage, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.storage_required_read), Toast.LENGTH_SHORT).show()
         }
     }
     val mediaPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -2194,7 +2431,7 @@ private fun AudifyApp(
     // The Search tab's Library source reads the Local Music folder, so it asks
     // for the same permission opening that folder does.
     val onSearchSourceChange: (SearchSource) -> Unit = { source ->
-        if (source == SearchSource.LIBRARY && !LocalMediaRepository.hasStoragePermission(context)) {
+        if (source == SearchSource.LIBRARY && !LocalMediaRepository.canReadLocalMusic(context)) {
             mediaPermissionLauncher.launch(mediaPermission)
         }
         viewModel.setSearchSource(source)
@@ -2207,7 +2444,7 @@ private fun AudifyApp(
                 navigator.push(AppRoute.Spotify)
                 return@let
             }
-            if ((id == "local:all" || id == "local:downloads") && !LocalMediaRepository.hasStoragePermission(context)) {
+            if ((id == "local:all" || id == "local:downloads") && !LocalMediaRepository.canReadLocalMusic(context)) {
                 mediaPermissionLauncher.launch(mediaPermission)
             }
             // Opened from a shelf's "Show all" page, it stacks over the grid
@@ -2219,7 +2456,6 @@ private fun AudifyApp(
                 title = item.title,
                 subtitle = item.subtitle,
                 thumbnailUrl = item.thumbnailUrl,
-                isExplicit = item.isExplicit,
             )
         }
     }
@@ -2300,6 +2536,20 @@ private fun AudifyApp(
                 songs.forEach { Downloads.enqueue(context, it, from?.title) }
                 if (from != null) Downloads.markRequested(from.id, songs.map { it.videoId })
             }
+            // Said once per addon and reason per session, and only for a batch
+            // that will reach the sources at all — a copy out of the song cache
+            // never asks them. Without it the addon was passed over in silence
+            // and the file simply arrived from JioSaavn or YouTube.
+            if (!songs.all { Downloads.servableFromCache(it.videoId) }) {
+                SourceRegistry.addonsLeftOutOfDownloads()
+                    .firstOrNull { (config, why) -> explainedDownloadExclusions.add("${config.id}:$why") }
+                    ?.let { (config, why) ->
+                        addonLeftOutOfDownload = config.displayName to why
+                        // Menu ditutup: popup ini window sendiri yang blur-nya
+                        // hanya melihat player/halaman, menu di belakangnya terlewat.
+                        songActions = null
+                    }
+            }
         }
         // Recorded for everything that was asked for, not just what still has to
         // be fetched: a release whose tracks are already on the device is still
@@ -2326,14 +2576,14 @@ private fun AudifyApp(
             // long message. So this one is said whatever the count.
             blocked -> Toast.makeText(
                 context,
-                wifiOnlyDownloadRefusalMessage,
+                context.getString(R.string.wifi_only_download_refusal),
                 Toast.LENGTH_LONG,
             ).show()
             requested.size > 1 -> {
                 val message = if (songs.isEmpty()) {
-                    alreadyDownloadedMessage
+                    context.getString(R.string.already_downloaded)
                 } else {
-                    resources.getQuantityString(
+                    context.resources.getQuantityString(
                         R.plurals.downloading_song_count,
                         songs.size,
                         songs.size,
@@ -2383,26 +2633,16 @@ private fun AudifyApp(
         startDownload(listOf(withDuration), null)
     }
 
-    // One measured height feeds both the tap guard and every page's scroll
-    // viewport. The bottom bars include their system-navigation inset in this
-    // measurement, because each bar applies floatingBarInsets to its own root.
-    val floatingBarsHeight = remember { mutableIntStateOf(0) }
-
     // Content padding leaves room for the frosted bar above and the tab bar
-    // (plus mini player) below, so the last row can scroll clear of the glass.
+    // (plus mini player) below, so nothing is ever trapped under the glass.
     //
     // The top is measured off the bar rather than guessed at: the bar is pinned
     // under the status bar inset, and that inset varies by device and by window,
     // so a fixed number only ever lines up on the one device it was picked on.
     // See [topBarContentPadding].
-    val fallbackBottomChrome = if (player.playable != null) 210.dp else 140.dp
-    val measuredBottomChrome = with(LocalDensity.current) { floatingBarsHeight.intValue.toDp() }
     val listPadding = PaddingValues(
-        // Pushed pages now carry their title in the pinned back bar, so their
-        // content can begin directly below it. Root tabs retain the breathing
-        // gap for their large in-page headings (especially Home).
-        top = if (route != null) topBarHeight() else topBarContentPadding(),
-        bottom = (if (floatingBarsHeight.intValue > 0) measuredBottomChrome else fallbackBottomChrome) + 16.dp,
+        top = topBarContentPadding(),
+        bottom = if (player.song != null) 210.dp else 140.dp,
     )
 
     // What colour the page currently under the bars is. The fades either end
@@ -2415,13 +2655,18 @@ private fun AudifyApp(
     // to read the same source the page does or the bars stay the YouTube photo's
     // colour while the page beneath them has moved on.
     val appleArtVersion by AppleArtistArtRepository.updates.collectAsStateWithLifecycle()
-    val detailApple = remember(topDetail?.title, topDetail?.type, appleArtVersion) {
+    val detailApple = remember(topDetail?.browseId, topDetail?.type, appleArtVersion) {
         topDetail?.takeIf { it.type == BrowseType.ARTIST }
-            ?.let { AppleArtistArtRepository.cached(it.title) }
+            ?.let { AppleArtistArtRepository.cached(it.browseId) }
     }
     val detailPalette = rememberArtworkPalette(
-        imageUrl = detailApple?.heroUrl ?: topDetail?.thumbnailUrl,
-        keyColors = detailApple?.keyColors(),
+        imageUrl = detailApple?.heroUrl ?: topDetail?.thumbnailUrl
+            ?: topDetail?.takeIf {
+                it.browseId == "local:downloads" || it.browseId == "local:all" || it.browseId == "local:cache"
+            }?.let { folderPage ->
+                (folderPage.songs as? UiState.Success)?.data?.firstOrNull { it.thumbnailUrl != null }?.thumbnailUrl
+            },
+        keyColors = detailApple?.keyColors() ?: topDetail?.mix?.let { mixKeyColors(it) },
     )
 
     // One set of numbers for the cards, the page, the stories and the shared
@@ -2451,18 +2696,12 @@ private fun AudifyApp(
         homeState,
     ) {
         value = null
-        if (!timeAwareShelfEnabled || selectedTab != TAB_HOME || route != null || detail != null) {
-            return@produceState
-        }
+        if (!timeAwareShelfEnabled || selectedTab != TAB_HOME || route != null || detail != null) return@produceState
         val availableShelves = (homeState as? UiState.Success)?.data.orEmpty()
         if (availableShelves.isEmpty()) return@produceState
-
         while (true) {
             val now = java.time.LocalTime.now()
-            val block = selectTimeAwareHourBlock(
-                now = now,
-                hourlyPlays = ListeningStats.hourOfDayPlays(),
-            )
+            val block = selectTimeAwareHourBlock(now, ListeningStats.summary(ReplayPeriod.ALL_TIME).hourOfDay.map(Long::toInt))
             val sourceShelf = block?.let { selectTimeAwareDiscoveryShelf(availableShelves, it) }
             val picks = sourceShelf?.items.orEmpty()
                 .filter { it.videoId != null || it.browseId != null }
@@ -2475,10 +2714,42 @@ private fun AudifyApp(
                     subtitle = timeAwareShelfSubtitle,
                 )
             }
-            val millisToNextHour = (
-                (60 - now.minute) * 60_000L - now.second * 1_000L - now.nano / 1_000_000L
-                ).coerceAtLeast(1_000L)
+            val millisToNextHour = ((60 - now.minute) * 60_000L - now.second * 1_000L - now.nano / 1_000_000L)
+                .coerceAtLeast(1_000L)
             delay(millisToNextHour)
+        }
+    }
+
+    val showWeeklyRecap by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
+    val weeklyRecapSeenWeek by AppSettings.weeklyRecapSeenWeek.collectAsStateWithLifecycle()
+    val currentWeekKey = remember {
+        java.time.LocalDate.now()
+            .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+            .toEpochDay()
+    }
+    val weeklyRecap by produceState<WeeklyRecapCardData?>(
+        initialValue = null,
+        selectedTab,
+        route,
+        showWeeklyRecap,
+        weeklyRecapSeenWeek,
+        currentWeekKey,
+    ) {
+        value = null
+        if (!showWeeklyRecap || selectedTab != TAB_HOME || route != null) return@produceState
+        if (weeklyRecapSeenWeek == currentWeekKey) return@produceState
+        val summary = withContext(Dispatchers.IO) { ListeningStats.summary(ReplayPeriod.THIS_WEEK) }
+        if (!summary.isEmpty) {
+            val topSong = summary.songs.firstOrNull()?.song?.title
+            val topArtist = summary.artists.firstOrNull()?.title
+            value = WeeklyRecapCardData(
+                headline = "${formatListening(context, summary.totalMs)} listened",
+                detail = buildList {
+                    add("${summary.totalPlays} plays")
+                    topSong?.let { add("Top track: $it") }
+                    topArtist?.let { add("Top artist: $it") }
+                }.joinToString(" ? "),
+            )
         }
     }
 
@@ -2507,7 +2778,6 @@ private fun AudifyApp(
             albumName = current.albumName ?: extra.albumName,
         )
     }
-    val playerPodcast = (player.playable as? com.music.audify.playback.PlayableMedia.Podcast)?.episode
     // The three-dot menu snapshots the track into songActions when it's opened,
     // so a menu opened before the lookup above resolves would otherwise be
     // stuck without album/artist rows even after the ids come in. Keep it in
@@ -2554,6 +2824,10 @@ private fun AudifyApp(
             accountName = account?.name,
             windowWidth = windowWidth,
             windowHeight = windowHeight,
+            // A canvas under the ⋯ menu holds still. Asked, not passed — see
+            // the parameter.
+            menuOpen = { songActions != null && menuFromPlayer && songMenuOrigin == null },
+            onLiveCanvasChanged = { playerLiveCanvas = it },
             isPlaying = player.isPlaying,
             isLoading = playPauseBusy,
             position = player.position,
@@ -2612,23 +2886,15 @@ private fun AudifyApp(
             hasPrevious = player.hasPrevious,
             hasNext = player.hasNext,
             repeatMode = player.repeatMode,
-            shuffleEnabled = shuffleEnabled && player.queueItems.none {
-                it is com.music.audify.playback.PlayableMedia.Podcast
-            },
-            autoplayEnabled = autoplayEnabled && player.queueItems.none {
-                it is com.music.audify.playback.PlayableMedia.Podcast
-            },
+            shuffleEnabled = shuffleEnabled,
+            autoplayEnabled = autoplayEnabled,
             signedIn = signedIn,
-            likeStatus = likeStatuses[song.videoId] ?: LikeStatus.INDIFFERENT,
-            onToggleLike = { viewModel.toggleLike(song.videoId, song) },
+            likeStatus = likeStatusOf(song),
+            onToggleLike = { toggleLikeOf(song) },
             // The service owns both the queue and the Shuffle state. Keeping
             // the toggle on that side prevents the UI from changing the icon
             // before its asynchronous reorder command has actually landed.
-            onToggleShuffle = {
-                if (player.queueItems.any { it is com.music.audify.playback.PlayableMedia.Podcast }) {
-                    showQueueNotice(resources.getString(R.string.podcast_music_controls_unsupported))
-                } else controller?.toggleShuffle()
-            },
+            onToggleShuffle = { controller?.toggleShuffle() },
             onCycleRepeat = {
                 controller?.let {
                     val next = when (it.repeatMode) {
@@ -2649,9 +2915,7 @@ private fun AudifyApp(
             onToggleAutoplay = {
                 // PlaybackService owns the setting and queue extension so
                 // this path and the notification use exactly one loader.
-                if (player.queueItems.any { it is com.music.audify.playback.PlayableMedia.Podcast }) {
-                    showQueueNotice(resources.getString(R.string.podcast_music_controls_unsupported))
-                } else controller?.toggleAutoplay()
+                controller?.toggleAutoplay()
             },
             onJumpTo = { index ->
                 controller?.let { c ->
@@ -2672,7 +2936,11 @@ private fun AudifyApp(
             onOpenMenu = {
                 menuFromPlayer = true
                 songMenuOrigin = null
+                songMenuAnchor = MenuAnchor.consume()
                 songActions = song
+                // Taken on the frame the menu opens on, which is long anyway,
+                // rather than on one of its spring's.
+                if (!AppSettings.reduceDynamicBlur.value && !playerLiveCanvas) playerBackdrop.capture()
             },
             // Pushed over whatever page is under the player, so back from it
             // returns there.
@@ -2701,7 +2969,7 @@ private fun AudifyApp(
                     viewModel.openDetail(
                         id,
                         name,
-                        artistLabel,
+                        context.getString(R.string.artist),
                         null,
                         BrowseType.ARTIST,
                     )
@@ -2712,14 +2980,14 @@ private fun AudifyApp(
                             viewModel.openDetail(
                                 found,
                                 name,
-                                artistLabel,
+                                context.getString(R.string.artist),
                                 null,
                                 BrowseType.ARTIST,
                             )
                         } else {
                             Toast.makeText(
                                 context,
-                                String.format(Locale.getDefault(), couldntFindFormat, name),
+                                context.getString(R.string.couldnt_find, name),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -2760,13 +3028,13 @@ private fun AudifyApp(
                         replayLandingPage = ReplayStoryPage.INTRO
                         navigator.push(AppRoute.Replay)
                     }
-                    PlaybackSourceType.EXPLORE -> selectedTab = TAB_EXPLORE
+                    PlaybackSourceType.EXPLORE -> selectedTab = TAB_SEARCH
                     PlaybackSourceType.SHARED_LINK -> {
                         val id = sourceId ?: return@openSource
                         context.startActivity(
                             Intent(
                                 Intent.ACTION_VIEW,
-                                "https://music.youtube.com/watch?v=$id".toUri(),
+                                Uri.parse("https://music.youtube.com/watch?v=$id"),
                             ),
                         )
                     }
@@ -2809,7 +3077,8 @@ private fun AudifyApp(
 
     Box(
         Modifier
-            .fillMaxSize(),
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
     ) {
         // A pushed page replaces the tab content but leaves the tab bar and
         // mini player in place.
@@ -2820,9 +3089,6 @@ private fun AudifyApp(
         // and dialog further down registers its own handler as it opens, and
         // so outranks all of these while it is up.
         BackHandler(enabled = canGoBack, onBack = goBack)
-        // An artist page's shelf opened in place: back folds it before it
-        // leaves the page. Only while that page is the one on screen.
-        BackHandler(enabled = detail != null && detailActiveShelf != null) { detailActiveShelf = null }
         // Replay's stories and its share sheet are drawn over everything, and
         // unwind in the order they were opened. Only while there is a summary
         // to draw them from — otherwise back would spend a step closing
@@ -2831,7 +3097,6 @@ private fun AudifyApp(
         BackHandler(enabled = replayDrawable && replayStory != null && !showReplayShare) { replayStory = null }
         BackHandler(enabled = replayDrawable && showReplayShare) { showReplayShare = false }
         BackHandler(enabled = showUpdateDialog) { showUpdateDialog = false }
-        BackHandler(enabled = showMigrationNotice) { dismissMigrationNotice() }
         BackHandler(enabled = showListenBrainzLogin) { showListenBrainzLogin = false }
         BackHandler(enabled = showLastfmLogin) { showLastfmLogin = false }
         BackHandler(enabled = discordDialog != null) { discordDialog = null }
@@ -2839,22 +3104,39 @@ private fun AudifyApp(
         BackHandler(enabled = editingPartyServer) { editingPartyServer = false }
         BackHandler(enabled = editingSignatureApi) { editingSignatureApi = false }
 
-        // One tab handler shared by the compact bottom bar and expanded rail.
-        val onTabSelected: (Int) -> Unit = { index ->
-            navigator.clear()
-            viewModel.closeMoodGenre()
-            if (index == 3) {
-                navigator.push(AppRoute.Settings)
-            } else {
-                selectedTab = index
-            }
-        }
-
-        // Navigation remains in the floating bottom chrome at every size and
-        // orientation; this row contains only the full-width page content.
-        SharedTransitionLayout {
-        Row(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f).fillMaxHeight()) {
+        // On a tablet the page and the player stand side by side rather than
+        // one over the other: everything a phone stacks in a single column —
+        // the feed, the frosted bars, the tab row — becomes the left half of
+        // a row, and the player is the right. Off a tablet the row has the
+        // one child it always had and changes nothing.
+        //
+        // Everything a page's menu floats over, and so what [pageBackdrop]
+        // takes its still of; the menus themselves are drawn outside it.
+        Row(
+            Modifier
+                .fillMaxSize()
+                // Not drawn while a portrait player fully covers it. On the
+                // page's own Row, so the player panel (a sibling) is not skipped.
+                .skipDrawWhenPlayerCovers(activeDock)
+                .snapshotBackdropSource(pageBackdrop),
+        ) {
+            CoverFlightHost(Modifier.weight(1f).fillMaxHeight(), overlay = false) {
+                // The page and the flying cover are one source for the glass: the
+                // bars sample both, so a cover passing under the nav bar or the
+                // mini player is blurred and refracted live, not only once it has
+                // landed and become part of the page.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .hazeSource(hazeState)
+                        .then(
+                            if (glassActive && glassSamplesBackdrop) {
+                                Modifier.layerBackdrop(appBackdrop)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                ) {
                 AnimatedContent(
                     // Whatever is on top of the back stack — see [AppNavigator].
                     targetState = when {
@@ -2865,21 +3147,25 @@ private fun AudifyApp(
                     // A route's entry is copied when the release pages under it
                     // change, which is not a different page.
                     contentKey = { it.key },
-                    // Tabs use a restrained directional drift instead of an
-                    // abrupt swap. Both pages remain composed over the same
-                    // surface, avoiding the dim flash a plain crossfade caused.
+                    // Tabs swap outright; everything else crossfades.
                     //
-                    // The bar carries the primary selection movement; the page
-                    // follows with a small 16dp drift and fade, not a competing
-                    // full-screen slide. Pushed routes keep their existing fade.
+                    // A tab is not a place you travel to — the bar is the whole
+                    // navigation and it carries its own movement — so a fade
+                    // between two of them only ever reads as a stutter. And it
+                    // cannot read as anything else: neither page paints a
+                    // background, so a crossfade dissolves both through to the
+                    // window and the switch dips through a dimmer frame in the
+                    // middle. Pushing a page or raising Settings is a real
+                    // change of context and keeps the fade.
                     //
                     // "Show all" swapping with the Library tab underneath it is
                     // the same case as a tab swap, not a pushed page: it's still
                     // that tab, just laid out as a grid instead of a row, sharing
                     // its background rather than painting its own — so this one
-                    // pair gets the same restrained directional transition in
-                    // both directions. A card opened *from* the grid is a real
-                    // page and keeps the standard context fade.
+                    // pair gets the tab's no-fade swap too, in both directions, or
+                    // the dip through a dim frame shows up on every hold of a
+                    // card there. A card opened *from* the grid is a real page
+                    // and keeps the fade, same as one opened from the row.
                     transitionSpec = {
                         val initial = initialState
                         val target = targetState
@@ -2889,49 +3175,24 @@ private fun AudifyApp(
                             (this as? AppDestination.Route)?.entry?.route is AppRoute.LibraryShowAll
                         val libraryShowAllSwap = (initial.isShowAll() && target == libraryTab) ||
                             (target.isShowAll() && initial == libraryTab)
+                        val releaseMove = initial is AppDestination.Release || target is AppDestination.Release
                         if (tabSwap || libraryShowAllSwap) {
-                            if (reducePlayerMotion) {
-                                EnterTransition.None togetherWith ExitTransition.None
-                            } else {
-                                val forward = when {
-                                    tabSwap -> (target as AppDestination.Tab).index >= (initial as AppDestination.Tab).index
-                                    else -> target.isShowAll()
-                                }
-                                val direction = if (forward) 1 else -1
-                                (fadeIn(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
-                                    slideInHorizontally(
-                                        animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
-                                    ) { direction * (it / 28) }) togetherWith
-                                    (fadeOut(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
-                                        slideOutHorizontally(
-                                            animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
-                                        ) { -direction * (it / 28) })
-                            }
+                            EnterTransition.None togetherWith ExitTransition.None
+                        } else if (releaseMove) {
+                            // A release page brings its own colour: let it come in over
+                            // the cover's flight instead of snapping, while the page it
+                            // replaces clears a little faster so the two don't ghost.
+                            fadeIn(tween(620, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) togetherWith
+                                fadeOut(tween(340))
                         } else {
-                            if (reducePlayerMotion) {
-                                EnterTransition.None togetherWith ExitTransition.None
-                            } else {
-                                fadeIn(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING)) togetherWith
-                                    fadeOut(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING))
-                            }
+                            fadeIn(tween(180)) togetherWith fadeOut(tween(180))
                         }
                     },
                     modifier = Modifier
-                        .hazeSource(hazeState)
+                        .nestedScroll(pageScrollConnection)
                         .then(
-                            if (glassActive) {
+                            if (glassActive && !glassPreviewPage) {
                                 Modifier
-                                    // Not under "reduce dynamic blur": nothing
-                                    // samples the layer then, and recording a
-                                    // whole page into one for no reader is the
-                                    // cost that setting exists to remove.
-                                    .then(
-                                        if (glassSamplesBackdrop) {
-                                            Modifier.layerBackdrop(appBackdrop)
-                                        } else {
-                                            Modifier
-                                        },
-                                    )
                                     // Every page's scroll passes through here, so
                                     // the glass bar collapses on all of them
                                     // without each one having to know about it.
@@ -2939,14 +3200,13 @@ private fun AudifyApp(
                             } else {
                                 Modifier
                             },
-                        ),
+                        )
+                        // Innermost, so the haze and backdrop sources record the
+                        // page as it is drawn, and the bars (siblings) stay put:
+                        // the mini player's rect is what the panel grows from.
+                        .recedeBehindPlayer(activeDock),
                     label = "content",
                 ) { destination ->
-                    val artworkTransitionContext = ArtworkTransitionContext(
-                        sharedScope = this@SharedTransitionLayout,
-                        visibilityScope = this@AnimatedContent,
-                        reduceMotion = reducePlayerMotion,
-                    )
                     // Every branch below reads `destination` rather than the
                     // stack that produced it. The two are the same thing only
                     // for the page being entered: the one on its way out is
@@ -2954,6 +3214,10 @@ private fun AudifyApp(
                     // redraw itself as its own replacement — which then fades
                     // out from under the identical copy fading in behind it.
                     val key = destination.key
+                    LaunchedEffect(key) {
+                        pageScrollHolder.key = key
+                        pageScroll.floatValue = pageScrollByKey[key] ?: 0f
+                    }
                     val pageRoute = (destination as? AppDestination.Route)?.entry?.route
                     val live = (destination as? AppDestination.Release)?.let { release ->
                         detailStack.lastOrNull()?.takeIf { it.browseId == release.browseId }
@@ -2982,7 +3246,10 @@ private fun AudifyApp(
                                 onSongClick = { songs, index ->
                                     playFrom(songs, index, QueueSource(historyLabel, PlaybackSourceType.HISTORY))
                                 },
-                                onSongLongPress = openSongMenu,
+                                onSongLongPress = { song ->
+                                    menuFromHistory = true
+                                    openSongMenu(song)
+                                },
                                 onSongSwipe = onSongSwipe,
                                 onRetry = viewModel::loadHistory,
                                 contentPadding = listPadding,
@@ -3004,6 +3271,12 @@ private fun AudifyApp(
                                     contentPadding = listPadding,
                                 )
                             }
+                        } else if (pageRoute == AppRoute.Moods) {
+                            MoodGridPage(
+                                gridState = moodsGridState,
+                                onClick = playMood,
+                                contentPadding = listPadding,
+                            )
                         } else if (pageRoute == AppRoute.Replay) {
                             ReplayScreen(
                                 state = replay,
@@ -3033,7 +3306,7 @@ private fun AudifyApp(
                                 landingPage = replayLandingPage,
                             )
                         } else if (pageRoute == AppRoute.SmartPlaylists) {
-                            SmartPlaylistsScreen(
+                            com.music.audify.ui.screens.SmartPlaylistsScreen(
                                 contentPadding = listPadding,
                                 onPlaySongs = { title, songs, index ->
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
@@ -3048,10 +3321,13 @@ private fun AudifyApp(
                                     val activeController = controller
                                     if (activeController == null) {
                                         Toast.makeText(context, "Player is still connecting. Try again in a moment.", Toast.LENGTH_SHORT).show()
-                                        android.util.Log.w("Audify", "Podcast play requested before MediaController connected: ${episode.stableId}")
                                     } else {
                                         scope.launch {
-                                            runCatching { activeController.playMediaItems(listOf(item), 0) }
+                                            runCatching {
+                                                activeController.setMediaItems(listOf(item), 0, 0L)
+                                                activeController.prepare()
+                                                activeController.play()
+                                            }
                                                 .onFailure { error ->
                                                     android.util.Log.e("Audify", "Could not hand podcast episode to playback service: ${episode.stableId}", error)
                                                     Toast.makeText(context, error.message ?: "Could not start podcast playback", Toast.LENGTH_LONG).show()
@@ -3074,7 +3350,7 @@ private fun AudifyApp(
                                     viewModel.openDetail(
                                         browseId = SPOTIFY_PAGE_PREFIX + playlist.id,
                                         title = playlist.name,
-                                        subtitle = playlist.owner ?: spotifyLabel,
+                                        subtitle = playlist.owner ?: context.getString(R.string.spotify),
                                         thumbnailUrl = playlist.imageUrl,
                                         type = BrowseType.PLAYLIST,
                                     )
@@ -3112,6 +3388,8 @@ private fun AudifyApp(
                                 onOpenSpotify = { navigator.push(AppRoute.Spotify) },
                                 contentPadding = listPadding,
                             )
+                        } else if (pageRoute == AppRoute.WearOs) {
+                            WearOsScreen(contentPadding = listPadding)
                         } else if (pageRoute == AppRoute.Sources) {
                             SourcesScreen(
                                 contentPadding = listPadding,
@@ -3120,8 +3398,11 @@ private fun AudifyApp(
                                 onEditSmb = { showSmbEditor = true },
                                 onConfirmJioSaavn = { confirmJioSaavn = true },
                             )
-                        } else if (pageRoute == AppRoute.WearOs) {
-                            WearOsScreen(contentPadding = listPadding)
+                        } else if (pageRoute == AppRoute.Downloads) {
+                            DownloadManagerPage(
+                                onCleared = { navigator.pop() },
+                                contentPadding = listPadding,
+                            )
                         } else if (pageRoute == AppRoute.ListenTogether) {
                             ListenTogetherScreen(
                                 signedIn = signedIn,
@@ -3139,22 +3420,31 @@ private fun AudifyApp(
                                 onEditServer = { editingPartyServer = true },
                             )
                         } else if (pageRoute == AppRoute.Equalizer) {
-                            EqualizerScreen(contentPadding = listPadding)
-                        } else if (pageRoute == AppRoute.Profile) {
-                            val activeProfile = googleAccounts.firstOrNull { it.accountId == activeAccountId }
-                                ?.profiles?.firstOrNull { it.profileId == activeProfileId }
-                                ?: googleAccounts.firstOrNull { it.accountId == activeAccountId }?.profiles?.firstOrNull()
-                            ProfileScreen(
-                                name = activeProfile?.name?.takeIf { it.isNotBlank() }
-                                    ?: account?.name?.takeIf { it.isNotBlank() }
-                                    ?: ListenTogether.nickname().ifBlank { "Your profile" },
-                                avatarUrl = activeProfile?.avatar,
+                            EqualizerScreen(
+                                contentPadding = listPadding,
+                                onOpenPresets = { navigator.push(AppRoute.EqualizerPresets) },
+                            )
+                        } else if (pageRoute == AppRoute.EqualizerPresets) {
+                            EqualizerPresetPage(
+                                onChosen = { navigator.pop() },
                                 contentPadding = listPadding,
                             )
-                        } else if (pageRoute == AppRoute.Settings) {
+                        } else if (pageRoute is AppRoute.SettingsChoice) {
+                            SettingsChoicePage(
+                                choice = pageRoute.choice,
+                                onChosen = { navigator.pop() },
+                                onConfirmBitPerfect = { confirmBitPerfect = it },
+                                onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
+                                contentPadding = listPadding,
+                            )
+                        } else if (pageRoute == AppRoute.Settings || pageRoute is AppRoute.SettingsSection) {
+                            // The main page and every category's page are the
+                            // one screen, each showing its own share of the rows.
                             SettingsScreen(
+                                section = (pageRoute as? AppRoute.SettingsSection)?.category,
+                                onOpenSection = { navigator.push(AppRoute.SettingsSection(it)) },
+                                onOpenChoice = { navigator.push(AppRoute.SettingsChoice(it)) },
                                 windowWidth = windowWidth,
-                                windowHeight = windowHeight,
                                 signedIn = signedIn,
                                 account = account,
                                 onSignIn = {
@@ -3168,33 +3458,33 @@ private fun AudifyApp(
                                     replayLandingPage = ReplayStoryPage.INTRO
                                     navigator.push(AppRoute.Replay)
                                 },
-                                onReplayOnboarding = {
-                                    AppSettings.replayOnboarding()
-                                    navigator.clear()
+                                onWearOs = { navigator.push(AppRoute.WearOs) },
+                                youtubeSyncStatus = youtubeSyncStatus,
+                                onRefreshYouTubeSync = {
+                                    scope.launch {
+                                        val accountId = viewModel.activeAccountId.value
+                                        val profileId = viewModel.activeProfileId.value
+                                        youtubeSyncStatus = if (accountId == null || profileId == null) {
+                                            "Sign in to view sync status."
+                                        } else {
+                                            runCatching {
+                                                LocalFirstRepository.initialize(context)
+                                                LocalFirstRepository.syncStatusText(accountId, profileId)
+                                            }
+                                                .getOrElse { "Sync status unavailable: ${it.message ?: "unknown error"}" }
+                                        }
+                                    }
                                 },
                                 onLyricsSources = { showLyricsSources = true },
                                 onTranslationLanguage = { showTranslationLanguage = true },
                                 onSources = { navigator.push(AppRoute.Sources) },
                                 onListenTogether = { navigator.push(AppRoute.ListenTogether) },
-                                onWearOs = { navigator.push(AppRoute.WearOs) },
                                 onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                                 onAppLanguage = { showAppLanguage = true },
+                                onCustomizeHome = { showHomeLayout = true },
                                 onEditSignatureApi = { editingSignatureApi = true },
-                                latestRelease = latestRelease,
-                                updateCheckInProgress = updateCheckInProgress,
-                                onCheckForUpdates = {
-                                    scope.launch {
-                                        if (AppUpdateChecker.check() == null) {
-                                            Toast.makeText(
-                                                context,
-                                                R.string.update_check_failed,
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                        }
-                                    }
-                                },
-                                onDownloadLatest = { showUpdateDialog = updateAvailable != null },
-                                onCategoryBackHandlerChanged = { settingsCategoryBackHandler = it },
+                                onConfirmBitPerfect = { confirmBitPerfect = it },
+                                onConfirmFixedVolume = { confirmFixedVolume = true },
                                 contentPadding = listPadding,
                             )
                         } else if (page != null) {
@@ -3205,6 +3495,10 @@ private fun AudifyApp(
                             val folder = if (page.browseId.isDeviceFolder()) {
                                 val isDownloads = page.browseId == "local:downloads"
                                 val isCache = page.browseId == CACHE_FOLDER_BROWSE_ID
+                                // The whole device: the one folder that is an offline
+                                // player in its own right, with playlists of its own
+                                // and the directories the files are kept in.
+                                val isDevice = page.browseId == "local:all"
                                 val folderSongs = (page.songs as? UiState.Success)?.data.orEmpty()
                                 // Only the Downloads folder has releases behind it: Local
                                 // Music is files this app never asked for, so there is
@@ -3253,6 +3547,9 @@ private fun AudifyApp(
                                     },
                                     onDownload = if (isCache) downloadFromCache else null,
                                     onRemoveFromCache = if (isCache) removeFromCache else null,
+                                    tabs = if (isDevice) LocalFolderTab.DEVICE else LocalFolderTab.BASIC,
+                                    playlists = if (isDevice) offlinePlaylistGroups else emptyList(),
+                                    onCreatePlaylist = if (isDevice) ({ creatingOfflinePlaylist = true }) else null,
                                 )
                             } else {
                                 null
@@ -3318,20 +3615,22 @@ private fun AudifyApp(
                             }
                             // This page's songs being rearranged, drawn in place of its list.
                             val reordering = reorderTarget?.takeIf { it.browseId == page.browseId }
-                            CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
-DetailScreen(
+                            LaunchedEffect(page.browseId) { viewModel.resolvePlaylistOwnership(page.browseId) }
+                            DetailScreen(
                                 page = page,
                                 currentSong = player.song,
                                 isPlaying = player.isPlaying,
                                 listState = pageDetailListState,
                                 activeShelf = detailActiveShelf,
-                                onActiveShelfChange = { detailActiveShelf = it },
+                                onActiveShelfChange = { shelf ->
+                                    if (shelf != null) navigator.push(AppRoute.ArtistShelf(page.browseId, shelf))
+                                    else navigator.pop()
+                                },
                                 // Album/playlist playback hands the page snapshot to
                                 // the service, which then owns continuation loading.
                                 onSongClick = ::playDetailSongs,
                                 onSongLongPress = { openSongMenu(withAlbum(it)) },
                                 onSongSwipe = { onSongSwipe(withAlbum(it)) },
-                                onRetry = viewModel::retryDetail,
                                 onShuffle = { songs ->
                                     if (songs.isNotEmpty()) {
                                         // Shuffle goes on first so the queue is built shuffled
@@ -3342,18 +3641,23 @@ DetailScreen(
                                     }
                                 },
                                 onSectionItemClick = { item ->
-                                    item.browseId?.let { id ->
-                                        viewModel.openDetail(
-                                            browseId = id,
-                                            title = item.title,
-                                            subtitle = item.subtitle,
-                                            thumbnailUrl = item.thumbnailUrl,
-                                            type = BrowseType.ALBUM,
-                                            isExplicit = item.isExplicit,
-                                        )
+                                    val video = shelfSong(item)?.takeIf { item.browseId == null }
+                                    if (video != null) {
+                                        // An artist's Videos shelf plays, from the page it is on.
+                                        playRadio(video, QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId))
+                                    } else {
+                                        item.browseId?.let { id ->
+                                            viewModel.openDetail(
+                                                browseId = id,
+                                                title = item.title,
+                                                subtitle = item.subtitle,
+                                                thumbnailUrl = item.thumbnailUrl,
+                                                type = BrowseType.ALBUM,
+                                            )
+                                        }
                                     }
                                 },
-                                onSectionItemLongPress = onBrowseLongPress,
+                                onSectionItemLongPress = onShelfLongPress,
                                 // Only the page on its way in answers to the bar's
                                 // search button; one fading out keeps its list whole.
                                 searching = detailSearching && page.browseId == detail?.browseId,
@@ -3362,6 +3666,35 @@ DetailScreen(
                                     viewModel.openDetail(id, name, "Artist", null, BrowseType.ARTIST)
                                 },
                                 onAddSuggested = { song -> viewModel.addSuggestedSong(page.browseId, song) },
+                                onAddSongs = if (localPlaylists.any { it.browseId == page.browseId }) {
+                                    {
+                                        // Kept on this device: same popup, picks go to the local store.
+                                        addSongsPlaylist = localPlaylists.firstOrNull { it.browseId == page.browseId }
+                                            ?.let { lp ->
+                                                UserPlaylist(
+                                                    playlistId = lp.id,
+                                                    title = page.title,
+                                                    subtitle = "",
+                                                    thumbnailUrl = lp.coverUrl ?: page.thumbnailUrl,
+                                                )
+                                            }
+                                    }
+                                } else if (signedIn &&
+                                    page.type == BrowseType.PLAYLIST &&
+                                    ownedPlaylistPages[page.browseId] == true
+                                ) {
+                                    {
+                                        addSongsPlaylist = playlists.firstOrNull { it.browseId == page.browseId }
+                                            ?: UserPlaylist(
+                                                playlistId = page.browseId.removePrefix("VL"),
+                                                title = page.title,
+                                                subtitle = "",
+                                                thumbnailUrl = page.thumbnailUrl,
+                                            )
+                                    }
+                                } else {
+                                    null
+                                },
                                 // Saving is an account action, so it isn't offered to a
                                 // guest at all — same as the like and add-to-playlist rows
                                 // in the track menu.
@@ -3404,7 +3737,11 @@ DetailScreen(
                                                 reorderSaving = true
                                                 viewModel.reorderPlaylist(reordering, original, reordered) { saved ->
                                                     reorderSaving = false
-                                                    showQueueNotice(if (saved) playlistReorderedMessage else reorderFailedMessage)
+                                                    showQueueNotice(
+                                                        context.getString(
+                                                            if (saved) R.string.playlist_reordered else R.string.reorder_failed,
+                                                        ),
+                                                    )
                                                     if (saved && reorderTarget == reordering) reorderTarget = null
                                                 }
                                             },
@@ -3414,21 +3751,15 @@ DetailScreen(
                                     null
                                 },
                             )
-                    }
                         } else when ((destination as? AppDestination.Tab)?.index ?: selectedTab) {
-                            TAB_HOME -> CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
-HomeScreen(
-                                state = homeState,
+                            TAB_HOME -> HomeScreen(
+                                state = visibleHomeState,
                                 listState = homeListState,
                                 currentSong = player.song,
                                 isPlaying = player.isPlaying,
-                                title = stringResource(R.string.listen_now),
+                                title = stringResource(if (hideHomeBranding) R.string.home else R.string.listen_now),
+                                hideBranding = hideHomeBranding,
                                 signedIn = signedIn,
-                                userName = ListenTogether.nickname().ifBlank { account?.name.orEmpty() },
-                                profileThumbnailUrl = account?.thumbnailUrl,
-                                greetingMorning = stringResource(R.string.good_morning),
-                                greetingAfternoon = stringResource(R.string.good_afternoon),
-                                greetingEvening = stringResource(R.string.good_evening),
                                 onSignIn = { webSession = WebSessionMode.SIGN_IN },
                                 onItemClick = { item, shelfTitle ->
                                     val song = shelfSong(item)
@@ -3446,7 +3777,6 @@ HomeScreen(
                                             title = item.title,
                                             subtitle = item.subtitle,
                                             thumbnailUrl = item.thumbnailUrl,
-                                            isExplicit = item.isExplicit,
                                         )
                                     }
                                 },
@@ -3456,64 +3786,80 @@ HomeScreen(
                                 onRefresh = { viewModel.refresh(MainViewModel.Feed.HOME) },
                                 pullState = homePull,
                                 contentPadding = listPadding,
-                                recentlyPlayedLoading = homeRecentlyPlayedLoading,
                                 onLoadMore = viewModel::loadMoreHome,
                                 loadingMore = homeLoadingMore,
-                                timeAwareShelf = timeAwareShelf,
-                                onSearchClick = {
-                                    navigator.clear()
-                                    viewModel.closeMoodGenre()
-                                    viewModel.onQueryChange("")
-                                    selectedTab = TAB_SEARCH
-                                    searchFocusRequested = true
-                                },
-                                onCastClick = {
-                                    showHomeCastDialog = true
-                                },
-                                onProfileClick = {
-                                    navigator.push(AppRoute.Profile)
-                                },
-                                onMoodClick = { mood ->
-                                    val categories = (exploreState as? UiState.Success)?.data.orEmpty()
-                                        .flatMap { it.items }
-                                    val terms = when (mood) {
-                                        "Energy" -> listOf("energy", "energ", "upbeat")
-                                        "Relax" -> listOf("relax", "chill", "calm")
-                                        "Feeling Blue" -> listOf("feeling blue", "sad", "melancholy", "blue")
-                                        "Feel Good" -> listOf("feel good", "happy", "good mood", "feel-good")
-                                        "Focus" -> listOf("focus", "concentration", "study")
-                                        "Heartbreak" -> listOf("heartbreak", "breakup", "broken heart")
-                                        "Love" -> listOf("love", "romance", "romantic")
-                                        else -> listOf(mood.lowercase())
-                                    }
-                                    val category = categories.firstOrNull { item ->
-                                        terms.any { term -> item.title.contains(term, ignoreCase = true) }
-                                    }
-                                    navigator.clear()
-                                    if (category != null) {
-                                        selectedTab = TAB_EXPLORE
-                                        viewModel.openMoodGenre(category)
+                                recentlyPlayedLoading = homeRecentlyPlayedLoading && !hideHomeRecents,
+                                topPicks = topPicks,
+                                topPicksLoading = topPicksLoading,
+                                listenerName = account?.name,
+                                onTopPickClick = { pick: TopPick, label: String ->
+                                    if (pick.kind == TopPickKind.MOOD) {
+                                        navigator.push(AppRoute.Moods)
                                     } else {
-                                        viewModel.closeMoodGenre()
-                                        viewModel.onQueryChange("")
-                                        selectedTab = TAB_SEARCH
-                                        viewModel.searchFor("$mood music")
+                                        openTopPick(pick, label)
                                     }
-                                },
-                                onListenTogetherClick = { navigator.push(AppRoute.ListenTogether) },
-                                onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
-                                onPlayAllQuickPicks = { shelf ->
-                                    val songs = shelf.items.mapNotNull(shelfSong).map { song ->
-                                        song.copy(
-                                            playbackSource = shelf.title,
-                                            playbackSourceType = PlaybackSourceType.HOME,
+                                    Unit
+                                }.takeUnless { hideHomeTopPicks },
+                                onMoodClick = playMood.takeUnless { hideHomeMoods },
+                                onMoodsShowAll = { navigator.push(AppRoute.Moods) },
+                                homeLayout = homeLayout,
+                                timeAwareShelf = timeAwareShelf,
+                                weeklyRecap = weeklyRecap,
+                                onWeeklyRecapClick = {
+                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekKey)
+                                    replayLandingPage = ReplayStoryPage.INTRO
+                                    navigator.push(AppRoute.Replay)
+                                }.takeIf { weeklyRecap != null },
+                                onWeeklyRecapDismiss = {
+                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekKey)
+                                }.takeIf { weeklyRecap != null },
+                                onPlaySongs = { songs -> play(songs, 0) },
+                                artworkMotion = artworkMotion,
+                                onTopPickLongPress = { pick ->
+                                    pick.browseId?.let { browseId ->
+                                        onShelfLongPress(
+                                            ShelfItem(
+                                                title = pick.title,
+                                                subtitle = pick.artistName.orEmpty(),
+                                                thumbnailUrl = pick.images.firstOrNull(),
+                                                videoId = null,
+                                                browseId = browseId,
+                                            ),
                                         )
                                     }
-                                    if (songs.isNotEmpty()) play(songs, 0)
                                 },
+                                onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
                             )
-                    }
-                            TAB_EXPLORE -> selectedMoodGenre?.let { category ->
+                            TAB_EXPLORE -> ExploreScreen(
+                                chartsState = exploreCharts,
+                                listState = exploreListState,
+                                onRetry = viewModel::loadExplore,
+                                homeState = homeState,
+                                currentSong = player.song,
+                                isPlaying = player.isPlaying,
+                                onShelfItemClick = { item, shelfTitle ->
+                                    val song = shelfSong(item)
+                                    val browseId = item.browseId
+                                    when {
+                                        song != null -> playRadio(
+                                            song,
+                                            QueueSource(shelfTitle, PlaybackSourceType.HOME),
+                                        )
+                                        browseId != null -> viewModel.openDetail(
+                                            browseId = browseId,
+                                            title = item.title,
+                                            subtitle = item.subtitle,
+                                            thumbnailUrl = item.thumbnailUrl,
+                                        )
+                                    }
+                                },
+                                onShelfItemLongPress = onShelfLongPress,
+                                refreshing = MainViewModel.Feed.EXPLORE in refreshing,
+                                onRefresh = { viewModel.refresh(MainViewModel.Feed.EXPLORE) },
+                                pullState = explorePull,
+                                contentPadding = listPadding,
+                            )
+                            TAB_SEARCH -> selectedMoodGenre?.let { category ->
                                 MoodGenrePlaylistsScreen(
                                     title = category.title,
                                     state = moodGenreShelves,
@@ -3526,6 +3872,7 @@ HomeScreen(
                                                     title = item.title,
                                                     artist = InnertubeParser.artistFromSubtitle(item.subtitle),
                                                     thumbnailUrl = item.thumbnailUrl,
+                                                    isVideo = item.isVideo,
                                                 ),
                                                 QueueSource(
                                                     category.title,
@@ -3539,25 +3886,13 @@ HomeScreen(
                                                 title = item.title,
                                                 subtitle = item.subtitle,
                                                 thumbnailUrl = item.thumbnailUrl,
-                                                isExplicit = item.isExplicit,
                                             )
                                         }
                                     },
                                     onRetry = { viewModel.openMoodGenre(category) },
                                     contentPadding = listPadding,
                                 )
-                            } ?: ExploreScreen(
-                                state = exploreState,
-                                listState = exploreListState,
-                                onCategoryClick = viewModel::openMoodGenre,
-                                onRetry = viewModel::loadExplore,
-                                refreshing = MainViewModel.Feed.EXPLORE in refreshing,
-                                onRefresh = { viewModel.refresh(MainViewModel.Feed.EXPLORE) },
-                                pullState = explorePull,
-                                contentPadding = listPadding,
-                            )
-                            TAB_SEARCH -> CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
-SearchScreen(
+                            } ?: SearchScreen(
                                 query = query,
                                 onQueryChange = viewModel::onQueryChange,
                                 filter = filter,
@@ -3618,28 +3953,16 @@ SearchScreen(
                                             BrowseType.ALBUM -> EntityType.ALBUM
                                             BrowseType.ARTIST -> EntityType.ARTIST
                                             BrowseType.PLAYLIST -> EntityType.PLAYLIST
-                                            else -> EntityType.TRACK
+                                            BrowseType.PODCAST, BrowseType.OTHER -> EntityType.OTHER
                                         },
                                     ))
-                                    if (item.type == BrowseType.PODCAST) {
-                                        navigator.push(AppRoute.Podcasts(
-                                            com.music.audify.data.model.PodcastProviderShow(
-                                                browseId = item.browseId,
-                                                title = item.title,
-                                                subtitle = item.subtitle,
-                                                thumbnailUrl = item.thumbnailUrl,
-                                            ),
-                                        ))
-                                    } else {
-                                        viewModel.openDetail(
-                                            browseId = item.browseId,
-                                            title = item.title,
-                                            subtitle = item.subtitle,
-                                            thumbnailUrl = item.thumbnailUrl,
-                                            type = item.type,
-                                            isExplicit = item.isExplicit,
-                                        )
-                                    }
+                                    viewModel.openDetail(
+                                        browseId = item.browseId,
+                                        title = item.title,
+                                        subtitle = item.subtitle,
+                                        thumbnailUrl = item.thumbnailUrl,
+                                        type = item.type,
+                                    )
                                 },
                                 onBrowseLongPress = { item ->
                                     // A search row does say what it is, so its own type is
@@ -3661,7 +3984,6 @@ SearchScreen(
                                 suggestions = searchSuggestions,
                                 typeaheadResults = viewModel.typeaheadResults.collectAsStateWithLifecycle().value,
                                 onSubmit = viewModel::submitSearch,
-                                onRetryLibrary = viewModel::loadLibrarySongs,
                                 // Suggestions land in search history via searchFor → recordSearch.
                                 // History items (onHistoryClick) navigate/play without re-logging.
                                 onSuggestionClick = viewModel::searchFor,
@@ -3682,7 +4004,7 @@ SearchScreen(
                                                 QueueSource(entity.title, PlaybackSourceType.SEARCH),
                                             )
                                         }
-                                        EntityType.ALBUM, EntityType.ARTIST, EntityType.PLAYLIST -> {
+                                        EntityType.ALBUM, EntityType.ARTIST, EntityType.PLAYLIST, EntityType.OTHER -> {
                                             viewModel.openDetail(
                                                 browseId = entity.id,
                                                 title = entity.title,
@@ -3696,9 +4018,28 @@ SearchScreen(
                                 onHistoryClear = viewModel::clearSearchHistory,
                                 onTypeaheadLongPress = openSongMenu,
                                 contentPadding = listPadding,
-                                topPadding = topBarContentPadding(),
-                                // The field is in the top bar; see the bar's accessory.
+                                // Snug under the bar rather than a page's breathing
+                                // gap below it: the field is in the bar (see the bar's
+                                // accessory), so what comes next is the field's own
+                                // suggestions and filters, and a gap reads as a break.
+                                topPadding = topBarHeight() + 4.dp,
                                 showField = false,
+                                listModifier = if (glassSamplesBackdrop) {
+                                    Modifier.layerBackdrop(searchBackdrop)
+                                } else {
+                                    Modifier
+                                },
+                                headerModifier = if (glassSamplesBackdrop) {
+                                    Modifier.drawPlainBackdrop(
+                                        backdrop = searchBackdrop,
+                                        shape = { androidx.compose.ui.graphics.RectangleShape },
+                                        effects = { blur(24.dp.toPx()) },
+                                        onDrawSurface = { drawRect(searchHeaderTint) },
+                                    )
+                                } else {
+                                    Modifier
+                                },
+
                                 // The settings page's own two-state selector, so the
                                 // app has one look for "pick one of these".
                                 sourceSwitcher = {
@@ -3712,11 +4053,20 @@ SearchScreen(
                                         onSelect = { index -> onSearchSourceChange(SearchSource.entries[index]) },
                                     )
                                 },
+                                exploreState = exploreState,
+                                onCategoryClick = viewModel::openMoodGenre,
+                                onExploreRetry = viewModel::loadExplore,
+                                fieldFocused = searchFieldFocused,
                                 searchingLibrary = searchSource == SearchSource.LIBRARY,
                                 libraryResults = libraryResults,
                                 searchingAddons = searchSource == SearchSource.ADDONS,
                                 addonResults = addonResults,
-                                addonHistory = viewModel.addonSearchHistory.collectAsStateWithLifecycle().value,
+                                isBlocked = { song ->
+                                    val configId = SourceRegistry.parseTrackKey(song.videoId)?.first
+                                    !SourceRegistry.permitsForPlayback(configId, addonCeiling)
+                                },
+                                onBlockedSongClick = { song -> blockedAddonSong = song },
+                                addonHistory =viewModel.addonSearchHistory.collectAsStateWithLifecycle().value,
                                 onAddonHistoryClick = { term ->
                                     viewModel.onQueryChange(term)
                                     viewModel.submitSearch()
@@ -3731,13 +4081,13 @@ SearchScreen(
                                         index,
                                         if (searchSource == SearchSource.ADDONS) {
                                             QueueSource(
-                                                searchSourceAddonsLabel,
+                                                context.getString(R.string.search_source_addons),
                                                 PlaybackSourceType.BROWSE,
                                                 "addons:search",
                                             )
                                         } else {
                                             QueueSource(
-                                                localMusicLabel,
+                                                context.getString(R.string.local_music),
                                                 PlaybackSourceType.BROWSE,
                                                 "local:all",
                                             )
@@ -3745,9 +4095,7 @@ SearchScreen(
                                     )
                                 },
                             )
-                    }
-                            else -> CompositionLocalProvider(LocalArtworkTransition provides artworkTransitionContext) {
-LibraryScreen(
+                            else -> LibraryScreen(
                                 signedIn = signedIn,
                                 state = libraryState,
                                 listState = libraryListState,
@@ -3776,24 +4124,42 @@ LibraryScreen(
                                 onRefresh = { viewModel.refresh(MainViewModel.Feed.LIBRARY) },
                                 pullState = libraryPull,
                                 contentPadding = listPadding,
-                                links = libraryLinks(),
+                                links = libraryLinks(signedIn),
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
-                                deviceEmptyText = stringResource(R.string.on_device_empty),
+                                pinnedExtraItems = spotifyPinnedItems,
+                                artistsRow = libraryArtistsRow,
+                                onArtistsRowChange = AppSettings::setLibraryArtistsRow,
+                                layout = libraryLayout,
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
                             )
-                            }
                         }
                     }
                     // A pushed page keeps its saved state — a scroll position,
                     // a search typed into Settings — for as long as it is on
                     // the stack, so coming back to it finds it as it was left.
                     // Tabs keep theirs hoisted above, as they always have.
-                    if (destination is AppDestination.Tab) {
-                        pageContent()
-                    } else {
-                        pageKeysSeen += key
-                        pageStates.SaveableStateProvider(key, pageContent)
+                    //
+                    // The playing bars hold still with the player up, the app in
+                    // the background, or this page on its way out: each frame of
+                    // them redraws the page under the glass, for nobody.
+                    val barsMotion = artworkMotion && transition.targetState == EnterExitState.Visible
+                    CompositionLocalProvider(
+                        LocalPlayingBarsMotion provides barsMotion,
+                        LocalCoverVisibilityScope provides this@AnimatedContent,
+                    ) {
+                        if (destination is AppDestination.Tab) {
+                            pageContent()
+                        } else {
+                            pageKeysSeen += key
+                            pageStates.SaveableStateProvider(key, pageContent)
+                        }
                     }
+                }
+
+                // The flying cover goes over the page but under the bars, so it
+                // never rides above the tab bar or the mini player. Inside the
+                // glass source above, so the bars see it while it flies.
+                CoverFlightLayer()
                 }
 
                 // The top-bar footprint is transparent on every page so the
@@ -3809,12 +4175,15 @@ LibraryScreen(
                 } else {
                     MaterialTheme.colorScheme.background
                 }
-                // This is the bottom floor itself turned upside down, not a
-                // separately maintained approximation. Both edges therefore
-                // share the same curve, height and page-aware colour — including
-                // the white theme background in light mode.
+                // Apple's scroll edge: what passes up under the status bar and the
+                // controls is blurred — hardest at the top, none just below the
+                // controls — rather than faded out to the page colour. It is a
+                // Liquid Glass option: with glass off, the Progressive Blur setting
+                // off, or under reduce dynamic blur, the bottom floor's own fade
+                // stands in, turned upside down, so both edges share its curve
+                // and colour.
                 // On an artist page the photograph and logo run up under the status
-                // bar, and a fade across them would only muddy them. It comes in as
+                // bar, and either across them would only muddy them. It comes in as
                 // the page scrolls past that header, when content starts passing
                 // under the bar and needs the cover.
                 //
@@ -3825,88 +4194,80 @@ LibraryScreen(
                 val artistListState = detail
                     ?.takeIf { isDetailVisible && it.type == BrowseType.ARTIST }
                     ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
-                // A playlist sleeve starts below the floating bar. Keep the top
-                // fade off until scrolling carries that sleeve up to the bar;
-                // otherwise the opaque end of the scrim washes out its top edge
-                // even before the user has moved the page.
-                val playlistListState = detail
-                    ?.takeIf { isDetailVisible && it.type == BrowseType.PLAYLIST }
-                    ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
                 val homeHeadingVisible = route == null && detail == null && selectedTab == TAB_HOME
-                val headerListState = artistListState ?: playlistListState ?: homeListState.takeIf { homeHeadingVisible }
+                val headerListState = artistListState ?: homeListState.takeIf { homeHeadingVisible }
+                // Header (foto profil + pill) turun/naik antara posisi Home dan tab lain
+                // dengan spring sedikit membal, bukan loncat saat tab berpindah.
+                val homeHeaderBlend = animateFloatAsState(
+                    targetValue = if (homeHeadingVisible) 1f else 0f,
+                    animationSpec = androidx.compose.animation.core.spring(
+                        dampingRatio = 0.5f,
+                        stiffness = 260f,
+                    ),
+                    label = "homeHeaderBlend",
+                )
                 val fadeStart = if (artistListState != null) TOP_FADE_START else 0f
-                val fadeRamp = if (artistListState != null || playlistListState != null) TOP_FADE_RAMP else 1f
-                val playlistFadeStartPx = with(LocalDensity.current) { TopBarContentGap.toPx() }
-                val topFadeAlpha by remember(headerListState, fadeStart, fadeRamp, playlistListState, playlistFadeStartPx) {
+                val fadeRamp = if (artistListState != null) TOP_FADE_RAMP else 1f
+                val topFadeAlpha by remember(headerListState, fadeStart, fadeRamp) {
                     derivedStateOf {
-                        // Pages without a tracked collapsing header (Settings and
-                        // pushed utility screens, for example) have no scroll
-                        // position from which to infer that content has moved
-                        // beneath the top bar. Treat them as resting at the top:
-                        // applying a fully opaque fade here paints a solid,
-                        // full-width strip behind the floating controls.
-                        val list = headerListState ?: return@derivedStateOf 0f
+                        val list = headerListState ?: return@derivedStateOf 1f
                         if (list.firstVisibleItemIndex > 0) return@derivedStateOf 1f
                         val header = list.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.index == 0 }?.size?.toFloat()
                             ?: return@derivedStateOf 0f
-                        val startPx = if (playlistListState != null) playlistFadeStartPx else header * fadeStart
-                        ((list.firstVisibleItemScrollOffset - startPx) /
+                        ((list.firstVisibleItemScrollOffset - header * fadeStart) /
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
-                // Only draw a collapsing top fade when its page exposes a
-                // tracked list position. A fixed, full-strength fallback on
-                // utility pages paints a dark strip behind the floating bar
-                // even at rest, despite there being no scroll state to drive it.
-                if (headerListState != null) {
-                    TopFadeBlur(
-                        hazeState = hazeState,
-                        modifier = Modifier.align(Alignment.TopCenter),
-                        alpha = topFadeAlpha,
-                    )
-
+                if (reduceDynamicBlur || !glassActive || !progressiveBlur) {
                     BottomFadeScrim(
                         pageColor = chromePageColor,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .rotate(180f)
-                            .graphicsLayer { alpha = 1f - topFadeAlpha },
+                            .graphicsLayer { alpha = topFadeAlpha },
                     )
                 } else {
-                    // Utility pages use regular ScrollState rather than a
-                    // LazyListState. Keep the content behind their floating
-                    // top controls softly blurred, but do not add the opaque
-                    // page-colour scrim that used to become a solid black bar.
                     TopFadeBlur(
                         hazeState = hazeState,
-                        modifier = Modifier.align(Alignment.TopCenter),
+                        pageColor = chromePageColor,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .graphicsLayer { alpha = topFadeAlpha },
                     )
                 }
 
+                // Home: the account pill sits level with the wordmark and rides up
+                // with the feed for that short distance, then stays pinned in the bar.
+                val homeLogoHalf = with(androidx.compose.ui.platform.LocalDensity.current) {
+                    (MaterialTheme.typography.displayLarge.fontSize * 0.9f).toDp()
+                } / 2
                 FrostedTopBar(
                     title = when (route) {
-                        AppRoute.Profile -> "Profile"
                         AppRoute.Spotify -> stringResource(R.string.spotify)
-                        is AppRoute.Podcasts -> "Podcasts"
+                        AppRoute.Downloads -> stringResource(R.string.downloads)
                         AppRoute.Discord -> "Discord"
                         AppRoute.History -> stringResource(R.string.history)
                         is AppRoute.LibraryShowAll -> route.shelf.title
+                        is AppRoute.ArtistShelf -> route.shelf.title
+                        AppRoute.Moods -> stringResource(R.string.find_your_mood)
                         AppRoute.AccountScrobbling -> stringResource(R.string.account_scrobbling)
                         AppRoute.Sources -> stringResource(R.string.sources)
+                        AppRoute.WearOs -> stringResource(R.string.wear_os_section)
                         AppRoute.ListenTogether -> stringResource(R.string.listen_together)
-                        AppRoute.WearOs -> stringResource(R.string.wear_os_page_title)
                         AppRoute.Equalizer -> stringResource(R.string.equalizer)
-                        // Settings categories already show an in-page breadcrumb
-                        // and heading. Keep the floating Back control, but don't
-                        // repeat "Settings" in the bar above that hierarchy.
-                        AppRoute.Settings -> if (settingsCategoryBackHandler != null) "" else stringResource(R.string.settings)
+                        AppRoute.Settings -> stringResource(R.string.settings)
+                        is AppRoute.SettingsSection -> stringResource(route.category.title)
+                        is AppRoute.SettingsChoice -> stringResource(route.choice.title)
+                        AppRoute.EqualizerPresets -> stringResource(R.string.equalizer_preset)
                         AppRoute.Replay -> stringResource(R.string.replay)
                         AppRoute.SmartPlaylists -> stringResource(R.string.smart_playlists)
+                        is AppRoute.Podcasts -> "Podcasts"
                         null -> when {
                             detail != null && detailActiveShelf != null -> detailActiveShelf?.title.orEmpty()
                             detail != null -> detail.title
                             selectedMoodGenre != null -> selectedMoodGenre?.title.orEmpty()
+                            selectedTab == TAB_SEARCH -> searchLabel
                             else -> tabs[selectedTab].let {
                                 if (it.label == "Play") stringResource(R.string.listen_now) else it.label
                             }
@@ -3918,30 +4279,64 @@ LibraryScreen(
                     artworkPageChrome = true,
                     backButtonHazeState = hazeState,
                     trailingTitle = if (detail != null && detailActiveShelf != null) detail.title else null,
+                    // Judul halaman Settings dan turunannya pindah ke pil
+                    // melayang di kanan tombol back, memudar saat di-scroll.
+                    floatingTitle = if (detail == null && selectedMoodGenre == null) {
+                        when (route) {
+                            AppRoute.Settings -> stringResource(R.string.settings)
+                            is AppRoute.SettingsSection ->
+                                com.music.audify.ui.screens.settingsCategoryBarTitle(route.category)
+                            is AppRoute.SettingsChoice ->
+                                com.music.audify.ui.screens.settingsChoiceBarTitle(route.choice)
+                            AppRoute.AccountScrobbling -> stringResource(R.string.bar_title_account)
+                            AppRoute.Discord -> stringResource(R.string.discord)
+                            AppRoute.Equalizer -> stringResource(R.string.equalizer)
+                            AppRoute.EqualizerPresets -> stringResource(R.string.equalizer_preset)
+                            AppRoute.ListenTogether -> stringResource(R.string.listen_together)
+                            AppRoute.Sources -> stringResource(R.string.source)
+                            AppRoute.WearOs -> stringResource(R.string.wear_os_section)
+                            else -> null
+                        }
+                    } else null,
+                    floatingTitleAlpha = {
+                        (1f - pageScroll.floatValue / pageTitleFadePx).coerceIn(0f, 1f)
+                    },
+                    actionsHidden = showAccountSelector && !accountSelectorLeaving,
                     // Search has no large in-list header to hand the title back to —
                     // the field takes that space — so its bar title is always up.
-                    scrolled = when {
-                        // The page leads with its own large "Replay", so the bar
-                        // stays out of the way until that has been scrolled off.
-                        route == AppRoute.Replay -> replayScrolled
-                        route != null -> true
-                        detail != null && detailActiveShelf != null -> true
-                        detail != null -> detailScrolled
-                        selectedMoodGenre != null -> true
-                        else -> scrolled || selectedTab == TAB_SEARCH
+                    scrolled = {
+                        when {
+                            // The page leads with its own large "Replay", so the bar
+                            // stays out of the way until that has been scrolled off.
+                            route == AppRoute.Replay -> replayScrolled
+                            route != null -> true
+                            detail != null && detailActiveShelf != null -> true
+                            detail != null -> detailScrolled
+                            selectedMoodGenre != null -> true
+                            else -> scrolled || selectedTab == TAB_SEARCH
+                        }
                     },
                     refreshing = currentFeed != null && currentFeed in refreshing,
-                    pullFraction = { currentPull?.distanceFraction ?: 0f },
                     // The same step the back gesture takes — see [goBack] —
                     // offered on anything pushed over a tab.
                     onBack = when {
-                        route == AppRoute.Settings && settingsCategoryBackHandler != null ->
-                            ({ settingsCategoryBackHandler?.invoke(); Unit })
-                        detail != null && detailActiveShelf != null -> ({ detailActiveShelf = null })
                         route != null || detail != null || selectedMoodGenre != null -> goBack
                         else -> null
                     },
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer {
+                            val blend = homeHeaderBlend.value
+                            if (blend != 0f) {
+                                val rest = (18.dp + homeLogoHalf).toPx()
+                                val scrolledPx = if (homeListState.firstVisibleItemIndex > 0) {
+                                    rest
+                                } else {
+                                    homeListState.firstVisibleItemScrollOffset.toFloat()
+                                }
+                                translationY = blend * (rest - scrolledPx).coerceAtLeast(0f)
+                            }
+                        },
                     // Only on the Search tab itself, not on anything pushed over it.
                     accessory = if (
                         selectedTab == TAB_SEARCH && route == null && detail == null && selectedMoodGenre == null
@@ -3963,6 +4358,7 @@ LibraryScreen(
                                 onQueryChange = viewModel::onQueryChange,
                                 onSubmit = viewModel::submitSearch,
                                 focusRequester = searchFieldFocus,
+                                onFocusChange = { searchFieldFocused = it },
                                 placeholder = org.jetbrains.compose.resources.stringResource(
                                     if (searchSource == SearchSource.LIBRARY) {
                                         SharedRes.string.search_library_hint
@@ -3976,6 +4372,26 @@ LibraryScreen(
                         }
                     } else null,
                     actions = {
+                        // Search remains available as a dedicated screen, but
+                        // Audify's fourth primary tab is Settings. Keep Search
+                        // one tap away from the main tabs without replacing it.
+                        if (route == null && detail == null && selectedMoodGenre == null) {
+                            IconButton(
+                                onClick = {
+                                    navigator.clear()
+                                    viewModel.closeMoodGenre()
+                                    viewModel.onQueryChange("")
+                                    selectedTab = TAB_SEARCH
+                                    searchFocusRequested = true
+                                },
+                            ) {
+                                Icon(
+                                    AudifyIcons.Search,
+                                    contentDescription = stringResource(R.string.search),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
                         // This is intentionally scoped to Listen together: the
                         // round-trip time is meaningful while coordinating a
                         // party, but would be noise in the rest of the app.
@@ -4048,16 +4464,14 @@ LibraryScreen(
                                         // than as "something about your device".
                                         Icons.Rounded.Upgrade,
                                         contentDescription = stringResource(R.string.update_available, update.version),
-                                        tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                                        tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                             }
                         }
                         // None on Settings or the pages opened from it: those are
                         // about the account, and the photo would only reopen them.
-                        if (!(route != null && AppRoute.Settings in navigator) &&
-                            !(route == null && detail == null && selectedTab == TAB_HOME)
-                        ) {
+                        if (!(route != null && AppRoute.Settings in navigator)) {
                             // Left of the account photo, and only on Library itself:
                             // a history is a record of what was played, which reads
                             // as that tab's business rather than every tab's.
@@ -4089,23 +4503,8 @@ LibraryScreen(
                                             tint = MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
-                                    DropdownMenu(
-                                        expanded = librarySortMenuOpen,
-                                        onDismissRequest = { librarySortMenuOpen = false },
-                                    ) {
-                                        LibrarySort.entries.forEach { option ->
-                                            DropdownMenuItem(
-                                                text = { Text(option.localizedLabel()) },
-                                                trailingIcon = if (option == librarySort) {
-                                                    { Icon(Icons.Rounded.Check, contentDescription = null) }
-                                                } else null,
-                                                onClick = {
-                                                    AppSettings.setLibrarySort(option)
-                                                    librarySortMenuOpen = false
-                                                },
-                                            )
-                                        }
-                                    }
+                                    // The menu itself is a FrostedMenuPanel, composed
+                                    // with the other frosted overlays further down.
                                 }
                             }
                             // Sort, only on an album or playlist page or a device
@@ -4119,7 +4518,9 @@ LibraryScreen(
                             // Shuffle / Play / Add.
                             if ((isReleaseDetail || isLocalDetail) && detail != null) {
                                 val releaseSongs = (detail.songs as? UiState.Success)?.data.orEmpty()
-                                if (releaseSongs.isNotEmpty()) {
+                                // An active search keeps the row open so its close button stays reachable.
+                                val actionsOpen = detailActionsExpanded || detailSearching
+                                ActionReveal(visible = actionsOpen && releaseSongs.isNotEmpty()) {
                                     IconButton(onClick = { detailSearching = !detailSearching }) {
                                         Icon(
                                             if (detailSearching) Icons.Rounded.Close else AudifyIcons.Search,
@@ -4134,6 +4535,7 @@ LibraryScreen(
                                 // with the app's other frosted overlays further
                                 // down — in the main hierarchy, where the haze
                                 // can see the content it blurs.
+                                ActionReveal(visible = actionsOpen) {
                                 IconButton(
                                     onClick = { if (isLocalDetail) folderMenuOpen = true else songSortMenuOpen = true },
                                 ) {
@@ -4145,7 +4547,11 @@ LibraryScreen(
                                         tint = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
-                                if (isReleaseDetail && releaseSongs.isNotEmpty()) {
+                                }
+                                // The same ••• is both the unfold button at rest and the
+                                // overflow once open: the bar grows to its left, so it
+                                // simply slides into place while the xmark bounces in.
+                                ActionReveal(visible = !actionsOpen || (isReleaseDetail && releaseSongs.isNotEmpty())) {
                                     // The page's own tracks, in the order the page
                                     // shows them, so the sheet has them already and
                                     // Play, Shuffle and Open are the buttons beside
@@ -4155,8 +4561,9 @@ LibraryScreen(
                                     // off, which is what the download record groups
                                     // them under.
                                     IconButton(
+                                        modifier = Modifier.menuAnchor(),
                                         onClick = {
-                                            browseActions = BrowseTarget(
+                                            if (!actionsOpen) detailActionsExpanded = true else openBrowseMenu(BrowseTarget(
                                                 browseId = detail.browseId,
                                                 title = detail.title,
                                                 subtitle = detail.subtitle,
@@ -4171,12 +4578,27 @@ LibraryScreen(
                                                 },
                                                 fromCard = false,
                                                 downloadId = downloadIdFor(detail.browseId),
-                                            )
+                                            ))
                                         },
                                     ) {
                                         Icon(
                                             Icons.Rounded.MoreHoriz,
                                             contentDescription = stringResource(R.string.more),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                }
+                                // Folds the actions again, closing any open search.
+                                ActionReveal(visible = actionsOpen, bounce = true) {
+                                    IconButton(
+                                        onClick = {
+                                            detailSearching = false
+                                            detailActionsExpanded = false
+                                        },
+                                    ) {
+                                        Icon(
+                                            SfIcons.Close,
+                                            contentDescription = stringResource(R.string.close),
                                             tint = MaterialTheme.colorScheme.onSurface,
                                         )
                                     }
@@ -4201,7 +4623,7 @@ LibraryScreen(
                                     },
                                 ) {
                                     Icon(
-                                        Icons.Rounded.IosShare,
+                                        SfIcons.Share,
                                         contentDescription = stringResource(R.string.share),
                                         tint = MaterialTheme.colorScheme.onSurface,
                                     )
@@ -4210,13 +4632,29 @@ LibraryScreen(
                             // Left of the account photo, and only there while
                             // there is a batch to report on — see
                             // [TopBarDownloadButton], which decides that for
-                            // itself rather than being told.
-                            TopBarDownloadButton(onClick = { showDownloadManager = true })
+                            // itself rather than being told. Not on the page it
+                            // opens, where it would only lead back to itself.
+                            if (route != AppRoute.Downloads) {
+                                TopBarDownloadButton(onClick = { navigator.push(AppRoute.Downloads) })
+                            }
                             // Not on a release page, whose pill already carries
                             // three of its own controls — Apple Music leaves the
-                            // profile off its album pages too.
-                            if (!isReleaseDetail && route != AppRoute.Profile) TopBarAccountButton(
-                                account = account,
+                            // profile off its album pages too. Nor on Listen
+                            // together, where the pill is the server's round trip.
+                            if (!isReleaseDetail && route != AppRoute.ListenTogether) TopBarAccountButton(
+                                // Offline the account request fails and `account` stays null;
+                                // the profile saved on the device (what the popup reads) stands in.
+                                account = account ?: googleAccounts
+                                    .firstOrNull { it.accountId == activeAccountId }
+                                    ?.let { saved ->
+                                        val profile = saved.profiles.firstOrNull { it.profileId == activeProfileId }
+                                            ?: saved.profiles.firstOrNull()
+                                        com.music.audify.data.model.Account(
+                                            name = profile?.name ?: saved.name,
+                                            email = saved.email,
+                                            thumbnailUrl = profile?.avatar,
+                                        )
+                                    },
                                 onClick = {
                                     if (signedIn) {
                                         viewModel.loadChannels()
@@ -4224,6 +4662,7 @@ LibraryScreen(
                                     } else navigator.push(AppRoute.Settings)
                                 },
                                 onSwipeProfile = { forward -> viewModel.stepProfile(forward) },
+                                hidden = showAccountSelector && !accountSelectorLeaving,
                             )
                         }
                     },
@@ -4231,7 +4670,7 @@ LibraryScreen(
 
                 // Drawn before the bars so their own glass reads on top of it.
                 BottomFadeScrim(
-                    withMiniPlayer = player.playable != null,
+                    withMiniPlayer = player.song != null,
                     // Not the wash: by the foot of the screen the page has finished
                     // easing out of it and into this, so this is what is actually
                     // under the tab bar.
@@ -4239,20 +4678,40 @@ LibraryScreen(
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
-                // The scroll content softens into the floating controls at the
-                // bottom edge, above the colour fade and below the glass bars.
-                ProgressiveScrollEdgeBlur(
-                    hazeState = hazeState,
-                    edge = ScrollBlurEdge.Bottom,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-
                 // Whichever bar is drawing reports its height here, for the
                 // guard to read at layout — never in composition, see the guard.
+                val floatingBarsHeight = remember { mutableIntStateOf(0) }
                 FloatingBarsTapGuard(
                     barsHeight = { floatingBarsHeight.intValue },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
+
+                // One tab handler, whichever bar is drawing it.
+                // A tab is a fresh start: everything pushed over the old one —
+                // routes and release pages alike — goes with it.
+                // Settings is a real fourth tab again. Search is a separate
+                // destination reached from search actions, so it does not
+                // displace Settings in the primary navigation.
+                val selectedBarIndex = if (AppRoute.Settings in navigator) {
+                    3
+                } else {
+                    selectedTab.coerceAtMost(TAB_LIBRARY)
+                }
+                val onTabSelected: (Int) -> Unit = tabSelected@{ barIndex ->
+                    if (barIndex == 3) {
+                        if (AppRoute.Settings !in navigator) {
+                            navigator.clear()
+                            viewModel.closeMoodGenre()
+                            navigator.push(AppRoute.Settings)
+                        }
+                        return@tabSelected
+                    }
+                    val index = barIndex
+                    navigator.clear()
+                    viewModel.closeMoodGenre()
+                    selectedTab = index
+                    searchFieldFocused = false
+                }
 
                 if (glassActive) Column(
                     modifier = Modifier
@@ -4262,30 +4721,17 @@ LibraryScreen(
                         .onSizeChanged { floatingBarsHeight.intValue = it.height },
                 ) {
                     QueueActionNoticeHost(queueNotice)
-                    playerPodcast?.let { episode ->
-                        PodcastMiniPlayer(
-                            episode = episode,
-                            isPlaying = player.isPlaying,
-                            isLoading = playPauseBusy,
-                            onPlayPause = { togglePlayPause() },
-                            onNext = { controller?.seekToNextMediaItem() },
-                            onPrevious = { controller?.seekToPrevious() },
-                            onExpand = openPlayer,
-                            controlsLocked = controlsLocked,
-                            onBlockedControl = showHostOnlyNotice,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
                     // Liquid glass replaces the two stacked bars with the single
                     // component they are stacked to imitate: the now playing
                     // controls dock into the tab bar rather than riding above it,
                     // and the pair folds together on scroll. See [GlassNavBar].
                     GlassNavBar(
                         tabs = tabs,
-                        selectedIndex = if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2),
+                        selectedIndex = selectedBarIndex,
                         onTabSelected = onTabSelected,
+                        searchSeparate = false,
                         scrollConnection = navBarScroll,
-                        song = playerSong,
+                        song = player.song,
                         isPlaying = player.isPlaying,
                         isLoading = playPauseBusy,
                         onPlayPause = {
@@ -4293,7 +4739,11 @@ LibraryScreen(
                         },
                         onNext = { controller?.seekToNextMediaItem() },
                         onPrevious = { controller?.seekToPrevious() },
-                        onExpand = openPlayer,
+                        onExpand = if (reducePlayerMotion) {
+                            { showNowPlaying = true }
+                        } else {
+                            playerSheetMotion::open
+                        },
                         controlsLocked = controlsLocked,
                         onBlockedControl = showHostOnlyNotice,
                         dock = activeDock,
@@ -4315,7 +4765,7 @@ LibraryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     QueueActionNoticeHost(queueNotice)
-                    playerSong?.let { song ->
+                    player.song?.let { song ->
                         MiniPlayer(
                             song = song,
                             isPlaying = player.isPlaying,
@@ -4326,7 +4776,11 @@ LibraryScreen(
                             },
                             onNext = { controller?.seekToNextMediaItem() },
                             onPrevious = { controller?.seekToPrevious() },
-                            onExpand = openPlayer,
+                            onExpand = if (reducePlayerMotion) {
+                                { showNowPlaying = true }
+                            } else {
+                                playerSheetMotion::open
+                            },
                             controlsLocked = controlsLocked,
                             onBlockedControl = showHostOnlyNotice,
                             dock = activeDock,
@@ -4335,24 +4789,9 @@ LibraryScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                     }
-                    if (playerSong == null) playerPodcast?.let { episode ->
-                        PodcastMiniPlayer(
-                            episode = episode,
-                            isPlaying = player.isPlaying,
-                            isLoading = playPauseBusy,
-                            onPlayPause = { togglePlayPause() },
-                            onNext = { controller?.seekToNextMediaItem() },
-                            onPrevious = { controller?.seekToPrevious() },
-                            onExpand = openPlayer,
-                            controlsLocked = controlsLocked,
-                            onBlockedControl = showHostOnlyNotice,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
                     FloatingBottomBar(
                         tabs = tabs,
-                        selectedIndex = if (route == AppRoute.Settings) 3 else selectedTab.coerceAtMost(2),
+                        selectedIndex = selectedBarIndex,
                         hazeState = hazeState,
                         onTabSelected = onTabSelected,
                     )
@@ -4360,209 +4799,33 @@ LibraryScreen(
             }
 
         }
-        }
 
-        val playerRaised = showNowPlaying && player.playable != null
+        val playerRaised = showNowPlaying && playerSong != null
 
-        // ---- Now Playing ----
-        if (playerRaised) {
-            // What rememberModalBottomSheetState builds, but able to start open,
-            // and with every hide routed through [playerSheetMotion] — a drag
-            // released low, a back press, a tap on the scrim. Refused here and
-            // carried out there, on a curve slow enough to watch the artwork
-            // fly home on, rather than on the sheet's own.
-            val sheetDensity = LocalDensity.current
-            // Material 3's default modal-sheet thresholds, expressed as pixels
-            // using the current density for the current SheetState API.
-            val sheetPositionalThreshold = { with(sheetDensity) { 56.dp.toPx() } }
-            val sheetVelocityThreshold = { with(sheetDensity) { 125.dp.toPx() } }
-            val confirmSheetValue: (SheetValue) -> Boolean = { value ->
-                // Read when asked, not when the sheet was made: the setting
-                // can change while the player is up.
-                if (value == SheetValue.Hidden && !reducePlayerMotion) {
-                    playerSheetMotion.close()
-                    false
+        // ---- The page's still, for a menu hung over it ----
+        // Taken as a ⋮ or ⋯ menu opens over a page, let go once it has played
+        // its way out — see [pageBackdrop]. Read in a scope of its own, as
+        // the menus are below, so a menu opening recomposes only this.
+        Isolated {
+            val pageMenuUp =
+                (songActions != null && songMenuOrigin == null && !(menuFromPlayer && playerRaised)) ||
+                    (browseActions != null && browseMenuOrigin == null && !browseRenameInSheet) ||
+                    songInfoTarget != null
+            LaunchedEffect(pageMenuUp, reduceDynamicBlur) {
+                if (pageMenuUp && !reduceDynamicBlur && isGlassSupported()) {
+                    pageBackdrop.capture()
                 } else {
-                    true
-                }
-            }
-            val nowPlayingSheetState = rememberSaveable(
-                saver = SheetState.Saver(
-                    skipPartiallyExpanded = true,
-                    positionalThreshold = sheetPositionalThreshold,
-                    velocityThreshold = sheetVelocityThreshold,
-                    confirmValueChange = confirmSheetValue,
-                    skipHiddenState = false,
-                ),
-            ) {
-                SheetState(
-                    skipPartiallyExpanded = true,
-                    positionalThreshold = sheetPositionalThreshold,
-                    velocityThreshold = sheetVelocityThreshold,
-                    // Already open when the app is the one raising it: its
-                    // content is held down, and slid up, by the motion.
-                    initialValue = if (playerSheetMotion.holding) SheetValue.Expanded else SheetValue.Hidden,
-                    confirmValueChange = confirmSheetValue,
-                    skipHiddenState = false,
-                )
-            }
-            DisposableEffect(nowPlayingSheetState) {
-                playerSheetMotion.sheet = nowPlayingSheetState
-                playerDock.sheetOffset = playerSheetMotion::position
-                onDispose {
-                    playerDock.sheetOffset = null
-                    playerSheetMotion.onSheetGone()
-                }
-            }
-            ModalBottomSheet(
-                onDismissRequest = { showNowPlaying = false },
-                sheetState = nowPlayingSheetState,
-                // None of M3's: it follows the sheet's own animation, which is
-                // no longer what moves the player. The player draws its own,
-                // off where the player actually is — see the content below.
-                scrimColor = if (reducePlayerMotion) BottomSheetDefaults.ScrimColor else Color.Transparent,
-                // The player fills the screen and paints its own background to
-                // the very top, so the sheet's default 28.dp top corners would
-                // only cut two notches out of the artwork behind the status bar.
-                // Square, and not clipped along its top — see [PlayerSheetShape].
-                shape = PlayerSheetShape,
-                containerColor = Color.Transparent,
-                dragHandle = null,
-                contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
-                // M3 caps a bottom sheet at [BottomSheetDefaults.SheetMaxWidth]
-                // (640.dp) and centres it once the window is wider than that —
-                // built for a sheet that's meant to look like a sheet next to
-                // visible content either side. This one is the whole player;
-                // capped at 640dp on a tablet it renders as a narrow card with
-                // the page it's supposed to be covering visible down both
-                // sides. Unspecified opts out of the cap entirely, so the
-                // sheet always spans the full window this app draws it for.
-                sheetMaxWidth = Dp.Unspecified,
-                // Back is the app's to carry out, like every other close — see
-                // the handler below. Left to M3, a back press is the one close
-                // that never asks `confirmValueChange`: the sheet hides itself
-                // straight away on its own curve, then the window leaves on its
-                // exit animation with the artwork still drawn in it.
-                properties = ModalBottomSheetProperties(shouldDismissOnBackPress = reducePlayerMotion),
-            ) {
-                // With M3's own back off, the dialog's dispatcher ends here.
-                // Composed ahead of the player, so the player's own handlers —
-                // the lyrics and the queue putting themselves away first — are
-                // newer and are asked before this one.
-                BackHandler(enabled = !reducePlayerMotion) { playerSheetMotion.close() }
-                // Keeps a sheet still "settling" after a lyrics or queue
-                // scroll from taking the next touch meant for that list.
-                // See [PlayerSheetMotion.attachWindow].
-                val sheetWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
-                DisposableEffect(sheetWindow, reducePlayerMotion) {
-                    if (!reducePlayerMotion) playerSheetMotion.attachWindow(sheetWindow)
-                    onDispose { }
-                }
-                Box(
-                    Modifier
-                        // Where the app is holding the player, if it is — see
-                        // [PlayerSheetMotion.contentOffsetPx]. Placement only.
-                        .offset { IntOffset(0, playerSheetMotion.contentOffsetPx()) }
-                        // The dim behind the player, from the window's top to
-                        // its bottom whatever the player's offset, and as deep
-                        // as the player is open.
-                        .drawBehind {
-                            val open = playerDock.openFraction()
-                            // Not at all under a portrait player that is fully up:
-                            // its own background is opaque, and a full-screen
-                            // blend behind it is paid on every frame the window
-                            // draws for nothing anyone can see.
-                            if (!reducePlayerMotion && open > 0f && !(open >= 1f && playerDock.attached)) {
-                                val top = playerSheetMotion.position().takeUnless { it.isNaN() } ?: 0f
-                                drawRect(
-                                    color = Color.Black.copy(alpha = PLAYER_SCRIM_ALPHA * open),
-                                    topLeft = Offset(0f, -top.toInt().toFloat()),
-                                    size = Size(size.width, size.height),
-                                )
-                            }
-                        }
-                        .guardSheetFromContentTouches(nowPlayingSheetState)
-                        // The sheet fills the window, so its height is the
-                        // whole of its travel: hidden sits that far down.
-                        .onSizeChanged {
-                            playerDock.sheetTravel = it.height.toFloat()
-                            playerSheetMotion.laidOut = true
-                        },
-                ) {
-                    CompositionLocalProvider(LocalPlayerDock provides activeDock) {
-                        if (playerSong != null) {
-                            nowPlaying(playerSong)
-                        } else {
-                            playerPodcast?.let { episode ->
-                                PodcastNowPlayingScreen(
-                                    episode = episode,
-                                    isPlaying = player.isPlaying,
-                                    isLoading = playPauseBusy,
-                                    positionMs = player.position.positionMs,
-                                    durationMs = player.durationMs,
-                                    onPlayPause = { togglePlayPause() },
-                                    onNext = { controller?.seekToNextMediaItem() },
-                                    onPrevious = { controller?.seekToPrevious() },
-                                    onSeek = { target -> controller?.seekTo(target.coerceAtLeast(0L)) },
-                                    queueItems = player.queueItems,
-                                    queueIndex = player.queueIndex,
-                                )
-                            }
-                        }
-                    }
+                    delay(SNAPSHOT_RELEASE_DELAY_MS)
+                    pageBackdrop.release()
                 }
             }
         }
 
-        // ---- Replay stories ----
-        // Mounted out here rather than inside the pane above, because a story
-        // covers the window: on a tablet the page is only the left half of the
-        // row, and a story laid out inside it would run alongside the player
-        // instead of over it.
-        replayStory?.let { start ->
-            replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
-                ReplayStories(
-                    summary = summary,
-                    start = start,
-                    onClose = { replayStory = null },
-                    onShare = { card ->
-                        replaySharePage = card
-                        showReplayShare = true
-                    },
-                    paused = showReplayShare,
-                )
-            }
-        }
-
-        // ---- Share the Replay ----
-        if (showReplayShare) {
-            replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
-                ModalBottomSheet(
-                    onDismissRequest = { showReplayShare = false },
-                    // Straight to full height. The sheet is a picture and two
-                    // buttons, and half-open it showed the picture with both
-                    // buttons below the fold — a sheet whose only two controls
-                    // need a drag to reach.
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    containerColor = MaterialTheme.colorScheme.background,
-                ) {
-                    ReplayShareSheet(
-                        summary = summary,
-                        holder = account?.name.orEmpty(),
-                        memberSince = replay.memberSince,
-                        page = replaySharePage,
-                        onDismiss = { showReplayShare = false },
-                    )
-                }
-            }
-        }
-
-        // ---- Album / playlist detail ----
         // ---- Long-press track actions ----
-        // One body for both presentations of the track menu: the sheet the ⋮
-        // and the player open, and the popup a held row lifts into. Every
-        // callback below is the same in either; only the frame differs.
-        val songMenuBody: @Composable (Song, SongActionsPresentation) -> Unit = { heldSong, presentation ->
+        // One body for every frame the track menu comes in: the panel hung off
+        // a ⋮ or the player's ⋯, and the one a held row lifts into. Every
+        // callback below is the same in each; only the frame differs.
+        val songMenuBody: @Composable (Song) -> Unit = { heldSong ->
             // Set by whoever opened it — see [menuFromPlayer]. It cannot be
             // read off the player's own visibility any more, because on a
             // tablet the player is visible whatever the menu was opened from.
@@ -4625,19 +4888,28 @@ LibraryScreen(
             } ?: song
             fun versionAlignmentPending(targetId: String): Boolean =
                 AppSettings.smartVersionAlignment.value &&
-                    VersionAudioAligner.getCachedOffsetMs(song.videoId, targetId) == null
+                    VersionAudioAligner.getCachedOffsetMs(song.videoId, targetId) == null &&
+                    YtMusicRepository.versionTimeMap(song.videoId, targetId) == null
             val menuIsAudioVersion = if (optimisticVersionSong != null) {
                 !optimisticVersionSong!!.isVideo
             } else {
                 !song.isVideo && convertedVideoId != song.videoId
             }
-            val onToggleVersion: (() -> Unit)? = if (fromPlayer &&
-                hasAlternateVersion &&
-                !switchingAudioVersion &&
+            // Offered for the playing track wherever its menu is opened,
+            // whether or not the other version has been found yet: the
+            // switch looks it up, and says so when there isn't one.
+            val onToggleVersion: (() -> Unit)? = if (
                 controller?.currentMediaItem?.mediaId == song.videoId
             ) {
-                {
+                toggle@{
                     songActions = null
+                    // A party plays one cut for everyone in it — see
+                    // [PlaybackService.smoothSwapCurrentTrackVersion].
+                    if (partyState.inParty) {
+                        showQueueNotice(versionContext.getString(R.string.version_switch_in_party))
+                        return@toggle
+                    }
+                    if (switchingAudioVersion) return@toggle
                     val c = controller
                     val original = convertedFromVideo
                     val originalAudio = convertedFromAudio
@@ -4712,9 +4984,7 @@ LibraryScreen(
             // page the account can actually edit, and only for a row that
             // carries the per-entry id a removal is expressed in.
             val editable = viewModel.editablePlaylist(detail?.browseId)
-                ?.takeIf {
-                    !fromPlayer && (song.setVideoId != null || detail?.browseId?.startsWith("local:playlist:") == true)
-                }
+                ?.takeIf { !fromPlayer && song.setVideoId != null }
             // Asked of the cache's index off the main thread as the menu opens,
             // so "Remove from cache" is only offered for a track it holds.
             // Re-asked when the cache changes, which is what drops the row
@@ -4724,11 +4994,13 @@ LibraryScreen(
                 value = song.localUri == null &&
                     withContext(Dispatchers.IO) { AudioCache.holds(song.videoId) }
             }
-            SongActionsSheet(
+            val trackSpatialOverrides by AppSettings.spatialAudioByTrack.collectAsStateWithLifecycle()
+            val spatialAudioGlobal by AppSettings.spatialAudio.collectAsStateWithLifecycle()
+            val spatialAudioOn = trackSpatialOverrides[song.videoId] ?: spatialAudioGlobal
+            SongActionsMenu(
                 song = song,
-                presentation = presentation,
                 signedIn = signedIn,
-                likeStatus = likeStatuses[song.videoId] ?: LikeStatus.INDIFFERENT,
+                likeStatus = likeStatusOf(song),
                 onPlayNext = { playNext(song); songActions = null },
                 onAddToQueue = { addToQueue(song); songActions = null },
                 onStartRadio = { startRadio(song); songActions = null },
@@ -4760,7 +5032,7 @@ LibraryScreen(
                     },
                 // The sheet stays up for a rating: it shows the new state
                 // in place, and people often thumb a song and then queue it.
-                onToggleLike = { viewModel.toggleLike(song.videoId, song) },
+                onToggleLike = { toggleLikeOf(song) },
                 onToggleDislike = {
                     val previousStatus = viewModel.toggleDislike(song.videoId)
                     if (
@@ -4774,17 +5046,39 @@ LibraryScreen(
                         controller?.seekToNextMediaItem()
                     }
                 },
+                canAddToPlaylist = localPlaylists.isNotEmpty(),
                 onAddToPlaylist = {
                     songActions = null
-                    viewModel.loadPlaylists()
-                    playlistTarget = song
+                    if (song.localUri != null && (song.videoId.startsWith("content://") || song.videoId.startsWith("file://"))) {
+                        offlinePlaylistTarget = song
+                    } else {
+                        viewModel.loadPlaylists()
+                        playlistTarget = song
+                    }
                 },
                 onRemoveFromPlaylist = editable?.let {
                     {
                         songActions = null
                         viewModel.removeFromPlaylist(it.browseId, song)
                     }
-                },
+                } ?: detail?.browseId
+                    ?.takeIf {
+                        !fromPlayer && com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(it) != null
+                    }
+                    ?.let { id ->
+                        {
+                            songActions = null
+                            com.music.audify.data.spotify.LocalPlaylistStore.removeSong(id, song.videoId)
+                        }
+                    }
+                    ?: detail?.browseId
+                    ?.takeIf { !fromPlayer && song.localUri != null && OfflinePlaylists.isOfflinePlaylist(it) }
+                    ?.let { id ->
+                        {
+                            songActions = null
+                            OfflinePlaylists.remove(id, song)
+                        }
+                    },
                 onRemoveFromCache = if (inCache) {
                     {
                         songActions = null
@@ -4792,6 +5086,14 @@ LibraryScreen(
                     }
                 } else {
                     null
+                },
+                onRemoveFromHistory = song.feedbackToken?.takeIf { menuFromHistory }?.let { token ->
+                    {
+                        songActions = null
+                        viewModel.removeFromHistory(token, onFailure = {
+                            Toast.makeText(context, R.string.remove_from_history_failed, Toast.LENGTH_SHORT).show()
+                        })
+                    }
                 },
                 onOpenAlbum = { id ->
                     openPage(
@@ -4802,12 +5104,22 @@ LibraryScreen(
                     )
                 },
                 onOpenArtist = { id ->
-                    openPage(id, song.artist, artistLabel, BrowseType.ARTIST)
+                    openPage(id, song.artist, context.getString(R.string.artist), BrowseType.ARTIST)
                 },
                 // The player backfills its own track; any other row is
                 // looked up as the menu opens — see `needsLinks` above.
                 resolvingLinks = if (fromPlayer) linksLoading else needsLinks && menuLinksLoading,
                 showSleepTimer = fromPlayer,
+                // Song Info: menu langsung menutup, popup-nya tampil sendiri.
+                onShowSongInfo = { info ->
+                    songInfoBackdrop = if (menuFromPlayer && playerRaised && songMenuOrigin == null) {
+                        if (playerLiveCanvas) livePlayerBackdrop else playerBackdrop
+                    } else {
+                        pageBackdrop
+                    }
+                    songInfoTarget = info
+                    songActions = null
+                },
                 // Offered for every playing track with a YouTube upload
                 // behind it, not only for one an upgrade visibly swapped:
                 // a source ranked above YouTube can be playing its own
@@ -4866,8 +5178,10 @@ LibraryScreen(
                 upgradeQualityInProgress = fromPlayer && song.videoId in qualityUpgradesInFlight,
                 onToggleAudioVersion = onToggleVersion,
                 isAudioVersion = menuIsAudioVersion,
+                audioVersionMissing = song.videoId in missingVersions ||
+                    (song.isVideo && YtMusicRepository.hasNoAudioVersion(song.videoId)),
                 // Hidden outright when there's no real YouTube id behind
-                // this row to build a link from — SongActionsSheet already
+                // this row to build a link from — SongActionsMenu already
                 // drops it for a local file via `isOffline`, this catches
                 // the rest.
                 onShare = share.takeIf { song.videoId.isNotBlank() },
@@ -4883,7 +5197,7 @@ LibraryScreen(
                             // outcome worth seeing rather than a silent one.
                             Toast.makeText(
                                 context,
-                                resources.getQuantityString(
+                                context.resources.getQuantityString(
                                     R.plurals.log_copied_line_count,
                                     text.lineSequence().count(),
                                     text.lineSequence().count(),
@@ -4903,58 +5217,259 @@ LibraryScreen(
                 } else {
                     null
                 },
+                onToggleSpatialAudio = if (fromPlayer && song.videoId.isNotBlank()) {
+                    { AppSettings.setSpatialAudioForTrack(song.videoId, !spatialAudioOn) }
+                } else {
+                    null
+                },
+                spatialAudioOn = spatialAudioOn,
             )
         }
-        songActions?.takeIf { songMenuOrigin == null }?.let { song ->
-            ModalBottomSheet(
-                onDismissRequest = { songActions = null },
-                // The sheet paints itself in the track's own colours, corners
-                // and drag handle included — see SongActionsSheet.
-                containerColor = Color.Transparent,
-                dragHandle = null,
-            ) {
-                songMenuBody(song, SongActionsPresentation.Sheet)
-            }
-        }
-        // Drawn over everything, tab bar and mini player included, and kept
-        // composed through its own exit — so it is not gated on songActions.
-        HeldContextMenu(
-            item = songActions,
-            held = songMenuOrigin,
-            hazeState = hazeState,
-            onDismiss = { songActions = null },
-            // Tapping the lifted track opens its album, as Apple Music's does.
-            onPreviewClick = { song ->
-                song.albumId?.let { id ->
-                    songActions = null
-                    viewModel.openDetail(id, song.albumName ?: song.title, song.artist, song.thumbnailUrl, BrowseType.ALBUM)
+        // ---- Now Playing ----
+        // One panel, in this window: the mini player's pill and the full player
+        // are the same glass container, which grows from the pill's rect to the
+        // whole window under the finger. Not a ModalBottomSheet any more, so
+        // what the sheet's window used to give the player is carried out here:
+        // back, the drag down to put it away (see [playerPullDown]) and the ⋯
+        // menu above it. The volume keys reach the activity, which already
+        // handles them.
+        if (playerRaised && playerSong != null) {
+            DisposableEffect(playerSheetMotion) {
+                playerDock.sheetOffset = playerSheetMotion::position
+                onDispose {
+                    playerDock.sheetOffset = null
+                    playerSheetMotion.onSheetGone()
                 }
-            },
-        ) { song ->
-            songMenuBody(song, SongActionsPresentation.Menu)
-        }
-        // A closed menu forgets where it was held, so whatever opens it next
-        // — the ⋮, the player — starts from the sheet.
-        LaunchedEffect(songActions == null) {
-            if (songActions == null) songMenuOrigin = null
+            }
+            // Back is the app's to carry out, like every other close. Composed
+            // ahead of the player, so the player's own handlers — the lyrics
+            // and the queue putting themselves away first — are newer and are
+            // asked before this one.
+            BackHandler { dismissPlayer() }
+            // The still the ⋯ menu below blurs under its panel — taken by the
+            // tap that opens it (see onOpenMenu), let go once the menu has
+            // played its way out. Not under "reduce dynamic blur": the panel
+            // is opaque then.
+            // Add Songs to Queue: popup kaca di tengah player. Memakai query/hasil
+            // yang sama dengan tab Search, jadi dibersihkan saat dibuka dan ditutup.
+            val addSongsOpen by AddSongsRequest.open.collectAsStateWithLifecycle()
+            val addSongsTypeahead by viewModel.typeaheadResults.collectAsStateWithLifecycle()
+            // null = masih dimuat; kosong = tidak ada rekomendasi.
+            var addSongsSuggestions by remember { mutableStateOf<List<Song>?>(null) }
+            var addSongsPrevFilter by remember { mutableStateOf<SearchFilter?>(null) }
+            DisposableEffect(Unit) {
+                AddSongsRequest.hide()
+                onDispose {
+                    if (AddSongsRequest.open.value) {
+                        viewModel.onQueryChange("")
+                        addSongsPrevFilter?.let { viewModel.onFilterChange(it) }
+                    }
+                    AddSongsRequest.hide()
+                }
+            }
+            LaunchedEffect(addSongsOpen) {
+                if (!addSongsOpen) return@LaunchedEffect
+                if (!reduceDynamicBlur && !playerLiveCanvas) playerBackdrop.capture()
+                viewModel.onQueryChange("")
+                addSongsPrevFilter = filter
+                viewModel.onFilterChange(SearchFilter.ALL)
+                addSongsSuggestions = null
+                val seed = player.song
+                if (seed == null) {
+                    addSongsSuggestions = emptyList()
+                    return@LaunchedEffect
+                }
+                loadAutoplayTracks(existing = player.queue, seedSong = seed, limit = 8)
+                    .onSuccess { addSongsSuggestions = it }
+                    .onFailure { addSongsSuggestions = emptyList() }
+            }
+            val playerMenuUp = (songActions != null && songMenuOrigin == null && menuFromPlayer) ||
+                addSongsOpen || songInfoTarget != null || addonLeftOutOfDownload != null
+            LaunchedEffect(playerMenuUp, reduceDynamicBlur) {
+                if (!playerMenuUp || reduceDynamicBlur) {
+                    delay(SNAPSHOT_RELEASE_DELAY_MS)
+                    playerBackdrop.release()
+                }
+            }
+            PlayerPanel(
+                dock = activeDock,
+                motion = playerSheetMotion.takeIf { !reducePlayerMotion },
+                song = playerSong,
+                isPlaying = player.isPlaying,
+                isLoading = playPauseBusy,
+                controlsLocked = controlsLocked,
+                onBlockedControl = showHostOnlyNotice,
+                onPlayPause = togglePlayPause,
+                onNext = { controller?.seekToNextMediaItem() },
+                onPrevious = { controller?.seekToPrevious() },
+                scrimAlpha = PLAYER_SCRIM_ALPHA,
+                onLaidOut = { size ->
+                    playerDock.sheetTravel = size.height.toFloat()
+                    playerSheetMotion.laidOut = true
+                },
+                overlay = {
+                    IosMenuPopover(
+                        item = songActions?.takeIf { songMenuOrigin == null && menuFromPlayer },
+                        anchor = songMenuAnchor,
+                        onDismiss = { songActions = null },
+                        backdrop = if (playerLiveCanvas) livePlayerBackdrop else playerBackdrop,
+                    ) { song ->
+                        songMenuBody(song)
+                    }
+                    AddSongsDialog(
+                        open = addSongsOpen,
+                        query = query,
+                        onQueryChange = viewModel::onQueryChange,
+                        onSubmit = viewModel::submitSearch,
+                        results = results,
+                        typeahead = addSongsTypeahead,
+                        suggestions = addSongsSuggestions,
+                        filter = filter,
+                        onFilterChange = viewModel::onFilterChange,
+                        onLiveSearch = viewModel::searchQuiet,
+                        backdrop = if (playerLiveCanvas) livePlayerBackdrop else playerBackdrop,
+                        onAdd = { song -> addToQueue(song) },
+                        onDismiss = {
+                            AddSongsRequest.hide()
+                            viewModel.onQueryChange("")
+                            addSongsPrevFilter?.let { viewModel.onFilterChange(it) }
+                            addSongsPrevFilter = null
+                        },
+                    )
+                },
+            ) {
+                Box(
+                    when {
+                        reduceDynamicBlur -> Modifier
+                        playerLiveCanvas -> Modifier.layerBackdrop(livePlayerBackdrop)
+                        else -> Modifier.snapshotBackdropSource(playerBackdrop)
+                    },
+                ) {
+                    CompositionLocalProvider(LocalPlayerDock provides activeDock) {
+                        nowPlaying(playerSong)
+                    }
+                }
+            }
         }
 
-        // ---- Download manager ----
-        // The batch view of what the top-bar indicator is counting. Dismissing
-        // it is what marks the batch seen, and marking it on the way *out*
-        // rather than on the way in is deliberate: it is the outcome the user is
-        // signing off on, and while the sheet is up there may not be one yet.
-        if (showDownloadManager) {
-            val closeDownloadManager = {
-                showDownloadManager = false
-                DownloadSession.markSeen()
+        // ---- Replay stories ----
+        // Mounted out here rather than inside the pane above, because a story
+        // covers the window: on a tablet the page is only the left half of the
+        // row, and a story laid out inside it would run alongside the player
+        // instead of over it.
+        replayStory?.let { start ->
+            replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
+                ReplayStories(
+                    summary = summary,
+                    start = start,
+                    onClose = { replayStory = null },
+                    onShare = { card ->
+                        replaySharePage = card
+                        showReplayShare = true
+                    },
+                    paused = showReplayShare,
+                    mainPlayer = controller,
+                )
             }
-            BackHandler(onBack = closeDownloadManager)
-            ModalBottomSheet(
-                onDismissRequest = closeDownloadManager,
-                containerColor = MaterialTheme.colorScheme.background,
-            ) {
-                DownloadManagerSheet(onDismiss = closeDownloadManager)
+        }
+
+        // ---- Share the Replay ----
+        if (showReplayShare) {
+            replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
+                ModalBottomSheet(
+                    onDismissRequest = { showReplayShare = false },
+                    // Straight to full height. The sheet is a picture and two
+                    // buttons, and half-open it showed the picture with both
+                    // buttons below the fold — a sheet whose only two controls
+                    // need a drag to reach.
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = MaterialTheme.colorScheme.background,
+                ) {
+                    ReplayShareSheet(
+                        summary = summary,
+                        holder = account?.name.orEmpty(),
+                        memberSince = replay.memberSince,
+                        page = replaySharePage,
+                        onDismiss = { showReplayShare = false },
+                    )
+                }
+            }
+        }
+
+        // ---- Track menu ----
+        // In a recompose scope of its own: whether a menu is up is read in
+        // here, and read in the app's own body it recomposed all of the app
+        // on the frame the menu starts to grow — the stutter at the start of
+        // its spring, blur or no blur.
+        Isolated {
+            // Drawn over everything, tab bar and mini player included, and kept
+            // composed through its own exit — so it is not gated on songActions.
+            HeldContextMenu(
+                item = songActions,
+                held = songMenuOrigin,
+                hazeState = hazeState,
+                onDismiss = { songActions = null },
+                // Tapping the lifted track opens its album, as Apple Music's does.
+                onPreviewClick = { song ->
+                    // Kartu yang ditekan langsung hilang, jadi menu harus selalu
+                    // ditutup di sini. Kalau tidak, hanya blur halaman yang tersisa.
+                    songActions = null
+                    val knownAlbumId = song.albumId
+                    if (knownAlbumId != null) {
+                        viewModel.openDetail(knownAlbumId, song.albumName ?: song.title, song.artist, song.thumbnailUrl, BrowseType.ALBUM)
+                    } else if (song.localUri == null && song.videoId.isNotBlank()) {
+                        // albumId belum diketahui: cari dulu, baru buka albumnya.
+                        scope.launch {
+                            val links = YtMusicRepository.trackLinks(song.videoId).getOrNull()
+                            val resolvedAlbumId = links?.albumId
+                            if (resolvedAlbumId != null) {
+                                viewModel.openDetail(
+                                    resolvedAlbumId,
+                                    song.albumName ?: links?.albumName ?: song.title,
+                                    song.artist,
+                                    song.thumbnailUrl,
+                                    BrowseType.ALBUM,
+                                )
+                            }
+                        }
+                    }
+                },
+            ) { song ->
+                songMenuBody(song)
+            }
+            // A tap on a ⋮ — or on the player's ⋯ while the player is part of the
+            // page, as on a tablet — hangs the same menu off that button. While the
+            // player is a sheet the sheet draws its own (above), so it can sit
+            // over the player and blur it.
+            // A player menu goes with the player: left up, it would carry on here,
+            // over the page.
+            LaunchedEffect(playerRaised) {
+                if (!playerRaised && menuFromPlayer) songActions = null
+            }
+            IosMenuPopover(
+                item = songActions?.takeIf { songMenuOrigin == null && !(menuFromPlayer && playerRaised) },
+                anchor = songMenuAnchor,
+                onDismiss = { songActions = null },
+                backdrop = pageBackdrop,
+                hazeState = hazeState,
+            ) { song ->
+                songMenuBody(song)
+            }
+            // A closed menu forgets where it was held and what it hung off, so
+            // whatever opens it next starts from nothing.
+            LaunchedEffect(songActions == null) {
+                if (songActions == null) {
+                    songMenuOrigin = null
+                    songMenuAnchor = null
+                    menuFromHistory = false
+                }
+            }
+        }
+
+        // ---- Song Info ----
+        songInfoTarget?.let { info ->
+            com.music.audify.ui.components.SongInfoDialog(info, backdrop = songInfoBackdrop) {
+                songInfoTarget = null
             }
         }
 
@@ -4968,63 +5483,176 @@ LibraryScreen(
                 playlistTarget = null
                 creatingPlaylist = false
             }
-            ModalBottomSheet(
-                onDismissRequest = dismiss,
-                containerColor = MaterialTheme.colorScheme.background,
-            ) {
-                PlaylistPickerSheet(
-                    playlists = pickerPlaylists,
-                    loading = playlistsLoading,
-                    signedIn = signedIn,
-                    song = target,
-                    startCreating = target == null,
-                    onAdd = { picked ->
-                        target?.let { song ->
-                            viewModel.addToPlaylists(picked, song) { added, alreadyThere, failed ->
-                                // One line for the whole batch, saying the
-                                // outcome that matters most: what went in, else
-                                // that it was all there already, else that it
-                                // didn't work.
-                                showQueueNotice(
-                                    when {
-                                        added > 1 -> resources.getQuantityString(
-                                            R.plurals.added_to_playlists_notice, added, added,
-                                        )
-                                        added == 1 -> songAddedToPlaylistMessage
-                                        alreadyThere > 0 && failed == 0 ->
-                                            songAlreadyInPlaylistMessage
-                                        else -> failedMessage
-                                    },
-                                )
-                            }
-                        }
-                        dismiss()
-                    },
-                    onCreate = { title, privacy ->
-                        viewModel.createPlaylist(title, privacy, target) { result ->
-                            when (result) {
-                                is PlaylistCreationResult.RemoteCreated -> dismiss()
-                                is PlaylistCreationResult.SavedLocally -> {
-                                    dismiss()
-                                    showQueueNotice(
-                                        if (result.remoteFailure != null) {
-                                            String.format(
-                                                Locale.getDefault(),
-                                                spotifyImportLocalFallbackFormat,
-                                                title,
-                                            )
-                                        } else {
-                                            resources.getString(R.string.playlist_saved_on_device, title)
-                                        },
+            // Playlists kept on this device (Spotify imports) sit in the same list.
+            val localChoices = remember(localPlaylists) {
+                localPlaylists.map { lp ->
+                    UserPlaylist(
+                        playlistId = lp.id,
+                        title = lp.title,
+                        subtitle = context.resources.getQuantityString(
+                            R.plurals.song_count_plural,
+                            lp.songs.size,
+                            lp.songs.size,
+                        ),
+                        thumbnailUrl = lp.coverUrl ?: lp.songs.firstNotNullOfOrNull { it.thumbnailUrl },
+                    )
+                }
+            }
+            PlaylistPickerSheet(
+                playlists = playlists + localChoices,
+                loading = playlistsLoading,
+                song = target,
+                startCreating = target == null,
+                onDismiss = dismiss,
+                onAdd = { picked ->
+                    target?.let { song ->
+                        viewModel.addToPlaylists(picked, song) { added, alreadyThere, failed ->
+                            // One line for the whole batch, saying the outcome
+                            // that matters most: what went in, else that it was
+                            // all there already, else that it didn't work.
+                            showQueueNotice(
+                                when {
+                                    added > 1 -> context.resources.getQuantityString(
+                                        R.plurals.added_to_playlists_notice, added, added,
                                     )
-                                }
-                                is PlaylistCreationResult.Failed -> showQueueNotice(failedMessage)
-                            }
+                                    added == 1 -> context.getString(R.string.song_added_to_playlist)
+                                    alreadyThere > 0 && failed == 0 ->
+                                        context.getString(R.string.song_already_in_playlist)
+                                    else -> context.getString(R.string.failed)
+                                },
+                            )
                         }
-                    },
-                )
+                    }
+                },
+                onCreate = { title, privacy, cover ->
+                    viewModel.createPlaylist(title, privacy, target, cover) { created ->
+                        // Dibuat dari tab Library (bukan dari menu lagu): masuk ke
+                        // halaman playlist-nya dan langsung buka popup tambah lagu.
+                        if (target == null) {
+                            viewModel.openDetail(
+                                created.browseId,
+                                created.title,
+                                created.subtitle,
+                                created.thumbnailUrl,
+                                BrowseType.PLAYLIST,
+                            )
+                            addSongsPlaylist = created
+                        }
+                    }
+                },
+            )
+        }
+
+        // ---- Add to a device playlist / new device playlist ----
+        // The sheet above over the offline player's own playlists, for a track
+        // that is a file on this device. Nothing here waits on a network, so
+        // there is no loading state and the outcome is known on the tap.
+        if (offlinePlaylistTarget != null || creatingOfflinePlaylist) {
+            val target = offlinePlaylistTarget
+            val dismiss = {
+                offlinePlaylistTarget = null
+                creatingOfflinePlaylist = false
+            }
+            val choices = remember(offlinePlaylists) {
+                offlinePlaylists.map { playlist ->
+                    UserPlaylist(
+                        playlistId = playlist.id,
+                        title = playlist.title,
+                        subtitle = context.resources.getQuantityString(
+                            R.plurals.song_count_plural,
+                            playlist.songs.size,
+                            playlist.songs.size,
+                        ),
+                        thumbnailUrl = playlist.songs.firstNotNullOfOrNull { it.thumbnailUrl }
+                            .takeUnless { playlist.isLiked },
+                    )
+                }
+            }
+            PlaylistPickerSheet(
+                playlists = choices,
+                loading = false,
+                song = target,
+                startCreating = target == null,
+                offline = true,
+                onDismiss = dismiss,
+                onAdd = { picked ->
+                    target?.let { song ->
+                        val result = OfflinePlaylists.add(picked.mapTo(HashSet()) { it.playlistId }, listOf(song))
+                        showQueueNotice(
+                            when {
+                                result.added > 1 -> context.resources.getQuantityString(
+                                    R.plurals.added_to_playlists_notice, result.added, result.added,
+                                )
+                                result.added == 1 -> context.getString(R.string.song_added_to_playlist)
+                                result.alreadyThere > 0 -> context.getString(R.string.song_already_in_playlist)
+                                else -> context.getString(R.string.failed)
+                            },
+                        )
+                    }
+                },
+                onCreate = { title, _, _ ->
+                    OfflinePlaylists.create(title, listOfNotNull(target))
+                    if (target != null) showQueueNotice(context.getString(R.string.song_added_to_playlist))
+                },
+            )
+        }
+
+        // ---- Tambah lagu ke playlist yang baru dibuat ----
+        // Popup yang sama dengan "Add Songs to Queue" di player, tapi hasil
+        // ketukannya masuk ke playlist. Query/hasil dipakai bersama tab Search,
+        // jadi dibersihkan saat dibuka dan ditutup.
+        val plAddTypeahead by viewModel.typeaheadResults.collectAsStateWithLifecycle()
+        var plAddSuggestions by remember { mutableStateOf<List<Song>?>(null) }
+        var plAddPrevFilter by remember { mutableStateOf<SearchFilter?>(null) }
+        val plAddOpen = addSongsPlaylist != null
+        val closeAddSongs: () -> Unit = {
+            if (addSongsPlaylist != null) {
+                addSongsPlaylist = null
+                viewModel.onQueryChange("")
+                plAddPrevFilter?.let { viewModel.onFilterChange(it) }
+                plAddPrevFilter = null
             }
         }
+        LaunchedEffect(plAddOpen) {
+            if (!plAddOpen) return@LaunchedEffect
+            viewModel.onQueryChange("")
+            plAddPrevFilter = filter
+            viewModel.onFilterChange(SearchFilter.ALL)
+            plAddSuggestions = null
+            val seed = player.song
+            if (seed == null) {
+                plAddSuggestions = emptyList()
+                return@LaunchedEffect
+            }
+            loadAutoplayTracks(existing = player.queue, seedSong = seed, limit = 8)
+                .onSuccess { plAddSuggestions = it }
+                .onFailure { plAddSuggestions = emptyList() }
+        }
+        AddSongsDialog(
+            open = plAddOpen,
+            title = stringResource(R.string.add_songs_to_playlist),
+            query = query,
+            onQueryChange = viewModel::onQueryChange,
+            onSubmit = viewModel::submitSearch,
+            results = results,
+            typeahead = plAddTypeahead,
+            suggestions = plAddSuggestions,
+            filter = filter,
+            onFilterChange = viewModel::onFilterChange,
+            onLiveSearch = viewModel::searchQuiet,
+            backdrop = null,
+            hazeState = hazeState,
+            onAdd = { song ->
+                addSongsPlaylist?.let { pl ->
+                    viewModel.addToPlaylists(listOf(pl), song) { added, alreadyThere, failed ->
+                        if (added == 0 && alreadyThere == 0 && failed > 0) {
+                            showQueueNotice(context.getString(R.string.failed))
+                        }
+                    }
+                }
+            },
+            onDismiss = closeAddSongs,
+        )
 
         if (showSpotifyImportDialog) {
             BackHandler { showSpotifyImportDialog = false }
@@ -5037,35 +5665,14 @@ LibraryScreen(
                         privacy,
                         songs.map { it.videoId },
                         songs,
-                        onError = { showQueueNotice(failedMessage) },
-                        onPartialResult = { browseId, pTitle, addedSongCount, requestedSongCount, failedSongCount ->
-                            showQueueNotice(
-                                resources.getString(
-                                    R.string.playlist_import_partial,
-                                    pTitle,
-                                    addedSongCount,
-                                    requestedSongCount,
-                                    failedSongCount,
-                                ),
-                            )
-                            viewModel.openDetail(
-                                browseId,
-                                pTitle,
-                                "$addedSongCount songs",
-                                songs.firstOrNull()?.thumbnailUrl,
-                            )
-                        },
                     ) { browseId, pTitle, savedLocally ->
-                        val notice = when {
-                            savedLocally && signedIn -> String.format(
-                                Locale.getDefault(),
-                                spotifyImportLocalFallbackFormat,
+                        showQueueNotice(
+                            context.getString(
+                                if (savedLocally && signedIn) R.string.spotify_import_local_fallback
+                                else R.string.spotify_import_done,
                                 pTitle,
-                            )
-                            savedLocally -> resources.getString(R.string.playlist_saved_on_device, pTitle)
-                            else -> String.format(Locale.getDefault(), spotifyImportDoneFormat, pTitle)
-                        }
-                        showQueueNotice(notice)
+                            ),
+                        )
                         browseId?.let { id ->
                             viewModel.openDetail(id, pTitle, "${songs.size} songs", songs.firstOrNull()?.thumbnailUrl)
                         }
@@ -5079,8 +5686,8 @@ LibraryScreen(
         // Opened by holding a card on any tab, or from the release page's own
         // overflow. What a track's long-press menu is to one song, this is to
         // the whole release — the queue rows above all.
-        // One body for the sheet and the popup alike — see songMenuBody.
-        val browseMenuBody: @Composable (BrowseTarget, SongActionsPresentation) -> Unit = { target, presentation ->
+        // One body for every frame alike — see songMenuBody.
+        val browseMenuBody: @Composable (BrowseTarget) -> Unit = { target ->
             // Every row here closes the menu first: the tracks may still have to
             // be fetched, and leaving the sheet up over a request nothing on it
             // reports on reads as a tap that didn't land.
@@ -5109,17 +5716,7 @@ LibraryScreen(
             // Compose. Both are read from collected state so this sheet actually
             // recomposes when the answer arrives.
             val ownedPlaylists by viewModel.playlistOwned.collectAsStateWithLifecycle()
-            val localPlaylist = target.browseId
-                ?.takeIf { it.startsWith("local:playlist:") }
-                ?.let(com.music.audify.data.spotify.LocalPlaylistStore::getPlaylist)
-            val playlist = localPlaylist?.let { local ->
-                UserPlaylist(
-                    playlistId = local.browseId,
-                    title = local.title,
-                    subtitle = "${local.songs.size} songs · On this device",
-                    thumbnailUrl = local.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
-                )
-            } ?: target.browseId
+            val playlist = target.browseId
                 ?.takeIf { signedIn && ownedPlaylists[it] == true }
                 ?.let { id -> playlists.firstOrNull { it.browseId == id } }
             val remote = target.browseId?.startsWith("local:") == false
@@ -5131,11 +5728,33 @@ LibraryScreen(
             val downloadable = remote ||
                 target.browseId?.startsWith("local:playlist:sp_local_") == true
             val pinnedPlaylists by AppSettings.pinnedPlaylists.collectAsStateWithLifecycle()
-            val pinnableId = target.browseId?.takeIf { target.type == BrowseType.PLAYLIST }
-            BrowseActionsSheet(
+            // Device playlists and directories have nowhere on the Library
+            // page to be pinned to that would still mean anything off-device.
+            val pinnableId = target.browseId?.takeIf {
+                target.type == BrowseType.PLAYLIST &&
+                    !it.startsWith(OfflinePlaylists.PREFIX) && !it.startsWith(LocalGroups.PREFIX)
+            }
+            // One of the offline player's own playlists, which are the user's
+            // to rename and delete — all but Liked, which is the app's.
+            val offlineEditable = OfflinePlaylists.get(target.browseId)?.takeUnless { it.isLiked }
+            // A Spotify import kept on this device: the user's own to rename,
+            // re-cover and delete. Read off the collected list so the sheet
+            // follows each edit.
+            val localEditable = target.browseId?.let { id -> localPlaylists.firstOrNull { it.browseId == id } }
+            BrowseActionsMenu(
                 // The live answer, not the one the target was built with.
-                target = target.copy(playlist = playlist),
-                presentation = presentation,
+                target = target.copy(
+                    playlist = playlist ?: offlineEditable?.let {
+                        UserPlaylist(playlistId = it.id, title = it.title, subtitle = "", thumbnailUrl = null)
+                    } ?: localEditable?.let {
+                        UserPlaylist(
+                            playlistId = it.id,
+                            title = it.title,
+                            subtitle = "",
+                            thumbnailUrl = it.coverUrl ?: it.songs.firstNotNullOfOrNull { s -> s.thumbnailUrl },
+                        )
+                    },
+                ),
                 onRenameInSheet = {
                     browseRenameInSheet = true
                     browseMenuOrigin = null
@@ -5211,29 +5830,25 @@ LibraryScreen(
                             browseActions = null
                         }
                     },
-                onSyncToYouTubeMusic = localPlaylist
-                    ?.takeIf { signedIn }
-                    ?.let { local ->
-                        {
-                            viewModel.syncLocalPlaylist(local.browseId) { synced, remoteBrowseId ->
-                                if (synced) {
-                                    showQueueNotice("Playlist queued for YouTube Music sync")
-                                    remoteBrowseId?.let { id -> viewModel.loadPlaylists() }
-                                } else {
-                                    showQueueNotice(failedMessage)
-                                }
-                                browseActions = null
-                            }
-                        }
-                    },
                 isPinned = pinnableId != null && pinnableId in pinnedPlaylists,
                 onTogglePin = pinnableId?.let { id ->
                     {
-                        val nowPinned = AppSettings.togglePinnedPlaylist(id)
+                        val nowPinned = AppSettings.togglePinnedPlaylist(
+                            id,
+                            // A Spotify page lives in no Library shelf, so its pin carries its own card.
+                            if (id.startsWith(SPOTIFY_PAGE_PREFIX)) {
+                                AppSettings.PinnedCard(target.title, target.subtitle, target.thumbnailUrl)
+                            } else {
+                                null
+                            },
+                        )
                         if (!nowPinned && id !in pinnedPlaylists) {
                             Toast.makeText(
                                 context,
-                                pinnedPlaylistLimitMessage,
+                                context.getString(
+                                    R.string.pinned_playlist_limit,
+                                    AppSettings.MAX_PINNED_PLAYLISTS,
+                                ),
                                 Toast.LENGTH_SHORT,
                             ).show()
                         }
@@ -5245,6 +5860,23 @@ LibraryScreen(
                         browseActions = null
                         viewModel.renamePlaylist(p, name)
                     }
+                } ?: offlineEditable?.let { p ->
+                    { name: String ->
+                        browseActions = null
+                        OfflinePlaylists.rename(p.browseId, name)
+                        viewModel.retitleDetail(p.browseId, name.trim())
+                    }
+                } ?: localEditable?.let { p ->
+                    { name: String ->
+                        browseActions = null
+                        com.music.audify.data.spotify.LocalPlaylistStore.renamePlaylist(p.browseId, name.trim())
+                        viewModel.retitleDetail(p.browseId, name.trim())
+                    }
+                },
+                onChangeCover = playlist?.let { p ->
+                    { uri: android.net.Uri? -> viewModel.setPlaylistCover(p, uri) }
+                } ?: localEditable?.let { p ->
+                    { uri: android.net.Uri? -> viewModel.setLocalPlaylistCover(p.browseId, uri) }
                 },
                 onReorder = playlist?.let { p ->
                     {
@@ -5268,7 +5900,7 @@ LibraryScreen(
                             if (reorderTarget != p) return@loadPlaylistEntries
                             reorderEntries = result.fold(
                                 onSuccess = { UiState.Success(it) },
-                                onFailure = { UiState.Error(failedMessage) },
+                                onFailure = { UiState.Error(context.getString(R.string.failed)) },
                             )
                         }
                     }
@@ -5277,6 +5909,21 @@ LibraryScreen(
                     {
                         browseActions = null
                         viewModel.deletePlaylist(p)
+                    }
+                } ?: offlineEditable?.let { p ->
+                    {
+                        browseActions = null
+                        // Its page has nothing left to show; take it away too.
+                        if (detail?.browseId == p.browseId) viewModel.closeDetail()
+                        OfflinePlaylists.delete(p.browseId)
+                    }
+                } ?: localEditable?.let { p ->
+                    {
+                        browseActions = null
+                        if (detail?.browseId == p.browseId) viewModel.closeDetail()
+                        com.music.audify.data.PlaylistCovers.remove(context, p.browseId)
+                        if (p.browseId in pinnedPlaylists) AppSettings.togglePinnedPlaylist(p.browseId)
+                        com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist(p.browseId)
                     }
                 },
                 onDeleteDownload = target.downloadId?.let { id ->
@@ -5287,40 +5934,64 @@ LibraryScreen(
                 },
             )
         }
-        browseActions?.takeIf { browseMenuOrigin == null }?.let { target ->
-            ModalBottomSheet(
-                onDismissRequest = { browseActions = null },
-                containerColor = MaterialTheme.colorScheme.background,
-            ) {
-                browseMenuBody(target, SongActionsPresentation.Sheet)
-            }
-        }
-        HeldContextMenu(
-            item = browseActions,
-            held = browseMenuOrigin,
-            hazeState = hazeState,
-            onDismiss = { browseActions = null },
-            // Tapping the lifted card opens it, as a tap on it in the list
-            // would have. Not for a Local Music grouping, which has no page.
-            onPreviewClick = { target ->
-                target.browseId?.let { id ->
-                    browseActions = null
-                    viewModel.openDetail(
-                        browseId = id,
-                        title = target.title,
-                        subtitle = target.subtitle,
-                        thumbnailUrl = target.thumbnailUrl,
-                        type = target.type,
-                    )
+        // In a recompose scope of its own, as the track menu's is.
+        Isolated {
+            // Rename is a text field and a keyboard, which have no place on a menu
+            // floating over the page: the menu hands it on, and the form comes up
+            // here on a sheet of its own.
+            browseActions?.takeIf { browseRenameInSheet }?.let { target ->
+                ModalBottomSheet(
+                    onDismissRequest = { browseActions = null },
+                    // Langsung tinggi penuh. Setengah terbuka, sheet berhenti di
+                    // tengah layar dan bagian bawahnya (kolom nama + Save) berada
+                    // di balik keyboard, tidak terjangkau oleh scroll form.
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = MaterialTheme.colorScheme.background,
+                ) {
+                    browseMenuBody(target)
                 }
-            },
-        ) { target ->
-            browseMenuBody(target, SongActionsPresentation.Menu)
-        }
-        LaunchedEffect(browseActions == null) {
-            if (browseActions == null) {
-                browseMenuOrigin = null
-                browseRenameInSheet = false
+            }
+            HeldContextMenu(
+                item = browseActions,
+                held = browseMenuOrigin,
+                hazeState = hazeState,
+                onDismiss = { browseActions = null },
+                // Tapping the lifted card opens it, as a tap on it in the list
+                // would have. Not for a Local Music grouping, which has no page.
+                onPreviewClick = { target ->
+                    val targetId = target.browseId
+                    if (targetId != null) startCoverFlightFor(targetId)
+                    // Selalu ditutup, juga untuk item tanpa halaman (Local Music).
+                    browseActions = null
+                    if (targetId != null) {
+                        viewModel.openDetail(
+                            browseId = targetId,
+                            title = target.title,
+                            subtitle = target.subtitle,
+                            thumbnailUrl = target.thumbnailUrl,
+                            type = target.type,
+                        )
+                    }
+                },
+            ) { target ->
+                browseMenuBody(target)
+            }
+            // A tap on a ⋯ — the release page's own — hangs the menu off it.
+            IosMenuPopover(
+                item = browseActions?.takeIf { browseMenuOrigin == null && !browseRenameInSheet },
+                anchor = browseMenuAnchor,
+                onDismiss = { browseActions = null },
+                backdrop = pageBackdrop,
+                hazeState = hazeState,
+            ) { target ->
+                browseMenuBody(target)
+            }
+            LaunchedEffect(browseActions == null) {
+                if (browseActions == null) {
+                    browseMenuOrigin = null
+                    browseMenuAnchor = null
+                    browseRenameInSheet = false
+                }
             }
         }
 
@@ -5437,58 +6108,22 @@ LibraryScreen(
             }
         }
 
-        // ---- v1.8.9 signing migration notice (one-time after a clean install) ----
-        if (showMigrationNotice && onboardingComplete) {
-            UpdateAvailableDialog(
-                version = BuildConfig.VERSION_NAME,
-                notes = null,
-                requiresManualMigration = true,
-                migrationAlreadyInstalled = true,
-                hazeState = hazeState,
-                onDismiss = dismissMigrationNotice,
-                onDownload = {
-                    dismissMigrationNotice()
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9".toUri(),
-                        ),
-                    )
-                },
-                onCancelDownload = dismissMigrationNotice,
-                onInstall = dismissMigrationNotice,
-                onOpenReleasePage = {
-                    dismissMigrationNotice()
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            "https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9".toUri(),
-                        ),
-                    )
-                },
-            )
-        }
-
         // ---- Update available (once per launch; held until the welcome is done) ----
         if (showUpdateDialog && onboardingComplete) {
             updateNotice?.let { update ->
                 UpdateAvailableDialog(
                     version = update.version,
                     notes = update.notes,
-                    requiresManualMigration = update.requiresManualMigration,
                     hazeState = hazeState,
                     // A download in progress keeps running behind the closed
                     // sheet — only the sheet itself goes away. The top bar's
                     // update icon reopens it onto whatever state it reached.
                     onDismiss = { showUpdateDialog = false },
                     onDownload = {
-                        if (update.requiresManualMigration) {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
-                            showUpdateDialog = false
-                        } else if (update.apkUrl != null) {
+                        if (update.apkUrl != null) {
                             scope.launch { AppUpdateChecker.downloadApk(context) }
                         } else {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
                             showUpdateDialog = false
                         }
                     },
@@ -5501,30 +6136,14 @@ LibraryScreen(
                     },
                     onOpenReleasePage = {
                         AppUpdateChecker.resetDownload()
-                        context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
                         showUpdateDialog = false
                     },
                 )
             }
         }
 
-        AnimatedVisibility(
-            visible = showHomeCastDialog,
-            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
-        ) {
-            BackHandler { showHomeCastDialog = false }
-            PlayerPlatform.host.CastDialog(
-                hazeState = hazeState,
-                onDismiss = { showHomeCastDialog = false },
-            )
-        }
-
-        AnimatedVisibility(
-            visible = showLyricsSources,
-            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
-        ) {
+        if (showLyricsSources) {
             BackHandler { showLyricsSources = false }
             LyricsSourcesDialog(
                 hazeState = hazeState,
@@ -5532,11 +6151,7 @@ LibraryScreen(
             )
         }
 
-        AnimatedVisibility(
-            visible = songSortMenuOpen,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.97f, animationSpec = tween(160)),
-            exit = fadeOut(tween(100)) + scaleOut(targetScale = 0.985f, animationSpec = tween(100)),
-        ) {
+        PopMenuHost(songSortMenuOpen) {
             BackHandler { songSortMenuOpen = false }
             FrostedSortMenu(
                 hazeState = hazeState,
@@ -5563,13 +6178,25 @@ LibraryScreen(
             )
         }
 
+        PopMenuHost(librarySortMenuOpen) {
+            BackHandler { librarySortMenuOpen = false }
+            FrostedMenuPanel(hazeState = hazeState, onDismiss = { librarySortMenuOpen = false }) {
+                LibrarySort.entries.forEach { option ->
+                    FrostedMenuRow(
+                        label = option.localizedLabel(),
+                        checked = option == librarySort,
+                        onClick = {
+                            AppSettings.setLibrarySort(option)
+                            librarySortMenuOpen = false
+                        },
+                    )
+                }
+            }
+        }
+
         val menuFolder = detail?.browseId?.takeIf { it.isDeviceFolder() }
-        AnimatedVisibility(
-            visible = folderMenuOpen && menuFolder != null,
-            enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.97f, animationSpec = tween(160)),
-            exit = fadeOut(tween(100)) + scaleOut(targetScale = 0.985f, animationSpec = tween(100)),
-        ) {
-            if (menuFolder != null) {
+        PopMenuHost(folderMenuOpen && menuFolder != null) {
+            if (menuFolder == null) return@PopMenuHost
             BackHandler { folderMenuOpen = false }
             val downloadsFolder = menuFolder == "local:downloads"
             val viewType = folderViewTypeOf(menuFolder)
@@ -5590,14 +6217,12 @@ LibraryScreen(
                 },
                 onDismiss = { folderMenuOpen = false },
             )
-            }
         }
 
-        AnimatedVisibility(
-            visible = showAccountSelector,
-            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
-        ) {
+        LaunchedEffect(showAccountSelector) {
+            if (!showAccountSelector) accountSelectorLeaving = false
+        }
+        if (showAccountSelector) {
             BackHandler { showAccountSelector = false }
             AccountProfileSelector(
                 accounts = googleAccounts,
@@ -5618,14 +6243,11 @@ LibraryScreen(
                     navigator.push(AppRoute.Settings)
                 },
                 onDismiss = { showAccountSelector = false },
+                onClosing = { accountSelectorLeaving = true },
             )
         }
 
-        AnimatedVisibility(
-            visible = showAppLanguage,
-            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
-        ) {
+        if (showAppLanguage) {
             BackHandler { showAppLanguage = false }
             AppLanguageDialog(
                 hazeState = hazeState,
@@ -5633,11 +6255,22 @@ LibraryScreen(
             )
         }
 
-        AnimatedVisibility(
-            visible = showTranslationLanguage,
-            enter = fadeIn(tween(170)) + scaleIn(initialScale = 0.96f, animationSpec = tween(190)),
-            exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.985f, animationSpec = tween(120)),
-        ) {
+        if (showHomeLayout) {
+            BackHandler { showHomeLayout = false }
+            // Recents stays in this list while it is hidden, so it can be shown again.
+            val layoutShelves = remember(homeState, hideHomeVideos) {
+                val loaded = (homeState as? UiState.Success)?.data.orEmpty()
+                if (hideHomeVideos) loaded.withoutVideos() else loaded
+            }
+            HomeLayoutDialog(
+                hazeState = hazeState,
+                shelves = layoutShelves,
+                libraryShelves = (libraryState as? UiState.Success)?.data?.shelves.orEmpty(),
+                onDismiss = { showHomeLayout = false },
+            )
+        }
+
+        if (showTranslationLanguage) {
             BackHandler { showTranslationLanguage = false }
             TranslationLanguageDialog(
                 hazeState = hazeState,
@@ -5689,10 +6322,10 @@ LibraryScreen(
                                     showLastfmLogin = false
                                 }
                                 .onFailure { e ->
-                                    lastfmError = e.message ?: loginFailedMessage
+                                    lastfmError = e.message ?: context.getString(R.string.login_failed)
                                 }
                         } catch (e: Exception) {
-                            lastfmError = e.message ?: loginFailedMessage
+                            lastfmError = e.message ?: context.getString(R.string.login_failed)
                         } finally {
                             lastfmLoading = false
                         }
@@ -5704,25 +6337,22 @@ LibraryScreen(
 
         if (showWebDavEditor) {
             BackHandler { showWebDavEditor = false }
-            val webdavUrl by AppSettings.webdavUrl.collectAsStateWithLifecycle()
-            val webdavUsername by AppSettings.webdavUsername.collectAsStateWithLifecycle()
-            val webdavPassword by AppSettings.webdavPassword.collectAsStateWithLifecycle()
             ServerEditorHost(
                 hazeState = hazeState,
                 title = stringResource(R.string.webdav),
                 description = stringResource(R.string.webdav_description),
                 fields = listOf(
                     FieldConfig(
-                        initial = webdavUrl,
+                        initial = AppSettings.webdavUrl.value,
                         placeholder = stringResource(R.string.webdav_server_url_hint),
                         keyboardType = KeyboardType.Uri,
                     ),
                     FieldConfig(
-                        initial = webdavUsername,
+                        initial = AppSettings.webdavUsername.value,
                         placeholder = stringResource(R.string.username),
                     ),
                     FieldConfig(
-                        initial = webdavPassword,
+                        initial = AppSettings.webdavPassword.value,
                         placeholder = stringResource(R.string.password),
                         keyboardType = KeyboardType.Password,
                         isPassword = true,
@@ -5749,35 +6379,30 @@ LibraryScreen(
 
         if (showSmbEditor) {
             BackHandler { showSmbEditor = false }
-            val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
-            val smbShare by AppSettings.smbShare.collectAsStateWithLifecycle()
-            val smbBasePath by AppSettings.smbBasePath.collectAsStateWithLifecycle()
-            val smbUsername by AppSettings.smbUsername.collectAsStateWithLifecycle()
-            val smbPassword by AppSettings.smbPassword.collectAsStateWithLifecycle()
             ServerEditorHost(
                 hazeState = hazeState,
                 title = stringResource(R.string.smb),
                 description = stringResource(R.string.smb_description),
                 fields = listOf(
                     FieldConfig(
-                        initial = smbHost,
+                        initial = AppSettings.smbHost.value,
                         placeholder = stringResource(R.string.smb_server_hint),
                         keyboardType = KeyboardType.Uri,
                     ),
                     FieldConfig(
-                        initial = smbShare,
+                        initial = AppSettings.smbShare.value,
                         placeholder = stringResource(R.string.smb_share_hint),
                     ),
                     FieldConfig(
-                        initial = smbBasePath,
+                        initial = AppSettings.smbBasePath.value,
                         placeholder = stringResource(R.string.smb_folder_hint),
                     ),
                     FieldConfig(
-                        initial = smbUsername,
+                        initial = AppSettings.smbUsername.value,
                         placeholder = stringResource(R.string.username),
                     ),
                     FieldConfig(
-                        initial = smbPassword,
+                        initial = AppSettings.smbPassword.value,
                         placeholder = stringResource(R.string.password),
                         keyboardType = KeyboardType.Password,
                         isPassword = true,
@@ -5967,8 +6592,87 @@ LibraryScreen(
             )
         }
 
+        confirmBitPerfect?.let { mode ->
+            ConfirmationAlert(
+                hazeState = hazeState,
+                title = stringResource(R.string.bit_perfect_confirm_title),
+                description = stringResource(R.string.bit_perfect_confirm_message),
+                confirmLabel = stringResource(R.string.enable),
+                onConfirm = {
+                    AppSettings.setBitPerfectMode(mode)
+                    confirmBitPerfect = null
+                },
+                onDismiss = { confirmBitPerfect = null },
+            )
+        }
+
+        if (confirmFixedVolume) {
+            ConfirmationAlert(
+                hazeState = hazeState,
+                title = stringResource(R.string.usb_allow_fixed_volume_confirm_title),
+                description = stringResource(R.string.usb_allow_fixed_volume_confirm_message),
+                confirmLabel = stringResource(R.string.enable),
+                onConfirm = {
+                    AppSettings.setUsbAllowFixedVolume(true)
+                    confirmFixedVolume = false
+                },
+                onDismiss = { confirmFixedVolume = false },
+            )
+        }
+
+        // Over the page and its frosted bars, under nothing but the alerts.
+        DacVolumeHud(hazeState)
+
+        blockedAddonSong?.let { song ->
+            AddonBlockedAlert(
+                hazeState = hazeState,
+                song = song,
+                onDismiss = { blockedAddonSong = null },
+            )
+        }
+
+        addonLeftOutOfDownload?.let { (addon, why) ->
+            // Dibuka dari player: kacanya harus melihat player, bukan halaman
+            // utama di bawahnya yang tertutup player.
+            val appBackdrop = LocalAppBackdrop.current
+            val alertBackdrop = if (playerRaised && !reduceDynamicBlur) {
+                if (playerLiveCanvas) livePlayerBackdrop else playerBackdrop
+            } else {
+                appBackdrop
+            }
+            LaunchedEffect(Unit) {
+                if (playerRaised && !reduceDynamicBlur && !playerLiveCanvas && !playerBackdrop.hasStill) {
+                    playerBackdrop.capture()
+                }
+            }
+            CompositionLocalProvider(LocalAppBackdrop provides alertBackdrop) {
+            InfoAlert(
+                hazeState = hazeState,
+                title = stringResource(R.string.download_addon_left_out_title, addon),
+                description = when (why) {
+                    SourceRegistry.DownloadExclusion.DOWNLOADS_NOT_ALLOWED ->
+                        stringResource(R.string.download_addon_not_allowed, addon)
+                    SourceRegistry.DownloadExclusion.NEEDS_LOSSLESS_OUTPUT ->
+                        stringResource(R.string.download_addon_needs_lossless_output, addon)
+                },
+                onDismiss = { addonLeftOutOfDownload = null },
+                // A download can be asked for from the player or from either
+                // menu, and each is a window of its own over this one. Drawn
+                // here, the alert opened behind whichever it was.
+                inOwnWindow = playerRaised || songActions != null || browseActions != null,
+            )
+            }
+        }
+
     }
 }
+
+/**
+ * The addon exclusions already explained this session, as `configId:reason` —
+ * see [SourceRegistry.addonsLeftOutOfDownloads]. Process-wide rather than
+ * remembered by the composition, so turning the phone doesn't say it again.
+ */
+private val explainedDownloadExclusions = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
 /** UIKit's sheet curve: leaves at once, settles long — a sheet let go of, not pushed. */
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
@@ -5981,6 +6685,28 @@ private fun LibrarySort.localizedLabel(): String = when (this) {
     LibrarySort.DEFAULT -> stringResource(R.string.sort_default)
     LibrarySort.TITLE_ASC -> stringResource(R.string.sort_title_ascending)
     LibrarySort.TITLE_DESC -> stringResource(R.string.sort_title_descending)
+}
+
+/**
+ * Folds a top bar action in and out. A top-level wrapper on purpose: called from
+ * inside the bar's Row it would resolve to RowScope.AnimatedVisibility, which the
+ * compiler rejects from that nested scope.
+ */
+@Composable
+private fun ActionReveal(visible: Boolean, bounce: Boolean = false, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (bounce) {
+            fadeIn(tween(140)) +
+                expandHorizontally(spring(dampingRatio = 0.55f, stiffness = 420f)) +
+                scaleIn(spring(dampingRatio = 0.35f, stiffness = 380f), initialScale = 0.3f)
+        } else {
+            fadeIn(tween(180)) + expandHorizontally(tween(220))
+        },
+        exit = fadeOut(tween(120)) + shrinkHorizontally(tween(200)),
+    ) {
+        content()
+    }
 }
 
 /**
@@ -6014,9 +6740,10 @@ private fun FrostedSortMenu(
         Row(
             Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+                .jellyMenuRow(onClick = onFlipDateDirection)
                 .heightIn(min = 48.dp)
-                .clickable(role = Role.Button) { onFlipDateDirection() }
-                .padding(horizontal = 20.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -6028,7 +6755,7 @@ private fun FrostedSortMenu(
                 Icon(
                     Icons.Rounded.ArrowUpward,
                     contentDescription = null,
-                    tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.rotate(arrowRotation),
                 )
             }
@@ -6081,7 +6808,36 @@ private fun FrostedFolderMenu(
     }
 }
 
+/** 0 to 1 as a menu pops in and back to 0 as it folds away; 1 where nothing animates it. */
+private val LocalMenuPop = androidx.compose.runtime.staticCompositionLocalOf<() -> Float> { { 1f } }
+
+/**
+ * Keeps a menu composed while it plays its way out. A bare `if (open) Menu()`
+ * removes it the instant the flag drops, so there is never a frame left to
+ * animate. The pop is a spring that overshoots a little on the way in and a
+ * short ease on the way out; the panel reads it through [LocalMenuPop] at draw
+ * time, so a frame of it is a redraw and not a recomposition.
+ */
+@Composable
+private fun PopMenuHost(visible: Boolean, content: @Composable () -> Unit) {
+    val progress = remember { androidx.compose.animation.core.Animatable(0f) }
+    var present by remember { mutableStateOf(visible) }
+    LaunchedEffect(visible) {
+        if (visible) {
+            present = true
+            progress.animateTo(1f, com.music.audify.ui.components.MacOSPopupSpec().openSpring)
+        } else {
+            progress.animateTo(0f, com.music.audify.ui.components.MacOSPopupSpec().closeSpring)
+            present = false
+        }
+    }
+    if (present) {
+        CompositionLocalProvider(LocalMenuPop provides { progress.value }) { content() }
+    }
+}
+
 /** The scrim and frosted panel both top-bar menus are drawn on. */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun FrostedMenuPanel(
     hazeState: HazeState,
@@ -6090,19 +6846,31 @@ private fun FrostedMenuPanel(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = MaterialTheme.shapes.extraLarge
+    val touch = rememberJellyMenuTouch()
+    val pop = LocalMenuPop.current
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = .48f))
             .clickable(onClick = onDismiss),
         contentAlignment = Alignment.TopEnd,
     ) {
+        // The scrim fades with the pop rather than cutting in and out.
+        Box(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer { alpha = pop().coerceIn(0f, 1f) }
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = .48f)),
+        )
         Surface(
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = shape,
             modifier = Modifier
                 .padding(top = 56.dp, end = 20.dp)
+                // Grows out of the button that opened it, like the alerts do,
+                // and folds back into it on the way out.
+                .macOSPopupMorph(progress = pop, cornerRadius = 28.dp)
+                .iosMenuJelly(touch, 1f, 0f)
                 .width(IntrinsicSize.Max)
                 .clip(shape)
                 .then(
@@ -6117,7 +6885,7 @@ private fun FrostedMenuPanel(
                 )
                 .clickable(onClick = {}),
         ) {
-            Column(Modifier.padding(vertical = 8.dp), content = content)
+            JellyMenuBody(touch, content = content)
         }
     }
 }
@@ -6133,9 +6901,10 @@ private fun FrostedMenuRow(
     Row(
         Modifier
             .fillMaxWidth()
+            .padding(horizontal = 8.dp)
+            .jellyMenuRow(onClick = onClick)
             .heightIn(min = 44.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -6147,7 +6916,7 @@ private fun FrostedMenuRow(
             Icon(
                 Icons.Rounded.Check,
                 contentDescription = null,
-                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                tint = MaterialTheme.colorScheme.primary,
             )
         } else if (icon != null) {
             Spacer(Modifier.width(16.dp))
@@ -6182,7 +6951,8 @@ private fun SongSort.localizedLabel(): String = when (this) {
  */
 private fun String?.isDeviceFolder(): Boolean =
     this != null && startsWith("local:") &&
-        !startsWith(Downloads.PLAYLIST_PREFIX) && !startsWith(LocalGroups.PREFIX)
+        !startsWith(Downloads.PLAYLIST_PREFIX) && !startsWith(LocalGroups.PREFIX) &&
+        !startsWith(OfflinePlaylists.PREFIX)
 
 /**
  * Whether [videoId] is the track playing, and is known to be playing YouTube's
@@ -6190,14 +6960,17 @@ private fun String?.isDeviceFolder(): Boolean =
  * original" or with "Upgrade quality".
  *
  * See [QualityUpgrade.isKnownToBePlayingYouTubesOwn] for why "known" is doing
- * real work here: an unresolved track playing off the disk cache answers false,
- * and keeps the revert on offer.
+ * real work here: an unresolved track playing off the disk cache is judged by
+ * the origin its cache entry was tagged with, and keeps the revert on offer
+ * only when the entry has none.
  */
 private fun playingYouTubesOwn(videoId: String, controller: MediaController?): Boolean {
     val item = controller?.currentMediaItem?.takeIf { it.mediaId == videoId } ?: return false
+    val uri = item.localConfiguration?.uri
     return QualityUpgrade.isKnownToBePlayingYouTubesOwn(
         videoId,
-        item.localConfiguration?.uri?.let(QualityUpgrade::cacheTag),
+        uri?.let(QualityUpgrade::cacheTag),
+        uri?.let(AudioCache::originOf),
     )
 }
 
@@ -6241,20 +7014,14 @@ private val PLAYER_PULL_FLING_VELOCITY = 400.dp
 private const val PLAYER_SCRIM_ALPHA = 0.32f
 
 /**
- * The player sheet's shape: square, as [RectangleShape] was, but reaching a
- * whole sheet's height above the sheet's top edge.
- *
- * The sheet's Surface clips its content to this shape, and on the way down to
- * the mini player the artwork travels ahead of the sheet carrying it — up
- * above the sheet's top edge, where a plain rectangle cut it off mid-air,
- * leaving only its lower part to arrive in the bar. Nothing else is drawn
- * outside the sheet (its background is transparent and it casts no shadow),
- * so at rest this is the rectangle it replaces.
+ * [content] in a recompose scope of its own, so state read inside it
+ * recomposes it alone rather than everything it is written in.
  */
-private object PlayerSheetShape : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
-        Outline.Rectangle(Rect(0f, -size.height, size.width, size.height))
-}
+@Composable
+private fun Isolated(content: @Composable () -> Unit) = content()
+
+/** Longer than the ⋯ menu's exit, so its panel keeps its frost on the way out. */
+private const val SNAPSHOT_RELEASE_DELAY_MS = 400L
 
 private const val TAB_HOME = 0
 private const val TAB_EXPLORE = 1

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import com.music.audify.sharedui.resources.*
@@ -43,7 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,7 +51,19 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.TileMode
+import com.music.audify.ui.graphics.FADE_CURVE_STOPS
+import com.music.audify.ui.graphics.smootherStep
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +73,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
 import com.music.audify.ui.components.ExplicitBadge
+import com.music.audify.ui.components.menuAnchor
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.theme.stableStatusBarInsets
@@ -98,6 +108,15 @@ private val LANDSCAPE_COMPACT_HEIGHT = 440.dp
 private val LANDSCAPE_GUTTER_COMPACT = 20.dp
 
 /**
+ * Width of the full-bleed cover as a share of the window. Half the window is
+ * exactly where the left column ends, whatever the window's width.
+ */
+private const val LANDSCAPE_FULL_BLEED_WIDTH_FRACTION = 0.5f
+
+/** Where, across the full-bleed cover, the fade into the blurred backdrop begins. */
+private const val LANDSCAPE_FULL_BLEED_FADE_START = 0.55f
+
+/**
  * How the right column hands over between the player, the lyrics and the
  * queue. The left column never moves, so a crossfade is the whole transition —
  * the same page being turned, not a panel being opened.
@@ -105,6 +124,20 @@ private val LANDSCAPE_GUTTER_COMPACT = 20.dp
 private const val LANDSCAPE_PANE_FADE_IN_MS = 220
 private const val LANDSCAPE_PANE_FADE_IN_DELAY_MS = 90
 private const val LANDSCAPE_PANE_FADE_OUT_MS = 140
+
+/** [image] mengisi scope ini, di tengah dan di-crop seperti ContentScale.Crop. */
+private fun DrawScope.drawLandscapeCropped(image: ImageBitmap) {
+    if (size.width <= 0f || size.height <= 0f) return
+    val scale = maxOf(size.width / image.width, size.height / image.height)
+    val srcWidth = (size.width / scale).roundToInt().coerceIn(1, image.width)
+    val srcHeight = (size.height / scale).roundToInt().coerceIn(1, image.height)
+    drawImage(
+        image = image,
+        srcOffset = IntOffset((image.width - srcWidth) / 2, (image.height - srcHeight) / 2),
+        srcSize = IntSize(srcWidth, srcHeight),
+        dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+    )
+}
 
 /** Which of its three things the player's content column is showing. */
 internal enum class PlayerPane { Main, Lyrics, Queue }
@@ -152,9 +185,24 @@ internal fun LandscapePlayerLayout(
     lyricsPane: @Composable () -> Unit,
     queuePane: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The cover runs edge to edge down the left half, up behind the status
+     * bar and the navigation bar, and fades out to the right into the blurred
+     * backdrop. [artwork] is then handed that area rather than a square.
+     */
+    fullBleed: Boolean = false,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         background(Modifier.fillMaxSize())
+
+        if (fullBleed) {
+            artwork(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxHeight()
+                    .fillMaxWidth(LANDSCAPE_FULL_BLEED_WIDTH_FRACTION),
+            )
+        }
 
         BoxWithConstraints(
             modifier = Modifier
@@ -188,13 +236,19 @@ internal fun LandscapePlayerLayout(
                     // the column's width on a big tablet, the height on
                     // anything shorter. Measured here rather than estimated,
                     // so the row under it can never be pushed off the bottom.
-                    BoxWithConstraints(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        artwork(Modifier.size(minOf(maxWidth, maxHeight)))
+                    if (fullBleed) {
+                        // The cover is drawn behind the columns; this only
+                        // keeps the row below at the foot of the column.
+                        Spacer(Modifier.weight(1f))
+                    } else {
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            artwork(Modifier.size(minOf(maxWidth, maxHeight)))
+                        }
                     }
                     Spacer(Modifier.height(if (compact) 12.dp else 24.dp))
                     actions()
@@ -288,6 +342,17 @@ internal fun LandscapeArtwork(
     modifier: Modifier = Modifier,
     /** Halts the clip for a transition — see [CanvasArtworkPlayer]'s own. */
     pausedForTransition: Boolean = false,
+    /** Seperti sleeve portrait: klip disembunyikan selagi frame tangkapannya yang tampil. */
+    presentationAlpha: () -> Float = { 1f },
+    startPositionMs: Long = 0L,
+    revealInstantly: Boolean = false,
+    captureStill: Boolean = false,
+    onStillCaptured: (ImageBitmap?, Long) -> Unit = { _, _ -> },
+    onResumed: () -> Unit = {},
+    /** Cover lama + efek transisi (slide / fluid shader), sama seperti sleeve portrait. */
+    dissolve: ArtworkDissolve? = null,
+    /** Diisi klip dengan pembaca frame hidupnya, diambil sesaat sebelum skip. */
+    frameGrab: CanvasFrameGrab? = null,
     /**
      * The sleeve's shape, asked for each frame: its corner rounds off into the
      * mini player's cover's as the player docks into it.
@@ -295,9 +360,12 @@ internal fun LandscapeArtwork(
     sleeveShape: () -> Shape = { LandscapeArtShape },
     /** How much of the sleeve's shadow is cast, 1 at rest. */
     shadowFraction: () -> Float = { 1f },
+    /** Full-bleed cover: dissolves its right edge into the backdrop and darkens its foot for the row over it. */
+    fadeRightEdge: Boolean = false,
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
-    val casts = artLoaded || canvasRendered
+    val casts = artLoaded || canvasRendered ||
+        dissolve?.outgoing != null || dissolve?.cutHold == true
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
@@ -317,11 +385,44 @@ internal fun LandscapeArtwork(
                 .graphicsLayer {
                     shape = sleeveShape()
                     clip = true
+                    compositingStrategy = if (fadeRightEdge) {
+                        CompositingStrategy.Offscreen
+                    } else {
+                        CompositingStrategy.Auto
+                    }
                 }
+                .then(
+                    if (fadeRightEdge) {
+                        Modifier.drawWithContent {
+                            drawContent()
+                            // Foot scrim, so the row over the cover stays legible.
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.45f)),
+                                    startY = size.height * 0.6f,
+                                    endY = size.height,
+                                ),
+                            )
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    colorStops = Array(FADE_CURVE_STOPS + 1) { i ->
+                                        val t = i / FADE_CURVE_STOPS.toFloat()
+                                        t to Color.Black.copy(alpha = 1f - smootherStep(t))
+                                    },
+                                    startX = size.width * LANDSCAPE_FULL_BLEED_FADE_START,
+                                    endX = size.width,
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
                 .background(Color.Black.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
-            if (!artLoaded && !canvasRendered) {
+            if (!artLoaded && !canvasRendered && dissolve?.outgoing == null && dissolve?.cutHold != true) {
                 Icon(
                     imageVector = AudifyIcons.MusicNote,
                     contentDescription = null,
@@ -338,14 +439,151 @@ internal fun LandscapeArtwork(
                 // portrait sleeve's note on TextureView stacking order.
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        val d = dissolve ?: return@graphicsLayer
+                        val ease = (1f - d.progress) * (1f - d.progress)
+                        val framed = d.frame != null
+                        val fluid = d.fluid && d.outgoing != null && !framed
+                        val settle = if (d.light) {
+                            1f + 0.02f * ease
+                        } else if (fluid) {
+                            1f + 0.045f * d.punch * ease
+                        } else {
+                            1f + (if (framed) 0.07f else 0.12f) * d.punch * ease
+                        }
+                        scaleX = settle
+                        scaleY = settle
+                        translationX = if (framed || fluid || d.light) {
+                            0f
+                        } else {
+                            d.direction * d.punch * size.width * 0.05f * ease
+                        }
+                        renderEffect = if (framed && renderEffectBlurSupported && ease > 0.01f) {
+                            BlurEffect(24f * d.punch * ease, 24f * d.punch * ease, TileMode.Clamp)
+                        } else if (fluid) {
+                            d.shaderIn.effect(
+                                incoming = true,
+                                progress = d.progress,
+                                direction = d.direction,
+                                punch = d.punch,
+                                seed = d.seed,
+                                width = size.width,
+                                height = size.height,
+                            )
+                        } else {
+                            null
+                        }
+                    }
                     .drawWithContent { if (artLoaded || !canvasRendered) drawContent() },
             )
+            // Cover lama, selalu ter-mount (alpha 0 saat tidak ada transisi) supaya
+            // tidak dimuat ulang: menutup frame kosong saat lagu berganti.
+            if (dissolve != null) {
+                AsyncImage(
+                    model = dissolve.held.request,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val sweeping = dissolve.outgoing != null
+                            val framed = dissolve.frame != null
+                            val t = dissolve.progress
+                            alpha = when {
+                                framed && sweeping -> 1f - t
+                                framed -> 1f
+                                sweeping && dissolve.fluid -> 1f
+                                sweeping && dissolve.light -> 1f - smootherStep(t)
+                                sweeping -> 1f - smootherStep(((t - 0.62f) / 0.38f).coerceIn(0f, 1f))
+                                dissolve.cutHold -> 1f
+                                else -> 0f
+                            }
+                            val plain = sweeping && !framed && !dissolve.fluid && !dissolve.light
+                            val move = dissolve.direction * dissolve.punch
+                            translationX = if (plain) -move * size.width * 0.30f * t else 0f
+                            val shrink = when {
+                                sweeping && framed -> 1f + 0.09f * dissolve.punch * t
+                                sweeping && dissolve.fluid -> 1f + 0.035f * dissolve.punch * smootherStep(t)
+                                sweeping && dissolve.light -> 1f - 0.02f * t
+                                sweeping -> 1f - 0.08f * dissolve.punch * t
+                                else -> 1f
+                            }
+                            scaleX = shrink
+                            scaleY = shrink
+                            rotationY = if (plain) move * 9f * t else 0f
+                            renderEffect = if (sweeping && !framed && dissolve.fluid) {
+                                dissolve.shaderOut.effect(
+                                    incoming = false,
+                                    progress = t,
+                                    direction = dissolve.direction,
+                                    punch = dissolve.punch,
+                                    seed = dissolve.seed,
+                                    width = size.width,
+                                    height = size.height,
+                                )
+                            } else if (sweeping && !dissolve.light && renderEffectBlurSupported) {
+                                val radius = if (framed) {
+                                    30f * dissolve.punch * smootherStep((t * 1.4f).coerceIn(0f, 1f))
+                                } else {
+                                    12f * dissolve.punch * 4f * t * (1f - t)
+                                }
+                                if (radius > 0.5f) BlurEffect(radius, radius, TileMode.Clamp) else null
+                            } else {
+                                null
+                            }
+                            cameraDistance = 14f * this.density
+                            compositingStrategy = if (sweeping || framed) {
+                                CompositingStrategy.Offscreen
+                            } else {
+                                CompositingStrategy.Auto
+                            }
+                        }
+                        .drawWithContent {
+                            val grabbed = dissolve.frame
+                            if (grabbed != null) {
+                                drawLandscapeCropped(grabbed)
+                                return@drawWithContent
+                            }
+                            drawContent()
+                            if (dissolve.outgoing == null) return@drawWithContent
+                            // Efek cair memakai mask shader, bukan sapuan.
+                            if (dissolve.fluid || dissolve.light) return@drawWithContent
+                            val feather = size.width * 0.75f
+                            val forward = dissolve.direction >= 0f
+                            val lead = feather * 0.6f
+                            val ramp = smootherStep((dissolve.progress / 0.22f).coerceIn(0f, 1f))
+                            val startEdge = if (forward) size.width - lead else -feather + lead
+                            val endEdge = if (forward) -feather else size.width
+                            val start = startEdge + (endEdge - startEdge) * dissolve.progress
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    colorStops = Array(FADE_CURVE_STOPS + 1) { i ->
+                                        val s = i / FADE_CURVE_STOPS.toFloat()
+                                        val base = if (forward) 1f - smootherStep(s) else smootherStep(s)
+                                        val keep = 1f - (1f - base) * ramp
+                                        s to Color.Black.copy(alpha = keep)
+                                    },
+                                    startX = start,
+                                    endX = start + feather,
+                                ),
+                                blendMode = BlendMode.DstIn,
+                            )
+                        },
+                )
+            }
             canvas?.let { clip ->
                 CanvasArtworkPlayer(
                     canvas = clip,
                     isPlaying = isPlaying,
                     pausedForTransition = pausedForTransition,
+                    presentationAlpha = presentationAlpha,
+                    startPositionMs = startPositionMs,
+                    revealInstantly = revealInstantly,
+                    captureStill = captureStill,
+                    onStillCaptured = onStillCaptured,
+                    onResumed = onResumed,
                     onRenderedChanged = onCanvasRenderedChange,
+                    frameGrab = frameGrab,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -426,7 +664,6 @@ internal fun LandscapeCredits(
     onOpenArtist: (browseId: String?, name: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var landscapeLikeBurstTrigger by remember(song.videoId) { mutableIntStateOf(0) }
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Crossfade(
             targetState = song.title to song.artist,
@@ -436,13 +673,15 @@ internal fun LandscapeCredits(
         ) {
             Column {
                 var titleOverflowing by remember { mutableStateOf(false) }
+                val artistColor = LocalPlayerTint.current.copy(alpha = 0.55f)
                 MarqueeText(
                     text = song.title,
                     style = MaterialTheme.typography.titleLarge,
                     color = Color.White,
                     onOverflowChange = { titleOverflowing = it },
+                    // Before the title, in the artist line's colour.
                     leading = if (song.isExplicit == true) {
-                        { ExplicitBadge(Color.White) }
+                        { ExplicitBadge(artistColor) }
                     } else {
                         null
                     },
@@ -455,7 +694,7 @@ internal fun LandscapeCredits(
                         artistCredits(song.artist, song.artists, song.artistId)
                     },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.W500),
-                    color = LocalPlayerTint.current.copy(alpha = 0.55f),
+                    color = artistColor,
                     // A title that's also scrolling gets to go first — starting
                     // together reads as clutter, so the artist waits a beat.
                     startDelayMillis = if (titleOverflowing) MARQUEE_ARTIST_STAGGER_MS else 0L,
@@ -465,35 +704,27 @@ internal fun LandscapeCredits(
         }
         Spacer(Modifier.width(10.dp))
         // Same gate as the portrait player's: no account to like against for a
-        // guest, and no YouTube identity to rate a local file or a finished
-        // download against either.
-        if (signedIn && song.localUri == null) {
+        // guest — but a local file or a finished download is liked on the
+        // device, which needs none.
+        if (signedIn || song.localUri != null) {
             val liked = likeStatus == LikeStatus.LIKE
-            Box(contentAlignment = Alignment.Center) {
-                LikeBurst(
-                    trigger = landscapeLikeBurstTrigger,
-                    tint = LocalPlayerTint.current,
-                    modifier = Modifier.size(88.dp).offset(x = (-22).dp, y = (-22).dp),
-                )
-                CircleGlyph(
-                    icon = if (liked) AudifyIcons.StarFilled else AudifyIcons.Star,
-                    contentDescription = stringResource(
-                        if (liked) Res.string.remove_from_liked else Res.string.like,
-                    ),
-                    onClick = {
-                        if (!liked) landscapeLikeBurstTrigger++
-                        onToggleLike()
-                    },
-                    active = liked,
-                    haptic = if (liked) Haptic.ToggleOff else Haptic.ToggleOn,
-                )
-            }
+            CircleGlyph(
+                icon = if (liked) AudifyIcons.StarFilled else AudifyIcons.Star,
+                contentDescription = stringResource(
+                    if (liked) Res.string.remove_from_liked else Res.string.like,
+                ),
+                onClick = onToggleLike,
+                active = liked,
+                haptic = if (liked) Haptic.ToggleOff else Haptic.ToggleOn,
+                popOnActive = true,
+            )
             Spacer(Modifier.width(8.dp))
         }
         CircleGlyph(
             icon = if (showRevertCue) Icons.AutoMirrored.Rounded.Undo else Icons.Rounded.MoreHoriz,
             contentDescription = stringResource(Res.string.more),
             onClick = onOpenMenu,
+            modifier = Modifier.menuAnchor(),
         )
     }
 }

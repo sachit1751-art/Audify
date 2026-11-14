@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Vendored from Kyant0/backdrop v2.0.0 (io.github.kyant0:backdrop)
  * https://github.com/Kyant0/backdrop — Copyright 2025 Kyant0, Apache License 2.0
@@ -10,8 +8,6 @@
  * merged into this single Android source set. Package renamed accordingly.
  */
 package com.music.audify.ui.components.backdrop
-
-import androidx.core.graphics.scale
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf

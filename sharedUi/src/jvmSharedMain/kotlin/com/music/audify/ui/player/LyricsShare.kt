@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import androidx.compose.foundation.background
@@ -16,9 +14,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.IosShare
+import com.music.audify.ui.icons.LocalCloseIcon
+import com.music.audify.ui.icons.LocalShareIcon
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -311,14 +316,14 @@ internal fun LyricsPickBar(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(CircleShape)
             .background(Color(0xFF141414).copy(alpha = 0.92f))
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         PickAction(
             label = stringResource(Res.string.cancel),
-            icon = Icons.Rounded.Close,
+            icon = LocalCloseIcon.current,
             accent = false,
             enabled = true,
             modifier = Modifier.weight(1f),
@@ -329,7 +334,7 @@ internal fun LyricsPickBar(
         )
         PickAction(
             label = stringResource(Res.string.share),
-            icon = Icons.Rounded.IosShare,
+            icon = LocalShareIcon.current,
             accent = true,
             enabled = shareEnabled,
             modifier = Modifier.weight(1f),
@@ -360,24 +365,41 @@ private fun RowScope.PickAction(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    // The bar is always dark, so these stay white rather than following the tint.
+    val tint = Color.White
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && enabled) 0.96f else 1f,
+        label = "pickActionPress",
+    )
+    // Same discs as the player's circle glyphs; solid for the one that sends.
     val background = if (accent) {
-        Color.White.copy(alpha = if (enabled) 1f else 0.3f)
+        tint.copy(alpha = if (enabled) 1f else 0.30f)
     } else {
-        Color.White.copy(alpha = if (enabled) 0.10f else 0.05f)
+        tint.copy(alpha = if (enabled) 0.18f else 0.08f)
     }
-    // The drawer's own base colour, so the label on the solid button reads as
-    // cut out of it rather than as black paint laid over white.
     val foreground = if (accent) {
         Color(0xFF121212).copy(alpha = if (enabled) 1f else 0.4f)
     } else {
-        Color.White.copy(alpha = if (enabled) 0.85f else 0.4f)
+        tint.copy(alpha = if (enabled) 1f else 0.4f)
     }
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
+            .height(48.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(CircleShape)
             .background(background)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 15.dp),
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick,
+            )
+            .padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -387,12 +409,12 @@ private fun RowScope.PickAction(
             tint = foreground,
             modifier = Modifier.size(19.dp),
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.W700,
             color = foreground,
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

@@ -11,6 +11,7 @@ Project: AUDIFY
     <locale android:name="pl" />
     <locale android:name="pt" />
     <locale android:name="id" />
+    <locale android:name="ko" />
     <locale android:name="hi" />
     <locale android:name="ja" />
     <locale android:name="ru" />

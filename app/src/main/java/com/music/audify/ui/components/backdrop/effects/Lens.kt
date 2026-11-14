@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Vendored from Kyant0/backdrop v2.0.0 (io.github.kyant0:backdrop)
  * https://github.com/Kyant0/backdrop — Copyright 2025 Kyant0, Apache License 2.0
@@ -27,7 +25,8 @@ fun BackdropEffectScope.lens(
     @FloatRange(from = 0.0) refractionHeight: Float,
     @FloatRange(from = 0.0) refractionAmount: Float,
     depthEffect: Boolean = false,
-    chromaticAberration: Boolean = false
+    chromaticAberration: Boolean = false,
+    @FloatRange(from = 0.0) chromaticStrength: Float = 1f
 ) {
     if (!isRuntimeShaderSupported()) return
     if (refractionHeight <= 0f || refractionAmount <= 0f) return
@@ -59,7 +58,7 @@ fun BackdropEffectScope.lens(
                 setFloatUniform("refractionAmount", -refractionAmount)
                 setFloatUniform("depthEffect", if (depthEffect) 1f else 0f)
                 if (chromaticAberration) {
-                    setFloatUniform("chromaticAberration", 1f)
+                    setFloatUniform("chromaticAberration", chromaticStrength)
                 }
             }
             RuntimeShaderEffect(shader, "content")

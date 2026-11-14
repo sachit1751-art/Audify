@@ -1,10 +1,5 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
-import android.provider.OpenableColumns
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -47,14 +41,10 @@ import com.music.audify.data.model.PlaylistPrivacy
 import com.music.audify.data.model.Song
 import com.music.audify.data.spotify.SpotifyImportTrack
 import com.music.audify.data.spotify.SpotifyImporter
-import com.music.audify.data.spotify.SpotifyPlaylistFileFormat
-import com.music.audify.data.spotify.SpotifyPlaylistFileParser
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.Locale
 
 private val IMPORT_LANGUAGES = listOf(
     "Tamil",
@@ -77,6 +67,7 @@ private val IMPORT_LANGUAGES = listOf(
  * Songs that matched nothing are listed once the playlist is made, instead of
  * being dropped without a word.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun SpotifyImportAlert(
     hazeState: HazeState,
@@ -86,15 +77,6 @@ fun SpotifyImportAlert(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val fetchingMessage = stringResource(R.string.spotify_import_fetching)
-    val fileReadFailedMessage = stringResource(R.string.sachit_spotify_import_file_read_failed)
-    val jsonUnsupportedMessage = stringResource(R.string.sachit_spotify_import_json_unsupported)
-    val fileUnsupportedMessage = stringResource(R.string.sachit_spotify_import_file_unsupported)
-    val defaultFileTitle = stringResource(R.string.sachit_spotify_import_file_default_title)
-    val matchingFormat = stringResource(R.string.spotify_import_matching)
-    val noSongsMatchedMessage = stringResource(R.string.spotify_import_none)
-    val importFailedFormat = stringResource(R.string.spotify_import_failed)
-    val invalidLinkMessage = stringResource(R.string.spotify_import_invalid)
     val scope = rememberCoroutineScope()
     var link by remember { mutableStateOf("") }
     var privacy by remember { mutableStateOf(PlaylistPrivacy.PRIVATE) }
@@ -104,81 +86,11 @@ fun SpotifyImportAlert(
     var status by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
     var unmatched by remember { mutableStateOf<List<SpotifyImportTrack>?>(null) }
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null && !working) {
-            val effectiveLanguage = if (selectedLanguage == "Manual / Other") {
-                customLanguageInput.trim().ifBlank { null }
-            } else {
-                selectedLanguage
-            }
-            working = true
-            failed = false
-            status = fetchingMessage
-            scope.launch {
-                try {
-                    val (name, tracks) = withContext(Dispatchers.IO) {
-                        val displayName = context.contentResolver.query(
-                            uri,
-                            arrayOf(OpenableColumns.DISPLAY_NAME),
-                            null,
-                            null,
-                            null,
-                        )?.use { cursor ->
-                            if (cursor.moveToFirst()) cursor.getString(0) else null
-                        }
-                        val content = context.contentResolver.openInputStream(uri)
-                            ?.bufferedReader(Charsets.UTF_8)
-                            ?.use { it.readText() }
-                            ?: error(fileReadFailedMessage)
-                        val format = SpotifyPlaylistFileParser.detect(content, displayName)
-                        val parsed = when (format) {
-                            SpotifyPlaylistFileFormat.SPOTIFY_CSV,
-                            SpotifyPlaylistFileFormat.SPOTIFY_TSV -> SpotifyPlaylistFileParser.parse(content, format)
-                            SpotifyPlaylistFileFormat.JSON_UNSUPPORTED ->
-                                error(jsonUnsupportedMessage)
-                            SpotifyPlaylistFileFormat.M3U_UNSUPPORTED,
-                            SpotifyPlaylistFileFormat.UNKNOWN ->
-                                error(fileUnsupportedMessage)
-                        }
-                        val title = displayName
-                            ?.substringAfterLast('/')
-                            ?.substringBeforeLast('.', missingDelimiterValue = "")
-                            ?.trim()
-                            ?.takeIf { it.isNotBlank() }
-                            ?: defaultFileTitle
-                        title to parsed
-                    }
-                    val (songs, missed) = SpotifyImporter.resolveToSongs(tracks, effectiveLanguage) { done, total ->
-                        status = String.format(Locale.getDefault(), matchingFormat, done, total)
-                    }
-                    if (songs.isEmpty()) error(noSongsMatchedMessage)
-                    onImported(name, privacy, songs)
-                    if (missed.isEmpty()) onDismiss() else unmatched = missed
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    status = String.format(Locale.getDefault(), importFailedFormat, e.message.orEmpty())
-                    failed = true
-                } finally {
-                    working = false
-                }
-            }
-        }
-    }
-
-    suspend fun resolveTracks(name: String, tracks: List<SpotifyImportTrack>, language: String?) {
-        val (songs, missed) = SpotifyImporter.resolveToSongs(tracks, language) { done, total ->
-            status = String.format(Locale.getDefault(), matchingFormat, done, total)
-        }
-        if (songs.isEmpty()) error(noSongsMatchedMessage)
-        onImported(name, privacy, songs)
-        if (missed.isEmpty()) onDismiss() else unmatched = missed
-    }
 
     fun start() {
         val id = SpotifyImporter.extractPlaylistId(link)
         if (id == null) {
-            status = invalidLinkMessage
+            status = context.getString(R.string.spotify_import_invalid)
             failed = true
             return
         }
@@ -189,15 +101,20 @@ fun SpotifyImportAlert(
         }
         working = true
         failed = false
-        status = fetchingMessage
+        status = context.getString(R.string.spotify_import_fetching)
         scope.launch {
             try {
                 val (name, tracks) = SpotifyImporter.fetchPlaylistTracks(id)
-                resolveTracks(name, tracks, effectiveLanguage)
+                val (songs, missed) = SpotifyImporter.resolveToSongs(tracks, effectiveLanguage) { done, total ->
+                    status = context.getString(R.string.spotify_import_matching, done, total)
+                }
+                if (songs.isEmpty()) error(context.getString(R.string.spotify_import_none))
+                onImported(name, privacy, songs)
+                if (missed.isEmpty()) onDismiss() else unmatched = missed
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                status = String.format(Locale.getDefault(), importFailedFormat, e.message.orEmpty())
+                status = context.getString(R.string.spotify_import_failed, e.message.orEmpty())
                 failed = true
             }
             working = false
@@ -222,11 +139,7 @@ fun SpotifyImportAlert(
             val missed = unmatched
             if (missed != null) {
                 Text(
-                    text = pluralStringResource(
-                        R.plurals.spotify_import_unmatched,
-                        missed.size,
-                        missed.size,
-                    ),
+                    text = stringResource(R.string.spotify_import_unmatched, missed.size),
                     modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                     color = MaterialTheme.colorScheme.onSurface,
@@ -278,13 +191,6 @@ fun SpotifyImportAlert(
                     enabled = !working,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { if (link.isNotBlank() && !working) start() }),
-                )
-                Text(
-                    text = stringResource(R.string.sachit_spotify_import_file_note),
-                    modifier = Modifier.padding(top = 10.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
                 )
                 Text(
                     text = stringResource(R.string.spotify_import_language_preference),
@@ -381,13 +287,6 @@ fun SpotifyImportAlert(
                 emphasised = true,
                 onClick = ::start,
                 enabled = link.isNotBlank() && !working,
-            )
-            AlertRule()
-            AlertAction(
-                label = stringResource(R.string.sachit_spotify_import_file_button),
-                emphasised = false,
-                onClick = { filePicker.launch(arrayOf("*/*")) },
-                enabled = !working,
             )
             AlertRule()
             AlertAction(

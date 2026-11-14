@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Vendored verbatim from NewPipeExtractor v0.26.3 (GPL-3.0-or-later), the version
  * pinned in app/build.gradle.kts, and then changed in exactly two places:
@@ -19,7 +17,6 @@
 package org.schabi.newpipe.extractor.utils;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import java.util.Locale;
 
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
@@ -138,7 +135,7 @@ public final class Utils {
         }
         final double count = Double.parseDouble(
                 Parser.matchGroup1("([\\d]+([\\.,][\\d]+)?)", numberWord).replace(",", "."));
-        switch (multiplier.toUpperCase(Locale.ROOT)) {
+        switch (multiplier.toUpperCase()) {
             case "K":
                 return (long) (count * 1e3);
             case "M":
@@ -171,7 +168,7 @@ public final class Utils {
             throw new IllegalArgumentException("Url can't be null or empty");
         }
 
-        if (!Parser.isMatch(pattern, url.toLowerCase(Locale.ROOT))) {
+        if (!Parser.isMatch(pattern, url.toLowerCase())) {
             throw new ParsingException("Url doesn't match the pattern");
         }
     }

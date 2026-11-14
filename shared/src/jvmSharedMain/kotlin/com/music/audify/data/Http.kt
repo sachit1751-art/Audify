@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data
 
 import okhttp3.ConnectionPool
@@ -38,9 +36,10 @@ import java.util.concurrent.atomic.AtomicLong
  * this app actually drives concurrently, so the queue is never the reason a
  * request was slow.
  */
-internal const val HTTP_POOL_MAX_IDLE_CONNECTIONS = 16
-internal const val HTTP_POOL_KEEP_ALIVE_MINUTES = 5L
-internal const val HTTP_MAX_REQUESTS_PER_HOST = 16
+const val HTTP_POOL_MAX_IDLE_CONNECTIONS = 16
+const val HTTP_POOL_KEEP_ALIVE_MINUTES = 5L
+const val HTTP_MAX_REQUESTS_PER_HOST = 16
+const val HTTP_MAX_REQUESTS = 64
 
 object Http {
 
@@ -95,17 +94,21 @@ object Http {
         val request = chain.request()
         val response = chain.proceed(request)
         val body = response.body
-        val host = request.url.host
-        val range = request.header("Range")
-        val counting = CountingSource(body.source()) { bytes ->
-            val total = usageTotals.computeIfAbsent(host) { AtomicLong() }.addAndGet(bytes)
-            DebugLog.d(
-                USAGE_TAG,
-                "$host ${request.method} ${request.url.encodedPath} " +
-                    "range=$range status=${response.code} bytes=$bytes total[$host]=$total",
-            )
-        }.buffer()
-        response.newBuilder().body(CountedBody(body, counting)).build()
+        if (body == null) {
+            response
+        } else {
+            val host = request.url.host
+            val range = request.header("Range")
+            val counting = CountingSource(body.source()) { bytes ->
+                val total = usageTotals.computeIfAbsent(host) { AtomicLong() }.addAndGet(bytes)
+                DebugLog.d(
+                    USAGE_TAG,
+                    "$host ${request.method} ${request.url.encodedPath} " +
+                        "range=$range status=${response.code} bytes=$bytes total[$host]=$total",
+                )
+            }.buffer()
+            response.newBuilder().body(CountedBody(body, counting)).build()
+        }
     }
     // ---- End temporary instrumentation ----------------------------------
 
@@ -136,7 +139,10 @@ object Http {
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
-        .dispatcher(Dispatcher().apply { maxRequestsPerHost = HTTP_MAX_REQUESTS_PER_HOST })
+        .dispatcher(Dispatcher().apply {
+            maxRequests = HTTP_MAX_REQUESTS
+            maxRequestsPerHost = HTTP_MAX_REQUESTS_PER_HOST
+        })
         .connectionPool(ConnectionPool(HTTP_POOL_MAX_IDLE_CONNECTIONS, HTTP_POOL_KEEP_ALIVE_MINUTES, TimeUnit.MINUTES))
         .addInterceptor(webDavInterceptor)
         .apply { if (USAGE_LOGGING_ENABLED) addNetworkInterceptor(usageInterceptor) }

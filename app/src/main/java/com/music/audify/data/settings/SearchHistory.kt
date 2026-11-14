@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.settings
-
-import androidx.core.content.edit
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -13,6 +9,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import com.music.audify.data.model.SearchHistoryEntity
+import com.music.audify.data.model.withCorrectedType
 
 /**
  * What's been searched for lately, kept on this device only.
@@ -61,11 +58,11 @@ object SearchHistory {
 
     private fun saveAddon(value: List<String>) {
         _addonRecent.value = value
-        prefs.edit {putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, value))}
+        prefs.edit().putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, value)).apply()
     }
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
+        prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         reload()
     }
 
@@ -80,6 +77,7 @@ object SearchHistory {
         if (!this::prefs.isInitialized) return
         _recent.value = runCatching {
             json.decodeFromString(serializer, prefs.getString(KEY_HISTORY, null) ?: "[]")
+                .map { it.withCorrectedType() }
         }.getOrDefault(emptyList())
         _addonRecent.value = runCatching {
             json.decodeFromString(addonSerializer, prefs.getString(KEY_ADDON_HISTORY, null) ?: "[]")
@@ -101,7 +99,6 @@ object SearchHistory {
 
     fun clear() = save(emptyList())
 
-    /** Clears both the main search suggestions and Addons search terms. */
     fun clearAll() {
         clear()
         clearAddonQueries()
@@ -109,7 +106,7 @@ object SearchHistory {
 
     private fun save(value: List<SearchHistoryEntity>) {
         _recent.value = value
-        prefs.edit {putString(KEY_HISTORY, json.encodeToString(serializer, value))}
+        prefs.edit().putString(KEY_HISTORY, json.encodeToString(serializer, value)).apply()
     }
 
     private const val KEY_HISTORY = "search_history"

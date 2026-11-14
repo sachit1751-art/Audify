@@ -1,13 +1,10 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.ui.icons.SfIcons
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -24,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.automirrored.rounded.ShowChart
@@ -35,9 +31,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import com.music.audify.ui.components.IosSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,7 +50,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -95,6 +88,8 @@ import kotlin.math.roundToInt
 fun EqualizerScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    /** Opens the list of preset curves as a page — see [EqualizerPresetPage]. */
+    onOpenPresets: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
@@ -109,7 +104,6 @@ fun EqualizerScreen(
     val outputStatus by AudioOutputStatus.current.collectAsStateWithLifecycle()
 
     val haptics = rememberHaptics()
-    var pickingPreset by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -117,24 +111,21 @@ fun EqualizerScreen(
             .verticalScroll(rememberScrollState())
             .padding(contentPadding),
     ) {
+        SettingsPageTitle(stringResource(R.string.equalizer))
         SettingsGroup(
             footer = stringResource(R.string.equalizer_footer),
-            topSpacing = 8.dp,
+            topSpacing = 0.dp,
         ) {
             SettingsRow(
-                icon = Icons.Rounded.Tune,
+                icon = SfIcons.Tune,
                 title = stringResource(R.string.equalizer),
                 trailing = {
-                    Switch(
+                    IosSwitch(
                         checked = enabled,
                         onCheckedChange = {
                             haptics.play(if (it) Haptic.ToggleOn else Haptic.ToggleOff)
                             AppSettings.setEqualizerEnabled(it)
                         },
-                        colors = SwitchDefaults.colors(
-                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                            checkedBorderColor = MaterialTheme.colorScheme.primary,
-                        ),
                     )
                 },
                 onClick = {
@@ -153,7 +144,7 @@ fun EqualizerScreen(
         // Initial pass to force it took the page's own scrolling down too.
         val settingsAlpha by animateFloatAsState(
             targetValue = if (enabled) 1f else 0.38f,
-            animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
+            animationSpec = tween(220),
             label = "equalizerEnabled",
         )
         Column(modifier = Modifier.graphicsLayer { alpha = settingsAlpha }) {
@@ -201,10 +192,10 @@ fun EqualizerScreen(
                 EqualizerMode.MANUAL -> {
                     SettingsGroup {
                         SettingsRow(
-                            icon = Icons.Rounded.GraphicEq,
+                            icon = SfIcons.GraphicEq,
                             title = stringResource(R.string.equalizer_preset),
                             value = preset.localizedLabel(),
-                            onClick = { pickingPreset = true },
+                            onClick = onOpenPresets,
                             enabled = enabled,
                         )
                     }
@@ -255,7 +246,7 @@ fun EqualizerScreen(
             if (!outputStatus.dspAvailable) {
                 SettingsGroup(footer = stringResource(R.string.equalizer_bitstream_footer)) {
                     SettingsRow(
-                        icon = Icons.Rounded.Warning,
+                        icon = SfIcons.Warning,
                         title = stringResource(R.string.equalizer_bitstream_title),
                         subtitle = stringResource(R.string.equalizer_bitstream_subtitle),
                     )
@@ -269,7 +260,7 @@ fun EqualizerScreen(
         // somebody else's equaliser would be claiming ground we do not hold.
         SettingsGroup(footer = stringResource(R.string.system_equalizer_footer)) {
             SettingsRow(
-                icon = Icons.Rounded.GraphicEq,
+                icon = SfIcons.GraphicEq,
                 title = stringResource(R.string.system_equalizer),
                 subtitle = stringResource(R.string.system_equalizer_subtitle),
                 onClick = { openEqualizer(context, sessionId) },
@@ -277,21 +268,6 @@ fun EqualizerScreen(
         }
 
         Spacer(Modifier.height(32.dp))
-    }
-
-    if (pickingPreset) {
-        ModalBottomSheet(
-            onDismissRequest = { pickingPreset = false },
-            containerColor = MaterialTheme.colorScheme.background,
-        ) {
-            PresetSheet(
-                selected = preset,
-                onSelect = {
-                    AppSettings.setEqualizerPreset(it)
-                    pickingPreset = false
-                },
-            )
-        }
     }
 }
 
@@ -318,7 +294,6 @@ private fun TonePad(
     onChange: (Int, Int) -> Unit,
 ) {
     val haptics = rememberHaptics()
-    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val dotColor = MaterialTheme.colorScheme.onSurfaceVariant
     val puckColor = MaterialTheme.colorScheme.background
     val shadowColor = Color.Black.copy(alpha = 0.16f)
@@ -336,18 +311,12 @@ private fun TonePad(
     // settle rather than arrive and stop dead.
     val animatedX by animateFloatAsState(
         targetValue = x.toFloat(),
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = 0.75f,
-            stiffness = Spring.StiffnessHigh,
-        ),
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessHigh),
         label = "tonePadX",
     )
     val animatedY by animateFloatAsState(
         targetValue = y.toFloat(),
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = 0.75f,
-            stiffness = Spring.StiffnessHigh,
-        ),
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessHigh),
         label = "tonePadY",
     )
 
@@ -455,7 +424,7 @@ private fun ToneReadout(x: Int, y: Int) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Rounded.Waves,
+            imageVector = SfIcons.Waves,
             contentDescription = stringResource(R.string.equalizer_tilt),
             tint = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.size(20.dp),
@@ -468,7 +437,7 @@ private fun ToneReadout(x: Int, y: Int) {
         )
         Spacer(Modifier.width(22.dp))
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.ShowChart,
+            imageVector = SfIcons.ShowChart,
             contentDescription = stringResource(R.string.equalizer_contour),
             tint = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.size(20.dp),
@@ -514,9 +483,9 @@ private fun ChoiceRow(
         )
         if (selected) {
             Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = stringResource(R.string.audify_selected),
-                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                imageVector = SfIcons.Check,
+                contentDescription = stringResource(R.string.selected),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )
         }
@@ -598,24 +567,6 @@ private fun BandFader(
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
     val range = EqLayout.MANUAL_RANGE_DB
-    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
-    var dragging by remember { mutableStateOf(false) }
-    val animatedValue by animateFloatAsState(
-        targetValue = value,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
-        label = "equalizerBandValue",
-    )
-    val knobScale by animateFloatAsState(
-        targetValue = if (dragging) 1.18f else 1f,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "equalizerBandKnob",
-    )
     // See [TonePad]: the gesture block outlives the composition that made it.
     // [onChange] too, and that one matters most: the caller's lambda closes
     // over the whole band list, so a stale copy writes every *other* band
@@ -632,7 +583,6 @@ private fun BandFader(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     down.consume()
-                    dragging = true
                     var last = latest
                     fun report(offset: Offset) {
                         val inset = KNOB_RADIUS.toPx()
@@ -648,22 +598,18 @@ private fun BandFader(
                             currentOnChange(snapped)
                         }
                     }
-                    try {
-                        report(down.position)
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!change.pressed) {
-                                change.consume()
-                                break
-                            }
-                            if (change.positionChanged()) {
-                                change.consume()
-                                report(change.position)
-                            }
+                    report(down.position)
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            change.consume()
+                            break
                         }
-                    } finally {
-                        dragging = false
+                        if (change.positionChanged()) {
+                            change.consume()
+                            report(change.position)
+                        }
                     }
                 }
             },
@@ -673,7 +619,7 @@ private fun BandFader(
         val centreY = inset + usable / 2
         val trackWidth = TRACK_WIDTH.toPx()
         val centreX = size.width / 2
-        val knobY = inset + usable * (1f - (animatedValue / range + 1f) / 2f)
+        val knobY = inset + usable * (1f - (value / range + 1f) / 2f)
 
         drawRoundRect(
             color = trackColor,
@@ -681,7 +627,7 @@ private fun BandFader(
             size = Size(trackWidth, usable),
             cornerRadius = CornerRadius(trackWidth / 2),
         )
-        if (abs(animatedValue) > 0.05f) {
+        if (abs(value) > 0.05f) {
             drawRoundRect(
                 color = fillColor,
                 topLeft = Offset(centreX - trackWidth / 2, minOf(centreY, knobY)),
@@ -698,10 +644,10 @@ private fun BandFader(
         )
         drawCircle(
             color = Color.Black.copy(alpha = 0.18f),
-            radius = inset * knobScale + 1.5f,
+            radius = inset + 1.5f,
             center = Offset(centreX, knobY + 1.5f),
         )
-        drawCircle(color = knobColor, radius = inset * knobScale, center = Offset(centreX, knobY))
+        drawCircle(color = knobColor, radius = inset, center = Offset(centreX, knobY))
     }
 }
 
@@ -752,28 +698,9 @@ private fun BalanceControl(
     onChange: (Float) -> Unit,
 ) {
     val haptics = rememberHaptics()
-    val locale = LocalLocale.current.platformLocale
     val trackColor = MaterialTheme.colorScheme.outline
     val fillColor = MaterialTheme.colorScheme.primary
     val knobColor = MaterialTheme.colorScheme.background
-    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
-    var dragging by remember { mutableStateOf(false) }
-    val animatedBalance by animateFloatAsState(
-        targetValue = balance,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessHigh,
-        ),
-        label = "equalizerBalance",
-    )
-    val knobScale by animateFloatAsState(
-        targetValue = if (dragging) 1.18f else 1f,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "equalizerBalanceKnob",
-    )
     // See [TonePad]: the gesture block outlives the composition that made it.
     val latest by rememberUpdatedState(balance)
     val currentOnChange by rememberUpdatedState(onChange)
@@ -786,7 +713,7 @@ private fun BalanceControl(
                 color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                text = String.format(locale, "%.2f", balance),
+                text = String.format(Locale.getDefault(), "%.2f", balance),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -808,7 +735,6 @@ private fun BalanceControl(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         down.consume()
-                        dragging = true
                         var last = latest
                         fun report(offset: Offset) {
                             val inset = KNOB_RADIUS.toPx()
@@ -822,22 +748,18 @@ private fun BalanceControl(
                                 currentOnChange(snapped)
                             }
                         }
-                        try {
-                            report(down.position)
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                if (!change.pressed) {
-                                    change.consume()
-                                    break
-                                }
-                                if (change.positionChanged()) {
-                                    change.consume()
-                                    report(change.position)
-                                }
+                        report(down.position)
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                change.consume()
+                                break
                             }
-                        } finally {
-                            dragging = false
+                            if (change.positionChanged()) {
+                                change.consume()
+                                report(change.position)
+                            }
                         }
                     }
                 },
@@ -847,7 +769,7 @@ private fun BalanceControl(
             val centreY = size.height / 2
             val centreX = inset + usable / 2
             val trackHeight = TRACK_WIDTH.toPx()
-            val knobX = inset + usable * (animatedBalance + 1f) / 2f
+            val knobX = inset + usable * (balance + 1f) / 2f
 
             drawRoundRect(
                 color = trackColor,
@@ -855,7 +777,7 @@ private fun BalanceControl(
                 size = Size(usable, trackHeight),
                 cornerRadius = CornerRadius(trackHeight / 2),
             )
-            if (abs(animatedBalance) > 0.004f) {
+            if (abs(balance) > 0.004f) {
                 drawRoundRect(
                     color = fillColor,
                     topLeft = Offset(minOf(centreX, knobX), centreY - trackHeight / 2),
@@ -865,74 +787,47 @@ private fun BalanceControl(
             }
             drawCircle(
                 color = Color.Black.copy(alpha = 0.18f),
-                radius = inset * knobScale + 1.5f,
+                radius = inset + 1.5f,
                 center = Offset(knobX, centreY + 1.5f),
             )
-            drawCircle(color = knobColor, radius = inset * knobScale, center = Offset(knobX, centreY))
+            drawCircle(color = knobColor, radius = inset, center = Offset(knobX, centreY))
         }
     }
 }
 
 // ---- Presets ---------------------------------------------------------------
 
+/**
+ * The preset curves as a page of their own, opened from the Preset row. A pick
+ * applies at once and [onChosen] then leaves the page.
+ */
 @Composable
-private fun PresetSheet(selected: EqualizerPreset, onSelect: (EqualizerPreset) -> Unit) {
-    val haptics = rememberHaptics()
-    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-        Text(
-            text = stringResource(R.string.equalizer_preset),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 22.dp, end = 22.dp, bottom = 14.dp),
-        )
-        HorizontalDivider(
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outline,
-        )
-        // Sixteen curves is taller than the sheet on most phones, and laid
-        // out straight the ones past the fold were simply unreachable. The
-        // title and its rule stay put while the list underneath scrolls;
-        // `fill = false` keeps a short list from stretching the sheet to the
-        // full height it is allowed.
-        Column(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            EqualizerPreset.entries.forEach { preset ->
-                // Custom is a state the bands can be in, not a curve anyone can
-                // choose, so it is only ever shown when it is the one in force.
-                if (preset == EqualizerPreset.CUSTOM && selected != EqualizerPreset.CUSTOM) {
-                    return@forEach
-                }
-                val chosen = preset == selected
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = preset != EqualizerPreset.CUSTOM) {
-                            haptics.play(Haptic.Select)
-                            onSelect(preset)
-                        }
-                        .padding(horizontal = 22.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = preset.localizedLabel(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (chosen) {
-                        Icon(
-                            Icons.Rounded.Check,
-                            contentDescription = stringResource(R.string.audify_selected),
-                            tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
+fun EqualizerPresetPage(
+    onChosen: () -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    val selected by AppSettings.equalizerPreset.collectAsStateWithLifecycle()
+    Column(
+        modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
+    ) {
+        SettingsPageTitle(stringResource(R.string.equalizer_preset))
+        ChoiceGroup(
+            // Custom is a state the bands can be in, not a curve anyone can
+            // choose, so it is only ever listed when it is the one in force.
+            options = EqualizerPreset.entries.filter { it != EqualizerPreset.CUSTOM || selected == EqualizerPreset.CUSTOM },
+            selected = selected,
+            label = { it.localizedLabel() },
+            footer = null,
+            enabled = { it != EqualizerPreset.CUSTOM },
+        ) { preset ->
+            AppSettings.setEqualizerPreset(preset)
+            onChosen()
         }
-        }
+        Spacer(Modifier.height(32.dp))
     }
 }
 

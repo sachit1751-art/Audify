@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.my.kizzy.rpc
 
 import io.ktor.client.HttpClient

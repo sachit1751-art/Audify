@@ -1,7 +1,6 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -19,12 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.LocalPlatformContext
@@ -92,6 +91,9 @@ class ArtworkMesh internal constructor(internal val image: ImageBitmap)
  * thread, and cached by URL. Drawing it thereafter is one bilinear image sample.
  * The small decode and CPU pass are staggered by the caller after a song change,
  * so they never land on the track hand-off itself.
+ *
+ * The last cover's blur is held until the new one is ready, so a skip never
+ * drops the backdrop to its fallback grey in between.
  */
 @Composable
 fun rememberFullArtworkBlurImage(
@@ -100,10 +102,14 @@ fun rememberFullArtworkBlurImage(
     prepare: Boolean = true,
 ): ImageBitmap? {
     val context = LocalPlatformContext.current
-    var image by remember(imageUrl) { mutableStateOf(imageUrl?.let(fullBlurCache::get)) }
+    var image by remember { mutableStateOf(imageUrl?.let(fullBlurCache::get)) }
 
     LaunchedEffect(imageUrl, artPx, prepare) {
-        if (!prepare || imageUrl == null || image != null) return@LaunchedEffect
+        imageUrl?.let(fullBlurCache::get)?.let {
+            image = it
+            return@LaunchedEffect
+        }
+        if (!prepare || imageUrl == null) return@LaunchedEffect
         val request = ImageRequest.Builder(context)
             // Same URL as the player's 1200px sleeve, so this is a small decode
             // from Coil's shared fetch/disk result rather than another download.
@@ -122,54 +128,79 @@ fun rememberFullArtworkBlurImage(
 }
 
 /**
- * A full-surface, still-art backdrop for player views that do not have an
- * artwork edge to continue from.
+ * The phone and tablet player's backdrop — main player, lyrics and queue alike,
+ * unless the legacy mesh is switched on: one copy of the cover cropped across
+ * the complete bounds and blurred in place, with the artwork above feathering
+ * its own bottom edge into it.
  *
- * The ordinary player's mesh is intentionally built as a continuation of the
- * sleeve: it holds the sleeve's bottom row above the seam and turns the rest of
- * the cover upside down below it. That works behind the main phone player,
- * where the sleeve supplies the missing first half. Lyrics, queue, and a tablet
- * player have no such visual seam, so the same construction reads as a stretched
- * upper field followed by a reflection. These surfaces instead crop one copy of
- * the cover across their complete bounds and blur that copy in place.
+ * The blur is baked into [image] (see [rememberFullArtworkBlurImage]), so this
+ * is a plain image draw: nothing here re-blurs while the player moves or a
+ * clip plays over it. A new cover crossfades in over the last one.
  *
- * The overscale keeps the clamped edge of the blur outside the viewport. When
- * blur is unavailable, or explicitly reduced in settings, the complete cover
- * remains in place under the same legibility scrim rather than falling back to
- * the reflected mesh this composable exists to avoid.
+ * It looks the same in all three states and reads nothing that moves, so moving
+ * between them never redraws it: only what sits on top of it changes.
  */
 @Composable
 fun FullArtworkBlurBackdrop(
     image: ImageBitmap?,
     modifier: Modifier = Modifier,
+    /**
+     * Blur cover yang sedang dipudarkan. Selama ada, ia tetap tergambar di
+     * bawah [image] dan [image] masuk mengikuti [progress], jadi blur bawah
+     * berganti dengan jam yang sama dengan cover di atasnya.
+     */
+    outgoing: ImageBitmap? = null,
+    /** 0 = hanya [outgoing], 1 = hanya [image]. Dibaca di fase gambar. */
+    progress: () -> Float = { 1f },
+    /**
+     * Where the sharp full-bleed banner ends, in this backdrop's pixels; 0 for none.
+     * With a seam, the blur is cropped exactly as the banner crops the sleeve and its
+     * bottom rows carry on below the seam, so the banner dissolves into its own
+     * out-of-focus continuation instead of a differently cropped picture. Read in the
+     * draw phase.
+     */
+    seam: () -> Float = { 0f },
 ) {
-    val imageAlpha by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (image != null) 1f else 0f,
-        animationSpec = tween(320, easing = FastOutSlowInEasing),
-        label = "preparedBackdropImage",
-    )
     Box(modifier = modifier.fillMaxSize().background(FallbackBackdrop)) {
-        image?.let { bitmap ->
-            val painter = remember(bitmap) { BitmapPainter(bitmap) }
+        if (outgoing != null) {
+            val outgoingPainter = remember(outgoing, seam) { SeamAlignedBlurPainter(outgoing, seam) }
             Image(
-                painter = painter,
+                painter = outgoingPainter,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = imageAlpha },
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize(),
             )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = if (outgoing != null) progress().coerceIn(0f, 1f) else 1f
+                },
+        ) {
+            // Blur baru yang baru selesai di tengah dissolve ikut dilebur di sini,
+            // bukan ditukar mendadak di atas lapisan yang sedang naik.
+            Crossfade(
+                targetState = image,
+                animationSpec = tween(320, easing = FastOutSlowInEasing),
+                label = "preparedBackdropImage",
+            ) { bitmap ->
+                if (bitmap != null) {
+                    val painter = remember(bitmap, seam) { SeamAlignedBlurPainter(bitmap, seam) }
+                    Image(
+                        painter = painter,
+                        contentDescription = null,
+                        contentScale = ContentScale.FillBounds,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
         }
 
-        // Lyrics and queue are dense white foregrounds. Preserve the cover's
-        // colour and layout, but keep bright sleeves from lowering contrast.
-        Canvas(Modifier.fillMaxSize()) {
-            drawRect(
-                brush = Brush.verticalGradient(
-                    0f to Color.Black.copy(alpha = 0.34f),
-                    0.55f to Color.Black.copy(alpha = 0.48f),
-                    1f to Color.Black.copy(alpha = 0.64f),
-                ),
-            )
-        }
+        // Everything on this is white: the lyrics, the queue and the main
+        // player's controls. Preserve the cover's colour and layout, but keep
+        // bright sleeves from lowering contrast.
+        Canvas(Modifier.fillMaxSize()) { drawRect(brush = FullArtworkScrim) }
     }
 }
 
@@ -428,6 +459,64 @@ private fun DrawScope.drawMesh(mesh: ArtworkMesh, seamY: Float, alpha: Float) {
         filterQuality = FilterQuality.Low,
     )
 }
+
+/**
+ * The blurred cover laid out the way the full-bleed banner lays out the sharp one.
+ *
+ * Above [seam] it is a centre crop to the banner's own width and height, so each
+ * blurred pixel sits right behind the sharp pixel it was made from. Below, the
+ * cover's last rows are stretched down to the foot, which carries the colours the
+ * banner ended on instead of jumping to another part of the picture. With no seam
+ * (0) it is the plain centre crop over the whole bounds, as before.
+ */
+private class SeamAlignedBlurPainter(
+    private val image: ImageBitmap,
+    private val seam: () -> Float,
+) : androidx.compose.ui.graphics.painter.Painter() {
+    override val intrinsicSize: androidx.compose.ui.geometry.Size =
+        androidx.compose.ui.geometry.Size.Unspecified
+
+    override fun DrawScope.onDraw() {
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f || image.width <= 0 || image.height <= 0) return
+        val seamY = seam().coerceIn(0f, h)
+        val coverH = if (seamY > 1f) seamY else h
+        val scale = maxOf(w / image.width, coverH / image.height)
+        val srcW = (w / scale).roundToInt().coerceIn(1, image.width)
+        val srcH = (coverH / scale).roundToInt().coerceIn(1, image.height)
+        val srcX = (image.width - srcW) / 2
+        val srcY = (image.height - srcH) / 2
+        drawImage(
+            image = image,
+            srcOffset = IntOffset(srcX, srcY),
+            srcSize = IntSize(srcW, srcH),
+            dstOffset = IntOffset.Zero,
+            dstSize = IntSize(w.roundToInt(), coverH.roundToInt().coerceAtLeast(1)),
+            filterQuality = FilterQuality.Low,
+        )
+        if (seamY > 1f && seamY < h - 1f) {
+            // Only the last row or two: the colour below the seam has to be the colour
+            // the cover ended on, or the join shows as a line across the screen.
+            val band = (srcH * 0.012f).roundToInt().coerceIn(1, srcH)
+            drawImage(
+                image = image,
+                srcOffset = IntOffset(srcX, srcY + srcH - band),
+                srcSize = IntSize(srcW, band),
+                dstOffset = IntOffset(0, seamY.roundToInt()),
+                dstSize = IntSize(w.roundToInt(), (h - seamY).roundToInt().coerceAtLeast(1)),
+                filterQuality = FilterQuality.Low,
+            )
+        }
+    }
+}
+
+/** The shade over the blurred cover, deepening toward the controls at the foot. */
+private val FullArtworkScrim = Brush.verticalGradient(
+    0f to Color.Black.copy(alpha = 0.16f),
+    0.55f to Color.Black.copy(alpha = 0.28f),
+    1f to Color.Black.copy(alpha = 0.44f),
+)
 
 /** Drawn only until an artwork has been read — never a colour anyone chose. */
 private val FallbackBackdrop = Color(0xFF121212)

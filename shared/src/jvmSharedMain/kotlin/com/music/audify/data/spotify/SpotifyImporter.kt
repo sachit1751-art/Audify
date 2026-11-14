@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.spotify
 
 import com.music.audify.data.Http
@@ -17,7 +15,6 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -29,16 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger
 data class SpotifyImportTrack(
     val title: String,
     val artist: String,
-)
-
-/** The result of fetching and resolving a Spotify playlist's tracks. */
-data class SpotifyImportResult(
-    val title: String,
-    val description: String,
-    val thumbnailUrl: String?,
-    val totalTracks: Int,
-    val resolvedVideoIds: List<String>,
-    val unmatchedTracks: List<SpotifyImportTrack>,
 )
 
 object SpotifyImporter {
@@ -88,7 +75,7 @@ object SpotifyImporter {
                 .build()
 
             val html = Http.client.newCall(request).execute().use { response ->
-                val body = response.body.string()
+                val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful || body.isBlank()) {
                     error("Failed to load Spotify playlist (HTTP ${response.code})")
                 }
@@ -210,7 +197,7 @@ object SpotifyImporter {
                 .build()
             val body = Http.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("HTTP ${response.code}")
-                response.body.string()
+                response.body?.string().orEmpty()
             }
             val content = json.parseToJsonElement(body).jsonObject["data"]?.jsonObject
                 ?.get("playlistV2")?.jsonObject?.get("content")?.jsonObject

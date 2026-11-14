@@ -32,6 +32,22 @@ class SongInfoParserTest {
         assertNull(SongInfoParser.parse(html.replace("1987-07-27", "1987-02-30"), "abcdefghijk").releaseDate)
     }
 
+    @Test fun extractsWritersProducersAndAdditionalVocalsFromCatalogueDescription() {
+        val html = page().replace(
+            "\"title\":\"A } title\"",
+            "\"title\":\"A } title\",\"shortDescription\":\"Released on: 2024-01-02\\nWriter: Alex Smith\\nComposer: Alex Smith\\nProducer: Jane Doe\\nAdditional Vocals: Sam Lee\\nDirector: Someone Else\"",
+        )
+        val credits = SongInfoParser.parse(html, "abcdefghijk").credits
+        assertEquals(
+            listOf(
+                SongCredit(CreditKind.WRITERS, listOf("Alex Smith")),
+                SongCredit(CreditKind.PRODUCERS, listOf("Jane Doe")),
+                SongCredit(CreditKind.ADDITIONAL_VOCALS, listOf("Sam Lee")),
+            ),
+            credits,
+        )
+    }
+
     @Test fun ignoresRecommendedVideoLikesAndMissingCounts() {
         val info = SongInfoParser.parse(page("""{"recommendations":{"toggleButtonRenderer":{
             "defaultIcon":{"iconType":"LIKE"},"defaultText":{"simpleText":"999"}}}}""", views = "-1"), "abcdefghijk")

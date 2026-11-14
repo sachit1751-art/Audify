@@ -1,26 +1,23 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.download
-
-import androidx.core.content.edit
 
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import com.music.audify.R
 import com.music.audify.data.DebugLog as Log
 import androidx.core.content.ContextCompat
 import com.music.audify.data.innertube.StreamResolver
 import com.music.audify.data.model.Song
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.DownloadQuality
+import com.music.audify.data.sources.SourceRegistry
 import com.music.audify.data.sources.SourceResolver
 import com.music.audify.data.sources.SourceStream
 import com.music.audify.data.sources.StreamFormat
 import com.music.audify.data.sources.TrackMatcher
 import com.music.audify.playback.AudioCache
+import com.music.audify.playback.smart.AutomixModels
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -32,13 +29,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.JsonObject
 import java.io.OutputStream
 import java.io.File
 import java.util.Locale
@@ -79,15 +79,6 @@ object Downloads {
     private const val TAG = "Audify"
     private const val KEY_SAVED_METADATA = "downloaded_tracks_metadata"
     private const val KEY_SAVED_COLLECTIONS = "downloaded_collections"
-    private const val KEY_STORAGE_BUDGET_BYTES = "download_storage_budget_bytes"
-    internal const val UNLIMITED_STORAGE_BUDGET = 0L
-    internal val STORAGE_BUDGET_OPTIONS = listOf(
-        500L * 1024 * 1024,
-        1024L * 1024 * 1024,
-        2L * 1024 * 1024 * 1024,
-        5L * 1024 * 1024 * 1024,
-        UNLIMITED_STORAGE_BUDGET,
-    )
 
     private lateinit var prefs: SharedPreferences
     private val json = Json { ignoreUnknownKeys = true }
@@ -128,19 +119,36 @@ object Downloads {
 
     private val _savedMetadata = MutableStateFlow<Map<String, SavedSongMetadata>>(emptyMap())
 
-    private val _fileChecks = MutableStateFlow<Map<String, DownloadFileCheckStatus>>(emptyMap())
-    /** Per-id file accessibility results for download management surfaces. */
-    internal val fileChecks: StateFlow<Map<String, DownloadFileCheckStatus>> = _fileChecks.asStateFlow()
+    private val fileCheckTimes = MutableStateFlow<Map<String, Long>>(emptyMap())
+    private val fileCheckResults = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+
+    /** Distinct physical download URIs selected for a bounded integrity pass. */
+    internal fun fileCheckCandidates(limit: Int): List<DownloadFileCheckCandidate> {
+        val now = System.currentTimeMillis()
+        return _saved.value.values.distinct()
+            .filter { now - (fileCheckTimes.value[it] ?: 0L) >= FILE_CHECK_INTERVAL_MS }
+            .take(limit.coerceAtLeast(0))
+            .map { uri ->
+                val checkedAt = fileCheckTimes.value[uri]
+                val state = when (fileCheckResults.value[uri]) {
+                    true -> DownloadFileCheckState.AVAILABLE
+                    false -> DownloadFileCheckState.UNAVAILABLE
+                    null -> DownloadFileCheckState.UNCHECKED
+                }
+                DownloadFileCheckCandidate(uri, state, checkedAt)
+            }
+    }
+
+    /** Records the result and forgets every song alias when its physical file is gone. */
+    internal fun recordFileCheck(uri: String, available: Boolean, checkedAtMillis: Long) {
+        fileCheckTimes.update { it + (uri to checkedAtMillis) }
+        fileCheckResults.update { it + (uri to available) }
+        if (!available) _saved.value.filterValues { it == uri }.keys.forEach(::forgetMissing)
+    }
+
+    private const val FILE_CHECK_INTERVAL_MS = 7L * 24L * 60L * 60L * 1000L
 
     private val _collections = MutableStateFlow<Map<String, SavedCollection>>(emptyMap())
-
-    private val _storageBudgetBytes = MutableStateFlow(UNLIMITED_STORAGE_BUDGET)
-    val storageBudgetBytes: StateFlow<Long> = _storageBudgetBytes.asStateFlow()
-
-    private val _storagePrompt = MutableStateFlow<DownloadStoragePrompt?>(null)
-    internal val storagePrompt: StateFlow<DownloadStoragePrompt?> = _storagePrompt.asStateFlow()
-    private val storageBudgetLock = Any()
-    private val storageReservations = mutableMapOf<Long, Long>()
 
     /**
      * The releases that were downloaded *as* releases, by the id they were asked
@@ -159,9 +167,9 @@ object Downloads {
     private val lock = Any()
 
     /**
-     * The tracks taken off the queue and not yet finished, to their unique
-     * claim token and the job fetching each — null in the gap between a worker
-     * claiming a track and its job existing.
+     * The tracks taken off the queue and not yet finished, to the job fetching
+     * each — null in the gap between a worker claiming a track and its job
+     * existing.
      *
      * A map rather than the single slot this used to be, because several
      * downloads run at once now. That plurality is the only reason it is here:
@@ -169,248 +177,20 @@ object Downloads {
      * claiming the next track must not be able to step on another worker's.
      * Guarded by [lock].
      */
-    private val running = LinkedHashMap<String, RunningDownloadClaim>()
-    /** Cancelled claims remain here until their worker has fully unwound. */
-    private val retiring = LinkedHashMap<String, MutableSet<Long>>()
-    private var nextClaimToken = 0L
+    private val running = LinkedHashMap<String, Job?>()
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
-        _saved.value = readPersistedMap(KEY_SAVED, String.serializer())
-        _savedMetadata.value = readPersistedMap(KEY_SAVED_METADATA, SavedSongMetadata.serializer())
-        _fileChecks.value = _savedMetadata.value.mapValues { (_, metadata) ->
-            DownloadFileCheckStatus(
-                state = DownloadFileCheckState.fromPersisted(metadata.fileCheckState),
-                checkedAtMillis = metadata.fileCheckAtMillis,
-            )
-        }
-        _collections.value = readPersistedMap(KEY_SAVED_COLLECTIONS, SavedCollection.serializer())
-        _storageBudgetBytes.value = prefs.getLong(KEY_STORAGE_BUDGET_BYTES, UNLIMITED_STORAGE_BUDGET)
-        DownloadVerificationScheduler.schedule(context.applicationContext)
+        prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
+        _saved.value = runCatching {
+            json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
+        }.getOrDefault(emptyMap())
+        _savedMetadata.value = runCatching {
+            json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
+        }.getOrDefault(emptyMap())
+        _collections.value = runCatching {
+            json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
+        }.getOrDefault(emptyMap())
     }
-
-    private fun <T> readPersistedMap(key: String, valueSerializer: KSerializer<T>): Map<String, T> {
-        val raw = prefs.getString(key, null) ?: return emptyMap()
-        val decoded = decodePersistedDownloadMap(raw, valueSerializer, json)
-        if (decoded.invalidRoot || decoded.invalidEntries > 0) {
-            // Preserve the original before a later successful download writes a
-            // clean map over it. Valid entries remain available immediately;
-            // malformed records can still be recovered from this backup key.
-            val backupKey = "$key.corrupt_backup"
-            if (prefs.getString(backupKey, null) == null) {
-                prefs.edit { putString(backupKey, raw) }
-            }
-            Log.w(TAG, "loaded ${decoded.values.size} valid $key entries; skipped ${decoded.invalidEntries} malformed")
-        }
-        return decoded.values
-    }
-
-    /** Change the opt-in cap. Zero means unlimited and is the compatibility default. */
-    fun setStorageBudgetBytes(bytes: Long) {
-        val safe = bytes.coerceAtLeast(0L)
-        _storageBudgetBytes.value = safe
-        if (::prefs.isInitialized) prefs.edit {putLong(KEY_STORAGE_BUDGET_BYTES, safe)}
-        _storagePrompt.value = null
-    }
-
-    /** Cycle the fixed, user-visible budget presets. */
-    fun cycleStorageBudget() {
-        val index = STORAGE_BUDGET_OPTIONS.indexOf(_storageBudgetBytes.value)
-        val next = STORAGE_BUDGET_OPTIONS[if (index < 0) 0 else (index + 1) % STORAGE_BUDGET_OPTIONS.size]
-        setStorageBudgetBytes(next)
-    }
-
-    /**
-     * Reserve exact projected bytes before a destination is created. Unknown
-     * source or existing-file sizes block while the cap is enabled.
-     */
-    internal fun reserveStorageBudget(
-        context: Context,
-        song: Song,
-        projectedBytes: Long?,
-        claimToken: Long,
-    ): Boolean =
-        synchronized(storageBudgetLock) {
-            val budget = _storageBudgetBytes.value
-            if (budget == UNLIMITED_STORAGE_BUDGET) return@synchronized true
-            if (_storagePrompt.value != null) return@synchronized false
-
-            val grouped = _savedMetadata.value.entries.groupBy { it.value.uri }
-            val files = mutableListOf<StorageBudgetFile>()
-            for ((uri, aliases) in grouped) {
-                val actualBytes = DownloadStore.sizeBytes(context, Uri.parse(uri))
-                if (actualBytes == null) {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        songTitle = song.title,
-                        expectedBytes = projectedBytes,
-                        reason = context.getString(R.string.download_storage_actual_size_unknown),
-                        plan = null,
-                    )
-                    return@synchronized false
-                }
-                val oldest = aliases.minByOrNull { it.value.dateAddedSeconds ?: 0L } ?: aliases.first()
-                files += StorageBudgetFile(
-                    uri = uri,
-                    videoIds = aliases.map { it.key },
-                    title = oldest.value.title,
-                    artist = oldest.value.artist,
-                    sizeBytes = actualBytes,
-                    addedAtMillis = oldest.value.dateAddedSeconds?.times(1_000L)
-                        ?: DownloadStore.lastModifiedMillis(context, Uri.parse(uri))
-                        ?: 0L,
-                )
-            }
-            if (projectedBytes == null || projectedBytes <= 0L) {
-                _storagePrompt.value = DownloadStoragePrompt(
-                    songTitle = song.title,
-                    expectedBytes = null,
-                    reason = context.getString(R.string.download_storage_unknown_size),
-                    plan = null,
-                )
-                return@synchronized false
-            }
-            var reserved = 0L
-            for (size in storageReservations.values) {
-                if (Long.MAX_VALUE - reserved < size) {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        songTitle = song.title,
-                        expectedBytes = projectedBytes,
-                        reason = context.getString(R.string.download_storage_actual_size_unknown),
-                        plan = null,
-                    )
-                    return@synchronized false
-                }
-                reserved += size
-            }
-            when (val decision = evaluateStorageBudget(files, projectedBytes, budget, reserved)) {
-                StorageBudgetDecision.Allowed -> {
-                    storageReservations[claimToken] = projectedBytes
-                    true
-                }
-                StorageBudgetDecision.SizeUnknown -> {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        songTitle = song.title,
-                        expectedBytes = projectedBytes,
-                        reason = context.getString(R.string.download_storage_total_unknown),
-                        plan = null,
-                    )
-                    false
-                }
-                is StorageBudgetDecision.CannotFit -> {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        songTitle = song.title,
-                        expectedBytes = projectedBytes,
-                        reason = context.getString(R.string.download_storage_no_evictable_space),
-                        plan = null,
-                        unknown = false,
-                        files = decision.oldestFiles,
-                    )
-                    false
-                }
-                is StorageBudgetDecision.RequiresConfirmation -> {
-                    _storagePrompt.value = DownloadStoragePrompt(song.title, projectedBytes, null, decision.plan)
-                    false
-                }
-            }
-        }
-
-    internal fun releaseStorageReservation(claimToken: Long) {
-        synchronized(storageBudgetLock) { storageReservations.remove(claimToken) }
-    }
-
-    /** Called only from the second, explicit confirmation dialog. */
-    internal suspend fun confirmStorageDeletion(context: Context, files: List<StorageBudgetFile>): Int =
-        withContext(Dispatchers.IO) {
-            synchronized(storageBudgetLock) {
-                val prompt = _storagePrompt.value ?: return@synchronized 0
-                val projected = prompt.expectedBytes ?: return@synchronized 0
-                val currentFiles = mutableListOf<StorageBudgetFile>()
-                for ((uri, aliases) in _savedMetadata.value.entries.groupBy { it.value.uri }) {
-                    val actualBytes = DownloadStore.sizeBytes(context, Uri.parse(uri))
-                        ?: run {
-                            _storagePrompt.value = DownloadStoragePrompt(
-                                prompt.songTitle,
-                                projected,
-                                context.getString(R.string.download_storage_actual_size_unknown),
-                                null,
-                            )
-                            return@synchronized 0
-                        }
-                    val oldest = aliases.minByOrNull { it.value.dateAddedSeconds ?: 0L } ?: aliases.first()
-                    currentFiles += StorageBudgetFile(
-                        uri = uri,
-                        videoIds = aliases.map { it.key },
-                        title = oldest.value.title,
-                        artist = oldest.value.artist,
-                        sizeBytes = actualBytes,
-                        addedAtMillis = oldest.value.dateAddedSeconds?.times(1_000L)
-                            ?: DownloadStore.lastModifiedMillis(context, Uri.parse(uri)) ?: 0L,
-                    )
-                }
-                var reserved = 0L
-                for (size in storageReservations.values) {
-                    if (Long.MAX_VALUE - reserved < size) return@synchronized 0
-                    reserved += size
-                }
-                val refreshed = evaluateStorageBudget(
-                    currentFiles,
-                    projected,
-                    _storageBudgetBytes.value,
-                    reserved,
-                )
-                if (refreshed !is StorageBudgetDecision.RequiresConfirmation) {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        prompt.songTitle,
-                        projected,
-                        context.getString(R.string.download_storage_changed_review),
-                        null,
-                        unknown = false,
-                    )
-                    return@synchronized 0
-                }
-                val currentSelection = refreshed.plan.oldestFiles.map { it.uri to it.sizeBytes }
-                val confirmedSelection = files.map { it.uri to it.sizeBytes }
-                if (currentSelection != confirmedSelection) {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        prompt.songTitle,
-                        projected,
-                        context.getString(R.string.download_storage_changed_review),
-                        null,
-                        unknown = false,
-                    )
-                    return@synchronized 0
-                }
-
-                val removedIds = mutableSetOf<String>()
-                refreshed.plan.oldestFiles.forEach { file ->
-                    if (DownloadStore.delete(context, Uri.parse(file.uri))) removedIds += file.videoIds
-                }
-                if (removedIds.isNotEmpty()) {
-                    record(
-                        saved = { current -> current - removedIds },
-                        meta = { current -> current - removedIds },
-                    )
-                }
-                val selectedIds = refreshed.plan.oldestFiles.sumOf { it.videoIds.size }
-                if (removedIds.size == selectedIds) {
-                    _storagePrompt.value = null
-                } else {
-                    _storagePrompt.value = DownloadStoragePrompt(
-                        prompt.songTitle,
-                        projected,
-                        context.getString(
-                            if (removedIds.isEmpty()) R.string.download_storage_delete_failed
-                            else R.string.download_storage_partial_delete,
-                        ),
-                        null,
-                        unknown = false,
-                    )
-                }
-                removedIds.size
-            }
-        }
-
-    fun dismissStoragePrompt() { _storagePrompt.value = null }
 
     // ---- Asking -------------------------------------------------------------
 
@@ -441,21 +221,19 @@ object Downloads {
             // here to leave alone, and a refusal nobody is told about reads as a
             // dead button. A download already queued or running started on a
             // connection that allowed it and is none of this check's business.
-            synchronized(lock) {
-                val inFlight = _active.value[id]
-                if (inFlight !is DownloadState.Queued && inFlight !is DownloadState.Running) {
-                    DownloadSession.queued(song, from)
-                    fail(id, WIFI_ONLY_REFUSAL)
-                }
+            val inFlight = _active.value[id]
+            if (inFlight !is DownloadState.Queued && inFlight !is DownloadState.Running) {
+                DownloadSession.queued(song, from)
+                fail(id, WIFI_ONLY_REFUSAL)
             }
             return
         }
         synchronized(lock) {
             if (id in pending || id in running) return
             pending[id] = song
-            _active.update { it + (id to DownloadState.Queued) }
-            DownloadSession.queued(song, from)
         }
+        _active.update { it + (id to DownloadState.Queued) }
+        DownloadSession.queued(song, from)
 
         val app = context.applicationContext
         runCatching {
@@ -465,12 +243,8 @@ object Downloads {
             // means the queue has nothing to drain it and would sit there
             // looking accepted forever.
             Log.w(TAG, "could not start the download service: ${it.message}")
-            synchronized(lock) {
-                if (pending.remove(id) != null) {
-                    _active.update { it + (id to DownloadState.Failed("Downloads can't start right now")) }
-                    DownloadSession.failed(id, "Downloads can't start right now")
-                }
-            }
+            synchronized(lock) { pending.remove(id) }
+            fail(id, "Downloads can't start right now")
         }
     }
 
@@ -497,7 +271,6 @@ object Downloads {
      * it whole — a download that needs no network at all. Reads the cache's
      * index and the first bytes of one file.
      */
-    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     fun servableFromCache(videoId: String): Boolean =
         videoId in fromCache && AudioCache.completeCopyOf(videoId)?.let(::cachedRoute) != null
 
@@ -505,21 +278,99 @@ object Downloads {
      * Drop [videoId] from the queue, or stop it if it is one of the ones
      * running.
      *
-     * A cancelled claim moves to [retiring] until its worker has unwound. A
-     * re-enqueued copy waits there rather than racing the old worker's file
-     * cleanup, and the unique token prevents that worker from touching the new
-     * claim's progress or completion state.
+     * Dropping it from [running] is what makes this safe in the gap between a
+     * track being dequeued and its job existing: a cancel landing in that
+     * window finds no job to stop, but [onRunning] then finds the id it was
+     * told to run is no longer wanted, and stops it on arrival.
      */
     fun cancel(videoId: String) {
+        // Baris unduhan model Automix ikut tampil di manager; batalnya lewat sini juga.
+        if (videoId == AutomixModels.SESSION_ID) {
+            AutomixModels.cancel()
+            return
+        }
         val job = synchronized(lock) {
             pending.remove(videoId)
-            val claimed = running.remove(videoId)
-            claimed?.let { retiring.getOrPut(videoId) { mutableSetOf() }.add(it.token) }
-            _active.update { it - videoId }
-            DownloadSession.forget(videoId)
-            claimed?.job
+            if (videoId !in running) return@synchronized null
+            running.remove(videoId)
         }
         job?.cancel()
+        clear(videoId)
+        // A download the user called off is not something they need reminding to
+        // check on, so it leaves the manager rather than sitting in it as a
+        // permanent "cancelled" row.
+        DownloadSession.forget(videoId)
+    }
+
+    /**
+     * Fetch [songs] here and now, for a caller with no window to start
+     * [DownloadService] from: Android refuses a background job that, so
+     * [PlaylistSync] does the work inside the job itself instead.
+     *
+     * Claims the tracks in [running] rather than queueing them in [pending], so
+     * the service can't pick up a track only to have it die with this job. They
+     * still show in the manager, and [cancel] still stops them.
+     *
+     * Holds its caller until every track has settled, and cancelling the caller
+     * abandons what is unfinished without trace.
+     *
+     * @return the ids nobody needs to come back to: saved, called off by the
+     *   listener, or already in flight from a tap. A track that failed, or was
+     *   never reached, is not among them.
+     */
+    internal suspend fun downloadNow(context: Context, songs: List<Song>, from: String?): Set<String> {
+        val handled = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+        val claimed = synchronized(lock) {
+            songs.filter { song ->
+                val id = song.videoId
+                if (id in pending || id in running) {
+                    handled += id
+                    false
+                } else {
+                    running[id] = null
+                    true
+                }
+            }
+        }
+        claimed.forEach { song ->
+            _active.update { it + (song.videoId to DownloadState.Queued) }
+            DownloadSession.queued(song, from)
+        }
+        val slots = Semaphore(BATCH_WORKERS)
+        try {
+            coroutineScope {
+                claimed.forEach { song ->
+                    launch {
+                        slots.withPermit {
+                            val id = song.videoId
+                            if (synchronized(lock) { id !in running }) {
+                                handled += id
+                                return@withPermit
+                            }
+                            if (!AppSettings.downloadsAllowedNow) return@withPermit
+                            val job = launch { run(context, song) }
+                            onRunning(id, job)
+                            job.join()
+                            val calledOff = synchronized(lock) { id !in running }
+                            if (calledOff || id in _saved.value) handled += id
+                        }
+                    }
+                }
+            }
+        } finally {
+            claimed.forEach { song ->
+                val id = song.videoId
+                onIdle(id)
+                // A failure stays up to be read; a track this batch never got
+                // to the end of has nothing to report.
+                val state = _active.value[id]
+                if (state is DownloadState.Queued || state is DownloadState.Running) {
+                    clear(id)
+                    DownloadSession.forget(id)
+                }
+            }
+        }
+        return handled
     }
 
     // ---- The record ---------------------------------------------------------
@@ -589,12 +440,10 @@ object Downloads {
 
     /** Delete the file saved for [videoId] and forget it. */
     suspend fun delete(context: Context, videoId: String): Boolean = withContext(Dispatchers.IO) {
-        synchronized(storageBudgetLock) {
-            val uri = _saved.value[videoId]?.toUri() ?: return@synchronized false
-            val deleted = DownloadStore.delete(context, uri)
-            if (deleted) forget(videoId)
-            deleted
-        }
+        val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
+        val deleted = DownloadStore.delete(context, uri)
+        forget(videoId)
+        deleted
     }
 
     private fun forget(videoId: String) {
@@ -697,13 +546,33 @@ object Downloads {
      * files are already gone, this one is what actually takes them off the
      * device — the "delete download" a whole album or playlist card offers,
      * where a single track only ever offers [delete].
+     *
+     * A file another downloaded release also lists stays, since deleting it
+     * would take it out of that release as well.
      */
     suspend fun deleteCollection(context: Context, id: String): Boolean {
-        val record = _collections.value[id] ?: return false
         var any = false
-        record.videoIds.forEach { videoId -> if (delete(context, videoId)) any = true }
+        tracksOnlyIn(id, _collections.value, _saved.value)
+            .forEach { videoId -> if (delete(context, videoId)) any = true }
         forgetCollection(id)
         return any
+    }
+
+    /**
+     * The tracks of release [id] whose file no other release lists.
+     *
+     * Compared by file as well as by id, because one file answers to two ids
+     * when a music video was swapped for its catalogue track — see [remember].
+     */
+    internal fun tracksOnlyIn(
+        id: String,
+        collections: Map<String, SavedCollection>,
+        saved: Map<String, String>,
+    ): List<String> {
+        val record = collections[id] ?: return emptyList()
+        val others = collections.values.filter { it.id != id }.flatMapTo(HashSet()) { it.videoIds }
+        val otherFiles = others.mapNotNullTo(HashSet()) { saved[it] }
+        return record.videoIds.filter { it !in others && saved[it] !in otherFiles }
     }
 
     /**
@@ -806,9 +675,9 @@ object Downloads {
             val map = update(_collections.value)
             _collections.value = map
             if (::prefs.isInitialized) {
-                prefs.edit {
-                        putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, map))
-                    }
+                prefs.edit()
+                    .putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, map))
+                    .apply()
             }
         }
     }
@@ -868,8 +737,6 @@ object Downloads {
             uri = uri.toString(),
             downloadFormat = downloadFormat,
             dateAddedSeconds = dateAddedSeconds,
-            fileCheckState = DownloadFileCheckState.UNCHECKED.persistedValue,
-            isExplicit = asked.isExplicit,
         )
         val metaFetched = SavedSongMetadata(
             videoId = fetched.videoId,
@@ -881,8 +748,6 @@ object Downloads {
             uri = uri.toString(),
             downloadFormat = downloadFormat,
             dateAddedSeconds = dateAddedSeconds,
-            fileCheckState = DownloadFileCheckState.UNCHECKED.persistedValue,
-            isExplicit = fetched.isExplicit,
         )
         record(
             saved = { it + ids.associateWith { id -> uri.toString() } },
@@ -908,58 +773,16 @@ object Downloads {
     ) {
         val savedMap = _saved.updateAndGet(saved)
         val metaMap = _savedMetadata.updateAndGet(meta)
-        _fileChecks.value = metaMap.mapValues { (_, metadata) ->
-            DownloadFileCheckStatus(
-                state = DownloadFileCheckState.fromPersisted(metadata.fileCheckState),
-                checkedAtMillis = metadata.fileCheckAtMillis,
-            )
-        }
         if (!::prefs.isInitialized) return
         synchronized(recordLock) {
-            prefs.edit {
-                    putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
-                    .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
-                }
+            prefs.edit()
+                .putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
+                .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
+                .apply()
         }
     }
 
     private val recordLock = Any()
-
-    /** A bounded, URI-deduplicated batch for background file checks. */
-    internal fun fileCheckCandidates(limit: Int): List<DownloadFileCheckCandidate> =
-        selectDownloadFileCheckBatch(
-            _savedMetadata.value.values
-                .groupBy { it.uri }
-                .map { (uri, aliases) ->
-                    val oldest = aliases.minByOrNull { it.fileCheckAtMillis ?: 0L } ?: aliases.first()
-                    DownloadFileCheckCandidate(
-                        uri = uri,
-                        state = if (aliases.any { it.fileCheckState == DownloadFileCheckState.UNCHECKED.persistedValue }) {
-                            DownloadFileCheckState.UNCHECKED
-                        } else {
-                            DownloadFileCheckState.fromPersisted(oldest.fileCheckState)
-                        },
-                        checkedAtMillis = aliases.mapNotNull { it.fileCheckAtMillis }.minOrNull(),
-                    )
-                },
-            limit,
-        )
-
-    /** Persist one result against every id alias for the same physical file. */
-    internal fun recordFileCheck(uri: String, available: Boolean, checkedAtMillis: Long) {
-        val state = if (available) DownloadFileCheckState.AVAILABLE else DownloadFileCheckState.UNAVAILABLE
-        record(
-            saved = { it },
-            meta = { current ->
-                current.mapValues { (_, metadata) ->
-                    if (metadata.uri == uri) metadata.copy(
-                        fileCheckState = state.persistedValue,
-                        fileCheckAtMillis = checkedAtMillis,
-                    ) else metadata
-                }
-            },
-        )
-    }
 
     /** Returns all downloaded songs whose files still exist on disk. */
     suspend fun getDownloadedSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
@@ -1002,7 +825,6 @@ object Downloads {
                         albumName = meta.albumName,
                         localUri = meta.uri,
                         downloadFormat = downloadFormat,
-                        isExplicit = meta.isExplicit,
                         localDateAddedSeconds = dateAddedSeconds,
                         localDateModifiedSeconds = dateModifiedSeconds,
                     )
@@ -1082,7 +904,6 @@ object Downloads {
                     albumName = meta.albumName,
                     localUri = uriString,
                     downloadFormat = meta.downloadFormat ?: legacyYoutubeDownloadBadge(context, uri),
-                    isExplicit = meta.isExplicit,
                     localDateAddedSeconds = dateAddedSeconds,
                     localDateModifiedSeconds = dateModifiedSeconds,
                 )
@@ -1100,54 +921,41 @@ object Downloads {
      * instant where a track is in neither the queue nor the running slot and a
      * [cancel] for it would quietly do nothing.
      */
-    internal fun takeNext(): DownloadClaim? = synchronized(lock) {
-        val entry = pending.entries.firstOrNull { canStartDownloadClaim(it.key, retiring) } ?: return null
+    internal fun takeNext(): Song? = synchronized(lock) {
+        val entry = pending.entries.firstOrNull() ?: return null
         pending.remove(entry.key)
-        val token = ++nextClaimToken
-        running[entry.key] = RunningDownloadClaim(token)
-        DownloadClaim(entry.value, token)
+        running[entry.key] = null
+        entry.value
     }
 
-    /** Attach the job only to the exact queue claim that created it. */
-    internal fun onRunning(videoId: String, claimToken: Long, job: Job) {
-        val attached = synchronized(lock) {
-            attachRunningJobIfClaimMatches(running, videoId, claimToken, job)
+    /** Attach the job fetching [videoId], unless it has been cancelled meanwhile. */
+    internal fun onRunning(videoId: String, job: Job) {
+        val cancelled = synchronized(lock) {
+            if (videoId !in running) return@synchronized true
+            running[videoId] = job
+            false
         }
-        if (!attached) job.cancel()
+        if (cancelled) job.cancel()
     }
 
     /** [videoId] is finished, one way or another, and no longer holds a worker. */
-    internal fun onIdle(videoId: String, claimToken: Long) {
-        synchronized(lock) {
-            removeRunningClaimIfMatches(running, videoId, claimToken)
-            removeRetiringDownloadClaim(retiring, videoId, claimToken)
-        }
+    internal fun onIdle(videoId: String) {
+        synchronized(lock) { running.remove(videoId) }
     }
 
     /** Whether anything is still queued or in flight — see [DownloadService]'s workers. */
-    internal fun busy(): Boolean = synchronized(lock) {
-        pending.isNotEmpty() || running.isNotEmpty() || retiring.isNotEmpty()
-    }
+    internal fun busy(): Boolean = synchronized(lock) { pending.isNotEmpty() || running.isNotEmpty() }
 
     /**
      * The service is gone, so nothing is running any more.
      *
      * Distinct from [onIdle], which is one worker reporting one finished track.
-     * This is the whole drain going away at once — active claims are void, and
-     * leaving one behind would have [enqueue] refuse that track forever as
-     * already in flight. Pending requests are retained for a replacement
-     * service instance to drain.
+     * This is the whole drain going away at once — every claim in [running] is
+     * void, and leaving one behind would have [enqueue] refuse that track
+     * forever as already in flight.
      */
     internal fun onStopped() {
-        synchronized(lock) {
-            val abandoned = (running.keys + retiring.keys).distinct()
-            running.clear()
-            retiring.clear()
-            abandoned.forEach { id ->
-                _active.update { it - id }
-                DownloadSession.forget(id)
-            }
-        }
+        synchronized(lock) { running.clear() }
     }
 
     /**
@@ -1174,32 +982,29 @@ object Downloads {
      * shared between them but the two state flows, and both are written through
      * atomic updates for exactly that reason.
      */
-    internal suspend fun run(context: Context, claim: DownloadClaim) = withContext(Dispatchers.IO) {
-        val song = claim.song
+    internal suspend fun run(context: Context, song: Song) = withContext(Dispatchers.IO) {
         val id = song.videoId
-        val claimToken = claim.token
-        ensureCurrentClaim(id, claimToken)
         // Set before the lookup, not after it. Resolving where a lossless track
         // comes from is the long part of a download, and leaving the row on
         // "Queued" for all of it reads as a queue that has stopped rather than
         // one that is working.
-        if (!updateRunningIfCurrent(id, claimToken, 0f)) ensureCurrentClaim(id, claimToken)
+        _active.update { it + (id to DownloadState.Running(0f)) }
+        DownloadSession.running(id, 0f)
 
         try {
             val plan = prepare(context, song)
-            ensureCurrentClaim(id, claimToken)
             // The manager is showing the row that was tapped, which for a music
             // video is the wrong title and the wrong cover for the file actually
             // being written. Corrected here rather than left to disagree with
             // the notification and with the Downloads page afterwards.
-            if (!retitleIfCurrent(id, claimToken, plan.track)) ensureCurrentClaim(id, claimToken)
-            transfer(context, song, plan, claimToken)
+            DownloadSession.retitle(id, plan.track)
+            transfer(context, song, plan)
         } catch (e: CancellationException) {
-            clearIfCurrent(id, claimToken)
+            clear(id)
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "download failed for $id: ${e.message}", e)
-            failIfCurrent(id, claimToken, e.friendly())
+            fail(id, e.friendly())
         }
     }
 
@@ -1224,7 +1029,6 @@ object Downloads {
      * running for a track that is still queued — or for one that gets cancelled
      * before its turn — and a preparation is not a download.
      */
-    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     internal suspend fun prepare(context: Context, song: Song): Prepared = withContext(Dispatchers.IO) {
         // Downloads preserve the exact item the listener picked. Catalogue
         // matching is a manual playback action and must not silently change a
@@ -1246,17 +1050,19 @@ object Downloads {
         // be lossless are worth guessing at: an `.m4a` may be this app's ALAC
         // or its AAC, and adopting the wrong one would quietly answer a request
         // for lossless with a transcode.
-        if (quality.keepsLossless) {
-            LOSSLESS_EXTENSIONS.firstNotNullOfOrNull { extension ->
-                DownloadStore.existing(context, DownloadStore.fileNameFor(track, extension))
-            }?.let { uri ->
-                return@withContext Prepared(song.videoId, track, route = null, alreadyAt = uri)
-            }
+        //
+        // Asked on every rung, not just Lossless: High keeps an addon's FLAC
+        // when nothing lossy beats YouTube (see [SourceResolver.forDownload]),
+        // and a FLAC already on disk is the song whatever the setting.
+        LOSSLESS_EXTENSIONS.firstNotNullOfOrNull { extension ->
+            DownloadStore.existing(context, DownloadStore.fileNameFor(track, extension))
+        }?.let { uri ->
+            return@withContext Prepared(song.videoId, track, route = null, alreadyAt = uri)
         }
 
         // Asked for from the Cached songs folder: the copy already on disk is
         // the answer, if it is whole. See [fromCache].
-        if (song.videoId in fromCache) {
+        if (fromCache.remove(song.videoId)) {
             AudioCache.completeCopyOf(song.videoId)?.let(::cachedRoute)?.let { route ->
                 Log.d(TAG, "downloading ${song.videoId} from the song cache as .${route.extension}")
                 return@withContext Prepared(song.videoId, track, route = route, alreadyAt = null)
@@ -1302,30 +1108,20 @@ object Downloads {
      * commits or aborts, so a caller is free to call it a second time with a
      * freshly resolved plan without the first attempt leaving anything behind.
      */
-    private suspend fun transfer(context: Context, song: Song, plan: Prepared, claimToken: Long) {
+    private suspend fun transfer(context: Context, song: Song, plan: Prepared) {
         val id = song.videoId
         val track = plan.track
-        ensureCurrentClaim(id, claimToken)
 
         // Already there from a previous run the record lost track of — adopt it
         // rather than writing a second copy beside it.
         plan.alreadyAt?.let { uri ->
-            completeIfCurrent(id, claimToken) { remember(song, track, uri) }
+            remember(song, track, uri)
+            DownloadSession.done(id)
+            clear(id)
             return
         }
         val route = plan.route ?: error("Nothing to download")
 
-        val name = DownloadStore.fileNameFor(track, route.extension)
-        DownloadStore.existing(context, name)?.let { alreadyThere ->
-            completeIfCurrent(id, claimToken) { remember(song, track, alreadyThere) }
-            return
-        }
-
-        if (!reserveStorageBudget(context, song, route.expectedSizeBytes, claimToken)) {
-            val reason = _storagePrompt.value?.reason
-                ?: context.getString(R.string.download_storage_budget_reached)
-            error(reason)
-        }
         var pending: DownloadStore.Pending? = null
         var lyrics: Deferred<LyricsTag.Embeddable?>? = null
         var artwork: Deferred<MediaTagger.Artwork?>? = null
@@ -1351,13 +1147,13 @@ object Downloads {
                     artwork = async { MediaTagger.artworkFor(context, track) }
                 }
 
+                val name = DownloadStore.fileNameFor(track, route.extension)
                 val alreadyThere = DownloadStore.existing(context, name)
                 if (alreadyThere != null) {
                     Log.d(TAG, "$name is already in Music; adopting it")
-                    synchronized(storageBudgetLock) {
-                        completeIfCurrent(id, claimToken) { remember(song, track, alreadyThere) }
-                        storageReservations.remove(claimToken)
-                    }
+                    remember(song, track, alreadyThere)
+                    DownloadSession.done(id)
+                    clear(id)
                     return@coroutineScope
                 }
 
@@ -1365,7 +1161,8 @@ object Downloads {
                 if (manifest != null) {
                     val onSegment: (Long, Long) -> Unit = { written, total ->
                         val fraction = written.toFloat() / total
-                        updateRunningIfCurrent(id, claimToken, fraction)
+                        _active.update { it + (id to DownloadState.Running(fraction)) }
+                        DownloadSession.running(id, fraction)
                     }
                     val savedUri = if (manifest.dash) {
                         OfflineDash.save(
@@ -1388,13 +1185,9 @@ object Downloads {
                             artwork = artwork?.await(),
                         )
                     }
-                    val recorded = completeIfCurrent(id, claimToken) {
-                        remember(song, track, savedUri, route.downloadFormat)
-                    }
-                    if (!recorded) DownloadStore.delete(context, savedUri)
-                    synchronized(storageBudgetLock) {
-                        storageReservations.remove(claimToken)
-                    }
+                    remember(song, track, savedUri, route.downloadFormat)
+                    DownloadSession.done(id)
+                    clear(id)
                     Log.d(TAG, "saved offline ${if (manifest.dash) "DASH" else "HLS"} package for $name")
                     return@coroutineScope
                 }
@@ -1404,7 +1197,8 @@ object Downloads {
                 destination.openStream().use { sink ->
                     route.write(sink) { written, total ->
                         val fraction = written.toFloat() / total
-                        updateRunningIfCurrent(id, claimToken, fraction)
+                        _active.update { it + (id to DownloadState.Running(fraction)) }
+                        DownloadSession.running(id, fraction)
                     }
                 }
                 val words = lyrics?.await()
@@ -1415,13 +1209,9 @@ object Downloads {
                 val artworkUri = MediaTagger.persistArtwork(context, track.thumbnailUrl, cover)
                 val savedUri = destination.commit()
                 pending = null
-                val recorded = completeIfCurrent(id, claimToken) {
-                    remember(song, track, savedUri, route.downloadFormat, artworkUri)
-                }
-                if (!recorded) DownloadStore.delete(context, savedUri)
-                synchronized(storageBudgetLock) {
-                    storageReservations.remove(claimToken)
-                }
+                remember(song, track, savedUri, route.downloadFormat, artworkUri)
+                DownloadSession.done(id)
+                clear(id)
                 Log.d(TAG, "saved $name")
             }
         } catch (e: Throwable) {
@@ -1435,7 +1225,6 @@ object Downloads {
             // a lyrics search per already-downloaded track.
             lyrics?.cancel()
             artwork?.cancel()
-            releaseStorageReservation(claimToken)
         }
     }
 
@@ -1456,8 +1245,6 @@ object Downloads {
         val describe: String,
         /** Short premium-rendition badge shown only in Audify's Downloads list. */
         val downloadFormat: String? = null,
-        /** Exact projected bytes when the resolved source exposes a reliable length. */
-        val expectedSizeBytes: Long? = null,
         val taggable: Boolean = true,
         val offlineHls: Manifest? = null,
         val write: suspend (OutputStream, (written: Long, total: Long) -> Unit) -> Unit,
@@ -1477,9 +1264,16 @@ object Downloads {
     /**
      * Where this download's bytes are coming from.
      *
-     * A configured source gets asked first, and YouTube is what happens when
-     * none of them can serve it — see [SourceResolver.forDownload] for what
-     * "can" means, which is narrower here than it is for playback.
+     * A row picked from a source — the Addons search, or anything queued from
+     * one — is fetched from that source first, as the row it is. Everything
+     * else, and a row whose source has nothing, is matched by title across the
+     * configured sources, and YouTube is what happens when none of them can
+     * serve it — see [SourceResolver.forDownload] for what "can" means, which
+     * is narrower here than it is for playback.
+     *
+     * Never YouTube for a source row, though. Its id is not a video id, so the
+     * resolve could only fail — and before this, that failure was what saved
+     * the playback cache's copy in its place, whatever that happened to be.
      *
      * @param quality read once by the caller and passed down, so that a setting
      *   changed while this track is in the queue applies to the next one rather
@@ -1487,58 +1281,18 @@ object Downloads {
      *   a mid-download refusal and has to ask for the same rung it started on.
      */
     private suspend fun routeFor(context: Context, track: Song, quality: DownloadQuality): Route {
-        fromSources(track, quality)?.let { (stream, storable) ->
-            // A manifest is an index, not audio. Whichever kind it is, fetching
-            // it as a file writes the index into something named `.flac` —
-            // which is exactly what a `.mpd` did until [OfflineDash] existed:
-            // a 2.7 KB download that reported success and could never play.
-            // Read off the URL rather than off `stream.format`, which describes
-            // the audio inside and says nothing about the envelope.
-            val dash = OfflineDash.handles(stream.url)
-            val hls = stream.url.substringBefore('?').endsWith(".m3u8", ignoreCase = true)
-            val packaged = hls || dash
-            // A manifest's segments are joined back into one ordinary file —
-            // see [ManifestFile] — exported or not, so a lossless download is
-            // a `.flac` wherever it lands. Exports used to decline manifests
-            // instead, which meant YouTube: Tidal serves every lossless tier
-            // as a manifest, so an exporting user heard FLAC and saved 131kbps
-            // AAC. Only a codec the assembler can't file falls through to the
-            // package (in-app) or YouTube (export) below.
-            if (packaged && storable.extension in ManifestFile.EXTENSIONS) {
-                return Route(
-                    extension = storable.extension,
-                    mimeType = storable.mimeType,
-                    describe = "${stream.format.summary} (assembled from ${if (dash) "DASH" else "HLS"})",
-                    downloadFormat = stream.format.downloadBadge(),
-                    write = { sink, onProgress ->
-                        ManifestFile.write(
-                            context.cacheDir, stream.url, stream.headers, dash,
-                            storable.extension, sink, onProgress,
-                        )
-                    },
-                )
+        val row = SourceRegistry.parseTrackKey(track.videoId)
+        row?.let { (configId, trackId) ->
+            fromRow(track, configId, trackId, quality)?.let { kept ->
+                sourceRoute(context, track, kept)?.let { return it }
             }
-            if (packaged && AppSettings.exportDownloads.value) {
-                Log.d(TAG, "can't export a .${storable.extension} manifest; taking YouTube for ${track.videoId}")
-                return@let
-            }
-            return Route(
-                // DASH is saved *as* HLS — see [OfflineDash] for why — so both
-                // kinds land as the same package and are named for what was
-                // written rather than for what was fetched.
-                extension = if (packaged) "m3u8" else storable.extension,
-                mimeType = if (packaged) "application/vnd.apple.mpegurl" else storable.mimeType,
-                describe = stream.format.summary,
-                downloadFormat = stream.format.downloadBadge(),
-                // SourceStream has no content-length contract. Do not infer a
-                // byte count from duration, bitrate or codec; the budget gate
-                // will block this route as size-unknown when enabled.
-                taggable = true,
-                offlineHls = Manifest(stream.url, stream.headers, dash = dash).takeIf { packaged },
-                write = { sink, onProgress ->
-                    Downloader.fetchDirect(stream.url, stream.headers, sink, onProgress)
-                },
-            )
+        }
+        fromSources(track, quality)?.let { kept ->
+            sourceRoute(context, track, kept)?.let { return it }
+        }
+        if (row != null) {
+            val name = SourceRegistry.config(row.first)?.displayName ?: "its source"
+            error("Couldn't download this song from $name — check that it's still connected")
         }
         // MediaStore.Audio refuses audio/webm on affected Android versions.
         // Keep Opus for app-private downloads, but pin exported downloads to
@@ -1550,11 +1304,80 @@ object Downloads {
             mimeType = stream.downloadMimeType,
             describe = "${stream.kbps}kbps ${stream.mimeType}",
             downloadFormat = youtubeDownloadBadge(stream.downloadExtension, stream.kbps),
-            expectedSizeBytes = Downloader.measureContentLength(stream.url),
             write = { sink, onProgress ->
                 Downloader.fetch(track.videoId, stream, quality.maxKbps, requireM4a, sink, onProgress)
             },
         )
+    }
+
+    /**
+     * A source's stream, with what [Downloader.probe] found at the end of it.
+     *
+     * The two travel together because the probe is what names the file. Read
+     * off the source's own label instead, a manifest was written into
+     * something called `.flac` — which is what a `.mpd` did until [OfflineDash]
+     * existed, and what the reference addon's extensionless HLS still did.
+     */
+    private class Kept(val stream: SourceStream, val probe: Downloader.Probe)
+
+    /** How to write [kept], or null when it can't be filed where downloads go. */
+    private fun sourceRoute(context: Context, track: Song, kept: Kept): Route? {
+        val stream = kept.stream
+        return when (val probe = kept.probe) {
+            is Downloader.Probe.File -> Route(
+                extension = probe.container.extension,
+                mimeType = probe.container.mimeType,
+                describe = stream.format.summary,
+                downloadFormat = stream.format.downloadBadge(),
+                write = { sink, onProgress ->
+                    Downloader.fetchDirect(stream.url, stream.headers, sink, onProgress)
+                },
+            )
+            is Downloader.Probe.Manifest -> {
+                val dash = probe.dash
+                val assembled = DownloadStore.storable(stream.format.codec)
+                    ?.takeIf { it.extension in ManifestFile.EXTENSIONS }
+                when {
+                    // A manifest's segments are joined back into one ordinary
+                    // file — see [ManifestFile] — exported or not, so a lossless
+                    // download is a `.flac` wherever it lands. Exports used to
+                    // decline manifests instead, which meant YouTube: Tidal
+                    // serves every lossless tier as a manifest, so an exporting
+                    // user heard FLAC and saved 131kbps AAC.
+                    assembled != null -> Route(
+                        extension = assembled.extension,
+                        mimeType = assembled.mimeType,
+                        describe = "${stream.format.summary} (assembled from ${if (dash) "DASH" else "HLS"})",
+                        downloadFormat = stream.format.downloadBadge(),
+                        write = { sink, onProgress ->
+                            ManifestFile.write(
+                                context.cacheDir, stream.url, stream.headers, dash,
+                                assembled.extension, sink, onProgress,
+                            )
+                        },
+                    )
+                    // Only a codec the assembler can't file gets this far, and
+                    // [keepable] has already kept it out of an export.
+                    AppSettings.exportDownloads.value -> {
+                        Log.d(TAG, "can't export a ${stream.format.summary} manifest for ${track.videoId}")
+                        null
+                    }
+                    // DASH is saved *as* HLS — see [OfflineDash] for why — so
+                    // both kinds land as the same package and are named for
+                    // what was written rather than for what was fetched.
+                    else -> Route(
+                        extension = "m3u8",
+                        mimeType = "application/vnd.apple.mpegurl",
+                        describe = stream.format.summary,
+                        downloadFormat = stream.format.downloadBadge(),
+                        offlineHls = Manifest(stream.url, stream.headers, dash = dash),
+                        write = { sink, onProgress ->
+                            Downloader.fetchDirect(stream.url, stream.headers, sink, onProgress)
+                        },
+                    )
+                }
+            }
+        }
     }
 
     /**
@@ -1563,7 +1386,6 @@ object Downloads {
      * downloads are pinned away from WebM for the same MediaStore reason
      * [routeFor] gives.
      */
-    @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
     private fun cachedRoute(copy: AudioCache.CompleteCopy): Route? {
         if (copy.extension == "webm" && AppSettings.exportDownloads.value) return null
         return Route(
@@ -1571,7 +1393,6 @@ object Downloads {
             mimeType = copy.mimeType,
             describe = "song cache, ${copy.length} bytes",
             downloadFormat = if (copy.extension == "flac") "FLAC" else null,
-            expectedSizeBytes = copy.length,
             write = { sink, onProgress -> AudioCache.copyOut(copy, sink, onProgress) },
         )
     }
@@ -1588,36 +1409,39 @@ object Downloads {
      *
      * Bounded, because a module search waits on every backend it has (see
      * `ModuleSource.SEARCH_PATIENT_MS`) and does that once per query the matcher
-     * offers. For a track no module holds, that is the whole queue stopped for
-     * the better part of a minute on the way to a download that was always
-     * going to be YouTube's. `PlaybackService.SUBSTITUTE_TIMEOUT_MS` bounds the
-     * same search for the same reason.
+     * offers. The bound is handed *to* the resolver rather than wrapped round
+     * it: wrapped, running out of time threw away every answer already in hand
+     * along with the slow one, and a JioSaavn 320 found in the first second
+     * went to YouTube's Opus because an addon was still thinking.
      *
-     * The [DownloadStore.storable] check belongs here rather than inside the
-     * resolver: the resolver's job is finding the best audio, and whether this
-     * device will keep a file of that codec is a question about Android.
+     * Whether a candidate can become a file at all is [keepable]'s question,
+     * and the resolver asks it of every candidate before one may win — see
+     * [SourceResolver.forDownload]'s `keep`.
      *
      * @param quality pinned by [run] for the whole of this track. Passed on to
      *   the resolver rather than left to it, so that the twenty seconds this may
      *   spend searching cannot be a window in which the setting changes and the
      *   two halves of one decision disagree.
      */
-    private suspend fun fromSources(
-        track: Song,
-        quality: DownloadQuality,
-    ): Pair<SourceStream, DownloadStore.Storable>? {
-        // Wrapped so the two ways this can come back empty stay apart in the
-        // log. `withTimeoutOrNull` collapses them into one null, and the
-        // difference is the whole diagnosis: "no enabled source holds this
-        // recording" is a fact about the track, and "the clock ran out" is a
-        // fact about [SOURCE_LOOKUP_MS] — which is what silently sent a whole
-        // Lossless queue to YouTube's AAC while the log said nothing at all.
+    private suspend fun fromSources(track: Song, quality: DownloadQuality): Kept? {
+        val target = TrackMatcher.targetOf(track)
+        val probes = java.util.concurrent.ConcurrentHashMap<String, Downloader.Probe>()
+        // The resolver keeps to [SOURCE_LOOKUP_MS] on its own. This outer bound
+        // is only the backstop for a request that ignores cancellation, and
+        // landing on it is worth a line in the log, because it means the
+        // inner one didn't hold.
         var timedOut = true
-        val stream = withTimeoutOrNull(SOURCE_LOOKUP_MS) {
+        val stream = withTimeoutOrNull(SOURCE_LOOKUP_MS + LOOKUP_BACKSTOP_MS) {
             try {
                 SourceResolver.forDownload(
-                    TrackMatcher.targetOf(track),
+                    target,
                     SourceResolver.requestForDownload(quality),
+                    keep = { candidate ->
+                        keepable(candidate, target.durationSec)
+                            ?.also { probes[it.stream.url] = it.probe }
+                            ?.stream
+                    },
+                    budgetMs = SOURCE_LOOKUP_MS,
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -1626,76 +1450,106 @@ object Downloads {
                 null
             }.also { timedOut = false }
         }
-        if (stream == null) {
-            if (timedOut) {
-                Log.w(
-                    TAG,
-                    "source lookup for ${track.videoId} ran past ${SOURCE_LOOKUP_MS}ms; " +
-                        "downloading it from YouTube instead of ${quality.label}",
-                )
-            }
-            return null
+        if (timedOut) {
+            Log.w(TAG, "source lookup for ${track.videoId} overran its own budget; downloading it from YouTube")
         }
+        stream ?: return null
+        return probes[stream.url]?.let { Kept(stream, it) }
+    }
 
-        val storable = DownloadStore.storable(stream.format.codec)
-        if (storable == null) {
-            Log.d(TAG, "nothing to file a '${stream.format.codec}' as; taking YouTube for ${track.videoId}")
+    /**
+     * [track] from the source it is a row of, as itself — see
+     * [SourceResolver.forDownloadOfRow] — or null to match it elsewhere.
+     */
+    private suspend fun fromRow(track: Song, configId: String, trackId: String, quality: DownloadQuality): Kept? {
+        val stream = try {
+            SourceResolver.forDownloadOfRow(
+                configId,
+                trackId,
+                track.sourceQuality,
+                SourceResolver.requestForDownload(quality),
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "row lookup failed for ${track.videoId}: ${e.message}")
+            null
+        }
+        if (stream == null) {
+            Log.d(TAG, "${track.videoId}: its own source has nothing to download; matching it elsewhere")
             return null
         }
-        return stream to storable
+        return keepable(stream, TrackMatcher.targetOf(track).durationSec)
+    }
+
+    /**
+     * [stream] as something a download can keep, described by its bytes — or
+     * null when it can't be kept.
+     *
+     * Three things come out of the probe that the source's label couldn't be
+     * trusted with:
+     *
+     *  - **The container.** An addon's `aac` or `mp3` used to have no file
+     *    type to land in at all, so it went to YouTube — while JioSaavn, which
+     *    always says `mp4`, never did. That asymmetry was the whole of "with an
+     *    addon connected it still downloads JioSaavn or Opus".
+     *  - **Whether it is a manifest.** Labels lie about this one in particular;
+     *    see [Downloader.probe].
+     *  - **A codec and bitrate where the source stated neither.** Playback
+     *    accepts an undescribed stream and lets the decoder work it out. A
+     *    download has to name the file and judge it against YouTube first, so
+     *    the codec comes from the bytes and the bitrate from the file's length
+     *    over the track's — marked inferred, as an addon's tier-derived 320 is.
+     */
+    private suspend fun keepable(stream: SourceStream, durationSec: Int?): Kept? {
+        val probe = Downloader.probe(stream.url, stream.headers, stream.format.codec)
+        if (probe == null) {
+            Log.d(TAG, "${stream.format.summary}: not a file a download can keep; passing")
+            return null
+        }
+        val export = AppSettings.exportDownloads.value
+        return when (probe) {
+            is Downloader.Probe.Manifest -> {
+                val assembles = DownloadStore.storable(stream.format.codec)?.extension in ManifestFile.EXTENSIONS
+                if (export && !assembles) {
+                    Log.d(TAG, "${stream.format.summary}: a manifest an export can't file; passing")
+                    return null
+                }
+                Kept(stream, probe)
+            }
+            is Downloader.Probe.File -> {
+                val container = probe.container
+                // MediaStore.Audio refuses audio/webm on affected Android
+                // versions — the same reason YouTube's route pins exports to AAC.
+                if (export && container == Downloader.Container.WEBM) {
+                    Log.d(TAG, "${stream.format.summary}: WebM can't be exported; passing")
+                    return null
+                }
+                val described = stream.format.copy(
+                    codec = container.codec ?: stream.format.codec ?: container.extension,
+                )
+                val measured = estimatedKbps(probe.totalBytes, stream.durationSec ?: durationSec)
+                    ?.takeIf { described.kbps == null && described.isLossless != true }
+                val format = if (measured != null) {
+                    described.copy(kbps = measured, kbpsInferred = true)
+                } else {
+                    described
+                }
+                Kept(stream.copy(format = format), probe)
+            }
+        }
+    }
+
+    /** A file's average bitrate from its size and running time, when both are known. */
+    internal fun estimatedKbps(totalBytes: Long?, durationSec: Int?): Int? {
+        if (totalBytes == null || durationSec == null || durationSec <= 0) return null
+        return (totalBytes * 8 / 1000 / durationSec).toInt().takeIf { it > 0 }
     }
 
     /** Back to "not downloaded" — used for success, where [saved] takes over, and for cancellation. */
     private fun clear(videoId: String) {
         _active.update { it - videoId }
     }
-
-    private fun ensureCurrentClaim(videoId: String, claimToken: Long) {
-        if (!synchronized(lock) { running[videoId]?.token == claimToken }) {
-            throw CancellationException("Download claim for $videoId is no longer active")
-        }
-    }
-
-    private fun updateRunningIfCurrent(videoId: String, claimToken: Long, fraction: Float): Boolean =
-        synchronized(lock) {
-            if (running[videoId]?.token != claimToken) return@synchronized false
-            _active.update { it + (videoId to DownloadState.Running(fraction)) }
-            DownloadSession.running(videoId, fraction)
-            true
-        }
-
-    private fun retitleIfCurrent(videoId: String, claimToken: Long, song: Song): Boolean =
-        synchronized(lock) {
-            if (running[videoId]?.token != claimToken) return@synchronized false
-            DownloadSession.retitle(videoId, song)
-            true
-        }
-
-    /** The saved file and its session state commit together against the live claim. */
-    private fun completeIfCurrent(videoId: String, claimToken: Long, save: () -> Unit): Boolean =
-        synchronized(lock) {
-            if (running[videoId]?.token != claimToken) return@synchronized false
-            save()
-            fromCache.remove(videoId)
-            DownloadSession.done(videoId)
-            _active.update { it - videoId }
-            true
-        }
-
-    private fun clearIfCurrent(videoId: String, claimToken: Long): Boolean =
-        synchronized(lock) {
-            if (running[videoId]?.token != claimToken) return@synchronized false
-            _active.update { it - videoId }
-            true
-        }
-
-    private fun failIfCurrent(videoId: String, claimToken: Long, reason: String): Boolean =
-        synchronized(lock) {
-            if (running[videoId]?.token != claimToken) return@synchronized false
-            _active.update { it + (videoId to DownloadState.Failed(reason)) }
-            DownloadSession.failed(videoId, reason)
-            true
-        }
 
     private fun fail(videoId: String, reason: String) {
         _active.update { it + (videoId to DownloadState.Failed(reason)) }
@@ -1756,15 +1610,21 @@ object Downloads {
      * [SourceResolver.forDownload] runs both halves at once rather than in
      * turn: a fast source queued behind a slow one would spend this budget
      * waiting for a module and never be asked.
+     *
+     * The resolver keeps to it itself (`budgetMs`), deciding on whatever has
+     * answered when it runs out — see [fromSources] for why that matters.
      */
     private const val SOURCE_LOOKUP_MS = 85_000L
+
+    /** How far past [SOURCE_LOOKUP_MS] the outer backstop in [fromSources] waits. */
+    private const val LOOKUP_BACKSTOP_MS = 15_000L
 
     /**
      * The extensions a file in Music can carry that say, on their own, that a
      * lossless request has already been answered.
      *
-     * `m4a` is deliberately absent even though [DownloadStore.storable] files
-     * ALAC as one: an `.m4a` in this folder is just as likely to be the AAC a
+     * `m4a` is deliberately absent even though an ALAC download is filed as
+     * one: an `.m4a` in this folder is just as likely to be the AAC a
      * download at the High rung wrote, and there is nothing in the name to
      * separate them. Guessing wrong there would answer a request for lossless
      * with a transcode and never fetch the real thing.
@@ -1781,61 +1641,15 @@ object Downloads {
      */
     internal const val WIFI_ONLY_REFUSAL = "Downloads are set to Wi-Fi only"
 
+    /** As `DownloadService.WORKERS`, whose reasoning is the same here. */
+    private const val BATCH_WORKERS = 4
+
     /** Dropped when the sheet is reopened; a failure is worth showing once. */
     fun dismissFailure(videoId: String) {
-        synchronized(lock) {
-            if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
-        }
+        if (_active.value[videoId] is DownloadState.Failed) clear(videoId)
     }
 
     private const val KEY_SAVED = "downloaded_tracks"
-}
-
-internal data class DownloadClaim(val song: Song, val token: Long)
-
-internal data class RunningDownloadClaim(val token: Long, var job: Job? = null)
-
-/** A cancelled worker must neither attach to nor clear a newer retry's claim. */
-internal fun attachRunningJobIfClaimMatches(
-    running: MutableMap<String, RunningDownloadClaim>,
-    videoId: String,
-    claimToken: Long,
-    job: Job,
-): Boolean {
-    val claim = running[videoId] ?: return false
-    if (claim.token != claimToken) return false
-    claim.job = job
-    return true
-}
-
-internal fun removeRunningClaimIfMatches(
-    running: MutableMap<String, RunningDownloadClaim>,
-    videoId: String,
-    claimToken: Long,
-): Boolean {
-    if (running[videoId]?.token != claimToken) return false
-    running.remove(videoId)
-    return true
-}
-
-internal fun canStartDownloadClaim(
-    videoId: String,
-    retiring: Map<String, Set<Long>>,
-): Boolean = retiring[videoId].isNullOrEmpty()
-
-/** A drain must be repeated if a start raced its final empty-queue check. */
-internal fun shouldRestartDownloadDrain(restartRequested: Boolean, queueBusy: Boolean): Boolean =
-    restartRequested || queueBusy
-
-internal fun removeRetiringDownloadClaim(
-    retiring: MutableMap<String, MutableSet<Long>>,
-    videoId: String,
-    claimToken: Long,
-): Boolean {
-    val claims = retiring[videoId] ?: return false
-    if (!claims.remove(claimToken)) return false
-    if (claims.isEmpty()) retiring.remove(videoId)
-    return true
 }
 
 @kotlinx.serialization.Serializable
@@ -1858,12 +1672,36 @@ internal data class SavedSongMetadata(
     /** Stable creation time for downloads that MediaStore does not index. */
     val dateAddedSeconds: Long? = null,
     /** File accessibility only; this does not establish that the audio is playable. */
-    val fileCheckState: String = DownloadFileCheckState.UNCHECKED.persistedValue,
+    val fileCheckState: String = "unchecked",
     /** Explicit-content badge from the source catalogue; null for legacy/unknown records. */
     val isExplicit: Boolean? = null,
     /** Time of the most recent file accessibility check, including failed checks. */
     val fileCheckAtMillis: Long? = null,
 )
+
+internal data class PersistedDownloadMap<T>(
+    val values: Map<String, T>,
+    val invalidEntries: Int,
+    val invalidRoot: Boolean,
+)
+
+/** Salvage valid records from a partially malformed persisted download map. */
+internal fun <T> decodePersistedDownloadMap(
+    raw: String,
+    valueSerializer: KSerializer<T>,
+    json: Json,
+): PersistedDownloadMap<T> {
+    val root = runCatching { json.parseToJsonElement(raw) as? JsonObject }.getOrNull()
+        ?: return PersistedDownloadMap(emptyMap(), invalidEntries = 0, invalidRoot = true)
+    var invalidEntries = 0
+    val values = buildMap {
+        root.forEach { (key, value) ->
+            val decoded = runCatching { json.decodeFromJsonElement(valueSerializer, value) }.getOrNull()
+            if (decoded == null) invalidEntries++ else put(key, decoded)
+        }
+    }
+    return PersistedDownloadMap(values, invalidEntries, invalidRoot = false)
+}
 
 /**
  * Dates for a downloaded file-backed row.
@@ -1969,30 +1807,44 @@ data class DownloadedCollection(
     val songs: List<Song>,
 )
 
-internal data class PersistedDownloadMap<T>(
-    val values: Map<String, T>,
-    val invalidEntries: Int,
-    val invalidRoot: Boolean,
-)
+/** Token-bound worker claim; a stale worker cannot detach a newer retry. */
+internal data class RunningDownloadClaim(val token: Long, var job: Job? = null)
 
-/** Salvage valid records from a partially malformed persisted download map. */
-internal fun <T> decodePersistedDownloadMap(
-    raw: String,
-    valueSerializer: KSerializer<T>,
-    json: Json,
-): PersistedDownloadMap<T> {
-    val root = runCatching { json.parseToJsonElement(raw).jsonObject }.getOrNull()
-        ?: return PersistedDownloadMap(emptyMap(), invalidEntries = 0, invalidRoot = true)
-    var invalidEntries = 0
-    val values = buildMap {
-        root.forEach { (key, value) ->
-            val decoded = runCatching { json.decodeFromJsonElement(valueSerializer, value) }.getOrNull()
-            if (decoded == null) {
-                invalidEntries++
-            } else {
-                put(key, decoded)
-            }
-        }
-    }
-    return PersistedDownloadMap(values, invalidEntries, invalidRoot = false)
+internal fun attachRunningJobIfClaimMatches(
+    running: MutableMap<String, RunningDownloadClaim>,
+    videoId: String,
+    claimToken: Long,
+    job: Job,
+): Boolean {
+    val claim = running[videoId] ?: return false
+    if (claim.token != claimToken) return false
+    claim.job = job
+    return true
+}
+
+internal fun removeRunningClaimIfMatches(
+    running: MutableMap<String, RunningDownloadClaim>,
+    videoId: String,
+    claimToken: Long,
+): Boolean {
+    if (running[videoId]?.token != claimToken) return false
+    running.remove(videoId)
+    return true
+}
+
+internal fun canStartDownloadClaim(videoId: String, retiring: Map<String, Set<Long>>): Boolean =
+    retiring[videoId].isNullOrEmpty()
+
+internal fun shouldRestartDownloadDrain(restartRequested: Boolean, queueBusy: Boolean): Boolean =
+    restartRequested || queueBusy
+
+internal fun removeRetiringDownloadClaim(
+    retiring: MutableMap<String, MutableSet<Long>>,
+    videoId: String,
+    claimToken: Long,
+): Boolean {
+    val tokens = retiring[videoId] ?: return false
+    if (!tokens.remove(claimToken)) return false
+    if (tokens.isEmpty()) retiring.remove(videoId)
+    return true
 }

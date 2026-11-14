@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
@@ -28,6 +29,21 @@ internal actual fun uptimeMillis(): Long = (System.nanoTime() - startNanos) / 1_
 // Skia blurs at every size; there is no platform floor to check.
 internal actual val renderEffectBlurSupported: Boolean = true
 
+// RuntimeShader is Android-only; desktop keeps the regular cover crossfade.
+internal actual val fluidArtworkSupported: Boolean = false
+
+internal actual class FluidArtworkShader actual constructor() {
+    actual fun effect(
+        incoming: Boolean,
+        progress: Float,
+        direction: Float,
+        punch: Float,
+        seed: Float,
+        width: Float,
+        height: Float,
+    ): RenderEffect? = null
+}
+
 // A desktop display's idle timeout is the user's own business.
 @Composable
 internal actual fun KeepScreenOn(enabled: Boolean) = Unit
@@ -36,7 +52,7 @@ internal actual fun KeepScreenOn(enabled: Boolean) = Unit
 internal actual fun appLanguageTag(): String = Locale.getDefault().toLanguageTag()
 
 @Composable
-internal actual fun PlayerBackHandler(enabled: Boolean, onBack: () -> Unit) {
+actual fun PlayerBackHandler(enabled: Boolean, onBack: () -> Unit) {
     val current = rememberUpdatedState(onBack)
     val entry = remember { PlayerBack.Entry { current.value() } }
     DisposableEffect(enabled) {

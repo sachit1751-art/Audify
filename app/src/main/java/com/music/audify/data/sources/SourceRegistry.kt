@@ -1,10 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.sources
-
-import androidx.core.net.toUri
-
-import androidx.core.content.edit
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -16,6 +10,7 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.permits
 import com.music.audify.data.sources.addon.AddonClient
 import com.music.audify.data.sources.addon.AddonException
+import com.music.audify.data.sources.addon.AddonQualityOption
 import com.music.audify.data.sources.addon.DetectedFormat
 import com.music.audify.data.sources.addon.SourceFormats
 import com.music.audify.data.settings.AudioQuality
@@ -57,20 +52,35 @@ data class SourceConfig(
      * already break that. Refreshed whenever the manifest is next read.
      */
     val checkValidLossless: Boolean = false,
+    /**
+     * The addon's `quality` choices, as its manifest last said. Stored for the
+     * same reason as [checkValidLossless]: the sources screen has to list them
+     * for a gated addon without contacting it.
+     */
+    val qualityOptions: List<AddonQualityOption> = emptyList(),
+    /** Which of [qualityOptions] the user chose, or null for the first one listed. */
+    val pickedQuality: String? = null,
 ) {
+    /** The entry of [qualityOptions] in force: the pick while the addon still lists it, else its first. */
+    val activeQuality: AddonQualityOption?
+        get() = qualityOptions.firstOrNull { it.value == pickedQuality } ?: qualityOptions.firstOrNull()
     /** Whether this source is shut out right now because it needs an output that isn't connected. */
     val awaitsLosslessOutput: Boolean
         get() = checkValidLossless && !LosslessOutput.capable
 
-    /** The two manifest switches, without the parts of the config the user set. */
+    /** What the manifest last said, without the parts of the config the user set. */
     internal fun withPolicyOf(other: SourceConfig) =
-        copy(allowDownloads = other.allowDownloads, checkValidLossless = other.checkValidLossless)
+        copy(
+            allowDownloads = other.allowDownloads,
+            checkValidLossless = other.checkValidLossless,
+            qualityOptions = other.qualityOptions,
+        )
 
     /** What the sources screen and the player show. Never blank. */
     val displayName: String
         get() = label.ifBlank {
             baseUrl.takeIf { it.isNotBlank() }
-                ?.let { runCatching { it.toUri().host }.getOrNull() }
+                ?.let { runCatching { Uri.parse(it).host }.getOrNull() }
                 ?: kind.label
         }
 
@@ -112,7 +122,7 @@ object SourceRegistry {
 
     fun init(context: Context) {
         // Same repair and degradation as AuthStore; see EncryptedPrefs.
-        prefs = EncryptedPrefs.open(context, "audify_sources", "audify_sources_plain")
+        prefs = EncryptedPrefs.open(context, "bitchord_sources", "bitchord_sources_plain")
 
         val stored = prefs.getString(KEY_SOURCES, null)?.let(::decodeStored) ?: emptyList()
         val jioOptInMigrationDone = prefs.getBoolean(KEY_JIOSAAVN_OPT_IN_V1, false)
@@ -124,10 +134,10 @@ object SourceRegistry {
         // opt-out had already happened and silently restore the old on state.
         publish(after, persist = false)
         if (after != stored || !jioOptInMigrationDone) {
-            prefs.edit {
-                    putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), after))
-                    .putBoolean(KEY_JIOSAAVN_OPT_IN_V1, true)
-                }
+            prefs.edit()
+                .putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), after))
+                .putBoolean(KEY_JIOSAAVN_OPT_IN_V1, true)
+                .apply()
         }
     }
 
@@ -205,6 +215,35 @@ object SourceRegistry {
     fun activeForDownload(): List<MusicSource> =
         active().filter { config(it.configId)?.allowDownloads != false }
 
+    /** Why an enabled addon has no part in downloads right now — see [addonsLeftOutOfDownloads]. */
+    enum class DownloadExclusion {
+        /** Its manifest says `allowDownloads: 0`. */
+        DOWNLOADS_NOT_ALLOWED,
+
+        /** It asks for a lossless output (`checkValidLossless`) and none is connected. */
+        NEEDS_LOSSLESS_OUTPUT,
+    }
+
+    /**
+     * The enabled addons [activeForDownload] leaves out, and why.
+     *
+     * Both are the addon's own rules, and both used to be applied in silence: a
+     * listener with an addon connected watched downloads arrive from JioSaavn
+     * or YouTube with nothing to say the addon had been passed over on purpose.
+     * The second is the one that catches people out — the phone speaker and
+     * ordinary Bluetooth don't count as lossless outputs.
+     */
+    fun addonsLeftOutOfDownloads(): List<Pair<SourceConfig, DownloadExclusion>> =
+        enabledConfigs(configs.value)
+            .filter { it.kind == SourceKind.ADDON }
+            .mapNotNull { config ->
+                when {
+                    !config.allowDownloads -> config to DownloadExclusion.DOWNLOADS_NOT_ALLOWED
+                    config.awaitsLosslessOutput -> config to DownloadExclusion.NEEDS_LOSSLESS_OUTPUT
+                    else -> null
+                }
+            }
+
     /**
      * Records what an addon's manifest said about downloads and lossless
      * output, if it changed.
@@ -213,17 +252,37 @@ object SourceRegistry {
      * because nothing about where it points has changed, and this is called
      * from inside that source's own requests.
      */
-    fun updatePolicy(configId: String, allowDownloads: Boolean, checkValidLossless: Boolean) {
+    fun updatePolicy(
+        configId: String,
+        allowDownloads: Boolean,
+        checkValidLossless: Boolean,
+        /** Null leaves the stored quality choices as they are. */
+        qualityOptions: List<AddonQualityOption>? = null,
+    ) {
         val current = config(configId) ?: return
-        if (current.allowDownloads == allowDownloads && current.checkValidLossless == checkValidLossless) return
+        val options = qualityOptions ?: current.qualityOptions
+        if (current.allowDownloads == allowDownloads &&
+            current.checkValidLossless == checkValidLossless &&
+            current.qualityOptions == options
+        ) {
+            return
+        }
         TrackLog.d(
             TAG,
             "${current.displayName}: manifest now says allowDownloads=$allowDownloads " +
-                "checkValidLossless=$checkValidLossless",
+                "checkValidLossless=$checkValidLossless qualityOptions=${options.map { it.value }}",
         )
         publish(
             configs.value.map {
-                if (it.id == configId) it.copy(allowDownloads = allowDownloads, checkValidLossless = checkValidLossless) else it
+                if (it.id == configId) {
+                    it.copy(
+                        allowDownloads = allowDownloads,
+                        checkValidLossless = checkValidLossless,
+                        qualityOptions = options,
+                    )
+                } else {
+                    it
+                }
             },
         )
     }
@@ -247,6 +306,22 @@ object SourceRegistry {
     fun activeForPlayback(): List<MusicSource> {
         val ceiling = AppSettings.effectiveAudioQuality
         return active().filter { ceiling.permits(it.kind) }
+    }
+
+    /**
+     * Whether a stream [configId] served may still be played under the ceiling
+     * in force — the same test as [activeForPlayback], asked of a stream that
+     * was found earlier, under whatever ceiling applied then.
+     *
+     * Null or unknown is a yes: a stream that names no source is YouTube's own,
+     * and YouTube is permitted on every rung.
+     */
+    fun permitsForPlayback(
+        configId: String?,
+        ceiling: AudioQuality = AppSettings.effectiveAudioQuality,
+    ): Boolean {
+        val kind = configId?.let { config(it)?.kind } ?: return true
+        return ceiling.permits(kind)
     }
 
     fun instance(configId: String): MusicSource? = instances[configId]
@@ -362,9 +437,9 @@ object SourceRegistry {
             .filterIsInstance<AddonSource>()
             .forEach { it.release() }
         if (persist && ::prefs.isInitialized) {
-            prefs.edit {
-                    putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), next))
-                }
+            prefs.edit()
+                .putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), next))
+                .apply()
         }
     }
 
@@ -393,6 +468,12 @@ object SourceRegistry {
                     label = detected.manifest.displayName,
                     allowDownloads = detected.manifest.downloadsAllowed,
                     checkValidLossless = detected.manifest.requiresLosslessOutput,
+                    qualityOptions = detected.manifest.qualityOptions,
+                    // The address may now name a different addon, whose list
+                    // this pick was never on.
+                    pickedQuality = existing?.pickedQuality?.takeIf { picked ->
+                        detected.manifest.qualityOptions.any { it.value == picked }
+                    },
                 ),
             )
             is DetectedFormat.ModuleIndex -> Result.success(
@@ -402,6 +483,8 @@ object SourceRegistry {
                     // document, where an addon's manifest only points at one.
                     baseUrl = detected.url,
                     label = existing?.label.orEmpty(),
+                    qualityOptions = emptyList(),
+                    pickedQuality = null,
                 ),
             )
             is DetectedFormat.Unsupported -> Result.failure(AddonException(detected.reason))

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import android.os.SystemClock
@@ -252,7 +250,6 @@ class PartySync(
      * would put three controls on the wire for one tap.
      */
     fun onLocalIntent() {
-        if (player()?.hasPodcastInQueue() == true) return
         val party = ListenTogether.state.value
         if (!party.inParty) return
         // Nothing this device does while the host holds control is the party's
@@ -319,7 +316,6 @@ class PartySync(
      * has to be caught as it happens. See [focusLost].
      */
     fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-        if (player()?.hasPodcastInQueue() == true) return
         if (playWhenReady) {
             // Audible again by some route — a rejoin, a headset button, the
             // notification. Whatever it was, following the party is right.
@@ -505,7 +501,6 @@ class PartySync(
             return
         }
         val exo = player() ?: return
-        if (exo.hasPodcastInQueue()) return
 
         // Suppressed, not stopped: a notification chime or a short clip holds
         // the audio for a moment and hands it straight back, with `playWhenReady`
@@ -737,7 +732,6 @@ class PartySync(
             return
         }
         val exo = player() ?: return
-        if (exo.hasPodcastInQueue()) return
         val song = exo.currentMediaItem?.toSong() ?: return
         // A file on this device is not something a party can play: it is
         // identified by a content:// or file:// URI that means nothing anywhere
@@ -891,7 +885,6 @@ class PartySync(
         if (party.connection != ListenTogether.Connection.LIVE) return
         if (party.you?.isHost != true) return
         val exo = player() ?: return
-        if (exo.hasPodcastInQueue()) return
         // The same two things [publish] would refuse to say anything about: an
         // empty player, and a file that only exists on this phone.
         val song = exo.currentMediaItem?.toSong() ?: return
@@ -911,10 +904,6 @@ class PartySync(
 
     private fun onEnteredParty() {
         val exo = player() ?: return
-        if (exo.hasPodcastInQueue()) {
-            Log.i(TAG, "not syncing a mixed podcast queue to Listen Together")
-            return
-        }
         Log.i(TAG, "entered party, stashing personal queue")
         PartyPersonalQueueStash.stashFromPlayer(exo)
     }
@@ -1086,9 +1075,6 @@ class PartySync(
 
         /** Maximum upcoming tracks in a party queue excluding the currently playing one. */
         const val MAX_PARTY_UPCOMING_QUEUE = 25
-
-        /** The server's own ceiling; publishing more would only be truncated. */
-        const val MAX_PUBLISHED_QUEUE = 1 + MAX_PARTY_UPCOMING_QUEUE
     }
 }
 

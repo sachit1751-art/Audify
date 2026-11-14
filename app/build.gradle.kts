@@ -96,6 +96,7 @@ android {
         // the same GitHub release, told apart by file name. See
         // AppUpdateChecker.apkAssetUrl.
         buildConfigField("String", "UPDATE_APK_PREFIX", "\"Audify-\"")
+    buildConfigField("String", "UPDATE_REPO", "\"sachit1751-art/Audify\"")
     }
 
     splits {
@@ -327,12 +328,16 @@ dependencies {
     // Title logos are PNG, but artist signatures are usually SVG — without
     // this Coil can't decode them (see ArtistSignatureRepository).
     implementation("io.coil-kt.coil3:coil-svg:3.6.3")
+    // SF Symbols as Compose vectors used by the copied reference UI.
+    implementation("com.github.cosmictaserdev-creator.Jetpack_SF_Symbols:sfsymbols-android:1.1.1") {
+        isTransitive = false
+    }
     implementation("androidx.palette:palette-ktx:1.1.0")
 
     // ---- Frosted glass / progressive blur (Telegram-style bars) ----
-    implementation("dev.chrisbanes.haze:haze:2.1.0")
-    implementation("dev.chrisbanes.haze:haze-blur:2.1.0")
-    implementation("dev.chrisbanes.haze:haze-blur-materials:2.1.0")
+    implementation("dev.chrisbanes.haze:haze:1.3.1")
+    implementation("dev.chrisbanes.haze:haze-materials:1.3.1")
+
 
     // ---- QR encoding, for the party invite ----
     // `core` only: the `android-core`/`zxing-android-embedded` artifacts bring

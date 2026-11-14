@@ -1,11 +1,11 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.navigation
 
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateListOf
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.PodcastProviderShow
+import com.music.audify.ui.screens.SettingsCategory
+import com.music.audify.ui.screens.SettingsChoiceKind
 
 /**
  * A page pushed over the tabs: Settings and every page under it, and the
@@ -17,22 +17,41 @@ import com.music.audify.data.model.PodcastProviderShow
  * one — see [RouteEntry.detailDepth].
  */
 sealed interface AppRoute {
-    data object Profile : AppRoute
     data object Settings : AppRoute
     data object AccountScrobbling : AppRoute
     data object Sources : AppRoute
-    data object ListenTogether : AppRoute
     data object WearOs : AppRoute
+    data object ListenTogether : AppRoute
     data object Equalizer : AppRoute
     data object Replay : AppRoute
-    data object SmartPlaylists : AppRoute
     data object History : AppRoute
     data object Discord : AppRoute
     data object Spotify : AppRoute
+    data object Downloads : AppRoute
+    data object SmartPlaylists : AppRoute
     data class Podcasts(val initialShow: PodcastProviderShow? = null) : AppRoute
 
     /** A Library shelf's "Show all" — its own cards laid out again as a grid. */
     data class LibraryShowAll(val shelf: HomeShelf) : AppRoute
+
+    /**
+     * An artist page's "Show all" for one shelf. Not a page of its own: the
+     * artist page draws the shelf in place, so this only records that it is
+     * open — which is what lets an album opened from it come back to it.
+     */
+    data class ArtistShelf(val browseId: String, val shelf: HomeShelf) : AppRoute
+
+    /** Find Your Mood's Show all: every mood and activity, as a grid. */
+    data object Moods : AppRoute
+
+    /** One category of Settings, opened from its row on the main Settings page. */
+    data class SettingsSection(val category: SettingsCategory) : AppRoute
+
+    /** A Settings choice with more options than its row can show, as a page. */
+    data class SettingsChoice(val choice: SettingsChoiceKind) : AppRoute
+
+    /** The Equalizer's list of preset curves. */
+    data object EqualizerPresets : AppRoute
 }
 
 /**

@@ -1,12 +1,9 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.music.audify.data.canvas.CanvasArtwork
 import com.music.audify.data.settings.LibrarySort
-import com.music.audify.data.settings.LibraryViewType
-import com.music.audify.data.model.HomeLayout
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -20,20 +17,6 @@ interface AppUiHost {
     /** A swipe on a track row plays it next rather than adding it to the end of the queue. */
     val swipeToPlayNext: StateFlow<Boolean>
 
-    /** Home's Recents shelf as a paged list of rows or as a row of cards. */
-    val homeRecentsViewType: StateFlow<LibraryViewType>
-
-    fun setHomeRecentsViewType(value: LibraryViewType)
-
-    /** Saved order and visibility of Home's recommendation rows. */
-    val homeLayout: StateFlow<HomeLayout>
-    fun setHomeLayout(value: HomeLayout)
-
-    /** Whether the weekly listening recap is enabled on Home. */
-    val showWeeklyRecapCard: StateFlow<Boolean>
-
-    fun setWeeklyRecapSeenWeek(value: Long)
-
     /** Playlist browse ids pinned to the front of the Library's Playlists shelf, in pin order. */
     val pinnedPlaylists: StateFlow<List<String>>
 
@@ -43,6 +26,19 @@ interface AppUiHost {
     /** Video ids of the tracks already downloaded, for the mark on their rows. */
     @Composable
     fun downloadedIds(): Set<String>
+
+    /**
+     * A release's motion cover, for Home's Top Picks — the same lookup the
+     * album page makes. Null is the normal answer, and the only one where the
+     * user has animated artwork off or the platform has no lookup.
+     */
+    suspend fun releaseMotion(album: String, artist: String): CanvasArtwork? = null
+
+    /**
+     * Apple Music's looping clip of the YouTube artist [browseId], billed as
+     * [artistName], for Home's Top Picks. Null as for [releaseMotion].
+     */
+    suspend fun artistMotion(browseId: String, artistName: String): CanvasArtwork? = null
 }
 
 object AppUi {

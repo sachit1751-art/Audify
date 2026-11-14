@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.download
 
 import com.music.audify.data.lyrics.WORD_LYRICS_FIELD

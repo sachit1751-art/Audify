@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.innertube
 
 import com.music.audify.auth.normalizeDataSyncId
@@ -79,6 +77,10 @@ object Innertube {
 
     val currentRegion: String
         get() = com.music.audify.data.LocaleTags.ytGl(currentLocaleTag)
+
+    /** [currentRegion] for search, where null lets YouTube place us — see [LocaleTags.ytSearchGl]. */
+    private val searchRegion: String?
+        get() = com.music.audify.data.LocaleTags.ytSearchGl(currentLocaleTag)
 
     private val acceptLanguageHeader: String
         get() = com.music.audify.data.LocaleTags.acceptLanguage(currentLocaleTag)
@@ -524,11 +526,123 @@ object Innertube {
 
     // ---- Public API ---------------------------------------------------------
 
-    suspend fun browse(browseId: String, params: String? = null): JsonObject =
-        postMusic("browse") {
-            put("browseId", browseId)
-            params?.let { put("params", it) }
+    /**
+     * Folder untuk cache browse di disk; diisi aplikasi saat start. Null = tanpa cache.
+     * Halaman album/artis/explore dipakai ulang tanpa jaringan selama masih segar, dan
+     * semua halaman yang pernah dibuka tetap tampil (basi) saat offline.
+     */
+    @Volatile
+    var browseCacheDir: java.io.File? = null
+
+    private const val BROWSE_CACHE_MAX_BYTES = 30L * 1024 * 1024
+    private const val BROWSE_STALE_LIMIT_MS = 30L * 24 * 60 * 60 * 1000
+    private var browseWrites = 0
+
+    /**
+     * Berapa lama sebuah halaman dianggap segar. 0 = selalu minta jaringan (Home, library,
+     * playlist, riwayat: berubah oleh aksi pengguna atau pull-to-refresh), tetapi hasilnya
+     * tetap disimpan sebagai cadangan offline.
+     */
+    private fun browseFreshMs(browseId: String): Long = when {
+        browseId.startsWith("MPRE") || browseId.startsWith("MPAD") -> 6L * 60 * 60 * 1000
+        browseId.startsWith("UC") || browseId.startsWith("MPLA") -> 30L * 60 * 1000
+        browseId == "FEmusic_moods_and_genres" -> 24L * 60 * 60 * 1000
+        browseId == "FEmusic_explore" -> 6L * 60 * 60 * 1000
+        browseId == "FEmusic_charts" -> 6L * 60 * 60 * 1000
+        else -> 0L
+    }
+
+    /**
+     * Halaman artis/album memuat status subscribe dan "disimpan ke library", jadi setiap aksi
+     * tulis membuang cache browse. Tanpa ini status lama bisa muncul lagi setelah diubah.
+     */
+    private fun clearBrowseCache() {
+        browseCacheDir?.listFiles()?.forEach { runCatching { it.delete() } }
+    }
+
+    private fun isWriteEndpoint(endpoint: String): Boolean =
+        endpoint.startsWith("like/") ||
+            endpoint.startsWith("subscription/") ||
+            endpoint.startsWith("playlist/") ||
+            endpoint == "browse/edit_playlist" ||
+            endpoint == "feedback"
+
+    /** Satu file per akun/channel/bahasa/halaman, supaya data akun lain tidak pernah tercampur. */
+    private fun browseCacheFile(browseId: String, params: String?): java.io.File? {
+        val dir = browseCacheDir ?: return null
+        val raw = listOf(
+            cookie.orEmpty(),
+            channelOverride?.pageId.orEmpty(),
+            channelOverride?.dataSyncId.orEmpty(),
+            currentLocaleTag,
+            browseId,
+            params.orEmpty(),
+        ).joinToString("\u0000")
+        val hex = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        return java.io.File(dir, "$hex.json")
+    }
+
+    private fun readBrowseCache(file: java.io.File?, maxAgeMs: Long): JsonObject? {
+        if (file == null || !file.isFile) return null
+        if (System.currentTimeMillis() - file.lastModified() > maxAgeMs) return null
+        return runCatching { Json.parseToJsonElement(file.readText()).jsonObject }.getOrNull()
+    }
+
+    private fun writeBrowseCache(file: java.io.File?, body: JsonObject) {
+        if (file == null) return
+        runCatching {
+            file.parentFile?.mkdirs()
+            val tmp = java.io.File(file.path + ".tmp")
+            tmp.writeText(body.toString())
+            tmp.renameTo(file)
+            if (browseWrites++ % 20 == 0) pruneBrowseCache(file.parentFile)
         }
+    }
+
+    /** Buang file terlama sampai total di bawah batas. */
+    private fun pruneBrowseCache(dir: java.io.File?) {
+        val files = dir?.listFiles()?.filter { it.isFile } ?: return
+        var total = files.sumOf { it.length() }
+        if (total <= BROWSE_CACHE_MAX_BYTES) return
+        for (f in files.sortedBy { it.lastModified() }) {
+            if (total <= BROWSE_CACHE_MAX_BYTES * 3 / 4) break
+            total -= f.length()
+            f.delete()
+        }
+    }
+
+    suspend fun browse(browseId: String, params: String? = null): JsonObject {
+        val file = browseCacheFile(browseId, params)
+        val fresh = browseFreshMs(browseId)
+        if (fresh > 0L) readBrowseCache(file, fresh)?.let { return it }
+        return try {
+            postMusic("browse") {
+                put("browseId", browseId)
+                params?.let { put("params", it) }
+            }.also { writeBrowseCache(file, it) }
+        } catch (e: IOException) {
+            // Offline / jaringan putus: pakai salinan terakhir kalau ada. Error lain
+            // (401/403, dll.) sengaja tidak ditelan supaya refresh sesi tetap jalan.
+            readBrowseCache(file, BROWSE_STALE_LIMIT_MS)?.also {
+                Log.d(TAG, "browse $browseId offline, serving cached copy")
+            } ?: throw e
+        }
+    }
+
+    /** The charts page for one country; "ZZ" is Global. Cached like [browse] for FEmusic_charts. */
+    suspend fun browseCharts(country: String): JsonObject {
+        val file = browseCacheFile("FEmusic_charts", "country=$country")
+        readBrowseCache(file, browseFreshMs("FEmusic_charts"))?.let { return it }
+        return try {
+            postMusic("browse") {
+                put("browseId", "FEmusic_charts")
+                putJsonObject("formData") { putJsonArray("selectedValues") { add(country) } }
+            }.also { writeBrowseCache(file, it) }
+        } catch (e: IOException) {
+            readBrowseCache(file, BROWSE_STALE_LIMIT_MS) ?: throw e
+        }
+    }
 
     /**
      * The next page of a paged browse response — playlists and library feeds
@@ -604,6 +718,19 @@ object Innertube {
         put("isAudioOnly", true)
     }
 
+    /**
+     * A watch queue started from a playlist rather than a track: a mix such as
+     * My Supermix, a playlist radio (`RDAMPL…`), or an artist's Mix / Shuffle
+     * button, which also carry their own seed [videoId] and [params].
+     */
+    suspend fun nextPlaylist(playlistId: String, videoId: String? = null, params: String? = null): JsonObject =
+        postMusic("next") {
+            videoId?.let { put("videoId", it) }
+            put("playlistId", playlistId)
+            params?.let { put("params", it) }
+            put("isAudioOnly", true)
+        }
+
     /** Timed caption transcript used as a last-resort lyrics source. */
     suspend fun transcript(videoId: String): JsonObject = postMusic("get_transcript") {
         // get_transcript expects a tiny protobuf: field 1, length, video id.
@@ -613,12 +740,12 @@ object Innertube {
 
     suspend fun search(query: String, params: String? = null, anonymous: Boolean = true): JsonObject =
         if (anonymous) {
-            postMusicAnonymous("search") {
+            postMusicAnonymous("search", region = searchRegion) {
                 put("query", query)
                 params?.let { put("params", it) }
             }
         } else {
-            postMusic("search") {
+            postMusic("search", region = searchRegion) {
                 put("query", query)
                 params?.let { put("params", it) }
             }
@@ -628,6 +755,7 @@ object Innertube {
     suspend fun searchContinuation(token: String): JsonObject = postMusic(
         endpoint = "search",
         query = mapOf("ctoken" to token, "continuation" to token, "type" to "next"),
+        region = searchRegion,
     ) {
         put("continuation", token)
     }
@@ -642,7 +770,7 @@ object Innertube {
      * it affordable per keystroke where a search is not.
      */
     suspend fun searchSuggestions(input: String): JsonObject =
-        postMusic("music/get_search_suggestions") {
+        postMusic("music/get_search_suggestions", region = searchRegion) {
             put("input", input)
         }
 
@@ -658,7 +786,7 @@ object Innertube {
      * land as anonymous lookups that don't touch the user's account history.
      */
     suspend fun searchTypeahead(query: String): JsonObject =
-        postMusicAnonymous("search") {
+        postMusicAnonymous("search", region = searchRegion) {
             put("query", query)
         }
 
@@ -969,14 +1097,6 @@ object Innertube {
                 putJsonArray("videoIds") { videoIds.forEach { add(it) } }
             }
         }
-        // YouTube Music can return an application-level error with HTTP 200.
-        // Treat that as a failed create instead of falling through to the
-        // misleading "no id came back" error.
-        response["error"]?.let { apiError ->
-            val message = (apiError as? JsonObject)
-                ?.get("message")?.jsonPrimitive?.contentOrNull
-            error("YouTube Music refused to create the playlist: ${message ?: apiError}")
-        }
         // Normally a bare top-level id; occasionally only inside the command
         // that would navigate the web client to the new page, so fall back to
         // finding it by name rather than by a path that would rot.
@@ -1107,8 +1227,11 @@ object Innertube {
     private suspend fun postMusic(
         endpoint: String,
         query: Map<String, String> = emptyMap(),
+        /** The context's `gl`; null sends none. */
+        region: String? = currentRegion,
         bodyExtras: JsonObjectBuilder.() -> Unit,
     ): JsonObject {
+        if (isWriteEndpoint(endpoint)) clearBrowseCache()
         // This is the common authenticated request path: Home, Library,
         // likes, playlists, account menus and all their continuations pass
         // through it. Waiting here makes restoration process-wide rather than
@@ -1148,7 +1271,7 @@ object Innertube {
                                 put("clientName", "WEB_REMIX")
                                 put("clientVersion", clientVersion)
                                 put("hl", currentLanguage)
-                                put("gl", currentRegion)
+                                region?.let { put("gl", it) }
                                 visitorData?.let { put("visitorData", it) }
                             }
                             putJsonObject("user") {
@@ -1184,6 +1307,8 @@ object Innertube {
      */
     private suspend fun postMusicAnonymous(
         endpoint: String,
+        /** The context's `gl`; null sends none. */
+        region: String? = currentRegion,
         bodyExtras: JsonObjectBuilder.() -> Unit,
     ): JsonObject {
         val clientVersion = webRemixVersion
@@ -1207,7 +1332,7 @@ object Innertube {
                                 put("clientName", "WEB_REMIX")
                                 put("clientVersion", clientVersion)
                                 put("hl", currentLanguage)
-                                put("gl", currentRegion)
+                                region?.let { put("gl", it) }
                                 visitorData?.let { put("visitorData", it) }
                             }
                             putJsonObject("user") {

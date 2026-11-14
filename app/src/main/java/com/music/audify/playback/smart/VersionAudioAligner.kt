@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback.smart
-
-import androidx.core.net.toUri
 
 import android.content.Context
 import android.media.MediaDataSource
@@ -273,12 +269,12 @@ object VersionAudioAligner {
      */
     private fun openDataSource(context: Context, song: Song): MediaDataSource? {
         song.localUri?.let { local ->
-            val uri = local.toUri()
+            val uri = Uri.parse(local)
             if (LocalAudioSource.isLocal(uri)) {
                 return LocalAudioSource.open(context.contentResolver, uri)
             }
         }
-        val watch = "audify://watch?v=${song.videoId}".toUri()
+        val watch = Uri.parse("audify://watch?v=${song.videoId}")
         val onDisk = AudioCache.renditionsOf(watch)
         val sameSource = onDisk
             .filter { !it.key.endsWith("#alt") }

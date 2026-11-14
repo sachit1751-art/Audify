@@ -1,7 +1,6 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.ui.icons.SfIcons
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -13,7 +12,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.music.audify.playback.audio.LosslessOutput
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import com.music.audify.data.sources.addon.AddonQualityOption
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,12 +34,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.FileDownloadOff
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Extension
@@ -41,8 +49,7 @@ import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import com.music.audify.ui.components.IosSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +66,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.ScrollState
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -196,12 +210,7 @@ fun SourcesScreen(
             .verticalScroll(rememberScrollState())
             .padding(contentPadding),
     ) {
-        Text(
-            text = stringResource(R.string.source),
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
-        )
+        SettingsPageTitle(stringResource(R.string.source))
 
         SettingsGroup(
             header = stringResource(R.string.sources_order_header),
@@ -246,6 +255,13 @@ fun SourcesScreen(
                         awaitingOutput = if (config.enabled && config.awaitsLosslessOutput) losslessOutput else null,
                         onMetered = metered == true,
                         ceiling = ceiling,
+                        onPickQuality = { value ->
+                            // Off the stored config, not the one this row was
+                            // drawn from: a probe may have refreshed it since.
+                            SourceRegistry.config(config.id)?.let {
+                                SourceRegistry.update(it.copy(pickedQuality = value))
+                            }
+                        },
                         // Anything the user configured is theirs to edit or
                         // delete. JioSaavn and YouTube have no address to
                         // change, so a tap on them would open an empty editor.
@@ -302,7 +318,7 @@ fun SourcesScreen(
         // so it takes no part in the ranking and gets its own group. The
         // editor is raised to the activity like every other alert.
         RemoteLibrarySection(
-            icon = Icons.Rounded.Cloud,
+            icon = SfIcons.Cloud,
             title = stringResource(R.string.webdav),
             description = stringResource(R.string.webdav_description),
             subtitle = if (webdavUrl.isBlank()) {
@@ -327,7 +343,7 @@ fun SourcesScreen(
         // for the same reason: it holds the listener's own files instead of
         // answering for YouTube's, so it takes no part in the ranking above.
         RemoteLibrarySection(
-            icon = Icons.Rounded.Storage,
+            icon = SfIcons.Storage,
             title = stringResource(R.string.smb),
             description = stringResource(R.string.smb_description),
             subtitle = if (smbHost.isBlank() || smbShare.isBlank()) {
@@ -359,7 +375,7 @@ fun SourcesScreen(
             footer = stringResource(R.string.upgrade_length_slack_footer),
         ) {
             SliderRow(
-                icon = Icons.Rounded.Tune,
+                icon = SfIcons.Tune,
                 title = stringResource(R.string.upgrade_length_slack),
                 subtitle = stringResource(R.string.upgrade_length_slack_subtitle),
                 value = stringResource(R.string.seconds_short, upgradeLengthSlackSeconds),
@@ -402,9 +418,6 @@ private fun RemoteLibrarySection(
     onDisconnect: () -> Unit,
 ) {
     val context = LocalContext.current
-    val connectedMessage = stringResource(R.string.connected)
-    val failedMessage = stringResource(R.string.failed)
-    val testFailedFormat = stringResource(testFailedRes)
     val scope = rememberCoroutineScope()
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -413,7 +426,7 @@ private fun RemoteLibrarySection(
         if (configured) {
             RowDivider()
             SettingsRow(
-                icon = Icons.Rounded.Dns,
+                icon = SfIcons.Dns,
                 title = if (testing) {
                     stringResource(R.string.testing)
                 } else {
@@ -427,13 +440,12 @@ private fun RemoteLibrarySection(
                     scope.launch {
                         onTest().fold(
                             onSuccess = {
-                                testResult = connectedMessage
+                                testResult = context.getString(R.string.connected)
                             },
                             onFailure = {
-                                testResult = String.format(
-                                    java.util.Locale.getDefault(),
-                                    testFailedFormat,
-                                    it.message ?: failedMessage,
+                                testResult = context.getString(
+                                    testFailedRes,
+                                    it.message ?: context.getString(R.string.failed),
                                 )
                             },
                         )
@@ -443,7 +455,7 @@ private fun RemoteLibrarySection(
             )
             RowDivider()
             SettingsRow(
-                icon = Icons.Rounded.DeleteSweep,
+                icon = SfIcons.DeleteSweep,
                 title = disconnectTitle,
                 onClick = {
                     onDisconnect()
@@ -536,7 +548,7 @@ private fun ReorderableAddons(
             ) {
                 row(index + 1, config) {
                     Icon(
-                        imageVector = Icons.Rounded.DragHandle,
+                        imageVector = SfIcons.DragHandle,
                         contentDescription = stringResource(R.string.drag_to_reorder),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
                         modifier = Modifier
@@ -648,9 +660,9 @@ private fun AddSourceRow(onClick: () -> Unit) {
         // the plus reads as belonging to the same column the list is indexed by.
         Spacer(Modifier.width(24.dp))
         Icon(
-            imageVector = Icons.Rounded.Add,
+            imageVector = SfIcons.Add,
             contentDescription = null,
-            tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(ICON_SIZE),
         )
         Spacer(Modifier.width(ICON_GAP))
@@ -724,9 +736,9 @@ private fun BluetoothCodecPermissionRow() {
     ) {
         Spacer(Modifier.width(24.dp))
         Icon(
-            imageVector = Icons.Rounded.Bluetooth,
+            imageVector = SfIcons.Bluetooth,
             contentDescription = null,
-            tint = if (denied) MaterialTheme.colorScheme.error else com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+            tint = if (denied) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(ICON_SIZE),
         )
         Spacer(Modifier.width(ICON_GAP))
@@ -750,8 +762,61 @@ private fun BluetoothCodecPermissionRow() {
     }
 }
 
+/**
+ * One source: the row itself and, for an addon that offers a choice of
+ * renditions, its quality pills on a line below. The pills get the full width
+ * of the row rather than the column beside the switch, so more of them are
+ * visible at once and the rest scroll in from a faded edge.
+ */
 @Composable
 private fun SourceRow(
+    position: Int,
+    config: SourceConfig,
+    health: SourceHealth?,
+    onClick: (() -> Unit)?,
+    onToggle: ((Boolean) -> Unit)?,
+    skippedByQuality: Boolean = false,
+    awaitingOutput: LosslessOutput.State? = null,
+    onMetered: Boolean = false,
+    ceiling: AudioQuality = AudioQuality.LOSSLESS,
+    onPickQuality: (String) -> Unit = {},
+    handle: (@Composable () -> Unit)? = null,
+) {
+    val dimmed = !config.enabled || skippedByQuality || awaitingOutput != null
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SourceRowHeader(
+            position = position,
+            config = config,
+            health = health,
+            onClick = onClick,
+            onToggle = onToggle,
+            skippedByQuality = skippedByQuality,
+            awaitingOutput = awaitingOutput,
+            onMetered = onMetered,
+            ceiling = ceiling,
+            handle = handle,
+        )
+        // Read off the stored manifest, so it can be set while the addon
+        // is down or waiting on a lossless output. Only when the addon
+        // actually offers a choice (two or more renditions).
+        if (config.kind == SourceKind.ADDON && config.isComplete && config.qualityOptions.isNotEmpty()) {
+            AddonQualityStrip(
+                options = config.qualityOptions,
+                selected = config.activeQuality,
+                onPick = onPickQuality,
+                // Lines up with the source's name: position + gap + icon + gap.
+                startInset = ROW_INSET + 18.dp + 6.dp + ICON_SIZE + ICON_GAP,
+                endInset = ROW_INSET,
+                modifier = Modifier
+                    .alpha(if (dimmed) 0.4f else 1f)
+                    .padding(bottom = 10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SourceRowHeader(
     position: Int,
     config: SourceConfig,
     health: SourceHealth?,
@@ -796,11 +861,11 @@ private fun SourceRow(
         Spacer(Modifier.width(6.dp))
         Icon(
             imageVector = when (config.kind) {
-                SourceKind.ADDON -> Icons.Rounded.Extension
-                SourceKind.CUSTOM_MODULE -> Icons.Rounded.Extension
-                SourceKind.MODULE -> Icons.Rounded.Extension
-                SourceKind.JIOSAAVN -> Icons.Rounded.GraphicEq // or some other icon
-                SourceKind.YOUTUBE -> Icons.Rounded.PlayCircle
+                SourceKind.ADDON -> SfIcons.Extension
+                SourceKind.CUSTOM_MODULE -> SfIcons.Extension
+                SourceKind.MODULE -> SfIcons.Extension
+                SourceKind.JIOSAAVN -> SfIcons.GraphicEq // or some other icon
+                SourceKind.YOUTUBE -> SfIcons.PlayCircle
             },
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onBackground,
@@ -856,8 +921,42 @@ private fun SourceRow(
                     health is SourceHealth.Rejected -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                maxLines = 2,
+                // The lossless-output warning is the longest line a row can
+                // show, and it is the one the user has to read to act on.
+                maxLines = if (awaitingOutput != null) 4 else 2,
+                overflow = TextOverflow.Ellipsis,
             )
+            // The addon's own `allowDownloads`, on a line of its own and both
+            // ways round, so whether downloads come from it is answered here
+            // rather than found out from where a downloaded file came from.
+            // Read off the stored manifest, so it holds while the server is
+            // down too.
+            if (config.kind == SourceKind.ADDON && config.isComplete) {
+                Row(
+                    modifier = Modifier.padding(top = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = if (config.allowDownloads) {
+                            SfIcons.Download
+                        } else {
+                            SfIcons.FileDownloadOff
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(
+                            if (config.allowDownloads) R.string.source_downloads_on else R.string.source_downloads_off,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
         Spacer(Modifier.width(8.dp))
         if (onToggle == null) {
@@ -867,13 +966,9 @@ private fun SourceRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            Switch(
+            IosSwitch(
                 checked = config.enabled,
                 onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    checkedBorderColor = MaterialTheme.colorScheme.primary,
-                ),
             )
         }
         // Outside the dimming above, and last in the row. A source switched off
@@ -885,6 +980,115 @@ private fun SourceRow(
         }
     }
 }
+
+/**
+ * An addon's own quality choices, laid out under its name as a row of pills.
+ *
+ * Every rendition the addon lists is visible at once and one tap picks it,
+ * where a single "current value" link would hide the list behind a dialog.
+ * The filled pill is the one in force; the row scrolls sideways for addons
+ * that list more than fit, running the full width of the row and fading out
+ * at whichever edge still has pills beyond it.
+ */
+@Composable
+private fun AddonQualityStrip(
+    options: List<AddonQualityOption>,
+    selected: AddonQualityOption?,
+    onPick: (String) -> Unit,
+    startInset: Dp,
+    endInset: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val scroll = rememberScrollState()
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.padding(start = startInset),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = SfIcons.Tune,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(13.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = stringResource(R.string.audio_quality),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .fillMaxWidth()
+                .horizontalEdgeFade(scroll, 28.dp)
+                .horizontalScroll(scroll)
+                .padding(start = startInset, end = endInset),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            options.forEach { option ->
+                val isSelected = option.value == selected?.value
+                val container by animateColorAsState(
+                    targetValue = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                    },
+                    label = "qualityPillContainer",
+                )
+                val content by animateColorAsState(
+                    targetValue = if (isSelected) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    label = "qualityPillContent",
+                )
+                Text(
+                    text = option.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = content,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(container)
+                        .clickable(role = Role.RadioButton, onClickLabel = option.label) {
+                            if (!isSelected) onPick(option.value)
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Fades the viewport's left and right edges out, each only while there is
+ * content scrolled past it. Read in the draw phase, so scrolling redraws the
+ * mask without recomposing the row.
+ */
+private fun Modifier.horizontalEdgeFade(scroll: ScrollState, width: Dp): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            if (size.width <= 0f) return@drawWithContent
+            val fadePx = width.toPx().coerceAtMost(size.width / 2f)
+            val fraction = fadePx / size.width
+            val startFade = (scroll.value / fadePx).coerceIn(0f, 1f)
+            val endFade = ((scroll.maxValue - scroll.value) / fadePx).coerceIn(0f, 1f)
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    0f to Color.Black.copy(alpha = 1f - startFade),
+                    fraction to Color.Black,
+                    1f - fraction to Color.Black,
+                    1f to Color.Black.copy(alpha = 1f - endFade),
+                ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
 
 @Composable
 private fun AudioQuality.localizedLabel(): String = stringResource(
@@ -901,12 +1105,10 @@ private fun AudioQuality.localizedLabel(): String = stringResource(
 private fun SourceConfig.statusLine(health: SourceHealth?): String = when {
     !isComplete -> stringResource(R.string.source_setup_required)
     kind == SourceKind.JIOSAAVN -> stringResource(R.string.jiosaavn_mismatch_warning)
+    // Downloads are a line of their own under this one — see [SourceRow].
     health is SourceHealth.Ok -> listOfNotNull(
         health.detail,
         kind.labels.take(3).joinToString(" · "),
-        // The addon's own `allowDownloads: 0`, said where the user will look
-        // when a download from it came from somewhere else.
-        stringResource(R.string.source_downloads_off).takeIf { !allowDownloads },
     ).joinToString(" · ")
     health is SourceHealth.Rejected -> health.reason
     health is SourceHealth.Unreachable -> stringResource(R.string.source_unreachable, health.reason)

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Copyright (C) 2026 Audify Project
  *

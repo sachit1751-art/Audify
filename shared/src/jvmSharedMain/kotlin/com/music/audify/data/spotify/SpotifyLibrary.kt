@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.spotify
 
 import com.music.audify.data.Http
@@ -206,7 +204,7 @@ object SpotifyLibrary {
             .apply { headers.forEach { (name, value) -> header(name, value) } }
             .build()
         val text = Http.client.newCall(request).execute().use { response ->
-            val payload = response.body.string()
+            val payload = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 throw IllegalStateException("Spotify $operation failed (${response.code})")
             }

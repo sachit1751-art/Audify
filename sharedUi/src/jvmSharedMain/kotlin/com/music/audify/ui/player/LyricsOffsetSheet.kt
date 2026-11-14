@@ -1,10 +1,7 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -57,11 +54,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.sharedui.resources.*
 import com.music.audify.ui.utils.containSheetGestures
-import com.music.audify.ui.components.optimizedHazeEffect
+import com.music.audify.ui.components.MENU_FROST_ALPHA
+import com.music.audify.ui.components.MenuFrostDark
+import com.music.audify.ui.components.liveMenuFrost
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -78,6 +76,7 @@ internal fun LyricsOffsetSheet(
     hazeState: HazeState,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    visible: Boolean = true,
 ) {
     val offsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
@@ -95,14 +94,21 @@ internal fun LyricsOffsetSheet(
     }
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
+    val fade by animateFloatAsState(
+        targetValue = if (visible && shown) 1f else 0f,
+        animationSpec = tween(if (visible) 260 else 180),
+        label = "lyricsOffsetScrimFade",
+    )
     val reduceDynamicBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val frost = LocalPlayerFrost.current
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .containSheetGestures()
-            .background(ScrimColor.copy(alpha = ScrimColor.alpha * scrimAlpha))
+            .background(ScrimColor.copy(alpha = ScrimColor.alpha * scrimAlpha * fade))
             .clickable(
+                enabled = visible,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = onDismiss,
@@ -110,9 +116,9 @@ internal fun LyricsOffsetSheet(
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
-            visible = shown,
-            enter = slideInVertically(tween(MotionTokens.SHEET_ENTER_MS, easing = MotionTokens.STANDARD_EASING)) { it },
-            exit = slideOutVertically(tween(MotionTokens.SHORT_FADE_MS)) { it },
+            visible = shown && visible,
+            enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it },
+            exit = slideOutVertically(tween(180)) { it },
         ) {
             Column(
                 modifier = Modifier
@@ -121,16 +127,15 @@ internal fun LyricsOffsetSheet(
                     .onSizeChanged { height = it.height }
                     .offset { IntOffset(0, drawerOffset.roundToInt()) }
                     .clip(DrawerShape)
+                    // The ⋯ menu's frost, as every drawer over the player — see
+                    // [PlayerDrawer].
                     .then(
-                        if (reduceDynamicBlur) {
-                            Modifier.background(Color(0xFF121212))
-                        } else {
-                            Modifier
-                                .optimizedHazeEffect(
-                                    state = hazeState,
-                                    style = HazeMaterials.regular(Color(0xFF141414)),
-                                )
-                                .background(Color(0xFF121212).copy(alpha = 0.9f))
+                        when {
+                            reduceDynamicBlur -> Modifier.background(MenuFrostDark)
+                            frost != null -> with(frost) {
+                                Modifier.frostPanel(DrawerShape, MenuFrostDark.copy(alpha = MENU_FROST_ALPHA))
+                            }
+                            else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
                         },
                     )
                     .clickable(

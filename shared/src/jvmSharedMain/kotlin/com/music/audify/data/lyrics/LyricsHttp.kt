@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.lyrics
 
 import com.music.audify.data.Http
@@ -18,7 +16,7 @@ import java.util.concurrent.TimeUnit
  */
 private const val LYRICS_TIMEOUT_SECONDS = 6L
 
-internal const val LYRICS_AGENT = "Audify (https://github.com/audify)"
+internal const val LYRICS_AGENT = "Audify (https://github.com/bitchord)"
 
 val lyricsJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
@@ -49,7 +47,7 @@ internal fun lyricsGet(url: String): String? = runCatching {
         .header("Accept", "application/json")
         .build()
     client.newCall(request).execute().use { response ->
-        if (response.isSuccessful) response.body.string() else null
+        if (response.isSuccessful) response.body?.string() else null
     }
 }.getOrNull()
 
@@ -62,7 +60,7 @@ internal fun lyricsGetBearer(url: String, bearer: String): String? = runCatching
         .header("Authorization", "Bearer $bearer")
         .build()
     authenticatedClient.newCall(request).execute().use { response ->
-        if (response.isSuccessful) response.body.string() else null
+        if (response.isSuccessful) response.body?.string() else null
     }
 }.getOrNull()
 
@@ -80,6 +78,6 @@ internal fun lyricsGetAuthorized(url: String, bearer: String): String? = runCatc
         .header("Referer", "https://music.apple.com/")
         .build()
     client.newCall(request).execute().use { response ->
-        if (response.isSuccessful) response.body.string() else null
+        if (response.isSuccessful) response.body?.string() else null
     }
 }.getOrNull()

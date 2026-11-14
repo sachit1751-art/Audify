@@ -1,10 +1,6 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import com.music.audify.data.YtMusicRepository
-import com.music.audify.data.settings.AppSettings
-import com.music.audify.data.model.isVisibleWithExplicitFilter
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.model.SearchFilter
 import com.music.audify.data.model.SearchResult
@@ -13,7 +9,15 @@ import com.music.audify.data.model.Song
 import com.music.audify.data.sources.SourceRegistry
 import com.music.audify.data.sources.TrackMatcher
 import com.music.audify.playback.QueueCoordinator.asQueueEntry
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.playback.smart.TrackAnalysis
+import com.music.audify.playback.smart.TransitionTier
+import com.music.audify.playback.smart.assessTransitionTier
+import com.music.audify.playback.smart.incomingRateBetween
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 /** Most AutoPlay-suggested tracks kept queued ahead of the current one at once. */
 const val MAX_QUEUED_AUTOPLAY = 10
@@ -96,6 +100,84 @@ suspend fun youtubeSeedFor(song: Song): String? {
 }
 
 /**
+ * Jalan pintas ke data analisis Automix untuk AutoPlay. Diisi oleh service
+ * pemutaran; null berarti tidak ada data (urutan saran dibiarkan apa adanya).
+ * Pencarian boleh menyentuh disk, jadi hanya dipanggil di luar thread utama.
+ */
+object AutoplayMixRanking {
+    @Volatile
+    var analysisOf: ((String) -> TrackAnalysis?)? = null
+}
+
+/** Bobot terhadap urutan relevansi radio (posisi 1.0 turun ke 0). */
+private const val MIX_BONUS_BASE = 0.35
+private const val MIX_BONUS_CLOSE = 0.25
+private const val MIX_PENALTY = 0.3
+
+/** Seberapa cocok [to] dilanjutkan setelah [from] untuk Automix; 0 bila [to] belum dianalisis. */
+private fun mixBonus(from: TrackAnalysis, to: TrackAnalysis?): Double {
+    if (to == null) return 0.0
+    val verdict = assessTransitionTier(from, to, advanced = true)
+    if (verdict.tier != TransitionTier.BEATMATCHED) return -MIX_PENALTY
+    val rate = incomingRateBetween(from.bpm, to.bpm)
+    val closeness = if (rate.isFinite()) 1.0 - (abs(rate - 1.0) / 0.10).coerceIn(0.0, 1.0) else 0.0
+    return MIX_BONUS_BASE + MIX_BONUS_CLOSE * closeness
+}
+
+/**
+ * Menyusun ulang [candidates] sebagai rantai: tiap lagu dipilih agar enak
+ * di-mix dari lagu sebelumnya, tanpa membuang urutan relevansi radio.
+ * Lagu yang belum dianalisis tidak diberi bonus maupun penalti; tidak ada
+ * yang dibuang, hanya diurutkan.
+ */
+internal fun orderForMixing(
+    seed: TrackAnalysis,
+    candidates: List<Song>,
+    analysisOf: (String) -> TrackAnalysis?,
+): List<Song> {
+    if (candidates.size < 2 || !seed.isUsable) return candidates
+    val known = HashMap<String, TrackAnalysis?>(candidates.size * 2)
+    for (song in candidates) known[song.videoId] = analysisOf(song.videoId)
+    if (known.values.none { it != null }) return candidates
+
+    val remaining = candidates.withIndex().toMutableList()
+    val out = ArrayList<Song>(candidates.size)
+    var previous = seed
+    while (remaining.isNotEmpty()) {
+        var best = 0
+        var bestScore = Double.NEGATIVE_INFINITY
+        for (i in remaining.indices) {
+            val entry = remaining[i]
+            val relevance = 1.0 - entry.index.toDouble() / candidates.size
+            val score = relevance + mixBonus(previous, known[entry.value.videoId])
+            if (score > bestScore) {
+                bestScore = score
+                best = i
+            }
+        }
+        val chosen = remaining.removeAt(best)
+        out += chosen.value
+        known[chosen.value.videoId]?.let { previous = it }
+    }
+    return out
+}
+
+private suspend fun rankForAutomix(seedSong: Song, related: List<Song>): List<Song> {
+    val lookup = AutoplayMixRanking.analysisOf ?: return related
+    if (!AppSettings.smartFadeEnabled.value) return related
+    return try {
+        withContext(Dispatchers.IO) {
+            val seed = lookup(seedSong.videoId)
+            if (seed == null) related else orderForMixing(seed, related, lookup)
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        related
+    }
+}
+
+/**
  * Loads, de-duplicates and resolves one AutoPlay batch. The playback service is
  * the only caller for the AutoPlay toggle; the player UI's explicit radio start
  * uses this same helper for its initial station batch.
@@ -106,9 +188,12 @@ suspend fun loadAutoplayTracks(
     limit: Int = MAX_QUEUED_AUTOPLAY,
 ): Result<List<Song>> {
     val seed = youtubeSeedFor(seedSong) ?: return Result.success(emptyList())
-    val related = YtMusicRepository.radio(seed).getOrElse { return Result.failure(it) }
-        .let { tracks -> if (AppSettings.hideExplicitContent.value) tracks.filter { isVisibleWithExplicitFilter(it.isExplicit, hideExplicitContent = true) } else tracks }
-    val extra = QueueBuilder.extend(existing, related, limit)
+    // A music video plays on with music videos, as YouTube Music does.
+    // A music video plays on with music videos, unless they would only be
+    // converted again, when the station's songs are the answer.
+    val videos = seedSong.isVideo && seed == seedSong.videoId && !MusicOnlyPlayback.isActive()
+    val related = YtMusicRepository.radio(seed, preferVideo = videos).getOrElse { return Result.failure(it) }
+    val extra = QueueBuilder.extend(existing, rankForAutomix(seedSong, related), limit, preferVideos = videos)
     if (extra.isEmpty()) return Result.success(emptyList())
 
     return Result.success(extra.map {

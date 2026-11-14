@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Vendored from Kyant0/backdrop v2.0.0 (io.github.kyant0:backdrop)
  * https://github.com/Kyant0/backdrop — Copyright 2025 Kyant0, Apache License 2.0
@@ -11,8 +9,6 @@
  */
 package com.music.audify.ui.components.backdrop
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.Shape
@@ -44,7 +40,6 @@ internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeSh
 
     private val runtimeShaderCache = RuntimeShaderCacheImpl()
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun obtainRuntimeShader(key: String, string: String): RuntimeShader {
         return runtimeShaderCache.obtainRuntimeShader(key, string)
     }

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.theme
 
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,6 +17,14 @@ expect fun StatusBarIcons(dark: Boolean)
  */
 @Composable
 expect fun HideStatusBar(hidden: Boolean)
+
+/**
+ * Takes both system bars off the window while [hidden], for a video playing
+ * full screen; a swipe in from an edge shows them for a moment. Puts them back
+ * when this leaves composition.
+ */
+@Composable
+expect fun HideSystemBars(hidden: Boolean)
 
 /**
  * The status bar's insets whether it is showing or not. Anything laid out

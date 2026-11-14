@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 @file:OptIn(ExperimentalSharedTransitionApi::class)
 
 /*
@@ -41,6 +39,7 @@
 
 package com.music.audify.ui.components.floatingtabbar
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterExitState
@@ -63,6 +62,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,6 +82,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,16 +117,100 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.components.GlassSpring
+import com.music.audify.ui.components.JellyPush
 import com.music.audify.ui.components.LocalGlassExport
+import com.music.audify.ui.components.PILL_INSET
 import com.music.audify.ui.components.backdrop.backdrops.layerBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.rememberLayerBackdrop
 import com.music.audify.ui.components.isGlassSupported
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 /** Hoisted so the default is one stable lambda rather than a new one per call. */
+/**
+ * How much the glass pill covers the tab being drawn right now: `1` with the pill
+ * centred on it, `0` once it is a full step away. Read inside a tab's icon/title
+ * content to colour it by where the pill is, not by which tab is selected.
+ * `NaN` where no pill is involved (the inline bar), so callers fall back to the
+ * selected/unselected colour.
+ */
+val LocalTabPillCoverage = compositionLocalOf<() -> Float> { { Float.NaN } }
+
+/**
+ * Where the glass pill is relative to the tab being drawn, in pixels: `x` is the
+ * pill centre's signed distance from the tab's centre (already flipped for RTL),
+ * `y` is the pill's width. Lets a tab's icon/title be masked by the pill's real
+ * horizontal extent, so the part under the pill changes colour at once.
+ * [Offset.Unspecified] where no pill is involved (the inline bar).
+ */
+val LocalTabPillGeometry = compositionLocalOf<() -> Offset> { { Offset.Unspecified } }
+
 private val DefaultTabBarContentModifier: @Composable () -> Modifier = { Modifier }
+
+private val ZeroChromeProgress: () -> Float = { 0f }
+
+/** Bukaan player (0..1) saat bar sudah selesai menyingkir. Sisanya bar sudah di luar layar. */
+private const val CHROME_PUSH_DONE_AT = 0.7f
+
+/** Jarak ekstra supaya bar benar-benar lepas dari layar, bukan berhenti di tepinya. */
+private val CHROME_PUSH_MARGIN = 64.dp
+
+private fun chromePushEase(progress: Float): Float {
+    val t = (progress / CHROME_PUSH_DONE_AT).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
+}
+
+/**
+ * Mode expanded: baris tab turun tepat di bawah tepi bawah panel, menjaga
+ * jarak yang sama seperti saat diam. [panelDrop] (px) dari PlayerDock; kalau
+ * belum bisa dihitung (NaN) dipakai kurva lama berdasarkan [progress].
+ */
+private fun Modifier.chromePushDown(progress: () -> Float, panelDrop: (() -> Float)?): Modifier = graphicsLayer {
+    val drop = panelDrop?.invoke() ?: Float.NaN
+    translationY = if (!drop.isNaN()) {
+        drop
+    } else {
+        val e = chromePushEase(progress())
+        (size.height + CHROME_PUSH_MARGIN.toPx()) * e
+    }
+}
+
+/** Mode inline: tab terdorong ke kiri dan Search ke kanan mengikuti bukaan player. */
+private fun Modifier.chromePushSide(
+    progress: () -> Float,
+    direction: Float,
+    edgeTravel: ((Boolean) -> Float)?,
+): Modifier = graphicsLayer {
+    // Mengikuti tepi panel yang melebar (kiri atau kanan, fisik), jadi tab dan
+    // Search tidak pernah menyentuh panel; jarak diamnya tetap terjaga.
+    val travel = edgeTravel?.invoke(direction > 0f) ?: Float.NaN
+    translationX = if (!travel.isNaN()) {
+        direction * travel
+    } else {
+        val e = chromePushEase(progress())
+        direction * (size.width + CHROME_PUSH_MARGIN.toPx()) * e
+    }
+}
+
+/** Celah yang tetap dijaga antara pill mini player yang bergoyang dan tombol yang didorongnya. */
+private val JELLY_PUSH_MARGIN = 10.dp
+
+/**
+ * Mode inline: tombol di sisi [direction] (-1 kiri, 1 kanan, sudah dibalik untuk RTL)
+ * terdorong menjauh begitu tepi pill mini player, yang bergoyang karena jelly,
+ * melewati celah [gap] di antara mereka. Dibaca saat draw saja.
+ */
+private fun Modifier.jellyPushSide(push: JellyPush?, direction: Float, gap: Dp): Modifier {
+    if (push == null) return this
+    return graphicsLayer {
+        val room = (gap - JELLY_PUSH_MARGIN).toPx().coerceAtLeast(0f)
+        val over = (push.advance(towardLeft = direction < 0f) - room).coerceAtLeast(0f)
+        translationX = direction * over
+    }
+}
 
 /**
  * A floating tab bar that can transition between inline and expanded states.
@@ -206,6 +291,16 @@ fun FloatingTabBar(
     selectedTabKey: Any?,
     scrollConnection: FloatingTabBarScrollConnection,
     modifier: Modifier = Modifier,
+    /** 0 = bar diam, 1 = player terbuka penuh. Dibaca saat draw saja. */
+    chromeProgress: () -> Float = ZeroChromeProgress,
+    /** Jarak (px) tepi kiri/kanan panel menjauh dari pill; NaN = belum diketahui. */
+    chromeSidePush: ((Boolean) -> Float)? = null,
+    /** Jarak (px) tepi bawah panel turun dari pill; NaN = belum diketahui. */
+    chromeDownPush: (() -> Float)? = null,
+    /** Goyangan jelly pill accessory inline; tab dan Search terdorong olehnya. */
+    jellyPush: JellyPush? = null,
+    /** true = tab terakhir (Search) dipisah jadi lingkaran sendiri hanya saat bar inline. */
+    inlineSplitLast: Boolean = false,
     tabBarContentModifier: @Composable () -> Modifier = DefaultTabBarContentModifier,
     inlineAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
     expandedAccessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? = null,
@@ -216,23 +311,90 @@ fun FloatingTabBar(
     contentKey: Any? = null,
     content: FloatingTabBarScope.() -> Unit
 ) {
-    val scope = remember(contentKey) { FloatingTabBarScopeImpl().apply { content() } }
+    val scope = remember(contentKey, inlineSplitLast) {
+        FloatingTabBarScopeImpl(inlineSplitLast).apply { content() }
+    }
 
     val isAccessoryShared = inlineAccessory != null && expandedAccessory != null
 
+    // Saat mengecil, bar ditarik sedikit ke atas seolah terseret halaman, lalu
+    // mengendap ke bentuk inline dengan pegas. Dibaca di graphicsLayer saja.
+    val pull = remember { androidx.compose.animation.core.Animatable(0f) }
+    val pullPx = with(LocalDensity.current) { 28.dp.toPx() }
+    // Bentuk yang ditampilkan menyusul scrollConnection: mini player ditarik dulu,
+    // baru saat dilepas bentuknya berganti dan memantul masuk ke pil tengah.
+    var shownInline by remember { mutableStateOf(scrollConnection.isInline) }
+    LaunchedEffect(scrollConnection.isInline) {
+        val target = scrollConnection.isInline
+        if (target == shownInline) {
+            // Berbalik sebelum sempat dilepas: karet kembali diam, tidak tertahan tegang.
+            pull.animateTo(
+                0f,
+                androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 300f),
+            )
+            return@LaunchedEffect
+        }
+        // Mengecil: player penuh ditarik ke atas. Membesar: pil ditarik ke bawah.
+        val amplitude = if (target) 1f else -0.7f
+        pull.animateTo(
+            amplitude,
+            androidx.compose.animation.core.tween(190, easing = FastOutSlowInEasing),
+        )
+        // Dilepas: berganti bentuk, lalu memantul lewat titik awal dan mengendap.
+        shownInline = target
+        pull.animateTo(
+            0f,
+            androidx.compose.animation.core.spring(dampingRatio = 0.42f, stiffness = 210f),
+        )
+    }
+
+    // Hanya accessory (mini player) yang tertarik; tab dan Search tetap diam.
+    val inlineWithPull: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? =
+        remember(inlineAccessory, pullPx) {
+            inlineAccessory?.let { acc ->
+                val wrapped: @Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit =
+                    { m, s -> acc(Modifier.rubberStretch(pullPx) { pull.value }.then(m), s) }
+                wrapped
+            }
+        }
+    val expandedWithPull: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)? =
+        remember(expandedAccessory, pullPx) {
+            expandedAccessory?.let { acc ->
+                val wrapped: @Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit =
+                    { m, s -> acc(Modifier.rubberStretch(pullPx) { pull.value }.then(m), s) }
+                wrapped
+            }
+        }
+
     SharedTransitionLayout(modifier = modifier) {
         AnimatedContent(
-            targetState = scrollConnection.isInline,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            targetState = shownInline,
+            transitionSpec = {
+                // The container's own size follows the same spring, so the bar
+                // grows and shrinks with the pieces inside it.
+                (fadeIn() togetherWith fadeOut()).using(
+                    androidx.compose.animation.SizeTransform(clip = false) { _, _ ->
+                        androidx.compose.animation.core.spring(
+                            dampingRatio = 0.62f,
+                            stiffness = 320f,
+                            visibilityThreshold = IntSize(1, 1),
+                        )
+                    },
+                )
+            },
             contentAlignment = Alignment.BottomCenter
         ) { isInline ->
             if (isInline) {
                 InlineBar(
                     scope = scope,
+                    chromeProgress = chromeProgress,
+                    chromeSidePush = chromeSidePush,
+                    jellyPush = jellyPush,
                     selectedTabKey = selectedTabKey,
-                    accessory = inlineAccessory,
+                    accessory = inlineWithPull,
                     isAccessoryShared = isAccessoryShared,
                     onInlineTabClick = { scrollConnection.expand() },
+                    neighbourPull = { pull.value },
                     colors = colors,
                     shapes = shapes,
                     sizes = sizes,
@@ -243,8 +405,10 @@ fun FloatingTabBar(
             } else {
                 ExpandedBar(
                     scope = scope,
+                    chromeProgress = chromeProgress,
+                    chromeDownPush = chromeDownPush,
                     selectedTabKey = selectedTabKey,
-                    accessory = expandedAccessory,
+                    accessory = expandedWithPull,
                     isAccessoryShared = isAccessoryShared,
                     colors = colors,
                     shapes = shapes,
@@ -259,6 +423,19 @@ fun FloatingTabBar(
 }
 
 /**
+ * The move every piece of the bar (tab pill, tab icon, standalone tab, mini
+ * player) makes when it flips between inline and expanded: a soft spring that
+ * overshoots a little and settles, so the glass reads as liquid.
+ */
+private val LiquidBounds = androidx.compose.animation.BoundsTransform { _, _ ->
+    androidx.compose.animation.core.spring(
+        dampingRatio = 0.62f,
+        stiffness = 320f,
+        visibilityThreshold = androidx.compose.ui.geometry.Rect(0.5f, 0.5f, 0.5f, 0.5f),
+    )
+}
+
+/**
  * A [NestedScrollConnection] that handles scroll events to transition between inline and expanded states.
  *
  * @param initialIsInline Initial state of the tab bar (inline or expanded).
@@ -268,9 +445,15 @@ fun FloatingTabBar(
 class FloatingTabBarScrollConnection(
     initialIsInline: Boolean = false,
     private val scrollThresholdPx: Float,
-    private val inlineBehavior: FloatingTabBarInlineBehavior = FloatingTabBarInlineBehavior.OnScrollDown
+    private val inlineBehavior: FloatingTabBarInlineBehavior = FloatingTabBarInlineBehavior.OnScrollDown,
+    private val expandOnlyAtTop: Boolean = false,
+    private val expandThresholdPx: Float = scrollThresholdPx
 ) : NestedScrollConnection {
     var isInline by mutableStateOf(initialIsInline)
+        private set
+
+    /** Naik setiap kali halaman menyentuh batas atas saat bar masih inline; dibaca untuk menunda expand. */
+    var topSignal by mutableIntStateOf(0)
         private set
 
     private var accumulatedScroll = 0f
@@ -308,7 +491,7 @@ class FloatingTabBarScrollConnection(
                     // Scrolling down enough - transition to inline mode
                     isInline = true
                     accumulatedScroll = 0f // Reset after state change
-                } else if (accumulatedScroll >= scrollThresholdPx && isInline) {
+                } else if (accumulatedScroll >= expandThresholdPx && isInline && !expandOnlyAtTop) {
                     // Scrolling up enough - transition to expanded mode
                     isInline = false
                     accumulatedScroll = 0f // Reset after state change
@@ -335,6 +518,18 @@ class FloatingTabBarScrollConnection(
 
         return Offset.Zero // Don't consume the scroll, let it pass through
     }
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        // Scrolling up with nothing left to scroll: the page has reached its top.
+        if (expandOnlyAtTop &&
+            inlineBehavior == FloatingTabBarInlineBehavior.OnScrollDown &&
+            isInline &&
+            available.y > 0f
+        ) {
+            topSignal++
+        }
+        return Offset.Zero
+    }
 }
 
 /**
@@ -349,11 +544,20 @@ class FloatingTabBarScrollConnection(
 fun rememberFloatingTabBarScrollConnection(
     initialIsInline: Boolean = false,
     scrollThreshold: Dp = 50.dp,
-    inlineBehavior: FloatingTabBarInlineBehavior = FloatingTabBarInlineBehavior.OnScrollDown
+    inlineBehavior: FloatingTabBarInlineBehavior = FloatingTabBarInlineBehavior.OnScrollDown,
+    expandOnlyAtTop: Boolean = false,
+    expandThreshold: Dp = scrollThreshold
 ): FloatingTabBarScrollConnection = with(LocalDensity.current) {
     val scrollThresholdPx = scrollThreshold.toPx()
-    remember(scrollThresholdPx, inlineBehavior, initialIsInline) {
-        FloatingTabBarScrollConnection(initialIsInline, scrollThresholdPx, inlineBehavior)
+    val expandThresholdPx = expandThreshold.toPx()
+    remember(scrollThresholdPx, expandThresholdPx, inlineBehavior, initialIsInline, expandOnlyAtTop) {
+        FloatingTabBarScrollConnection(
+            initialIsInline,
+            scrollThresholdPx,
+            inlineBehavior,
+            expandOnlyAtTop,
+            expandThresholdPx,
+        )
     }
 }
 
@@ -410,6 +614,9 @@ interface FloatingTabBarScope {
 @Composable
 private fun SharedTransitionScope.InlineBar(
     scope: FloatingTabBarScopeImpl,
+    chromeProgress: () -> Float,
+    chromeSidePush: ((Boolean) -> Float)?,
+    jellyPush: JellyPush?,
     selectedTabKey: Any?,
     accessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)?,
     isAccessoryShared: Boolean,
@@ -419,19 +626,23 @@ private fun SharedTransitionScope.InlineBar(
     sizes: FloatingTabBarSizes,
     elevations: FloatingTabBarElevations,
     tabBarContentModifier: @Composable () -> Modifier,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    neighbourPull: () -> Float = { 0f }
 ) {
     val inlineTab = scope.getInlineTab(selectedTabKey)
-    val standaloneTab = scope.standaloneTab
+    val standaloneTab = scope.inlineStandaloneTab
     val hasInlineTab = inlineTab != null
+    // Tab menyingkir ke sisi awalnya, Search ke sisi akhirnya.
+    val startSign = if (LocalLayoutDirection.current == LayoutDirection.Rtl) 1f else -1f
 
     // With an accessory the row spans the full width ([tab][accessory][standalone],
     // iOS 26 Apple Music style); without one, the cluster is packed and centered.
     Row(
-        horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+        horizontalArrangement = Arrangement.spacedBy(sizes.inlineComponentSpacing),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .padding(sizes.inlineBarPadding)
             .then(if (accessory == null) Modifier.wrapContentWidth() else Modifier)
             .height(IntrinsicSize.Max)
     ) {
@@ -446,6 +657,9 @@ private fun SharedTransitionScope.InlineBar(
                 animatedVisibilityScope = animatedVisibilityScope,
                 tabBarContentModifier = tabBarContentModifier,
                 modifier = Modifier
+                    .chromePushSide(chromeProgress, startSign, chromeSidePush)
+                    .jellyPushSide(jellyPush, startSign, sizes.inlineComponentSpacing)
+                    .neighbourPull(neighbourPull, startSign)
             )
         }
 
@@ -474,6 +688,9 @@ private fun SharedTransitionScope.InlineBar(
                 modifier = Modifier
                     .fillMaxHeight()
                     .aspectRatio(1f)
+                    .chromePushSide(chromeProgress, -startSign, chromeSidePush)
+                    .jellyPushSide(jellyPush, -startSign, sizes.inlineComponentSpacing)
+                    .neighbourPull(neighbourPull, -startSign)
             )
         }
     }
@@ -495,6 +712,7 @@ private fun SharedTransitionScope.InlineTab(
         modifier = modifier
             .sharedElement(
                 sharedContentState = rememberSharedContentState("tabGroup"),
+                boundsTransform = LiquidBounds,
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
@@ -509,10 +727,10 @@ private fun SharedTransitionScope.InlineTab(
             .clip(shapes.tabBarShape)
             .then(tabBarContentModifier())
             .clickable(
-                onClick = {
-                    onInlineTabClick()
-                    inlineTab.onClick()
-                },
+                // Sentuhan pertama hanya membuka bar ke bentuk expanded (mini
+                // player kembali di atas). Pindah tab baru terjadi di sentuhan
+                // berikutnya, lewat pil tab yang sudah terbuka.
+                onClick = { onInlineTabClick() },
                 indication = inlineTab.indication?.invoke(),
                 interactionSource = remember { MutableInteractionSource() }
             )
@@ -523,6 +741,7 @@ private fun SharedTransitionScope.InlineTab(
                 Box(
                     Modifier.sharedElement(
                         sharedContentState = rememberSharedContentState("tab#${inlineTab.key}-icon"),
+                        boundsTransform = LiquidBounds,
                         animatedVisibilityScope = animatedVisibilityScope,
                         zIndexInOverlay = 1f
                     )
@@ -546,33 +765,146 @@ private fun SharedTransitionScope.InlineStandaloneTab(
     modifier: Modifier,
     tabBarContentModifier: @Composable () -> Modifier
 ) {
-    Tab(
-        icon = standaloneTab.icon,
-        title = standaloneTab.title,
+    StandaloneTabBody(
+        standaloneTab = standaloneTab,
         isInline = true,
-        isStandalone = true,
+        shapes = shapes,
+        colors = colors,
+        elevation = elevations.inlineElevation,
+        animatedVisibilityScope = animatedVisibilityScope,
+        tabBarContentModifier = tabBarContentModifier,
+        modifier = modifier,
+    )
+}
+
+/** Minimum time a tap keeps the lens lifted, so a quick tap still shows it rising. */
+private const val MIN_LIFT_HOLD_MS = 260L
+
+/** How much the whole circle swells while the lens is lifted. */
+private const val STANDALONE_SWELL = 0.05f
+
+/**
+ * The standalone tab (Search) in both bar states. A press lifts the same glass
+ * lens the tab pill uses: it inflates past the circle on springs, refracts the
+ * circle's own glass and glyph, and sheds back to nothing on release. The
+ * circle swells with it, riding the lens's own lift spring.
+ */
+@Composable
+private fun SharedTransitionScope.StandaloneTabBody(
+    standaloneTab: FloatingTabBarTab,
+    isInline: Boolean,
+    shapes: FloatingTabBarShapes,
+    colors: FloatingTabBarColors,
+    elevation: Dp,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    tabBarContentModifier: @Composable () -> Modifier,
+    modifier: Modifier,
+) {
+    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val glassPill = isGlassSupported() && !reduceDynamicBlur &&
+        com.music.audify.ui.components.LocalLiquidGlassEnabled.current
+    val coroutineScope = rememberCoroutineScope()
+    // Slower and softer than the tab pill: a Search tap lifts, holds and settles
+    // over a longer, rounder spring rather than a quick pop.
+    val pill = remember { GlassPillMotion(coroutineScope, 0, slow = 1.6) }
+    val glassIndicator by AppSettings.glassIndicator.collectAsStateWithLifecycle()
+    pill.reduceMotion = reduceAnimation
+    pill.squashScale = glassIndicator.squash
+    val barGlass = rememberLayerBackdrop()
+    val iconLayer = rememberLayerBackdrop()
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressedAt = remember { LongArray(1) }
+
+    LaunchedEffect(pressed, reduceAnimation) {
+        if (reduceAnimation) return@LaunchedEffect
+        if (pressed) {
+            pressedAt[0] = SystemClock.uptimeMillis()
+            pill.startDrag()
+        } else {
+            val held = SystemClock.uptimeMillis() - pressedAt[0]
+            if (held < MIN_LIFT_HOLD_MS) delay(MIN_LIFT_HOLD_MS - held)
+            pill.release(0)
+        }
+    }
+
+    var boxSize by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current
+    val insetPx = with(density) { PILL_INSET.toPx() }
+    val growPx = with(density) { PILL_GROW_HEIGHT.toPx() } * glassIndicator.lift
+    val w = boxSize.width.toFloat()
+    val h = boxSize.height.toFloat()
+    val restSize = Size((w - 2f * insetPx).coerceAtLeast(1f), (h - 2f * insetPx).coerceAtLeast(1f))
+    val liftedSize = Size(w + growPx, h + growPx)
+
+    Box(
         modifier = modifier
             .sharedElement(
                 sharedContentState = rememberSharedContentState("standaloneTab"),
+                boundsTransform = LiquidBounds,
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
-            .shadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.inlineElevation
+            .graphicsLayer {
+                val swell = if (reduceAnimation) 0f else pill.liftY.coerceAtLeast(0f)
+                scaleX = 1f + STANDALONE_SWELL * swell
+                scaleY = 1f + STANDALONE_SWELL * swell
+            }
+            .onSizeChanged { boxSize = it }
+    ) {
+        CompositionLocalProvider(LocalGlassExport provides barGlass) {
+            Tab(
+                icon = {
+                    Box(Modifier.layerBackdrop(iconLayer)) { standaloneTab.icon() }
+                },
+                title = standaloneTab.title,
+                isInline = isInline,
+                isStandalone = true,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .shadow(
+                        shape = shapes.standaloneTabShape,
+                        elevation = elevation
+                    )
+                    .background(
+                        color = colors.backgroundColor,
+                        shape = shapes.standaloneTabShape
+                    )
+                    .clip(shapes.standaloneTabShape)
+                    .then(tabBarContentModifier())
+                    .clickable(
+                        onClick = standaloneTab.onClick,
+                        indication = standaloneTab.indication?.invoke(),
+                        interactionSource = interactionSource
+                    )
             )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier())
-            .clickable(
-                onClick = standaloneTab.onClick,
-                indication = standaloneTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
-            )
-    )
+        }
+
+        if (w > 0f && !pill.isFlat) {
+            val pillModifier = Modifier
+                .matchParentSize()
+                .pillPlacement(
+                    center = { Offset(w / 2f, h / 2f) },
+                    size = { pill.liveSize(restSize, liftedSize) },
+                )
+            if (glassPill) {
+                GlassSelectionPill(
+                    motion = pill,
+                    fillColor = Color.Transparent,
+                    barGlass = barGlass,
+                    tabRow = iconLayer,
+                    modifier = pillModifier,
+                    iconTint = colors.selectedContentColor,
+                )
+            } else {
+                FlatSelectionPill(
+                    color = colors.indicatorColor,
+                    modifier = pillModifier.graphicsLayer { alpha = pill.material },
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -592,6 +924,7 @@ private fun SharedTransitionScope.InlineAccessory(
                     if (isAccessoryShared) {
                         Modifier.sharedElement(
                             sharedContentState = rememberSharedContentState("accessory"),
+                            boundsTransform = LiquidBounds,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                     } else {
@@ -620,6 +953,8 @@ private fun SharedTransitionScope.InlineAccessory(
 @Composable
 private fun SharedTransitionScope.ExpandedBar(
     scope: FloatingTabBarScopeImpl,
+    chromeProgress: () -> Float,
+    chromeDownPush: (() -> Float)?,
     selectedTabKey: Any?,
     accessory: (@Composable SharedTransitionScope.(Modifier, AnimatedVisibilityScope) -> Unit)?,
     isAccessoryShared: Boolean,
@@ -663,6 +998,7 @@ private fun SharedTransitionScope.ExpandedBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(IntrinsicSize.Max)
+                .chromePushDown(chromeProgress, chromeDownPush)
         ) {
             if (hasTabGroup) {
                 ExpandedTabs(
@@ -711,6 +1047,7 @@ private fun SharedTransitionScope.ExpandedAccessory(
                 if (isAccessoryShared) {
                     Modifier.sharedElement(
                         sharedContentState = rememberSharedContentState("accessory"),
+                        boundsTransform = LiquidBounds,
                         animatedVisibilityScope = animatedVisibilityScope
                     )
                 } else {
@@ -759,10 +1096,13 @@ private fun SharedTransitionScope.ExpandedTabs(
 
     val coroutineScope = rememberCoroutineScope()
     val pill = remember { GlassPillMotion(coroutineScope, selectedTabIndex.coerceAtLeast(0)) }
+    val glassIndicator by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     pill.reduceMotion = reduceAnimation
+    pill.squashScale = glassIndicator.squash
     // The lens samples the recorded page, and "reduce dynamic blur" stops that
     // recording. There the flat pill carries the whole motion on its own.
-    val glassPill = isGlassSupported() && !reduceDynamicBlur
+    val glassPill = isGlassSupported() && !reduceDynamicBlur &&
+        com.music.audify.ui.components.LocalLiquidGlassEnabled.current
     val barGlass = rememberLayerBackdrop()
     val tabRow = rememberLayerBackdrop()
 
@@ -785,6 +1125,11 @@ private fun SharedTransitionScope.ExpandedTabs(
         0f
     }
     pill.stepDp = tabStepPx / density.density
+    // For the row's drag, which runs in one coroutine for the life of the row
+    // and would otherwise keep the step from its first touch.
+    val currentTabStepPx by rememberUpdatedState(tabStepPx)
+    val currentIsRtl by rememberUpdatedState(isRtl)
+    val currentTabWidthPx by rememberUpdatedState(tabWidthPx)
 
     // The pill rests in its tab's cell and lifts to stand [PILL_GROW_HEIGHT]
     // taller than the whole bar, keeping the cell's proportions as it grows.
@@ -795,7 +1140,7 @@ private fun SharedTransitionScope.ExpandedTabs(
     val rowHeightPx = rowSize.height.toFloat()
     val restSize = Size(tabWidthPx, rowHeightPx)
     val liftedHeightPx = rowHeightPx + padTopPx + padBottomPx +
-        with(density) { PILL_GROW_HEIGHT.toPx() }
+        with(density) { PILL_GROW_HEIGHT.toPx() * glassIndicator.lift }
     val liftedSize = if (rowHeightPx > 0f) {
         Size(liftedHeightPx * tabWidthPx / rowHeightPx, liftedHeightPx)
     } else {
@@ -810,9 +1155,10 @@ private fun SharedTransitionScope.ExpandedTabs(
 
     LaunchedEffect(selectedTabIndex) {
         if (selectedTabIndex >= 0) {
-            // Back from the standalone tab there is no tab to travel from.
+            // Back from the standalone tab (Search): the pill flies in from where
+            // that tab sits, one step past the last tab, instead of just appearing.
             if (lastSelectedTabIndex < 0) {
-                pill.snapTo(selectedTabIndex)
+                pill.enterFrom(tabCount.toDouble(), selectedTabIndex)
             } else {
                 pill.animateTo(selectedTabIndex)
             }
@@ -827,9 +1173,18 @@ private fun SharedTransitionScope.ExpandedTabs(
         modifier = modifier
             .sharedElement(
                 sharedContentState = rememberSharedContentState("tabGroup"),
+                boundsTransform = LiquidBounds,
                 animatedVisibilityScope = animatedVisibilityScope,
                 zIndexInOverlay = 1f
             )
+            // The whole bar swells a little while the pill is lifted (a drag, or a
+            // tap carrying it to another tab). It rides the pill's own lift spring,
+            // so the two grow together and the bar eases back as the pill lands.
+            .graphicsLayer {
+                val swell = if (reduceAnimation) 0f else pill.liftY.coerceAtLeast(0f)
+                scaleX = 1f + 0.03f * swell
+                scaleY = 1f + 0.06f * swell
+            }
     ) {
         // The bar's glass is exported for the lens to refract.
         CompositionLocalProvider(LocalGlassExport provides barGlass) {
@@ -837,25 +1192,25 @@ private fun SharedTransitionScope.ExpandedTabs(
                 modifier = Modifier
                     .shadow(
                         shape = shapes.tabBarShape,
-                        elevation = elevations.expandedElevation
+                        elevation = elevations.expandedElevation,
+                        clip = false
                     )
                     .background(
                         color = colors.backgroundColor,
                         shape = shapes.tabBarShape
                     )
-                    .clip(shapes.tabBarShape)
                     .then(tabBarContentModifier())
                     .padding(contentPadding)
-                    .animateContentSize()
             ) {
-                if (showPill && (!glassPill || pill.isFlat)) {
+                if (showPill && (!glassPill || pill.isFlat || pill.blurMix > 0f)) {
                     FlatSelectionPill(
                         color = colors.indicatorColor,
+                        barGlass = barGlass,
                         modifier = Modifier
                             .matchParentSize()
                             .pillPlacement(
                                 center = { pillCenterInRow(pill.position) },
-                                size = { pill.liveSize(restSize, liftedSize) },
+                                size = { pill.flatSize(restSize, liftedSize) },
                             ),
                     )
                 }
@@ -863,31 +1218,38 @@ private fun SharedTransitionScope.ExpandedTabs(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(sizes.tabSpacing),
                     modifier = Modifier
+                        .animateContentSize()
                         .fillMaxWidth()
                         .onSizeChanged { rowSize = it }
                         .layerBackdrop(tabRow)
                         .pointerInput(Unit) {
-                            if (currentSelectedTabIndex < 0 || tabStepPx <= 0f) return@pointerInput
-
-                            // In tab order, whichever way the row runs.
-                            val direction = if (isRtl) -1f else 1f
                             var totalDrag = 0f
                             var dragStartIndex = currentSelectedTabIndex
+                            var direction = 1f
+                            var step = 0f
+                            // Decided per drag, not once for the coroutine: on the
+                            // standalone tab there is no pill in this row to pick up,
+                            // but that is no reason to stop listening for good.
+                            var holding = false
                             detectHorizontalDragGestures(
                                 onDragStart = {
+                                    step = currentTabStepPx
+                                    holding = currentSelectedTabIndex >= 0 && step > 0f
+                                    if (!holding) return@detectHorizontalDragGestures
+                                    // In tab order, whichever way the row runs.
+                                    direction = if (currentIsRtl) -1f else 1f
                                     totalDrag = 0f
                                     dragStartIndex = currentSelectedTabIndex
                                     pill.startDrag()
                                 },
-                                onDragCancel = { pill.release(currentSelectedTabIndex) },
+                                onDragCancel = {
+                                    if (holding) pill.release(currentSelectedTabIndex)
+                                    holding = false
+                                },
                                 onDragEnd = {
-                                    val ratio = totalDrag / tabStepPx
-                                    val shift = when {
-                                        ratio > 0.35f -> maxOf(1, ratio.roundToInt())
-                                        ratio < -0.35f -> minOf(-1, ratio.roundToInt())
-                                        else -> 0
-                                    }
-                                    val absoluteIndexFloat = (dragStartIndex + totalDrag / tabStepPx)
+                                    if (!holding) return@detectHorizontalDragGestures
+                                    holding = false
+                                    val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
                                         .coerceIn(0f, scope.tabs.lastIndex.toFloat())
                                     val newIndex = absoluteIndexFloat.roundToInt()
                                     pill.release(newIndex)
@@ -896,8 +1258,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                                     }
                                 },
                                 onHorizontalDrag = { _, delta ->
+                                    if (!holding) return@detectHorizontalDragGestures
                                     totalDrag += delta * direction
-                                    val absoluteIndexFloat = (dragStartIndex + totalDrag / tabStepPx)
+                                    val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
                                         .coerceIn(0f, scope.tabs.lastIndex.toFloat())
                                     pill.dragTo(absoluteIndexFloat)
 
@@ -910,8 +1273,32 @@ private fun SharedTransitionScope.ExpandedTabs(
                             )
                         }
                 ) {
-                    scope.tabs.forEach { tab ->
+                    scope.tabs.forEachIndexed { tabIndex, tab ->
                         val isSelected = tab.key == selectedTabKey
+                        val tabCoverage = remember(tabIndex) {
+                            {
+                                // Tanpa tab terpilih (mis. Search, tab standalone) pill
+                                // disembunyikan, tapi posisi terakhirnya tetap di tab
+                                // sebelumnya. Tanpa pengecekan ini ikon tab itu tetap
+                                // berwarna aktif.
+                                if (currentSelectedTabIndex < 0) {
+                                    0f
+                                } else {
+                                    (1f - abs(pill.position - tabIndex)).coerceIn(0f, 1f)
+                                }
+                            }
+                        }
+                        val tabPillGeometry = remember(tabIndex) {
+                            {
+                                if (currentSelectedTabIndex < 0) {
+                                    // Pill hidden: far enough away to cover nothing.
+                                    Offset(1_000_000f, 0f)
+                                } else {
+                                    val dx = (pill.position - tabIndex) * currentTabStepPx
+                                    Offset(if (currentIsRtl) -dx else dx, currentTabWidthPx)
+                                }
+                            }
+                        }
                         val iconScale by animateFloatAsState(
                             targetValue = if (isSelected) 1.08f else 1f,
                             animationSpec = selectionSpec,
@@ -923,6 +1310,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                                     modifier = (if (tab.key == inlineTab?.key) {
                                         Modifier.sharedElement(
                                             sharedContentState = rememberSharedContentState("tab#${tab.key}-icon"),
+                                            boundsTransform = LiquidBounds,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                             zIndexInOverlay = 1f
                                         )
@@ -936,7 +1324,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                                         scaleY = iconScale
                                     }
                                 ) {
-                                    tab.icon()
+                                    CompositionLocalProvider(
+                                        LocalTabPillCoverage provides tabCoverage,
+                                        LocalTabPillGeometry provides tabPillGeometry,
+                                    ) {
+                                        tab.icon()
+                                    }
                                 }
                             },
                             title = {
@@ -946,7 +1339,12 @@ private fun SharedTransitionScope.ExpandedTabs(
                                         animatedVisibilityScope = animatedVisibilityScope
                                     )
                                 ) {
-                                    tab.title()
+                                    CompositionLocalProvider(
+                                        LocalTabPillCoverage provides tabCoverage,
+                                        LocalTabPillGeometry provides tabPillGeometry,
+                                    ) {
+                                        tab.title()
+                                    }
                                 }
                             },
                             isInline = false,
@@ -975,6 +1373,7 @@ private fun SharedTransitionScope.ExpandedTabs(
                 fillColor = colors.indicatorColor,
                 barGlass = barGlass,
                 tabRow = tabRow,
+                iconTint = colors.selectedContentColor,
                 modifier = Modifier
                     .matchParentSize()
                     .pillPlacement(
@@ -996,32 +1395,15 @@ private fun SharedTransitionScope.ExpandedStandaloneTab(
     modifier: Modifier,
     tabBarContentModifier: @Composable () -> Modifier
 ) {
-    Tab(
-        icon = standaloneTab.icon,
-        title = standaloneTab.title,
+    StandaloneTabBody(
+        standaloneTab = standaloneTab,
         isInline = false,
-        isStandalone = true,
-        modifier = modifier
-            .sharedElement(
-                sharedContentState = rememberSharedContentState("standaloneTab"),
-                animatedVisibilityScope = animatedVisibilityScope,
-                zIndexInOverlay = 1f
-            )
-            .shadow(
-                shape = shapes.standaloneTabShape,
-                elevation = elevations.expandedElevation
-            )
-            .background(
-                color = colors.backgroundColor,
-                shape = shapes.standaloneTabShape
-            )
-            .clip(shapes.standaloneTabShape)
-            .then(tabBarContentModifier())
-            .clickable(
-                onClick = standaloneTab.onClick,
-                indication = standaloneTab.indication?.invoke(),
-                interactionSource = remember { MutableInteractionSource() }
-            )
+        shapes = shapes,
+        colors = colors,
+        elevation = elevations.expandedElevation,
+        animatedVisibilityScope = animatedVisibilityScope,
+        tabBarContentModifier = tabBarContentModifier,
+        modifier = modifier,
     )
 }
 
@@ -1101,7 +1483,7 @@ private fun Modifier.animateEnterExitTab(
             }
         }
 
-        // 12dp, down from the library's 50. A tab glyph is 25dp across, so a 50dp
+        // 12dp, down from the library's 50. A tab glyph is 28dp across, so a 50dp
         // radius is twice the thing it is blurring — everything past about half
         // the element's width has already dissolved it to nothing and is spent
         // on a wider and wider sample of empty space. 12 reaches the same nothing
@@ -1139,14 +1521,36 @@ private fun Modifier.animateEnterExitTab(
     }
 }
 
-private class FloatingTabBarScopeImpl : FloatingTabBarScope {
+private class FloatingTabBarScopeImpl(
+    private val inlineSplitLast: Boolean = false,
+) : FloatingTabBarScope {
     val tabs = mutableStateListOf<FloatingTabBarTab>()
     var standaloneTab: FloatingTabBarTab? by mutableStateOf(null)
         private set
     private var inlineTab: FloatingTabBarTab? = null
 
+    /**
+     * Standalone tab untuk bentuk inline. Jika tidak ada standalone asli,
+     * tab terakhir dipisah jadi lingkaran (ikon saja) saat [inlineSplitLast] aktif.
+     * Bentuk expanded tetap memakai [standaloneTab] (satu pil).
+     */
+    val inlineStandaloneTab: FloatingTabBarTab?
+        get() = standaloneTab ?: if (inlineSplitLast && tabs.size > 1) {
+            tabs.last().let { t ->
+                FloatingTabBarTab(
+                    key = t.key,
+                    title = {},
+                    icon = t.icon,
+                    onClick = t.onClick,
+                    indication = t.indication
+                )
+            }
+        } else {
+            null
+        }
+
     fun getInlineTab(selectedTabKey: Any?): FloatingTabBarTab? {
-        return if (selectedTabKey != standaloneTab?.key) {
+        return if (selectedTabKey != inlineStandaloneTab?.key) {
             val selectedTab = tabs.find { it.key == selectedTabKey }
             if (selectedTab != null) {
                 inlineTab = selectedTab
@@ -1209,6 +1613,8 @@ data class FloatingTabBarColors(
     val backgroundColor: Color,
     val accessoryBackgroundColor: Color,
     val indicatorColor: Color,
+    /** Colour the tab row is masked to inside the lifted glass pill; Unspecified keeps each tab's own colour. */
+    val selectedContentColor: Color = Color.Unspecified,
 )
 
 /**
@@ -1241,6 +1647,8 @@ data class FloatingTabBarSizes(
     val tabExpandedContentPadding: PaddingValues,
     val componentSpacing: Dp,
     val tabSpacing: Dp,
+    val inlineComponentSpacing: Dp = componentSpacing,
+    val inlineBarPadding: PaddingValues = PaddingValues(),
 )
 
 /**
@@ -1259,10 +1667,12 @@ object FloatingTabBarDefaults {
         backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
         accessoryBackgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
         indicatorColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        selectedContentColor: Color = Color.Unspecified,
     ): FloatingTabBarColors = FloatingTabBarColors(
         backgroundColor = backgroundColor,
         accessoryBackgroundColor = accessoryBackgroundColor,
         indicatorColor = indicatorColor,
+        selectedContentColor = selectedContentColor,
     )
 
     /**
@@ -1294,6 +1704,8 @@ object FloatingTabBarDefaults {
      * @param tabExpandedContentPadding the padding applied to tabs in expanded state
      * @param componentSpacing the spacing between components
      * @param tabSpacing the spacing between tabs in expanded state
+     * @param inlineComponentSpacing the spacing between components in inline state
+     * @param inlineBarPadding padding around the whole bar in inline state, inside the bar's own
      */
     @Composable
     fun sizes(
@@ -1302,12 +1714,16 @@ object FloatingTabBarDefaults {
         tabExpandedContentPadding: PaddingValues = PaddingValues(vertical = 6.dp, horizontal = 20.dp),
         componentSpacing: Dp = 8.dp,
         tabSpacing: Dp = 0.dp,
+        inlineComponentSpacing: Dp = componentSpacing,
+        inlineBarPadding: PaddingValues = PaddingValues(),
     ): FloatingTabBarSizes = FloatingTabBarSizes(
         tabBarContentPadding = tabBarContentPadding,
         tabInlineContentPadding = tabInlineContentPadding,
         tabExpandedContentPadding = tabExpandedContentPadding,
         componentSpacing = componentSpacing,
         tabSpacing = tabSpacing,
+        inlineComponentSpacing = inlineComponentSpacing,
+        inlineBarPadding = inlineBarPadding,
     )
 
     /**

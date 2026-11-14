@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.discord
 
 import android.content.Context
@@ -144,14 +142,14 @@ class DiscordRPC(
     /**
      * The name Discord puts after "Listening to". Taken from the app's own
      * label so it tracks a rename, with the dev flavor's suffix dropped —
-     * a side-by-side dev install should still look like audify to everyone
+     * a side-by-side dev install should still look like Audify to everyone
      * else on Discord.
      */
     private fun appName(): String =
         context.getString(R.string.app_name).removeSuffix(" Dev")
 
     companion object {
-        const val PROJECT_URL = "https://github.com/sachit1751-art/Audify"
+        const val PROJECT_URL = "https://github.com/kushagrasinghx/BitChord"
 
         const val DEFAULT_BUTTON_1 = "Listen on YouTube Music"
         const val DEFAULT_BUTTON_2 = "Visit Audify"

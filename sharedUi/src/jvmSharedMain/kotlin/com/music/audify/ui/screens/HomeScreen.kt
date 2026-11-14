@@ -1,20 +1,44 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.data.model.HOME_SLOT_MOODS
+import com.music.audify.data.model.HOME_SLOT_TOP_PICKS
+import com.music.audify.data.model.HomeLayout
+import com.music.audify.data.model.homeShelfKey
+import com.music.audify.ui.components.VideoThumbnails
+import com.music.audify.ui.components.trackArtSize
 import com.music.audify.ui.components.contextClick
 import com.music.audify.ui.AppUi
 import com.music.audify.sharedui.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import com.music.audify.ui.rememberIsForeground
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
 import com.music.audify.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +50,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,46 +57,32 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.audify.ui.components.ShelfRow
-import com.music.audify.ui.components.ExplicitBadge
-import androidx.compose.foundation.lazy.items
+import com.music.audify.ui.components.shelfStagger
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.Text
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import com.music.audify.ui.components.ElasticRefreshState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,49 +90,45 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cached
-import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Tune
 import com.music.audify.ui.icons.AudifyIcons
+import com.music.audify.data.YtMusicRepository
 import coil3.compose.AsyncImage
 import com.music.audify.data.model.CARD_ART_PX
 import com.music.audify.data.model.HEADER_ART_PX
 import com.music.audify.data.model.HomeShelf
-import com.music.audify.data.model.HomeLayout
-import com.music.audify.data.model.HOME_SLOT_MOODS
-import com.music.audify.data.model.homeShelfKey
+import com.music.audify.data.model.LOCAL_SPEED_DIAL_TITLE
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.ShelfItem
-import com.music.audify.data.model.stableShelfComposeKeys
+import com.music.audify.data.model.ShelfLayout
 import com.music.audify.data.model.Song
-import com.music.audify.data.model.UiState
+import com.music.audify.data.model.TopPick
+import com.music.audify.data.model.TopPickMood
 import com.music.audify.data.model.PodcastProviderShow
-import com.music.audify.data.YtMusicRepository
+import com.music.audify.data.model.UiState
 import java.util.Locale
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import java.time.LocalTime
-import kotlinx.coroutines.delay
 import com.music.audify.data.model.artworkAt
-import com.music.audify.data.settings.LibraryViewType
+import com.music.audify.ui.components.HERO_CARD_RATIO
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
 import com.music.audify.ui.components.RowMoreButton
-import com.music.audify.ui.components.PlayingAccent
 import com.music.audify.ui.components.PullToRefresh
-import com.music.audify.ui.components.HomeLayoutDialog
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
 import com.music.audify.ui.components.SearchPlayingBars
 import com.music.audify.ui.components.SignInBanner
+import com.music.audify.ui.components.coverFlightSource
+import com.music.audify.ui.components.hideDuringCoverFlight
+import com.music.audify.ui.components.rememberCoverFlightTap
+import com.music.audify.ui.components.markCoverTapped
+import com.music.audify.ui.components.rememberCoverTap
 import com.music.audify.ui.components.feedMoreSkeleton
-import com.music.audify.ui.player.PlayerSettings
 import com.music.audify.ui.components.feedSkeleton
 import com.music.audify.ui.components.recentlyPlayedSkeleton
+import com.music.audify.ui.components.ShelfSkeleton
 import com.music.audify.ui.components.heroCardWidth
 import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.components.trackColumnWidth
@@ -131,44 +136,404 @@ import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.MeshPalette
 
 /** How far the Listen now heading and feed sit above the shared top inset. */
-private val HOME_TITLE_LIFT = 64.dp
+internal val HOME_TITLE_LIFT = 28.dp
 
 private const val RECENTS_TITLE = "Recents"
+
+/** Speed dial leads Home, above Listen again and Recents, wherever the feed put it. */
+private fun List<HomeShelf>.withSpeedDialFirst(): List<HomeShelf> {
+    val at = indexOfFirst { shelf -> SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
+    if (at <= 0) return this
+    return toMutableList().also { it.add(0, it.removeAt(at)) }
+}
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
-/** Minimum useful width for one Quick Picks column before another is added. */
-private val QUICK_PICK_MIN_COLUMN_WIDTH = 208.dp
-private val QUICK_PICK_COLUMN_SPACING = 18.dp
-private val KEEP_LISTENING_MIN_CARD_WIDTH = 200.dp
-private val KEEP_LISTENING_COLUMN_SPACING = 14.dp
+private val LISTEN_AGAIN_TITLES = listOf("Listen again", "Nghe lại", "もう一度聴く", "Dengarkan lagi", "Putar ulang", "다시 듣기")
+private val SPEED_DIAL_TITLES = listOf(LOCAL_SPEED_DIAL_TITLE, "Speed dial", "Panggilan cepat", "Quay số nhanh", "スピードダイヤル", "스피드 다이얼")
+private val QUICK_PICKS_TITLES = listOf("Quick picks", "Lựa chọn nhanh", "Chọn nhanh đài phát", "クイック ミックス", "Pilihan cepat", "Pilihan singkat", "빠른 선곡", "빠른 선택") +
+    SPEED_DIAL_TITLES.filterNot { it.equals(LOCAL_SPEED_DIAL_TITLE, ignoreCase = true) }
 
-/** Derive track columns from the actual content window, including its gutters. */
-internal fun quickPickColumns(available: Dp): Int {
-    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
-    return ((usable + QUICK_PICK_COLUMN_SPACING) /
-        (QUICK_PICK_MIN_COLUMN_WIDTH + QUICK_PICK_COLUMN_SPACING)).toInt().coerceIn(1, 5)
+/**
+ * Quick picks menempati slot Listen again (baris kartu persegi di depan),
+ * dan Listen again pindah ke slot Quick picks (daftar berhalaman).
+ * Dibiarkan apa adanya bila salah satunya tidak ada.
+ */
+private fun List<HomeShelf>.withQuickPicksInListenAgainSlot(): List<HomeShelf> {
+    val quick = indexOfFirst { shelf -> QUICK_PICKS_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
+    val again = indexOfFirst { shelf -> LISTEN_AGAIN_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
+    if (quick < 0 || again < 0 || quick == again) return this
+    return toMutableList().also {
+        it[quick] = this[again]
+        it[again] = this[quick]
+    }
 }
 
-/** Keep album cards wide enough for their title and subtitle to remain readable. */
-internal fun keepListeningColumns(available: Dp): Int {
-    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
-    return ((usable + KEEP_LISTENING_COLUMN_SPACING) /
-        (KEEP_LISTENING_MIN_CARD_WIDTH + KEEP_LISTENING_COLUMN_SPACING)).toInt().coerceIn(1, 4)
+/**
+ * Recents and YouTube's Listen again trade places: Listen again leads the
+ * feed and Recents sits where it was. Left as is when either is missing, as
+ * for a guest, who has no Recents.
+ */
+private fun List<HomeShelf>.withListenAgainFirst(): List<HomeShelf> {
+    val recents = indexOfFirst { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
+    val again = indexOfFirst { shelf -> LISTEN_AGAIN_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
+    if (recents < 0 || again < 0 || recents == again) return this
+    return toMutableList().also {
+        it[recents] = this[again]
+        it[again] = this[recents]
+    }
 }
 
-/** Width each weighted Keep Listening card receives after page gutters and inter-card spacing. */
-internal fun keepListeningCardWidth(available: Dp): Dp {
-    val columns = keepListeningColumns(available)
-    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
-    return (usable - KEEP_LISTENING_COLUMN_SPACING * (columns - 1)) / columns
+/**
+ * Listen again adalah satu baris kartu persegi, jadi shelf tepat di bawahnya
+ * tidak boleh berbentuk sama: shelf berbentuk lain terdekat (daftar berhalaman
+ * seperti Recents/Quick picks dulu, lalu video) naik mengisi slot itu.
+ * Dibiarkan apa adanya bila semua shelf di bawahnya berbentuk kartu.
+ */
+private fun List<HomeShelf>.withOtherModelBelowListenAgain(): List<HomeShelf> {
+    val again = indexOfFirst { shelf -> QUICK_PICKS_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
+    if (again < 0 || again + 1 >= size) return this
+    fun HomeShelf.isPagedList() =
+        layout == ShelfLayout.LIST || title.trim().equals(RECENTS_TITLE, ignoreCase = true)
+    fun HomeShelf.isCardRow() = layout == ShelfLayout.CARDS && !isPagedList()
+    if (!this[again + 1].isCardRow()) return this
+    val from = (again + 2 until size).firstOrNull { this[it].isPagedList() }
+        ?: (again + 2 until size).firstOrNull { !this[it].isCardRow() }
+        ?: return this
+    return toMutableList().also { it.add(again + 1, it.removeAt(from)) }
 }
 
-data class WeeklyRecapCardData(
-    val minutes: String,
-    val plays: String,
-    val topSong: String?,
-    val topArtist: String?,
-)
+/** How many placeholder rows a custom layout shows while the feed loads. */
+private const val HOME_SKELETON_SLOTS = 4
+
+private const val SPEED_DIAL_COLUMNS = 3
+private const val SPEED_DIAL_ROWS = 3
+private val SPEED_DIAL_GAP = 12.dp
+
+/**
+ * Speed dial: a grid of square covers, three across and three down per page,
+ * as YouTube Music draws it. One tap plays the track; more pages scroll sideways.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SpeedDialShelf(
+    shelf: HomeShelf,
+    onItemClick: (ShelfItem) -> Unit,
+    onItemLongPress: ((ShelfItem) -> Unit)?,
+    currentSong: Song?,
+    isPlaying: Boolean,
+    onPlaySongs: ((List<Song>) -> Unit)? = null,
+) {
+    Column(Modifier.padding(bottom = 26.dp)) {
+        SectionHeader(shelf.title, shelf.subtitle)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val shuffleSongs = remember(shelf.items) {
+            shelf.items.mapNotNull { item ->
+                val id = item.videoId ?: return@mapNotNull null
+                if (item.browseId != null) {
+                    null
+                } else {
+                    Song(videoId = id, title = item.title, artist = item.subtitle, thumbnailUrl = item.thumbnailUrl)
+                }
+            }
+        }
+        val canShuffle = onPlaySongs != null && shuffleSongs.isNotEmpty()
+        val perPage = SPEED_DIAL_COLUMNS * SPEED_DIAL_ROWS
+        val pages = remember(shelf.items, canShuffle) {
+            if (canShuffle) {
+                listOf(shelf.items.take(perPage - 1)) + shelf.items.drop(perPage - 1).chunked(perPage)
+            } else {
+                shelf.items.chunked(perPage)
+            }
+        }
+        BoxWithConstraints {
+            val pageWidth = maxWidth - PAGE_GUTTER * 2
+            val tile = (pageWidth - SPEED_DIAL_GAP * (SPEED_DIAL_COLUMNS - 1)) / SPEED_DIAL_COLUMNS
+            val listState = rememberShelfListState("speed-dial:${shelf.title}")
+            if (pages.size > 1) {
+                val currentPage by remember(listState) {
+                    derivedStateOf {
+                        val index = listState.firstVisibleItemIndex
+                        if (listState.firstVisibleItemScrollOffset > 160) index + 1 else index
+                    }
+                }
+                SpeedDialPageDots(
+                    count = pages.size,
+                    current = currentPage,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 2.dp),
+                )
+            }
+            ShelfRow(
+                state = listState,
+                contentPadding = PaddingValues(start = PAGE_GUTTER, end = PAGE_GUTTER, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(PAGE_GUTTER),
+            ) {
+                items(pages, contentType = { "speed-dial-page" }) { page ->
+                    Column(
+                        modifier = Modifier.width(pageWidth),
+                        verticalArrangement = Arrangement.spacedBy(SPEED_DIAL_GAP),
+                    ) {
+                        repeat(SPEED_DIAL_ROWS) { rowIndex ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(SPEED_DIAL_GAP)) {
+                                repeat(SPEED_DIAL_COLUMNS) { column ->
+                                    val slot = rowIndex * SPEED_DIAL_COLUMNS + column
+                                    val item = page.getOrNull(slot)
+                                    if (canShuffle && page === pages.first() && slot == SPEED_DIAL_COLUMNS * SPEED_DIAL_ROWS - 1) {
+                                        SpeedDialShuffleTile(
+                                            onClick = { onPlaySongs?.invoke(shuffleSongs.shuffled()) },
+                                            modifier = Modifier.width(tile),
+                                        )
+                                    } else if (item != null) {
+                                        SpeedDialTile(
+                                            item = item,
+                                            onClick = { onItemClick(item) },
+                                            onLongPress = onItemLongPress?.let { { it(item) } },
+                                            isCurrent = isCurrentItem(item),
+                                            isPlaying = isCurrentItem(item) && isPlaying,
+                                            modifier = Modifier.width(tile),
+                                        )
+                                    } else {
+                                        Spacer(Modifier.width(tile))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Shuffle card in the last slot of a speed dial page: accent gradient, glass disc, springy press. */
+@Composable
+private fun SpeedDialShuffleTile(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    val phase = remember { Animatable(0f) }
+    var searching by remember { mutableStateOf(false) }
+    val latestClick by rememberUpdatedState(onClick)
+    // Idle breathing: a slow wave running through the four dots. It resumes from
+    // where it stopped, and stops while searching or while the app is not on screen.
+    val idle = remember { Animatable(0f) }
+    val foreground = rememberIsForeground()
+    LaunchedEffect(foreground, searching) {
+        if (!foreground || searching) return@LaunchedEffect
+        while (true) {
+            val start = idle.value % 1f
+            idle.snapTo(start)
+            idle.animateTo(start + 1f, tween(durationMillis = 3200, easing = LinearEasing))
+        }
+    }
+    // One full swirl, as if looking for a song, then the shuffle starts.
+    LaunchedEffect(searching) {
+        if (searching) {
+            phase.snapTo(0f)
+            phase.animateTo(1f, tween(durationMillis = 1100, easing = LinearEasing))
+            latestClick()
+            phase.snapTo(0f)
+            searching = false
+        }
+    }
+    val dotColor = MaterialTheme.colorScheme.primary
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(shape)
+            .thumbnailBorder(shape)
+            .background(
+                Brush.linearGradient(
+                    listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surface),
+                ),
+            )
+            .longPressMenuClickable(onClick = { if (!searching) searching = true }, onLongClick = null),
+    ) {
+        Canvas(
+            Modifier
+                .align(Alignment.Center)
+                .size(56.dp),
+        ) {
+            val p = phase.value
+            val eased = p * p * (3f - 2f * p)
+            val envelope = sin(PI.toFloat() * p)
+            val turn = 2f * PI.toFloat() * eased
+            val idleT = idle.value * 2f * PI.toFloat()
+            val calm = 1f - envelope
+            val unit = size.minDimension
+            val orbit = unit * 0.19f * 1.4142f * (1f - 0.45f * envelope)
+            val base = unit * 0.085f
+            for (i in 0 until 4) {
+                val wave = sin(idleT + i * PI.toFloat() / 2f)
+                val angle = (PI.toFloat() / 4f + i * PI.toFloat() / 2f) + turn + 0.12f * calm * wave
+                val radius = base * (1f + 0.5f * envelope * sin(4f * PI.toFloat() * p + i * PI.toFloat() / 2f) + 0.22f * calm * wave)
+                val reach = orbit * (1f + 0.07f * calm * wave)
+                drawCircle(
+                    color = dotColor,
+                    radius = radius,
+                    center = Offset(center.x + cos(angle) * reach, center.y + sin(angle) * reach),
+                )
+            }
+        }
+    }
+}
+
+/** Small glass disc with a chevron, marking a speed dial card that opens a page instead of playing. */
+@Composable
+private fun SpeedDialBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(22.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.35f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = AudifyIcons.ChevronRight,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(12.dp),
+        )
+    }
+}
+
+/** Page control dots under the speed dial grid: the current one is solid and full size. */
+@Composable
+private fun SpeedDialPageDots(
+    count: Int,
+    current: Int,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(count) { index ->
+            val selected = index == current
+            val dotAlpha by animateFloatAsState(
+                targetValue = if (selected) 0.9f else 0.28f,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+            )
+            val dotScale by animateFloatAsState(
+                targetValue = if (selected) 1f else 0.78f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+            )
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .graphicsLayer {
+                        scaleX = dotScale
+                        scaleY = dotScale
+                        alpha = dotAlpha
+                    }
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onBackground),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SpeedDialTile(
+    item: ShelfItem,
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)?,
+    isCurrent: Boolean,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val isBrowse = item.browseId != null && item.videoId == null
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(shape)
+            .thumbnailBorder(shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .contextClick(onLongPress),
+    ) {
+        AsyncImage(
+            model = item.thumbnailUrl.artworkAt(CARD_ART_PX),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))))
+                .padding(
+                    start = 8.dp,
+                    end = if (isBrowse) 32.dp else 8.dp,
+                    top = 6.dp,
+                    bottom = 6.dp,
+                ),
+        ) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = localizeCardSubtitle(item.subtitle),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
+        if (isBrowse) {
+            SpeedDialBadge(Modifier.align(Alignment.BottomEnd).padding(6.dp))
+        }
+    }
+}
+
+/**
+ * Loading placeholders in the order the listener arranged Home: Top Picks,
+ * Recents and every shelf each get a skeleton in their own slot. Hidden rows
+ * are not passed in; Top Picks, Find Your Mood and Recents only get one when
+ * they are actually going to be drawn.
+ */
+private fun androidx.compose.foundation.lazy.LazyListScope.homeLayoutSkeleton(
+    slots: List<String>,
+    withTopPicks: Boolean,
+    withMoods: Boolean,
+    withRecents: Boolean,
+) {
+    val recentsKey = homeShelfKey(RECENTS_TITLE)
+    var shown = 0
+    for (key in slots) {
+        if (shown >= HOME_SKELETON_SLOTS) break
+        val position = shown
+        when {
+            key == HOME_SLOT_TOP_PICKS -> if (withTopPicks) {
+                topPicksSkeleton()
+                shown++
+            }
+            key == recentsKey -> if (withRecents) {
+                recentlyPlayedSkeleton()
+                shown++
+            }
+            key == HOME_SLOT_MOODS -> if (withMoods) {
+                item(key = "skeleton:slot:$key") { ShelfSkeleton(index = position) }
+                shown++
+            }
+            else -> {
+                item(key = "skeleton:slot:$key") { ShelfSkeleton(index = position) }
+                shown++
+            }
+        }
+    }
+    if (shown == 0) feedSkeleton(firstIsHero = false)
+}
 
 private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Boolean {
     song ?: return { false }
@@ -181,6 +546,11 @@ private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Bool
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+data class WeeklyRecapCardData(
+    val headline: String,
+    val detail: String,
+)
+
 @Composable
 fun HomeScreen(
     state: UiState<List<HomeShelf>>,
@@ -216,48 +586,77 @@ fun HomeScreen(
     leadHero: Boolean = true,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
+    /**
+     * The "Top Picks for You" row above Recents. Null while it has not been
+     * built yet, empty when there is nothing to pick from. The row is only
+     * drawn by a caller that can act on it, i.e. passes [onTopPickClick].
+     */
+    topPicks: List<TopPick>? = null,
+    topPicksLoading: Boolean = false,
+    /** The signed-in account's name, for the personal station's "Name's Station". */
+    listenerName: String? = null,
+    onTopPickClick: ((TopPick, String) -> Unit)? = null,
+    onTopPickLongPress: ((TopPick) -> Unit)? = null,
+    /** A Find Your Mood tile, and its name. The shelf is only drawn when this is set. */
+    onMoodClick: ((TopPickMood, String) -> Unit)? = null,
+    /** Find Your Mood's Show all: every mood and activity. */
+    onMoodsShowAll: () -> Unit = {},
+    /** Whether the Top Picks and mood artwork may animate — see [LocalArtworkMotion]. */
+    artworkMotion: Boolean = true,
+    /** Memutar daftar lagu dari awal; dipakai tombol play di kartu playlist. */
+    onPlaySongs: ((List<Song>) -> Unit)? = null,
+    /** The listener's own order and hidden rows. Empty keeps Home's built-in order. */
+    homeLayout: HomeLayout = HomeLayout(),
+    /** Swaps the logo and wordmark for a plain [title], without the mark. */
+    hideBranding: Boolean = false,
+    /** The listener's pinned playlists, as one row above the feed. Null or empty draws nothing. */
+    pinnedShelf: HomeShelf? = null,
+    /** A discovery shelf selected for the listener's current local-time block. */
+    timeAwareShelf: HomeShelf? = null,
     weeklyRecap: WeeklyRecapCardData? = null,
     onWeeklyRecapClick: (() -> Unit)? = null,
     onWeeklyRecapDismiss: (() -> Unit)? = null,
-    timeAwareShelf: HomeShelf? = null,
-    onSearchClick: (() -> Unit)? = null,
-    onCastClick: (() -> Unit)? = null,
-    onProfileClick: (() -> Unit)? = null,
-    profileThumbnailUrl: String? = null,
-    onMoodClick: ((String) -> Unit)? = null,
-    onListenTogetherClick: (() -> Unit)? = null,
+    /** Opens YouTube Music podcast discovery, optionally focused on a show. */
     onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
-    onPlayAllQuickPicks: ((HomeShelf) -> Unit)? = null,
-    userName: String? = null,
-    greetingMorning: String = "Good morning",
-    greetingAfternoon: String = "Good afternoon",
-    greetingEvening: String = "Good evening",
 ) {
-    val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
-    val homeLayout by AppUi.host.homeLayout.collectAsStateWithLifecycle()
-    var showHomeLayout by remember { mutableStateOf(false) }
-    val featuredItemIds = remember(timeAwareShelf) {
-        timeAwareShelf?.items.orEmpty().mapNotNull { it.videoId ?: it.browseId }.toSet()
+    // Top Picks' pictures and motion wait for the feed — see LocalArtworkImages.
+    val feedReady = state !is UiState.Loading
+    // A custom layout places Top Picks itself, among the other rows, once the feed
+    // is in. Until then it only goes above the feed when the layout puts it first;
+    // anywhere else it waits for its slot rather than jump there later.
+    // A custom layout draws Top Picks (and its skeleton) in its own slot; only an
+    // error page keeps it above the message when the layout puts it first.
+    val topPicksAboveFeed = if (homeLayout.isCustom) {
+        state is UiState.Error &&
+            homeLayout.slots.firstOrNull { !it.hidden }?.key == HOME_SLOT_TOP_PICKS
+    } else {
+        true
     }
+    // Held from the first frame, so the row's slot never opens up after the feed is drawn.
+    val topPicksWaiting = topPicks == null && (topPicksLoading || state is UiState.Loading)
     var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
     LaunchedEffect(Unit) {
-        // Keep the Home shelf lightweight: saved shows load first, then public
-        // discovery fills the row when the library is empty or incomplete.
-        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
-        homePodcastShows = saved
-        YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
-            .flatMap { it.shows }
-            .let { discovered -> (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12) }
-            .also { homePodcastShows = it }
+        if (onPodcastsClick != null) {
+            val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
+            homePodcastShows = saved
+            val discovered = YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
+                .flatMap { it.shows }
+            homePodcastShows = (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12)
+        }
     }
-    val isChronologicalHistoryShelf: (HomeShelf) -> Boolean = { shelf ->
-        shelf.title.trim().lowercase(Locale.ROOT) in setOf("recents", "recently played")
-    }
+    CompositionLocalProvider(
+        LocalArtworkMotion provides (artworkMotion && feedReady),
+        LocalArtworkImages provides feedReady,
+    ) {
+    // The loops also hold still while the feed is being scrolled — see
+    // LocalArtworkScrolling for why that is asked rather than provided.
+    PausedWhileScrolling(listState) {
 
     PullToRefresh(
         refreshing = refreshing,
         onRefresh = onRefresh,
         state = pullState,
+        topInset = contentPadding.calculateTopPadding(),
         modifier = modifier,
     ) {
         LazyColumn(
@@ -275,48 +674,116 @@ fun HomeScreen(
             },
         ) {
             if (title != null) {
-                item(key = "home-compact-header") {
-                    HomeTitle(
-                        onSearchClick = onSearchClick,
-                        onProfileClick = onProfileClick,
-                        profileThumbnailUrl = profileThumbnailUrl,
-                        userName = userName,
-                        greetingMorning = greetingMorning,
-                        greetingAfternoon = greetingAfternoon,
-                        greetingEvening = greetingEvening,
-                        onCustomizeClick = { showHomeLayout = true },
+                item { HomeTitle(title, hideBranding) }
+            }
+            if (!signedIn && onSignIn != null) {
+                item {
+                    // Read in this item, so a scroll starting or ending
+                    // recomposes the banner alone.
+                    SignInBanner(
+                        onSignIn = onSignIn,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        motion = LocalArtworkMotion.current && !listState.isScrollInProgress,
                     )
                 }
             }
-            if (!signedIn && onSignIn != null) {
-                item(key = "home:sign-in") {
-                    SignInBanner(onSignIn = onSignIn, modifier = Modifier.padding(bottom = 8.dp))
+            if (weeklyRecap != null && onWeeklyRecapClick != null) {
+                item(key = "weekly-listening-recap") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable(onClick = onWeeklyRecapClick)
+                            .padding(18.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = "YOUR WEEK IN MUSIC",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Text(
+                                    text = weeklyRecap.headline,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                            if (onWeeklyRecapDismiss != null) {
+                                Text(
+                                    text = "?",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clickable(onClick = onWeeklyRecapDismiss).padding(6.dp),
+                                )
+                            }
+                        }
+                        Text(
+                            text = weeklyRecap.detail,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        Text(
+                            text = "See your listening recap  ?",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
                 }
             }
-            if (timeAwareShelf != null) {
-                item(key = "time-aware-discovery-shelf") {
+            // Pinned playlists: one tap from Home instead of a trip to Library.
+            if (pinnedShelf != null && pinnedShelf.items.isNotEmpty()) {
+                item(key = "pinned-playlists") {
                     Shelf(
-                        shelf = timeAwareShelf,
-                        onItemClick = { item -> onItemClick(item, timeAwareShelf.title) },
+                        shelf = pinnedShelf,
+                        onItemClick = { onItemClick(it, pinnedShelf.title) },
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,
                         isPlaying = isPlaying,
                     )
                 }
             }
-            if (weeklyRecap != null && onWeeklyRecapClick != null) {
-                item(key = "weekly-listening-recap") {
-                    WeeklyRecapCard(
-                        recap = weeklyRecap,
-                        onClick = onWeeklyRecapClick,
-                        onDismiss = onWeeklyRecapDismiss,
+            if (timeAwareShelf != null && timeAwareShelf.items.isNotEmpty()) {
+                item(key = "time-aware-discovery") {
+                    Shelf(
+                        shelf = timeAwareShelf,
+                        onItemClick = { onItemClick(it, timeAwareShelf.title) },
+                        onItemLongPress = onItemLongPress,
+                        currentSong = currentSong,
+                        isPlaying = isPlaying,
                     )
+                }
+            }
+            if (onTopPickClick != null && topPicksAboveFeed) {
+                when {
+                    !topPicks.isNullOrEmpty() -> item(key = "top-picks") {
+                        TopPicksShelf(
+                            picks = topPicks,
+                            listenerName = listenerName,
+                            onClick = onTopPickClick,
+                            onLongPress = onTopPickLongPress,
+                        )
+                    }
+                    topPicksWaiting -> topPicksSkeleton()
                 }
             }
             when (state) {
                 is UiState.Loading -> {
-                    if (recentlyPlayedLoading) {
-                        recentlyPlayedSkeleton(listLayout = recentsViewType == LibraryViewType.LIST)
+                    if (homeLayout.isCustom) {
+                        // Placeholders in the listener's own order, so what loads
+                        // lands where its skeleton already stood.
+                        homeLayoutSkeleton(
+                            slots = homeLayout.slots.filterNot { it.hidden }.map { it.key },
+                            withTopPicks = onTopPickClick != null,
+                            withMoods = onMoodClick != null,
+                            withRecents = recentlyPlayedLoading,
+                        )
+                    } else if (recentlyPlayedLoading) {
+                        recentlyPlayedSkeleton()
                         // Recents owns the leading layout while its request is
                         // pending, so the feed behind it starts with ordinary
                         // shelf placeholders rather than another hero card.
@@ -325,50 +792,56 @@ fun HomeScreen(
                         feedSkeleton(firstIsHero = leadHero)
                     }
                 }
-                is UiState.Error -> item(key = "home:error") {
+                is UiState.Error -> item {
                     MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
                 }
                 is UiState.Success -> {
-                    if (recentlyPlayedLoading) {
-                        recentlyPlayedSkeleton(listLayout = recentsViewType == LibraryViewType.LIST)
-                    }
-                    // The loading skeleton already owns the hero slot. Until
-                    // Recently Played lands, every real shelf must retain its
-                    // compact-card layout instead of briefly becoming a hero.
+                    // The Apple-style release row now leads Explore; keep it out of Home.
+                    val editorialIndex = if (onTopPickClick != null) editorialShelfIndex(state.data) else null
+                    // Recents' skeleton is drawn inside the list, in the slot Recents
+                    // will take, rather than stacked above rows that then swap places.
                     itemsIndexedShelves(
-                        // The time-aware lead is selected from this same feed;
-                        // keep its cards from appearing a second time below.
-                        shelves = if (featuredItemIds.isEmpty()) state.data else state.data.mapNotNull { shelf ->
-                            if (isChronologicalHistoryShelf(shelf)) return@mapNotNull shelf
-                            val remaining = shelf.items.filterNot { (it.videoId ?: it.browseId) in featuredItemIds }
-                            remaining.takeIf { it.isNotEmpty() }?.let { shelf.copy(items = it) }
+                        shelves = if (editorialIndex != null) {
+                            state.data.filterIndexed { index, _ -> index != editorialIndex }
+                        } else {
+                            state.data
                         },
+                        onMoodClick = onMoodClick,
+                        onMoodsShowAll = onMoodsShowAll,
                         onItemClick = onItemClick,
                         onItemLongPress = onItemLongPress,
-                        onPlayAllQuickPicks = onPlayAllQuickPicks,
                         currentSong = currentSong,
                         isPlaying = isPlaying,
-                        onMoodClick = onMoodClick,
-                        onListenTogetherClick = onListenTogetherClick,
-                        podcastShows = homePodcastShows,
-                        onPodcastsClick = onPodcastsClick,
-                        firstIsHero = leadHero && !recentlyPlayedLoading,
-                        recentsViewType = recentsViewType,
-                        onRecentsViewTypeToggle = {
-                            AppUi.host.setHomeRecentsViewType(
-                                if (recentsViewType == LibraryViewType.LIST) {
-                                    LibraryViewType.GRID
-                                } else {
-                                    LibraryViewType.LIST
-                                },
-                            )
-                        },
+                        firstIsHero = leadHero,
+                        recentsPending = recentlyPlayedLoading,
+                        onPlaySongs = onPlaySongs,
                         homeLayout = homeLayout,
+                        topPicksPending = onTopPickClick != null && topPicksWaiting,
+                        topPicksItem = if (onTopPickClick != null && !topPicks.isNullOrEmpty()) {
+                            {
+                                TopPicksShelf(
+                                    picks = topPicks,
+                                    listenerName = listenerName,
+                                    onClick = onTopPickClick,
+                                    onLongPress = onTopPickLongPress,
+                                )
+                            }
+                        } else {
+                            null
+                        },
                     )
+                    if (onPodcastsClick != null) {
+                        item(key = "home-podcasts") {
+                            HomePodcastsShelf(homePodcastShows, onPodcastsClick)
+                        }
+                    }
                     if (loadingMore) feedMoreSkeleton()
                 }
             }
         }
+    }
+
+    }
     }
 
     if (onLoadMore != null && state is UiState.Success) {
@@ -389,68 +862,45 @@ fun HomeScreen(
             }
         }
     }
-
-    if (showHomeLayout) {
-        HomeLayoutDialog(
-            shelves = (state as? UiState.Success)?.data.orEmpty(),
-            showMoods = onMoodClick != null,
-            onDismiss = { showHomeLayout = false },
-        )
-    }
 }
 
-@Composable
-private fun WeeklyRecapCard(
-    recap: WeeklyRecapCardData,
-    onClick: () -> Unit,
-    onDismiss: (() -> Unit)?,
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 18.dp, top = 16.dp, end = 8.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(Res.string.weekly_recap_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(Res.string.weekly_recap_summary, recap.minutes, recap.plays),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                recap.topSong?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(stringResource(Res.string.weekly_recap_top_song, it), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                recap.topArtist?.let {
-                    Text(stringResource(Res.string.weekly_recap_top_artist, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(Res.string.weekly_recap_open),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            if (onDismiss != null) {
-                Box(Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onDismiss), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Close, contentDescription = stringResource(Res.string.weekly_recap_dismiss), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                }
-            }
+/**
+ * The shelves Home draws from a loaded feed, in the order it draws them when the
+ * listener has not arranged anything. [dropEditorial] is true wherever Top Picks
+ * is on, since the release row then leads Explore instead.
+ */
+fun homeFeedShelves(shelves: List<HomeShelf>, dropEditorial: Boolean = true): List<HomeShelf> {
+    val editorial = if (dropEditorial) editorialShelfIndex(shelves) else null
+    val kept = if (editorial != null) shelves.filterIndexed { index, _ -> index != editorial } else shelves
+    return kept.withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain().withSpeedDialFirst()
+}
+
+/**
+ * Every slot Home has right now, as layout keys, in the order Home draws them
+ * without a saved layout: Top Picks first, Find Your Mood after Recents.
+ */
+fun homeDefaultSlotKeys(
+    shelves: List<HomeShelf>,
+    withTopPicks: Boolean,
+    withMoods: Boolean,
+    dropEditorial: Boolean = withTopPicks,
+): List<String> {
+    val ordered = homeFeedShelves(shelves, dropEditorial = dropEditorial)
+    val moodAt = (ordered.indexOfFirst { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
+        .takeIf { it >= 0 } ?: 1) + 1
+    return buildList {
+        if (withTopPicks) add(HOME_SLOT_TOP_PICKS)
+        ordered.forEachIndexed { index, shelf ->
+            if (withMoods && index == moodAt) add(HOME_SLOT_MOODS)
+            add(homeShelfKey(shelf.title))
         }
-    }
+        if (withMoods && moodAt >= ordered.size) add(HOME_SLOT_MOODS)
+    }.distinct()
 }
+
+/** A shelf's title the way Home shows it, for the layout dialog. */
+@Composable
+fun homeShelfLabel(title: String): String = localizeShelfTitle(title.trim().replace('\n', ' '))
 
 /**
  * Recents mirrors the artist page's top-tracks pager. Any other lead shelf keeps
@@ -460,59 +910,87 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     shelves: List<HomeShelf>,
     onItemClick: (ShelfItem, String) -> Unit,
     onItemLongPress: ((ShelfItem) -> Unit)?,
-    onPlayAllQuickPicks: ((HomeShelf) -> Unit)?,
     currentSong: Song?,
     isPlaying: Boolean,
-    onMoodClick: ((String) -> Unit)?,
-    onListenTogetherClick: (() -> Unit)?,
-    podcastShows: List<PodcastProviderShow>,
-    onPodcastsClick: ((PodcastProviderShow?) -> Unit)?,
     firstIsHero: Boolean = true,
-    recentsViewType: LibraryViewType,
-    onRecentsViewTypeToggle: () -> Unit,
-    homeLayout: HomeLayout,
+    onMoodClick: ((TopPickMood, String) -> Unit)? = null,
+    onMoodsShowAll: () -> Unit = {},
+    onPlaySongs: ((List<Song>) -> Unit)? = null,
+    homeLayout: HomeLayout = HomeLayout(),
+    /** The Top Picks row, when there is one to draw. Only placed by a custom [homeLayout]. */
+    topPicksItem: (@Composable () -> Unit)? = null,
+    /** The row is still being built: a custom [homeLayout] holds its slot with a skeleton. */
+    topPicksPending: Boolean = false,
+    /** Recents is still loading: a skeleton holds the slot it will land in. */
+    recentsPending: Boolean = false,
 ) {
-    val quickPicksIndex = shelves.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
-    val albumsIndex = shelves.indexOfFirst { it.title.contains("Albums", ignoreCase = true) }
-    val orderedShelves = if (!homeLayout.isCustom && quickPicksIndex >= 0 && albumsIndex >= 0 && albumsIndex < quickPicksIndex) {
-        shelves.toMutableList().apply { add(quickPicksIndex, removeAt(albumsIndex)) }
-    } else shelves
-    val shelfByKey = orderedShelves.associateBy { homeShelfKey(it.title) }
-    val defaultKeys = buildList {
-        orderedShelves.forEach { shelf ->
-            add(homeShelfKey(shelf.title))
-            if (shelf.title.equals("Quick picks", ignoreCase = true) && onMoodClick != null) add(HOME_SLOT_MOODS)
+    // Recents swaps places with Listen again once it arrives, so its slot is
+    // reserved from the start and the rows beneath are already where they will stay.
+    val withRecentsSlot = if (
+        recentsPending && shelves.none { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
+    ) {
+        listOf(HomeShelf(title = RECENTS_TITLE, items = emptyList())) + shelves
+    } else {
+        shelves
+    }
+    val ordered = withRecentsSlot.withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain().withSpeedDialFirst()
+    // Find Your Mood sits right after Recents, so it never follows another
+    // row of cards directly. Without Recents (a guest) it goes after the second shelf.
+    val moodAt = (ordered.indexOfFirst { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
+        .takeIf { it >= 0 } ?: 1) + 1
+    fun shelfItem(index: Int, shelf: HomeShelf) {
+        if (recentsPending && shelf.items.isEmpty() && shelf.title == RECENTS_TITLE) {
+            recentlyPlayedSkeleton()
+            return
         }
-        if (onMoodClick != null && HOME_SLOT_MOODS !in this) add(HOME_SLOT_MOODS)
-    }.distinct()
-    val orderedKeys = homeLayout.arrange(defaultKeys, dropHidden = true) { it }
-    var podcastShelfInserted = false
-    var shelfIndex = 0
-    orderedKeys.forEach { key ->
-        if (key == HOME_SLOT_MOODS) {
-            item(key = "home-find-your-mood") { FindYourMood(onMoodClick) }
-            return@forEach
-        }
-        val shelf = shelfByKey[key] ?: return@forEach
-        if (!podcastShelfInserted && shelf.title.contains("Albums", ignoreCase = true)) {
-            item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
-            item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
-            podcastShelfInserted = true
-        }
-        val currentShelfIndex = shelfIndex++
-        item(key = "home-shelf:$key") {
+        item(key = shelf.title + index, contentType = shelf.layout) {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
-            if (shelf.title.equals(RECENTS_TITLE, ignoreCase = true) || shelf.title.equals("Recently played", ignoreCase = true)) {
+            val isListenAgain = LISTEN_AGAIN_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
+            val isQuickPicks = QUICK_PICKS_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
+            // Quick picks is one row of square cards, as Recently Played is on
+            // Apple Music; Listen again and Recents keep the paged list.
+            if (SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }) {
+                SpeedDialShelf(
+                    shelf = shelf.copy(
+                        title = localizeShelfTitle(shelf.title),
+                        subtitle = localizeShelfSubtitle(shelf.subtitle),
+                    ),
+                    onItemClick = openItem,
+                    onItemLongPress = onItemLongPress,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    onPlaySongs = onPlaySongs,
+                )
+            } else if (shelf.isMixShelf()) {
+                MixCoverShelf(
+                    shelf = shelf,
+                    onItemClick = openItem,
+                    onItemLongPress = onItemLongPress,
+                )
+            } else if (onPlaySongs != null && shelf.isPlaylistPreviewShelf()) {
+                PlaylistPreviewShelf(
+                    shelf = shelf,
+                    onItemClick = openItem,
+                    onItemLongPress = onItemLongPress,
+                    onPlaySongs = onPlaySongs,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                )
+            } else if (isListenAgain || (
+                    !isQuickPicks && (
+                        shelf.layout == ShelfLayout.LIST ||
+                            shelf.title.equals(RECENTS_TITLE, ignoreCase = true)
+                        )
+                    )
+            ) {
                 RecentShelf(
                     shelf = shelf,
                     onItemClick = openItem,
                     onItemLongPress = onItemLongPress,
                     currentSong = currentSong,
                     isPlaying = isPlaying,
-                    viewType = recentsViewType,
-                    onViewTypeToggle = onRecentsViewTypeToggle,
                 )
-            } else if (currentShelfIndex == 0 && firstIsHero) {
+            } else if (index == 0 && firstIsHero && shelf.layout == ShelfLayout.CARDS) {
                 HeroShelf(
                     shelf = shelf,
                     onItemClick = openItem,
@@ -522,43 +1000,76 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                 )
             } else {
                 Shelf(
-                    shelf = shelf,
+                    shelf = if (isQuickPicks || isListenAgain) {
+                        shelf.copy(
+                            title = localizeShelfTitle(shelf.title),
+                            subtitle = localizeShelfSubtitle(shelf.subtitle),
+                        )
+                    } else {
+                        shelf
+                    },
                     onItemClick = openItem,
                     onItemLongPress = onItemLongPress,
-                    onPlayAllQuickPicks = onPlayAllQuickPicks,
                     currentSong = currentSong,
                     isPlaying = isPlaying,
                 )
             }
         }
-        if (shelf.title.equals("Quick picks", ignoreCase = true)) {
-            item(key = "home-listen-together") {
-                ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
-            }
-            if (!podcastShelfInserted) {
-                item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
-                podcastShelfInserted = true
+    }
+
+    if (homeLayout.isCustom) {
+        // The listener's own order: Top Picks, Find Your Mood and every shelf are
+        // slots on one list. What the layout has not seen yet goes last.
+        val entries = buildList<Pair<String, HomeShelf?>> {
+            if (topPicksItem != null || topPicksPending) add(HOME_SLOT_TOP_PICKS to null)
+            if (onMoodClick != null) add(HOME_SLOT_MOODS to null)
+            ordered.forEach { add(homeShelfKey(it.title) to it) }
+        }
+        var shelfIndex = 0
+        homeLayout.arrange(entries) { it.first }.forEach { (key, shelf) ->
+            when {
+                shelf != null -> shelfItem(shelfIndex++, shelf)
+                key == HOME_SLOT_TOP_PICKS -> if (topPicksItem != null) {
+                    item(key = "top-picks") { topPicksItem() }
+                } else {
+                    topPicksSkeleton()
+                }
+                else -> item(key = "find-your-mood") {
+                    if (onMoodClick != null) FindYourMoodShelf(onMoodClick, onMoodsShowAll)
+                }
             }
         }
+        return
     }
-    if (!podcastShelfInserted) {
-        item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
-        item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+
+    ordered.forEachIndexed { index, shelf ->
+        if (index == moodAt && onMoodClick != null) {
+            item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
+        }
+        shelfItem(index, shelf)
+    }
+    if (moodAt >= ordered.size && onMoodClick != null) {
+        item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
     }
 }
 
 @Composable
-private fun HomePodcastsShelf(shows: List<PodcastProviderShow>, onOpen: ((PodcastProviderShow?) -> Unit)?) {
+private fun HomePodcastsShelf(
+    shows: List<PodcastProviderShow>,
+    onOpen: (PodcastProviderShow?) -> Unit,
+) {
     Column(Modifier.padding(bottom = 22.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Podcasts", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
-            if (onOpen != null) {
-                Text("See all", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { onOpen(null) })
-            }
+            Text(
+                "See all",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { onOpen(null) },
+            )
         }
         ShelfRow(
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
@@ -566,28 +1077,29 @@ private fun HomePodcastsShelf(shows: List<PodcastProviderShow>, onOpen: ((Podcas
         ) {
             if (shows.isEmpty()) {
                 item(key = "home-podcasts-discover") {
-                    Card(
-                        onClick = { onOpen?.invoke(null) },
-                        modifier = Modifier.width(SHELF_CARD_WIDTH).height(SHELF_CARD_WIDTH),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    Column(
+                        modifier = Modifier.width(SHELF_CARD_WIDTH).clickable { onOpen(null) },
                     ) {
-                        Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center) {
-                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(34.dp))
-                            Spacer(Modifier.height(12.dp))
-                            Text("Discover podcasts", style = MaterialTheme.typography.titleSmall)
-                            Text("Browse shows and episodes", style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Box(
+                            Modifier.size(SHELF_CARD_WIDTH)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(42.dp))
                         }
+                        Text("Discover podcasts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+                        Text("Browse shows and episodes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
             items(shows, key = { "home-podcast:${it.browseId}" }) { show ->
                 Column(Modifier.width(SHELF_CARD_WIDTH)) {
-                    Card(
-                        onClick = { onOpen?.invoke(show) },
-                        modifier = Modifier.size(SHELF_CARD_WIDTH),
-                        shape = RoundedCornerShape(14.dp),
+                    Box(
+                        Modifier.size(SHELF_CARD_WIDTH)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .clickable { onOpen(show) },
                     ) {
                         if (!show.thumbnailUrl.isNullOrBlank()) {
                             AsyncImage(
@@ -597,15 +1109,13 @@ private fun HomePodcastsShelf(shows: List<PodcastProviderShow>, onOpen: ((Podcas
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.size(42.dp))
-                            }
+                            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = Modifier.align(Alignment.Center).size(42.dp))
                         }
                     }
-                    Text(show.title, style = MaterialTheme.typography.titleMedium, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
-                    if (show.subtitle.isNotBlank()) Text(show.subtitle, style = MaterialTheme.typography.bodyMedium, maxLines = 1,
-                        overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(show.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp))
+                    if (show.subtitle.isNotBlank()) {
+                        Text(show.subtitle, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
@@ -614,73 +1124,41 @@ private fun HomePodcastsShelf(shows: List<PodcastProviderShow>, onOpen: ((Podcas
 
 /** The same four-rows-per-page treatment used by an artist's Top songs. */
 @Composable
-private fun RecentShelf(
+internal fun RecentShelf(
     shelf: HomeShelf,
     onItemClick: (ShelfItem) -> Unit,
     onItemLongPress: ((ShelfItem) -> Unit)?,
     currentSong: Song?,
     isPlaying: Boolean,
-    viewType: LibraryViewType,
-    onViewTypeToggle: () -> Unit,
 ) {
-    Column(Modifier.padding(bottom = 28.dp)) {
-        RecentSectionHeader(
-            title = shelf.title,
-            subtitle = shelf.subtitle,
-            viewType = viewType,
-            onViewTypeToggle = onViewTypeToggle,
-        )
+    Column(Modifier.padding(bottom = 26.dp)) {
+        RecentSectionHeader(title = localizeShelfTitle(shelf.title), subtitle = localizeShelfSubtitle(shelf.subtitle))
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
-        val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
-        if (viewType == LibraryViewType.LIST) {
-            BoxWithConstraints {
-                // The docked player leaves a tablet's Home pane narrower than
-                // the full window. Keep the rows readable, but use that pane
-                // efficiently: the phone-sized 400dp cap otherwise leaves only
-                // one full column and a sliver of the next on most tablets.
-                val columnWidth = if (maxWidth >= 480.dp) {
-                    minOf(maxWidth * 0.42f, 300.dp)
-                } else {
-                    trackColumnWidth(maxWidth)
-                }
-                ShelfRow(
-                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    items(
-                        shelf.items.chunked(RECENT_TRACKS_PER_COLUMN),
-                        key = { column -> column.joinToString("|") { it.videoId ?: it.browseId ?: it.title } },
-                    ) { column ->
-                        Column(Modifier.width(columnWidth)) {
-                            column.forEach { item ->
-                                RecentTrackRow(
-                                    item = item,
-                                    onClick = { onItemClick(item) },
-                                    onLongPress = onItemLongPress?.let { { it(item) } },
-                                    isCurrent = isCurrentItem(item),
-                                    isPlaying = isCurrentItem(item) && isPlaying,
+        BoxWithConstraints {
+            val columnWidth = trackColumnWidth(maxWidth)
+            val recentColumns = remember(shelf.items) { shelf.items.chunked(RECENT_TRACKS_PER_COLUMN) }
+            ShelfRow(
+                contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(recentColumns, contentType = { "recent-column" }) { column ->
+                    Column(Modifier.width(columnWidth)) {
+                        column.forEachIndexed { index, item ->
+                            RecentTrackRow(
+                                item = item,
+                                onClick = { onItemClick(item) },
+                                onLongPress = onItemLongPress?.let { { it(item) } },
+                                isCurrent = isCurrentItem(item),
+                                isPlaying = isCurrentItem(item) && isPlaying,
+                            )
+                            if (index < column.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(start = 60.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outline,
                                 )
                             }
                         }
-                    }
-                }
-            }
-        } else {
-            BoxWithConstraints {
-                val cardWidth = heroCardWidth(maxWidth)
-                ShelfRow(
-                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
-                        HeroCard(
-                            item = item,
-                            onClick = { onItemClick(item) },
-                            onLongPress = onItemLongPress?.let { { it(item) } },
-                            modifier = Modifier.width(cardWidth),
-                            isCurrent = isCurrentItem(item),
-                            isPlaying = isCurrentItem(item) && isPlaying,
-                        )
                     }
                 }
             }
@@ -689,59 +1167,26 @@ private fun RecentShelf(
 }
 
 @Composable
-private fun RecentSectionHeader(
-    title: String,
-    subtitle: String,
-    viewType: LibraryViewType,
-    onViewTypeToggle: () -> Unit,
-) {
-    Row(
+private fun RecentSectionHeader(title: String, subtitle: String) {
+    Column(
         modifier = Modifier
             .padding(horizontal = PAGE_GUTTER, vertical = 10.dp)
             .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (subtitle.isNotBlank()) {
             Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-            )
-            if (subtitle.isNotBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Spacer(Modifier.width(8.dp))
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .clickable(role = Role.Button, onClick = onViewTypeToggle),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (viewType == LibraryViewType.LIST) {
-                    AudifyIcons.GridView
-                } else {
-                    AudifyIcons.ListView
-                },
-                contentDescription = stringResource(
-                    if (viewType == LibraryViewType.LIST) {
-                        Res.string.switch_to_grid_view
-                    } else {
-                        Res.string.switch_to_list_view
-                    },
-                ),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(19.dp),
             )
         }
     }
@@ -763,6 +1208,7 @@ private fun RecentTrackRow(
         onLongPress = onLongPress,
         isCurrent = isCurrent,
         isPlaying = isPlaying,
+        isVideo = item.isVideo,
     )
 }
 
@@ -780,6 +1226,8 @@ fun CompactTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    /** A music video: its thumbnail at 16:9 rather than squared off. */
+    isVideo: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -789,24 +1237,25 @@ fun CompactTrackRow(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(54.dp)) {
+        Box(Modifier.trackArtSize(48.dp, isVideo)) {
             AsyncImage(
                 model = thumbnailUrl.artworkAt(ROW_ART_PX),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(7.dp))
+                    .thumbnailBorder(RoundedCornerShape(7.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
         }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
+                color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -833,408 +1282,48 @@ fun CompactTrackRow(
  * system font scale.
  */
 @Composable
-private fun HomeTitle(
-    onSearchClick: (() -> Unit)?,
-    onProfileClick: (() -> Unit)?,
-    profileThumbnailUrl: String?,
-    userName: String?,
-    greetingMorning: String,
-    greetingAfternoon: String,
-    greetingEvening: String,
-    onCustomizeClick: (() -> Unit)?,
-    modifier: Modifier = Modifier,
-) {
-    val greeting by produceState(initialValue = homeGreeting(greetingMorning, greetingAfternoon, greetingEvening)) {
-        while (true) {
-            value = homeGreeting(greetingMorning, greetingAfternoon, greetingEvening)
-            delay(60_000L)
-        }
-    }
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(Res.drawable.ic_logo),
-            contentDescription = "Audify",
-            tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.width(40.dp).height(27.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
+private fun HomeTitle(title: String, hideBranding: Boolean, modifier: Modifier = Modifier) {
+    val style = MaterialTheme.typography.displayLarge
+    val logoHeight = with(LocalDensity.current) { (style.fontSize * LOGO_TO_FONT).toDp() }
+    Column(modifier = modifier.padding(horizontal = PAGE_GUTTER, vertical = 8.dp)) {
+        if (hideBranding) {
             Text(
-                text = greeting,
-                style = MaterialTheme.typography.titleLarge,
+                text = title,
+                style = style,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(bottom = 8.dp),
             )
-            if (!userName.isNullOrBlank()) {
-                Text(
-                    text = userName,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick)
-        HomeHeaderAction(Icons.Rounded.Tune, "Customize Home", onCustomizeClick)
-        Box(
-            modifier = Modifier.size(48.dp).clip(CircleShape)
-                .clickable(enabled = onProfileClick != null, role = Role.Button) { onProfileClick?.invoke() },
-            contentAlignment = Alignment.Center,
-        ) {
-            if (!profileThumbnailUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = profileThumbnailUrl,
-                    contentDescription = "Profile",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(34.dp).clip(CircleShape),
-                )
-            } else {
-                Icon(Icons.Rounded.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(26.dp))
-            }
-        }
-    }
-}
-
-private fun homeGreeting(morning: String, afternoon: String, evening: String): String =
-    when (LocalTime.now().hour) {
-        in 5..11 -> morning
-        in 12..16 -> afternoon
-        else -> evening
-    }
-
-@Composable
-private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: (() -> Unit)?) {
-    Box(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .clickable(
-                enabled = onClick != null,
-                role = Role.Button,
-                onClick = { onClick?.invoke() },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
-    }
-}
-
-private data class HomeMoodCard(val title: String, val colors: List<Color>)
-
-private val HOME_MOOD_CARDS = listOf(
-    HomeMoodCard("Energy", listOf(Color(0xFFFF7043), Color(0xFFE53970))),
-    HomeMoodCard("Relax", listOf(Color(0xFF45B7A0), Color(0xFF2674A8))),
-    HomeMoodCard("Feeling Blue", listOf(Color(0xFF4385D1), Color(0xFF5146A8))),
-    HomeMoodCard("Feel Good", listOf(Color(0xFFFFB52E), Color(0xFFFF6F61))),
-    HomeMoodCard("Focus", listOf(Color(0xFF6976D8), Color(0xFF39468E))),
-    HomeMoodCard("Heartbreak", listOf(Color(0xFFB85A83), Color(0xFF563D79))),
-    HomeMoodCard("Love", listOf(Color(0xFFFF668C), Color(0xFFB83272))),
-)
-
-@Composable
-private fun FindYourMood(onMoodClick: ((String) -> Unit)?) {
-    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-        SectionHeader("Find Your Mood", emphasized = true)
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val cardWidth = if (maxWidth >= 720.dp) 164.dp else 208.dp
-            ShelfRow(
-                contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                items(HOME_MOOD_CARDS, key = HomeMoodCard::title) { mood ->
-                    MoodArtCard(
-                        mood = mood,
-                        onClick = { onMoodClick?.invoke(mood.title) },
-                        modifier = Modifier.width(cardWidth),
-                        enabled = onMoodClick != null,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MoodArtCard(
-    mood: HomeMoodCard,
-    onClick: () -> Unit,
-    modifier: Modifier,
-    enabled: Boolean,
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
-    val motion by animateFloatAsState(
-        targetValue = if (pressed) 1f else 0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "${mood.title}-line-art-press",
-    )
-    // One quiet breathing cycle per composed card. LazyRow disposes distant
-    // cards, so off-screen artwork does not keep an animation clock running.
-    val ambient = if (reduceAnimation) {
-        0f
-    } else {
-        rememberInfiniteTransition(label = "${mood.title}-ambient").animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "${mood.title}-breath",
-        ).value
-    }
-    Column(
-        modifier = modifier.clickable(
-            enabled = enabled,
-            role = Role.Button,
-            interactionSource = interaction,
-            onClick = onClick,
-        ),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Brush.linearGradient(mood.colors)),
-        ) {
-            // A restrained highlight makes the card feel tactile without
-            // introducing a costly blur or a permanent animated shadow.
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.12f + ambient * 0.05f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.08f),
-                            ),
-                        ),
-                    ),
-            )
-            MoodLineArt(
-                mood = mood.title,
-                progress = motion,
-                phase = ambient,
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    val scale = 1f + motion * 0.045f + ambient * 0.012f
-                    scaleX = scale
-                    scaleY = scale
-                    rotationZ = motion * (if (mood.title == "Feeling Blue") -2f else 2f)
-                },
+        } else {
+            Wordmark(
+                logoHeight = logoHeight,
+                fontSize = style.fontSize * AUDIFY_TO_FONT,
+                color = MaterialTheme.colorScheme.onBackground,
+                gap = 2.dp,
+                modifier = Modifier.padding(bottom = 14.dp),
             )
         }
-        Text(
-            text = mood.title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp),
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
         )
+        // "Listen now" is hidden for now; the wordmark above stays.
+        // Text(
+        //     text = title,
+        //     style = style,
+        //     color = MaterialTheme.colorScheme.onBackground,
+        // )
     }
 }
 
-/** Crisp, mood-specific geometry; the linework responds to the card's press state. */
-@Composable
-private fun MoodLineArt(mood: String, progress: Float, phase: Float, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val w = size.width
-        val h = size.height
-        val unit = minOf(w, h)
-        val cx = w * 0.62f
-        val cy = h * 0.40f
-        val base = Color.White.copy(alpha = 0.76f + progress * 0.18f + phase * 0.06f)
-        val faint = Color.White.copy(alpha = 0.30f + progress * 0.18f + phase * 0.10f)
-        val stroke = (unit * 0.009f).coerceAtLeast(1.5f)
-        val lineStyle = Stroke(width = stroke, cap = StrokeCap.Round)
-        withTransform({
-            rotate(degrees = progress * 5f + phase * 0.8f, pivot = Offset(cx, cy))
-            scale(scaleX = 1f + progress * 0.04f + phase * 0.012f, scaleY = 1f + progress * 0.04f + phase * 0.012f, pivot = Offset(cx, cy))
-        }) {
-            when (mood) {
-                "Energy" -> {
-                    val bolt = Path().apply {
-                        moveTo(w * .60f, h * .12f)
-                        lineTo(w * .35f, h * .53f)
-                        lineTo(w * .52f, h * .53f)
-                        lineTo(w * .42f, h * .86f)
-                        lineTo(w * .72f, h * .42f)
-                        lineTo(w * .55f, h * .42f)
-                        close()
-                    }
-                    drawPath(bolt, faint.copy(alpha = .22f + phase * .12f))
-                    drawPath(bolt, base, style = Stroke(stroke * 1.45f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-                    drawLine(faint, Offset(w * .18f, h * .32f), Offset(w * .30f, h * .32f), stroke, StrokeCap.Round)
-                    drawLine(faint, Offset(w * .70f, h * .72f), Offset(w * .84f, h * .72f), stroke, StrokeCap.Round)
-                }
-                "Energize" -> {
-                    val pulse = Path().apply {
-                        moveTo(w * .28f, h * .42f)
-                        lineTo(w * .43f, h * .42f)
-                        lineTo(w * .51f, h * .22f)
-                        lineTo(w * .60f, h * .62f)
-                        lineTo(w * .70f, h * .34f)
-                        lineTo(w * .77f, h * .42f)
-                        lineTo(w * .92f, h * .42f)
-                    }
-                    drawPath(pulse, base, style = Stroke(stroke * 1.5f, cap = StrokeCap.Round))
-                    repeat(3) { i -> drawCircle(faint, radius = unit * (.13f + i * .085f), center = Offset(cx, cy), style = lineStyle) }
-                }
-                "Workout" -> {
-                    val bolt = Path().apply {
-                        moveTo(w * .63f, h * .12f); lineTo(w * .43f, h * .49f)
-                        lineTo(w * .59f, h * .49f); lineTo(w * .47f, h * .78f)
-                        lineTo(w * .78f, h * .37f); lineTo(w * .62f, h * .37f); close()
-                    }
-                    drawPath(bolt, base, style = lineStyle)
-                    drawLine(faint, Offset(w * .22f, h * .25f), Offset(w * .34f, h * .25f), stroke, StrokeCap.Round)
-                    drawLine(faint, Offset(w * .18f, h * .34f), Offset(w * .30f, h * .34f), stroke, StrokeCap.Round)
-                    drawLine(faint, Offset(w * .72f, h * .76f), Offset(w * .86f, h * .76f), stroke, StrokeCap.Round)
-                }
-                "Relax" -> {
-                    repeat(3) { i ->
-                        val width = unit * (.48f + i * .10f)
-                        val height = unit * (.14f + i * .018f)
-                        val left = cx - width / 2f
-                        val top = cy - height / 2f + (i - 1) * unit * .12f
-                        drawOval(
-                            color = if (i == 1) base else faint,
-                            topLeft = Offset(left, top),
-                            size = androidx.compose.ui.geometry.Size(width, height),
-                            style = Stroke(stroke * 1.15f, cap = StrokeCap.Round),
-                        )
-                    }
-                }
-                "Feeling Blue" -> {
-                    val spiral = Path().apply {
-                        val radius = unit * .30f
-                        moveTo(cx + radius, cy)
-                        cubicTo(cx + radius, cy - radius, cx - radius, cy - radius, cx - radius, cy)
-                        cubicTo(cx - radius, cy + radius, cx + radius, cy + radius, cx + radius * .56f, cy)
-                        cubicTo(cx + radius * .56f, cy - radius * .56f, cx - radius * .42f, cy - radius * .42f, cx - radius * .42f, cy)
-                        cubicTo(cx - radius * .42f, cy + radius * .42f, cx + radius * .22f, cy + radius * .42f, cx + radius * .22f, cy)
-                        cubicTo(cx + radius * .22f, cy - radius * .22f, cx - radius * .08f, cy - radius * .22f, cx - radius * .08f, cy)
-                    }
-                    drawPath(spiral, base, style = Stroke(stroke * 1.25f, cap = StrokeCap.Round))
-                }
-                "Feel Good" -> {
-                    val sparkle = Path().apply {
-                        moveTo(cx, cy - unit * .34f)
-                        cubicTo(cx + unit * .08f, cy - unit * .08f, cx + unit * .08f, cy - unit * .08f, cx + unit * .34f, cy)
-                        cubicTo(cx + unit * .08f, cy + unit * .08f, cx + unit * .08f, cy + unit * .08f, cx, cy + unit * .34f)
-                        cubicTo(cx - unit * .08f, cy + unit * .08f, cx - unit * .08f, cy + unit * .08f, cx - unit * .34f, cy)
-                        cubicTo(cx - unit * .08f, cy - unit * .08f, cx - unit * .08f, cy - unit * .08f, cx, cy - unit * .34f)
-                        close()
-                    }
-                    drawPath(sparkle, faint.copy(alpha = .20f + phase * .10f))
-                    drawPath(sparkle, base, style = Stroke(stroke * 1.3f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-                }
-                "Heartbreak" -> {
-                    val heart = Path().apply {
-                        moveTo(w * .62f, h * .78f)
-                        cubicTo(w * .05f, h * .43f, w * .30f, h * .12f, w * .50f, h * .34f)
-                        cubicTo(w * .70f, h * .12f, w * .95f, h * .43f, w * .62f, h * .78f)
-                    }
-                    drawPath(heart, base, style = lineStyle)
-                    drawLine(faint, Offset(w * .53f, h * .31f), Offset(w * .43f, h * .52f), stroke, StrokeCap.Round)
-                    drawLine(faint, Offset(w * .43f, h * .52f), Offset(w * .56f, h * .58f), stroke, StrokeCap.Round)
-                }
-                "Love" -> {
-                    val heart = Path().apply {
-                        moveTo(cx, h * .78f)
-                        cubicTo(w * .08f, h * .38f, w * .34f, h * .10f, cx, h * .34f)
-                        cubicTo(w * .86f, h * .10f, w * .92f, h * .38f, cx, h * .78f)
-                    }
-                    drawPath(heart, base, style = lineStyle)
-                    drawCircle(faint, unit * (.34f + phase * .012f), Offset(cx, cy), style = lineStyle)
-                }
-                "Focus" -> {
-                    repeat(4) { i ->
-                        drawCircle(if (i == 0) base else faint, radius = unit * (.07f + i * .09f), center = Offset(cx, cy), style = lineStyle)
-                    }
-                    drawLine(base, Offset(cx - unit * .34f, cy), Offset(cx - unit * .20f, cy), stroke, StrokeCap.Round)
-                    drawLine(base, Offset(cx + unit * .20f, cy), Offset(cx + unit * .34f, cy), stroke, StrokeCap.Round)
-                    drawLine(base, Offset(cx, cy - unit * .34f), Offset(cx, cy - unit * .20f), stroke, StrokeCap.Round)
-                    drawLine(base, Offset(cx, cy + unit * .20f), Offset(cx, cy + unit * .34f), stroke, StrokeCap.Round)
-                }
-                "Commute" -> {
-                    val road = Path().apply {
-                        moveTo(w * .12f, h * .86f); lineTo(w * .48f, h * .24f)
-                        moveTo(w * .88f, h * .86f); lineTo(w * .48f, h * .24f)
-                    }
-                    drawPath(road, base, style = lineStyle)
-                    repeat(3) { i ->
-                        val y = h * (.55f + i * .12f)
-                        val half = unit * (.025f + i * .025f)
-                        drawLine(faint, Offset(w * .48f - half, y), Offset(w * .48f + half, y), stroke, StrokeCap.Round)
-                    }
-                    drawCircle(faint, unit * .045f, Offset(w * .78f, h * .22f), style = lineStyle)
-                }
-                else -> {
-                    repeat(12) { i ->
-                        val angle = (i * 30f + progress * 12f) * (kotlin.math.PI.toFloat() / 180f)
-                        val inner = unit * .12f
-                        val outer = unit * (.23f + if (i % 2 == 0) .10f else .035f)
-                        drawLine(
-                            if (i % 2 == 0) base else faint,
-                            Offset(cx + kotlin.math.cos(angle) * inner, cy + kotlin.math.sin(angle) * inner),
-                            Offset(cx + kotlin.math.cos(angle) * outer, cy + kotlin.math.sin(angle) * outer),
-                            stroke,
-                            StrokeCap.Round,
-                        )
-                    }
-                    drawCircle(base, unit * (.09f + progress * .015f), Offset(cx, cy), style = lineStyle)
-                    drawCircle(faint, unit * .39f, Offset(cx, cy), style = lineStyle)
-                }
-            }
-        }
-    }
-}
+/** The wordmark's height against the heading's font size. */
+private const val LOGO_TO_FONT = 0.70f
 
-@Composable
-private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?) {
-    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-        SectionHeader("Listen together", emphasized = true)
-        ShelfRow(
-            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            items(listOf("Start a session", "Join a session").withIndex().toList(), key = { it.value }) { (index, label) ->
-                Box(
-                    modifier = Modifier.width(300.dp).height(142.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable(enabled = onClick != null, role = Role.Button) { onClick?.invoke() },
-                ) {
-                    val cardArtwork = artworks.getOrNull(index)
-                    if (!cardArtwork.isNullOrBlank()) {
-                        AsyncImage(model = cardArtwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                    }
-                    Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .86f), Color.Black.copy(alpha = .28f))),
-                        ),
-                    )
-                    Column(Modifier.align(Alignment.CenterStart).padding(18.dp)) {
-                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .78f))
-                        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
-                    }
-                }
-            }
-        }
-    }
-}
+/** The Audify wordmark's size against the heading's font size. */
+private const val AUDIFY_TO_FONT = 0.88f
+
+/** ic_logo's viewport, 730 x 484. */
+private const val LOGO_ASPECT = 730f / 484f
 
 /**
  * Shared by the home feed, Explore and Library so headings line up across tabs.
@@ -1244,26 +1333,19 @@ private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?)
  * Home and Explore never pass it, so their heading is unchanged.
  */
 @Composable
-internal fun SectionHeader(
-    title: String,
-    subtitle: String = "",
-    onShowAll: (() -> Unit)? = null,
-    actionLabel: String? = null,
-    emphasized: Boolean = false,
-    horizontalInset: androidx.compose.ui.unit.Dp = PAGE_GUTTER,
-) {
+internal fun SectionHeader(title: String, subtitle: String = "", onShowAll: (() -> Unit)? = null) {
     val displayTitle = localizeShelfTitle(title)
     val displaySubtitle = localizeShelfSubtitle(subtitle)
     Row(
         modifier = Modifier
-            .padding(horizontal = horizontalInset, vertical = if (emphasized) 8.dp else 10.dp)
+            .padding(horizontal = PAGE_GUTTER, vertical = 10.dp)
             .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = displayTitle,
-                style = if (emphasized) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -1271,7 +1353,7 @@ internal fun SectionHeader(
             if (displaySubtitle.isNotBlank()) {
                 Text(
                     text = displaySubtitle,
-                    style = if (emphasized) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1279,19 +1361,14 @@ internal fun SectionHeader(
             }
         }
         if (onShowAll != null) {
-            Box(
+            Text(
+                text = stringResource(Res.string.show_all),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .defaultMinSize(minHeight = 48.dp)
-                    .clickable(role = Role.Button, onClick = onShowAll)
-                    .padding(start = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = actionLabel ?: stringResource(Res.string.show_all),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
+                    .clickable(onClick = onShowAll)
+                    .padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
+            )
         }
     }
 }
@@ -1302,10 +1379,14 @@ internal fun localizeShelfTitle(title: String): String {
         trimmed.equals("Recents", ignoreCase = true) ||
             trimmed.equals("Recently played", ignoreCase = true) ||
             trimmed.equals("Gần đây", ignoreCase = true) ||
+            trimmed.equals("Terakhir diputar", ignoreCase = true) ||
+            trimmed.equals("Diputar baru-baru ini", ignoreCase = true) ||
             trimmed.equals("最近", ignoreCase = true) ->
             stringResource(Res.string.shelf_recents)
         trimmed.equals("Playlists", ignoreCase = true) ||
             trimmed.equals("Danh sách phát", ignoreCase = true) ||
+            trimmed.equals("Playlist", ignoreCase = true) ||
+            trimmed.equals("Daftar putar", ignoreCase = true) ||
             trimmed.equals("再生リスト", ignoreCase = true) ->
             stringResource(Res.string.playlists)
         trimmed.equals("Albums", ignoreCase = true) ||
@@ -1314,37 +1395,57 @@ internal fun localizeShelfTitle(title: String): String {
             stringResource(Res.string.albums)
         trimmed.equals("Artists", ignoreCase = true) ||
             trimmed.equals("Nghệ sĩ", ignoreCase = true) ||
+            trimmed.equals("Artis", ignoreCase = true) ||
             trimmed.equals("アーティスト", ignoreCase = true) ->
             stringResource(Res.string.artists)
         trimmed.equals("Subscriptions", ignoreCase = true) ||
             trimmed.equals("Đã đăng ký", ignoreCase = true) ||
+            trimmed.equals("Langganan", ignoreCase = true) ||
             trimmed.equals("登録チャンネル", ignoreCase = true) ->
             stringResource(Res.string.subscriptions)
         trimmed.equals("Trending community playlists", ignoreCase = true) ||
             trimmed.equals("Danh sách phát cộng đồng thịnh hành", ignoreCase = true) ||
+            trimmed.equals("Playlist komunitas yang sedang tren", ignoreCase = true) ||
+            trimmed.equals("Playlist komunitas populer", ignoreCase = true) ||
             trimmed.equals("Danh sách phát thịnh hành trong cộng đồng người dùng", ignoreCase = true) ||
             trimmed.equals("急上昇のコミュニティ再生リスト", ignoreCase = true) ->
             stringResource(Res.string.shelf_trending_community_playlists)
         trimmed.equals("Featured playlists for you", ignoreCase = true) ||
             trimmed.equals("Danh sách phát đề xuất cho bạn", ignoreCase = true) ||
+            trimmed.equals("Playlist pilihan untuk Anda", ignoreCase = true) ||
+            trimmed.equals("Playlist unggulan untuk Anda", ignoreCase = true) ||
             trimmed.equals("Danh sách phát nổi bật dành cho bạn", ignoreCase = true) ||
             trimmed.equals("おすすめの再生リスト", ignoreCase = true) ->
             stringResource(Res.string.shelf_featured_playlists_for_you)
+        SPEED_DIAL_TITLES.any { trimmed.equals(it, ignoreCase = true) } ->
+            stringResource(Res.string.shelf_speed_dial)
         trimmed.equals("Quick picks", ignoreCase = true) ||
             trimmed.equals("Lựa chọn nhanh", ignoreCase = true) ||
+            trimmed.equals("Pilihan cepat", ignoreCase = true) ||
             trimmed.equals("Chọn nhanh đài phát", ignoreCase = true) ||
             trimmed.equals("クイック ミックス", ignoreCase = true) ->
             stringResource(Res.string.shelf_quick_picks)
         trimmed.equals("Listen again", ignoreCase = true) ||
             trimmed.equals("Nghe lại", ignoreCase = true) ||
+            trimmed.equals("Dengarkan lagi", ignoreCase = true) ||
             trimmed.equals("もう一度聴く", ignoreCase = true) ->
             stringResource(Res.string.shelf_listen_again)
         trimmed.equals("Mixed for you", ignoreCase = true) ||
             trimmed.equals("Dành riêng cho bạn", ignoreCase = true) ||
+            trimmed.equals("Mix untuk Anda", ignoreCase = true) ||
+            trimmed.equals("Campuran untuk Anda", ignoreCase = true) ||
             trimmed.equals("ミックス", ignoreCase = true) ->
             stringResource(Res.string.shelf_mixed_for_you)
         trimmed.startsWith("Similar to", ignoreCase = true) -> {
             val rest = trimmed.substring(10).trim()
+            stringResource(Res.string.shelf_similar_to, rest)
+        }
+        trimmed.startsWith("Mirip dengan", ignoreCase = true) -> {
+            val rest = trimmed.substring(12).trim()
+            stringResource(Res.string.shelf_similar_to, rest)
+        }
+        trimmed.startsWith("Serupa dengan", ignoreCase = true) -> {
+            val rest = trimmed.substring(13).trim()
             stringResource(Res.string.shelf_similar_to, rest)
         }
         trimmed.startsWith("Tương tự như", ignoreCase = true) -> {
@@ -1353,42 +1454,62 @@ internal fun localizeShelfTitle(title: String): String {
         }
         trimmed.equals("Forgotten favorites", ignoreCase = true) ||
             trimmed.equals("Giai điệu quen thuộc", ignoreCase = true) ||
+            trimmed.equals("Favorit terlupakan", ignoreCase = true) ||
+            trimmed.equals("Favorit yang terlupakan", ignoreCase = true) ||
             trimmed.equals("よく聴いたお気に入りの曲", ignoreCase = true) ->
             stringResource(Res.string.shelf_forgotten_favorites)
         trimmed.equals("Recommended music videos", ignoreCase = true) ||
             trimmed.equals("Video âm nhạc đề xuất", ignoreCase = true) ||
+            trimmed.equals("Video musik yang direkomendasikan", ignoreCase = true) ||
+            trimmed.equals("Video musik rekomendasi", ignoreCase = true) ||
             trimmed.equals("おすすめのミュージック ビデオ", ignoreCase = true) ->
             stringResource(Res.string.shelf_recommended_music_videos)
         trimmed.equals("From your library", ignoreCase = true) ||
             trimmed.equals("Từ thư viện của bạn", ignoreCase = true) ||
+            trimmed.equals("Dari perpustakaan Anda", ignoreCase = true) ||
+            trimmed.equals("Dari koleksi Anda", ignoreCase = true) ||
+            trimmed.equals("Dari pustaka Anda", ignoreCase = true) ||
             trimmed.equals("ライブラリから", ignoreCase = true) ->
             stringResource(Res.string.shelf_from_your_library)
         trimmed.equals("Charts", ignoreCase = true) ||
             trimmed.equals("Bảng xếp hạng", ignoreCase = true) ||
+            trimmed.equals("Tangga lagu", ignoreCase = true) ||
+            trimmed.equals("Chart", ignoreCase = true) ||
             trimmed.equals("チャート", ignoreCase = true) ->
             stringResource(Res.string.shelf_charts)
         trimmed.equals("New releases", ignoreCase = true) ||
             trimmed.equals("Bản phát hành mới", ignoreCase = true) ||
+            trimmed.equals("Rilis baru", ignoreCase = true) ||
+            trimmed.equals("Rilisan baru", ignoreCase = true) ||
             trimmed.equals("最新リリース", ignoreCase = true) ->
             stringResource(Res.string.shelf_new_releases)
         trimmed.equals("Top music videos", ignoreCase = true) ||
             trimmed.equals("Video âm nhạc hàng đầu", ignoreCase = true) ||
+            trimmed.equals("Video musik teratas", ignoreCase = true) ||
+            trimmed.equals("Video musik terpopuler", ignoreCase = true) ||
             trimmed.equals("人気のミュージック ビデオ", ignoreCase = true) ->
             stringResource(Res.string.shelf_top_music_videos)
         trimmed.equals("For you", ignoreCase = true) ||
             trimmed.equals("Dành cho bạn", ignoreCase = true) ||
+            trimmed.equals("Untuk Anda", ignoreCase = true) ||
+            trimmed.equals("Untukmu", ignoreCase = true) ||
             trimmed.equals("あなたへのおすすめ", ignoreCase = true) ->
             stringResource(Res.string.shelf_for_you)
         trimmed.equals("Hits today", ignoreCase = true) ||
             trimmed.equals("Today's Hits", ignoreCase = true) ||
             trimmed.equals("Bản hit hôm nay", ignoreCase = true) ||
+            trimmed.equals("Hits hari ini", ignoreCase = true) ||
+            trimmed.equals("Hit hari ini", ignoreCase = true) ||
             trimmed.equals("今日のヒット曲", ignoreCase = true) ->
             stringResource(Res.string.shelf_hits_today)
         trimmed.equals("Artists on the rise", ignoreCase = true) ||
-            trimmed.equals("Nghệ sĩ đang lên", ignoreCase = true) ->
+            trimmed.equals("Nghệ sĩ đang lên", ignoreCase = true) ||
+            trimmed.equals("Artis yang sedang naik daun", ignoreCase = true) ||
+            trimmed.equals("Artis yang sedang naik", ignoreCase = true) ->
             stringResource(Res.string.shelf_artists_on_the_rise)
         trimmed.equals("Concerts", ignoreCase = true) ||
             trimmed.equals("Buổi hòa nhạc", ignoreCase = true) ||
+            trimmed.equals("Konser", ignoreCase = true) ||
             trimmed.equals("コンサート", ignoreCase = true) ->
             stringResource(Res.string.shelf_concerts)
         trimmed.startsWith("Shorts", ignoreCase = true) ||
@@ -1397,8 +1518,16 @@ internal fun localizeShelfTitle(title: String): String {
             stringResource(Res.string.shelf_shorts)
         trimmed.equals("Trending", ignoreCase = true) ||
             trimmed.equals("Thịnh hành", ignoreCase = true) ||
+            trimmed.equals("Sedang tren", ignoreCase = true) ||
+            trimmed.equals("Tren", ignoreCase = true) ||
             trimmed.equals("急上昇", ignoreCase = true) ->
             stringResource(Res.string.shelf_trending)
+        trimmed.equals("New albums & singles", ignoreCase = true) ||
+            trimmed.equals("New albums and singles", ignoreCase = true) ||
+            trimmed.equals("Album & single baru", ignoreCase = true) ||
+            trimmed.equals("Album & single terbaru", ignoreCase = true) ||
+            trimmed.equals("Album dan single terbaru", ignoreCase = true) ->
+            stringResource(Res.string.shelf_new_albums_singles)
         else -> title
     }
 }
@@ -1409,14 +1538,17 @@ internal fun localizeShelfSubtitle(subtitle: String): String {
         trimmed.equals("TOP TUNES RIGHT NOW", ignoreCase = true) ||
             trimmed.equals("Top tunes right now", ignoreCase = true) ||
             trimmed.equals("Giai điệu hàng đầu hiện nay", ignoreCase = true) ||
+            trimmed.equals("Lagu teratas saat ini", ignoreCase = true) ||
             trimmed.equals("注目の曲", ignoreCase = true) ->
             stringResource(Res.string.shelf_top_tunes_right_now)
         trimmed.equals("From the community", ignoreCase = true) ||
             trimmed.equals("Từ cộng đồng", ignoreCase = true) ||
+            trimmed.equals("Dari komunitas", ignoreCase = true) ||
             trimmed.equals("コミュニティより", ignoreCase = true) ->
             stringResource(Res.string.shelf_from_the_community)
         trimmed.equals("YouTube Charts", ignoreCase = true) ||
             trimmed.equals("Bảng xếp hạng YouTube", ignoreCase = true) ||
+            trimmed.equals("Tangga Lagu YouTube", ignoreCase = true) ||
             trimmed.equals("YouTube チャート", ignoreCase = true) ->
             stringResource(Res.string.shelf_youtube_charts)
         else -> subtitle
@@ -1437,32 +1569,53 @@ internal fun localizeCardSubtitle(subtitle: String): String {
         val lower = trimmed.lowercase(Locale.ROOT)
         when {
             trimmed.equals("Song", ignoreCase = true) || trimmed.equals("Titre", ignoreCase = true) ||
-                trimmed.equals("Bài hát", ignoreCase = true) || trimmed.equals("曲", ignoreCase = true) -> songLabel
+                trimmed.equals("Bài hát", ignoreCase = true) || trimmed.equals("曲", ignoreCase = true) ||
+                trimmed.equals("Lagu", ignoreCase = true) -> songLabel
             trimmed.equals("Single", ignoreCase = true) || trimmed.equals("Đĩa đơn", ignoreCase = true) ||
                 trimmed.equals("シングル", ignoreCase = true) -> singleLabel
             trimmed.equals("Chart", ignoreCase = true) || trimmed.equals("Bảng xếp hạng", ignoreCase = true) ||
-                trimmed.equals("チャート", ignoreCase = true) -> chartLabel
+                trimmed.equals("チャート", ignoreCase = true) || trimmed.equals("Tangga lagu", ignoreCase = true) -> chartLabel
             trimmed.equals("Playlist", ignoreCase = true) || trimmed.equals("Danh sách phát", ignoreCase = true) ||
                 trimmed.equals("再生リスト", ignoreCase = true) -> playlistLabel
             lower.endsWith(" views") || lower.endsWith(" view") || lower.endsWith(" lượt xem") ||
-                lower.endsWith(" 回視聴") || lower.endsWith("回視聴") -> {
+                lower.endsWith(" 回視聴") || lower.endsWith("回視聴") || lower.endsWith(" tayangan") ||
+                lower.endsWith(" penayangan") -> {
                 val count = trimmed.substringBeforeLast(' ', "").trim()
                 if (count.any { it.isDigit() }) stringResource(Res.string.card_views_format, count) else part
             }
             lower.endsWith(" plays") || lower.endsWith(" play") || lower.endsWith(" lượt phát") ||
-                lower.endsWith(" 回再生") || lower.endsWith("回再生") -> {
+                lower.endsWith(" 回再生") || lower.endsWith("回再生") || lower.endsWith(" pemutaran") ||
+                lower.endsWith(" diputar") -> {
                 val count = trimmed.substringBeforeLast(' ', "").trim()
                 if (count.any { it.isDigit() }) stringResource(Res.string.card_plays_format, count) else part
             }
             lower.endsWith(" songs") || lower.endsWith(" song") || lower.endsWith(" bài hát") ||
-                lower.endsWith(" 曲") || lower.endsWith("曲") -> {
+                lower.endsWith(" 曲") || lower.endsWith("曲") || lower.endsWith(" lagu") -> {
                 val count = trimmed.substringBeforeLast(' ', "").trim()
                 if (count.any { it.isDigit() }) stringResource(Res.string.card_songs_format, count) else part
+            }
+            lower.endsWith(" monthly listeners") || lower.endsWith(" audiens bulanan") ||
+                lower.endsWith(" pendengar bulanan") -> {
+                val count = trimmed.substringBeforeLast(' ', "").substringBeforeLast(' ', "").trim()
+                if (count.any { it.isDigit() }) stringResource(Res.string.card_monthly_listeners_format, count) else part
             }
             else -> part
         }
     }
     return localizedParts.joinToString(delimiter)
+}
+
+/**
+ * Kunci stabil untuk tiap kartu rak: videoId, lalu browseId, lalu judul.
+ * Kembaran dalam satu rak diberi akhiran, karena LazyList menolak kunci ganda.
+ */
+private fun shelfItemKeys(items: List<ShelfItem>): List<String> {
+    val seen = HashMap<String, Int>(items.size)
+    return items.map { item ->
+        val base = "i:" + (item.videoId ?: item.browseId ?: "${item.title}|${item.subtitle}")
+        val n = seen.merge(base, 1, Int::plus)!!
+        if (n == 1) base else "$base#$n"
+    }
 }
 
 @Composable
@@ -1473,14 +1626,10 @@ private fun HeroShelf(
     currentSong: Song? = null,
     isPlaying: Boolean = false,
 ) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(bottom = 28.dp),
-    ) {
-        SectionHeader(shelf.title, shelf.subtitle, emphasized = true)
+    Column(Modifier.padding(bottom = 26.dp)) {
+        SectionHeader(shelf.title, shelf.subtitle)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
-        val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
+        val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         // Measured rather than taken as a share of the parent, because the card
         // has a ceiling as well as a fraction — see [heroCardWidth]. A fixed
         // width is also the only one of the two the aspect ratio below can turn
@@ -1488,16 +1637,20 @@ private fun HeroShelf(
         BoxWithConstraints {
             val cardWidth = heroCardWidth(maxWidth)
             ShelfRow(
-                state = rememberLazyListState(),
+                state = rememberShelfListState("hero:${shelf.title}"),
                 contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
+                itemsIndexed(
+                    shelf.items,
+                    key = { index, _ -> itemKeys[index] },
+                    contentType = { _, _ -> "hero-card" },
+                ) { index, item ->
                     HeroCard(
                         item = item,
                         onClick = { onItemClick(item) },
                         onLongPress = onItemLongPress?.let { { it(item) } },
-                        modifier = Modifier.width(cardWidth),
+                        modifier = Modifier.shelfStagger(index).width(cardWidth),
                         isCurrent = isCurrentItem(item),
                         isPlaying = isCurrentItem(item) && isPlaying,
                     )
@@ -1518,27 +1671,33 @@ private fun HeroCard(
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
 ) {
+    val heroToken = remember { Any() }
+    val openHeroWithCover = rememberCoverFlightTap(item.browseId, heroToken, onClick)
     Box(
         modifier = modifier
-            .aspectRatio(1.12f)
+            .aspectRatio(HERO_CARD_RATIO)
             .clip(RoundedCornerShape(18.dp))
-            .then(
-                if (item.videoId == null) Modifier.thumbnailBorder(RoundedCornerShape(18.dp))
-                else Modifier,
-            )
+            .thumbnailBorder(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = openHeroWithCover,
+                onLongClick = onLongPress,
+            )
             .contextClick(onLongPress),
     ) {
         AsyncImage(
             model = item.thumbnailUrl.artworkAt(HEADER_ART_PX),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .coverFlightSource(heroToken, item.thumbnailUrl.artworkAt(HEADER_ART_PX), 18.dp)
+                .fillMaxSize()
+                .clip(RoundedCornerShape(18.dp)),
         )
         if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
         Column(
             modifier = Modifier
+                .hideDuringCoverFlight(heroToken)
                 .fillMaxWidth()
                 .align(Alignment.BottomStart)
                 .background(
@@ -1546,13 +1705,14 @@ private fun HeroCard(
                         listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)),
                     ),
                 )
-                .padding(start = 14.dp, end = 14.dp, top = 28.dp, bottom = 12.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 34.dp, bottom = 14.dp),
         ) {
-            ShelfItemTitle(
-                item = item,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else Color.White,
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             if (item.subtitle.isNotBlank()) {
                 val displaySubtitle = localizeCardSubtitle(item.subtitle)
@@ -1581,91 +1741,35 @@ internal fun Shelf(
     shelf: HomeShelf,
     onItemClick: (ShelfItem) -> Unit,
     onItemLongPress: ((ShelfItem) -> Unit)? = null,
-    onPlayAllQuickPicks: ((HomeShelf) -> Unit)? = null,
     leadingCard: (@Composable () -> Unit)? = null,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
+        SectionHeader(shelf.title, shelf.subtitle)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
-        when {
-            shelf.title.equals("Quick picks", ignoreCase = true) -> {
-                SectionHeader(
-                    title = shelf.title,
-                    subtitle = shelf.subtitle,
-                    onShowAll = onPlayAllQuickPicks?.let { { it(shelf) } },
-                    actionLabel = stringResource(Res.string.play_all),
-                    emphasized = true,
-                )
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val columns = quickPickColumns(maxWidth)
-                    val rows = shelf.items.take(if (columns >= 3) columns * 4 else 4).chunked(columns)
-                    Column(Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER)) {
-                        rows.forEach { rowItems ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                            ) {
-                                rowItems.forEach { item ->
-                                    Column(Modifier.weight(1f)) {
-                                        QuickPickTrackRow(
-                                            item = item,
-                                            onClick = { onItemClick(item) },
-                                            onLongPress = onItemLongPress?.let { { it(item) } },
-                                            isCurrent = isCurrentItem(item),
-                                            isPlaying = isCurrentItem(item) && isPlaying,
-                                        )
-                                    }
-                                }
-                                repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                            }
-                        }
-                    }
-                }
-            }
-            shelf.title.equals("Listen again", ignoreCase = true) ||
-                shelf.title.equals("Keep listening", ignoreCase = true) -> {
-                SectionHeader("Keep listening", shelf.subtitle, emphasized = true)
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val spacing = KEEP_LISTENING_COLUMN_SPACING
-                    val columns = keepListeningColumns(maxWidth)
-                    shelf.items.chunked(columns).forEach { rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER),
-                            horizontalArrangement = Arrangement.spacedBy(spacing),
-                        ) {
-                            rowItems.forEach { item ->
-                                ShelfCard(
-                                    item = item,
-                                    onClick = { onItemClick(item) },
-                                    onLongPress = onItemLongPress?.let { { it(item) } },
-                                    modifier = Modifier.weight(1f),
-                                    isCurrent = isCurrentItem(item),
-                                    isPlaying = isCurrentItem(item) && isPlaying,
-                                    titleMaxLines = 3,
-                                    subtitleMaxLines = 2,
-                                )
-                            }
-                            repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                        Spacer(Modifier.height(18.dp))
-                    }
-                }
-            }
-            else -> {
-                val homeTitle = when {
-                    shelf.title.equals("New releases", ignoreCase = true) -> "Fresh finds"
-                    shelf.title.equals("Forgotten favorites", ignoreCase = true) -> "Old favorites"
-                    else -> shelf.title
-                }
-                SectionHeader(homeTitle, shelf.subtitle)
-                val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
-                ShelfRow(
-                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    leadingCard?.let { card -> item(key = "leading") { card() } }
-                    itemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
+        val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
+        ShelfRow(
+            state = rememberShelfListState("shelf:${shelf.title}"),
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            leadingCard?.let { card -> item(key = "leading") { card() } }
+            itemsIndexed(
+                shelf.items,
+                key = { index, _ -> itemKeys[index] },
+                contentType = { _, _ -> "shelf-card" },
+            ) { index, item ->
+                Box(Modifier.shelfStagger(index)) {
+                    if (shelf.layout == ShelfLayout.VIDEO) {
+                        VideoShelfCard(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onLongPress = onItemLongPress?.let { { it(item) } },
+                            isCurrent = isCurrentItem(item),
+                            isPlaying = isCurrentItem(item) && isPlaying,
+                        )
+                    } else {
                         ShelfCard(
                             item = item,
                             onClick = { onItemClick(item) },
@@ -1680,51 +1784,70 @@ internal fun Shelf(
     }
 }
 
+/**
+ * A music video, as the web player lays one out: the thumbnail at its own
+ * 16:9 rather than cropped into a square, the title and credit under it. About
+ * as tall as the square cards, so a video shelf sits in the feed's rhythm.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun QuickPickTrackRow(
+fun VideoShelfCard(
     item: ShelfItem,
     onClick: () -> Unit,
-    onLongPress: (() -> Unit)?,
-    isCurrent: Boolean,
-    isPlaying: Boolean,
+    onLongPress: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.width(VIDEO_CARD_WIDTH),
+    isCurrent: Boolean = false,
+    isPlaying: Boolean = false,
+    titleColor: Color = MaterialTheme.colorScheme.onBackground,
+    subtitleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    placeholderColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = modifier
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
-            .contextClick(onLongPress)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .contextClick(onLongPress),
     ) {
-        Box(Modifier.size(76.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(VIDEO_ASPECT)
+                .clip(RoundedCornerShape(12.dp))
+                .thumbnailBorder(RoundedCornerShape(12.dp))
+                .background(placeholderColor),
+        ) {
             AsyncImage(
-                model = item.thumbnailUrl.artworkAt(ROW_ART_PX),
+                // Video stills are not resizable googleusercontent art; the
+                // largest the row listed is already about card size.
+                model = item.thumbnailUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxSize(),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
         }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            ShelfItemTitle(
-                item = item,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-            )
-            Text(
-                text = localizeCardSubtitle(item.subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (onLongPress != null) RowMoreButton(onClick = onLongPress)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = titleColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = localizeCardSubtitle(item.subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = subtitleColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
+
+/** A music video's frame, or a square one when square video covers are on. */
+val VIDEO_ASPECT: Float get() = if (VideoThumbnails.square) 1f else 16f / 9f
+
+/** Wide enough that a 16:9 card stands about as tall as a square [SHELF_CARD_WIDTH] one. */
+val VIDEO_CARD_WIDTH: Dp get() = if (VideoThumbnails.square) SHELF_CARD_WIDTH else 248.dp
 
 /**
  * A card that isn't a thing yet — the dashed "New playlist" tile at the head
@@ -1742,7 +1865,7 @@ internal fun NewShelfCard(
     logo: DrawableResource? = null,
 ) {
     Column(
-        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
     ) {
         Box(
             modifier = Modifier
@@ -1765,7 +1888,7 @@ internal fun NewShelfCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(34.dp),
                 )
             }
@@ -1794,7 +1917,13 @@ internal fun NewShelfCard(
  * copies of the same box.
  */
 @Composable
-private fun ServiceCard(colors: List<Color>, trackKey: String, icon: ImageVector) {
+private fun ServiceCard(
+    colors: List<Color>,
+    trackKey: String,
+    icon: ImageVector,
+    /** How much of the card's own colours is laid back over the mesh on a light theme. */
+    lightLift: Float = 0f,
+) {
     val palette = remember { MeshPalette(colors) }
     Box(
         modifier = Modifier
@@ -1809,6 +1938,16 @@ private fun ServiceCard(colors: List<Color>, trackKey: String, icon: ImageVector
             continuous = true,
             blurRadius = 24.dp,
         )
+        // Light theme only: the mesh clamps every colour it is given into a
+        // dark band, which on a white page reads heavy. Laying the card's own
+        // colours back over it restores the tile's intended brightness.
+        if (lightLift > 0f && MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(Brush.linearGradient(colors.map { it.copy(alpha = lightLift) })),
+            )
+        }
         Icon(
             imageVector = icon,
             contentDescription = null,
@@ -1829,12 +1968,15 @@ internal fun ShelfCard(
     isPinned: Boolean = false,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
-    titleMaxLines: Int = 1,
-    subtitleMaxLines: Int = 1,
 ) {
+    val coverToken = remember { Any() }
+    val openWithCover = rememberCoverFlightTap(item.browseId, coverToken, onClick)
     Column(
         modifier = modifier
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = openWithCover,
+                onLongClick = onLongPress,
+            )
             .contextClick(onLongPress),
     ) {
         when (item.browseId) {
@@ -1866,6 +2008,12 @@ internal fun ShelfCard(
                 trackKey = "local:all",
                 icon = Icons.Rounded.LibraryMusic,
             )
+            YtMusicRepository.LIKED_MUSIC -> ServiceCard(
+                colors = listOf(Color(0xFFFF7AB8), Color(0xFF9B6CFF)),
+                trackKey = YtMusicRepository.LIKED_MUSIC,
+                icon = Icons.Rounded.Favorite,
+                lightLift = 0.6f,
+            )
             "local:cache" -> ServiceCard(
                 colors = listOf(Color(0xFF42275A), Color(0xFF734B6D)),
                 trackKey = "local:cache",
@@ -1884,13 +2032,11 @@ internal fun ShelfCard(
             else -> {
                 Box(
                     modifier = Modifier
+                        .coverFlightSource(coverToken, item.thumbnailUrl.artworkAt(CARD_ART_PX), 12.dp)
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .then(
-                            if (item.videoId == null) Modifier.thumbnailBorder(RoundedCornerShape(12.dp))
-                            else Modifier,
-                        )
+                        .thumbnailBorder(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     AsyncImage(
@@ -1917,21 +2063,13 @@ internal fun ShelfCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
-            if (item.isExplicit == true) {
-                ExplicitBadge(if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground)
-                Spacer(Modifier.width(6.dp))
-            }
-            // Keep the title Text directly in this Row. ShelfItemTitle creates
-            // another fillMaxWidth Row; as an unweighted child of this Row it
-            // is measured with loose horizontal constraints and can draw past
-            // the card edge, stacking titles over neighbouring cards on phones.
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = titleMaxLines,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
         val displaySubtitle = localizeCardSubtitle(item.subtitle)
@@ -1939,31 +2077,8 @@ internal fun ShelfCard(
             text = displaySubtitle,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = subtitleMaxLines,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun ShelfItemTitle(
-    item: ShelfItem,
-    style: androidx.compose.ui.text.TextStyle,
-    color: Color,
-    maxLines: Int,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        if (item.isExplicit == true) {
-            ExplicitBadge(color)
-            Spacer(Modifier.width(6.dp))
-        }
-        Text(
-            text = item.title,
-            style = style,
-            color = color,
-            maxLines = maxLines,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
         )
     }
 }

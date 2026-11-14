@@ -1,9 +1,6 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.lyrics
 
 import com.music.audify.data.Http
-import com.music.audify.data.sources.TrackMatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -28,14 +25,14 @@ import kotlin.math.abs
 object LrcLib {
 
     private const val BASE = "https://lrclib.net/api"
-    private const val AGENT = "Audify (https://github.com/audify)"
+    private const val AGENT = "Audify (https://github.com/bitchord)"
 
     private val json = Json { ignoreUnknownKeys = true }
 
     /** Synced lyrics for a track, or null when nothing usable is published. */
     suspend fun lyrics(title: String, artist: String, durationMs: Long): List<LyricLine>? =
         withContext(Dispatchers.IO) {
-            val cleanTitle = cleanTitleForSearch(title)
+            val cleanTitle = title.clean()
             val cleanArtist = artist.clean()
             val seconds = (durationMs / 1000).toInt()
 
@@ -70,34 +67,47 @@ object LrcLib {
         return bestSearchHit(hits, title, artist, seconds)
     }
 
-    /** Selects the closest-duration result after confirming its recording identity. */
+    /** Pure candidate matcher shared with tests; rejects other edits and artists. */
     internal fun bestSearchHit(hits: JsonArray, title: String, artist: String, seconds: Int): String? {
-        val wantedTitle = title.identityKey()
-        if (wantedTitle.isBlank()) return null
+        val wantedTitle = cleanTitleForSearch(title).identityText()
+        val wantedArtist = artist.identityText().removeTopicSuffix()
+        if (wantedTitle.isBlank() || wantedArtist.isBlank()) return null
         return hits.mapNotNull { it as? JsonObject }
-            .filter { it["syncedLyrics"]?.jsonPrimitive?.contentOrNull?.isNotBlank() == true }
-            .filter { hit ->
-                val hitTitle = (hit["trackName"] ?: hit["name"])?.jsonPrimitive?.contentOrNull
-                    ?.let(::cleanTitleForSearch)?.identityKey().orEmpty()
-                val hitArtist = hit["artistName"]?.jsonPrimitive?.contentOrNull
-                    ?.clean().orEmpty()
-                hitTitle == wantedTitle && (artist.isBlank() || TrackMatcher.sharesArtist(artist, hitArtist))
+            .mapNotNull { hit ->
+                val lyrics = hit["syncedLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                val candidateTitle = hit["trackName"]?.jsonPrimitive?.contentOrNull
+                    ?.let(::cleanTitleForSearch)?.identityText() ?: return@mapNotNull null
+                if (candidateTitle != wantedTitle) return@mapNotNull null
+                val artists = hit["artistName"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                    .split(Regex("\\s*(?:,|&|\\band\\b)\\s*"))
+                    .map { it.identityText().removeTopicSuffix() }
+                if (wantedArtist !in artists) return@mapNotNull null
+                val duration = hit["duration"]?.jsonPrimitive?.doubleOrNull
+                val distance = duration?.let { abs(it - seconds) } ?: 0.0
+                if (duration != null && distance > 5.0) return@mapNotNull null
+                lyrics to distance
             }
-            .minByOrNull {
-                val d = it["duration"]?.jsonPrimitive?.doubleOrNull ?: 0.0
-                abs(d - seconds)
-            }
-            ?.get("syncedLyrics")?.jsonPrimitive?.contentOrNull
+            .minByOrNull { it.second }?.first
     }
 
-    private fun String.identityKey(): String = lowercase(java.util.Locale.ROOT)
-        .replace(Regex("[^\\p{L}\\p{N}]+"), "")
+    internal fun cleanTitleForSearch(title: String): String = title
+        .replace(Regex("\\s*\\(from\\s+['\"]?[^)]+['\"]?\\)", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*\\|\\s*official\\s+(?:video|audio).*?$", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*\\[(?:official\\s+(?:video|audio)|lyrics|lyrical\\s+video|audio)]", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s*\\(feat\\.?\\s+[^)]+\\)", RegexOption.IGNORE_CASE), "")
+        .replace(Regex("\\s+"), " ").trim()
+
+    private fun String.identityText(): String = lowercase(java.util.Locale.ROOT)
+        .replace(Regex("\\s+"), " ").trim()
+
+    private fun String.removeTopicSuffix(): String = removeSuffix(" - topic").trim()
 
     private fun get(url: String): String? {
         val request = Request.Builder().url(url).header("User-Agent", AGENT).build()
         Http.client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return null
-            return response.body.string()
+            return response.body?.string()
         }
     }
 
@@ -171,27 +181,7 @@ object LrcLib {
      * YouTube Music titles are noisy — "(From "Raees")", "| Official Video",
      * "(Lyrical)" — and LRCLIB matches on the plain song name.
      */
-    private fun String.clean(): String = this
-        .replace(NOISE, " ")
-        .substringBefore(" | ")
-        .replace(Regex("\\s+"), " ")
-        .trim()
-        .ifBlank { this }
-
-    /**
-     * Clean upload packaging without erasing the part that names the recording.
-     * LRCLIB's search is a fallback for an exact miss, so turning "Song (Live)"
-     * into "Song" here can make that fallback return the studio recording's
-     * words for a live performance. Keep this aligned with the shared title
-     * policy used before the other providers are called.
-     */
-    internal fun cleanTitleForSearch(title: String): String = title
-        .replace(FROM_CREDIT, " ")
-        .replace(PIPE_UPLOAD_LABEL, " ")
-        .forLyricsSearch()
-        .replace(Regex("\\s+"), " ")
-        .trim()
-        .ifBlank { title.trim() }
+    private fun String.clean(): String = cleanTitleForSearch(this).ifBlank { this }
 
     /**
      * The `<mm:ss.xx>` runs of an "enhanced" A2 line, as words.
@@ -239,11 +229,6 @@ object LrcLib {
     private val NOISE = Regex(
         """\((?:from|feat\.?|official|lyrical|video|audio|remix)[^)]*\)|\[[^]]*]|""" +
             """\b(?:official (?:video|audio|music video)|lyrical|full song|4k video)\b""",
-        RegexOption.IGNORE_CASE,
-    )
-    private val FROM_CREDIT = Regex("""\s*[(\[]\s*from\b[^)\]]*[)\]]""", RegexOption.IGNORE_CASE)
-    private val PIPE_UPLOAD_LABEL = Regex(
-        """\s+\|\s*(?:official(?:\s+(?:music\s+)?video|\s+audio)?|lyrics?(?:\s+video)?|visuali[sz]er|full\s+song|4k(?:\s+video)?)\s*$""",
         RegexOption.IGNORE_CASE,
     )
 }

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.sources
 
 import com.music.audify.data.TrackLog
@@ -40,7 +38,8 @@ class AddonSource(
     override val kind: SourceKind get() = config.kind
     override val displayName: String get() = config.displayName
 
-    private val client = AddonClient(config.baseUrl)
+    /** Holds the pick for this instance's life: changing it is an edit, and [SourceRegistry] rebuilds on one. */
+    private val client = AddonClient(config.baseUrl, config.pickedQuality)
 
     /**
      * Rows this addon has recently handed over, by their own track id.
@@ -93,7 +92,12 @@ class AddonSource(
     }
 
     private fun recordPolicy(manifest: AddonManifest) =
-        SourceRegistry.updatePolicy(config.id, manifest.downloadsAllowed, manifest.requiresLosslessOutput)
+        SourceRegistry.updatePolicy(
+            config.id,
+            manifest.downloadsAllowed,
+            manifest.requiresLosslessOutput,
+            manifest.qualityOptions,
+        )
 
     // ── Health ────────────────────────────────────────────────────────────
 
@@ -337,13 +341,8 @@ class AddonSource(
         }
 
         val format = formatOf(answer, url, tier)
-        val playsAtmos = DeviceCodecs.playsDolbyAtmos
-        if (ModuleSource.unplayable(format, atmosAllowed = playsAtmos && AppSettings.dolbyAtmos.value)) {
-            val why = if (playsAtmos) {
-                "which is switched off in Settings"
-            } else {
-                "which this device has no decoder for"
-            }
+        if (ModuleSource.unplayable(format, atmosAllowed = DeviceCodecs.atmosWanted)) {
+            val why = DeviceCodecs.atmosRefusal()
             TrackLog.w(
                 TAG,
                 "${config.displayName}: answered a $tier request with ${format.summary}, $why — passing",

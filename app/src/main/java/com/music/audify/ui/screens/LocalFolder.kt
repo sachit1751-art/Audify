@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
-
-import com.music.audify.data.model.stableSongComposeKeys
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -11,6 +7,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -35,7 +31,9 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FileUpload
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
@@ -69,6 +67,7 @@ import coil3.compose.AsyncImage
 import com.music.audify.R
 import com.music.audify.data.LocalGroup
 import com.music.audify.data.LocalGroups
+import com.music.audify.data.OfflinePlaylists
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.CARD_ART_PX
 import com.music.audify.data.model.ROW_ART_PX
@@ -139,9 +138,37 @@ class LocalFolder(
     val onDownload: ((List<Song>) -> Unit)? = null,
     /** Cached songs only: takes the selection out of the song cache. */
     val onRemoveFromCache: ((List<Song>) -> Unit)? = null,
+    /** Which ways of looking at the tracks this folder offers, in order. */
+    val tabs: List<LocalFolderTab> = LocalFolderTab.BASIC,
+    /**
+     * Local Music only: the offline player's own playlists, Liked first, as
+     * the Playlists tab lists them — see [com.music.audify.data.OfflinePlaylists].
+     */
+    val playlists: List<LocalGroup> = emptyList(),
+    /** Puts "New playlist" at the head of the Playlists tab. */
+    val onCreatePlaylist: (() -> Unit)? = null,
 )
 
-enum class LocalFolderTab { SONGS, ARTISTS, ALBUMS }
+enum class LocalFolderTab {
+    SONGS,
+    ARTISTS,
+    ALBUMS,
+
+    /** Playlists made on this device, of files on this device. */
+    PLAYLISTS,
+
+    /** The device's own directories, as a file manager shows them. */
+    FOLDERS,
+    ;
+
+    companion object {
+        /** Every folder's: the three readings any set of tracks has. */
+        val BASIC = listOf(SONGS, ARTISTS, ALBUMS)
+
+        /** Local Music's: the whole device, so its playlists and directories too. */
+        val DEVICE = entries.toList()
+    }
+}
 
 /**
  * A folder's own state while its page is on the stack: the tab showing, and
@@ -207,7 +234,7 @@ fun rememberLocalFolderGroups(
     tab: LocalFolderTab,
     songs: List<Song>,
     query: String,
-): List<LocalGroup> = remember(browseId, tab, songs, folder.collections, query) {
+): List<LocalGroup> = remember(browseId, tab, songs, folder.collections, folder.playlists, query) {
     fun LocalGroup.matches() = query.isBlank() ||
         title.contains(query, ignoreCase = true) ||
         subtitle.contains(query, ignoreCase = true)
@@ -215,6 +242,8 @@ fun rememberLocalFolderGroups(
         LocalFolderTab.SONGS -> emptyList()
         LocalFolderTab.ARTISTS -> LocalGroups.artistsOf(browseId, songs).filter { it.matches() }
         LocalFolderTab.ALBUMS -> LocalGroups.albumsOf(browseId, songs, folder.collections).filter { it.matches() }
+        LocalFolderTab.PLAYLISTS -> folder.playlists.filter { it.matches() }
+        LocalFolderTab.FOLDERS -> LocalGroups.foldersOf(browseId, songs).filter { it.matches() }
     }
 }
 
@@ -239,18 +268,29 @@ internal fun LazyListScope.localFolderItems(
     onSongClick: (List<Song>, Int) -> Unit,
     onSongLongPress: (Song) -> Unit,
     onSongSwipe: (Song) -> Unit,
+    afterFlight: Boolean = false,
 ) {
+    val tabs = folder.tabs
     item(key = "folder-tabs") {
         SegmentedControl(
-            options = listOf(
-                stringResource(R.string.songs),
-                stringResource(R.string.artists),
-                stringResource(R.string.albums),
-            ),
-            selectedIndex = state.tab.ordinal,
-            onSelect = { state.tab = LocalFolderTab.entries[it] },
-            modifier = Modifier.padding(start = PAGE_GUTTER, end = PAGE_GUTTER, bottom = 14.dp),
+            options = tabs.map { it.label() },
+            selectedIndex = tabs.indexOf(state.tab).coerceAtLeast(0),
+            onSelect = { state.tab = tabs[it] },
+            modifier = Modifier
+                .flightReveal(300, afterFlight = afterFlight)
+                .padding(start = PAGE_GUTTER, end = PAGE_GUTTER, bottom = 14.dp),
         )
+    }
+
+    // Ahead of the list rather than in the top bar: making a playlist is the
+    // one thing this tab is for before there is anything on it.
+    if (state.tab == LocalFolderTab.PLAYLISTS && query.isBlank()) {
+        folder.onCreatePlaylist?.let { create ->
+            item(key = "folder-new-playlist") {
+                NewPlaylistRow(palette, onClick = create)
+                FolderDivider(palette)
+            }
+        }
     }
 
     val grid = folder.viewType == LibraryViewType.GRID
@@ -265,6 +305,8 @@ internal fun LazyListScope.localFolderItems(
                     stringResource(R.string.nothing_matches, query)
                 } else if (state.tab == LocalFolderTab.ALBUMS) {
                     stringResource(R.string.no_local_albums)
+                } else if (state.tab == LocalFolderTab.FOLDERS) {
+                    stringResource(R.string.no_local_folders)
                 } else {
                     stringResource(R.string.no_tracks_here)
                 },
@@ -288,11 +330,10 @@ internal fun LazyListScope.localFolderItems(
         if (folder.selectable && group.type != BrowseType.OTHER) state.select(group) else folder.onGroupLongPress(group)
     }
 
-    val songKeys = songs.stableSongComposeKeys()
     val isCurrentRow = playingRowMatcher(songs, currentSong)
     when (state.tab) {
         LocalFolderTab.SONGS -> if (grid) {
-            gridRows(songs.indices.toList(), columns, key = { songKeys[it] }) { index ->
+            gridRows(songs.indices.toList(), columns, key = { "song-${songs[it].videoId}-$it" }) { index ->
                 val song = songs[index]
                 SongGridCard(
                     song = song,
@@ -305,7 +346,8 @@ internal fun LazyListScope.localFolderItems(
                 )
             }
         } else {
-            itemsIndexed(songs, key = { index, _ -> songKeys[index] }) { index, song ->
+            itemsIndexed(songs, key = { index, song -> "song-${song.videoId}-$index" }) { index, song ->
+                Column(Modifier.flightReveal(340 + index.coerceAtMost(8) * 30, afterFlight = afterFlight)) {
                 SongRow(
                     song = song,
                     selected = song.videoId in state.selectedIds,
@@ -326,6 +368,7 @@ internal fun LazyListScope.localFolderItems(
                     },
                 )
                 if (index < songs.lastIndex) FolderDivider(palette)
+                }
             }
         }
 
@@ -340,7 +383,7 @@ internal fun LazyListScope.localFolderItems(
             }
         }
 
-        LocalFolderTab.ALBUMS -> if (grid) {
+        LocalFolderTab.ALBUMS, LocalFolderTab.PLAYLISTS, LocalFolderTab.FOLDERS -> if (grid) {
             gridRows(groups, columns, key = { it.browseId }) { group ->
                 AlbumGridCard(
                     group = group,
@@ -362,6 +405,51 @@ internal fun LazyListScope.localFolderItems(
                 FolderDivider(palette)
             }
         }
+    }
+}
+
+@Composable
+private fun LocalFolderTab.label(): String = stringResource(
+    when (this) {
+        LocalFolderTab.SONGS -> R.string.songs
+        LocalFolderTab.ARTISTS -> R.string.artists
+        LocalFolderTab.ALBUMS -> R.string.albums
+        LocalFolderTab.PLAYLISTS -> R.string.playlists
+        LocalFolderTab.FOLDERS -> R.string.folders
+    },
+)
+
+@Composable
+private fun NewPlaylistRow(palette: ArtworkPalette, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(shape)
+                .background(palette.accent.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                AudifyIcons.Plus,
+                contentDescription = null,
+                tint = palette.accent,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = stringResource(R.string.new_playlist),
+            style = MaterialTheme.typography.titleMedium,
+            color = palette.onBackground,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -497,7 +585,11 @@ private fun ArtistRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+                liftPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            )
             .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -558,6 +650,9 @@ private fun ArtistGridCard(
 private fun LocalGroup.albumSubtitle(): String {
     val count = pluralStringResource(R.plurals.song_count_plural, songs.size, songs.size)
     return when {
+        // A directory's subtitle is where it is, which is what tells two
+        // "Music" folders apart.
+        LocalGroups.isDirectory(browseId) -> if (subtitle.isNotBlank()) "$subtitle · $count" else count
         type == BrowseType.PLAYLIST -> "${stringResource(R.string.playlist)} · $count"
         subtitle.isNotBlank() && subtitle != title -> "$subtitle · $count"
         else -> count
@@ -574,8 +669,12 @@ private fun LocalGroup.coverArt(): String? {
     return thumbnailUrl ?: fetched
 }
 
-private fun LocalGroup.placeholderIcon(): ImageVector =
-    if (type == BrowseType.PLAYLIST) Icons.AutoMirrored.Rounded.QueueMusic else Icons.Rounded.Album
+private fun LocalGroup.placeholderIcon(): ImageVector = when {
+    OfflinePlaylists.isLikedPage(browseId) -> Icons.Rounded.Favorite
+    LocalGroups.isDirectory(browseId) -> Icons.Rounded.Folder
+    type == BrowseType.PLAYLIST -> Icons.AutoMirrored.Rounded.QueueMusic
+    else -> Icons.Rounded.Album
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -645,7 +744,11 @@ private fun AlbumRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(selectionFill(selected))
-            .longPressMenuClickable(onClick = { onClick(group.copy(thumbnailUrl = art)) }, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = { onClick(group.copy(thumbnailUrl = art)) },
+                onLongClick = onLongPress,
+                liftPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            )
             .padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -697,8 +800,8 @@ private fun GroupLabels(title: String, subtitle: String, palette: ArtworkPalette
 private fun TrailingGlyph(selected: Boolean, palette: ArtworkPalette) {
     Icon(
         imageVector = if (selected) Icons.Rounded.CheckCircle else AudifyIcons.ChevronRight,
-        contentDescription = if (selected) stringResource(R.string.audify_selected) else null,
-        tint = if (selected) com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface) else palette.onBackgroundVariant,
+        contentDescription = if (selected) stringResource(R.string.selected) else null,
+        tint = if (selected) MaterialTheme.colorScheme.primary else palette.onBackgroundVariant,
         modifier = Modifier.size(if (selected) 22.dp else 16.dp),
     )
 }
@@ -734,12 +837,12 @@ internal fun LocalFolderSelectionBar(
             Icon(
                 Icons.Rounded.Check,
                 contentDescription = stringResource(R.string.select_all),
-                tint = if (dark) Color.White else com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                tint = if (dark) Color.White else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp),
             )
         }
         Text(
-            text = "$count ${stringResource(R.string.audify_selected)}",
+            text = "$count ${stringResource(R.string.selected)}",
             style = MaterialTheme.typography.titleSmall,
             color = if (dark) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -800,7 +903,7 @@ private fun RowDownloadButton(song: Song, palette: ArtworkPalette, onDownload: (
     val done = state == null && song.videoId in saved
     Box(
         modifier = Modifier
-            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .size(36.dp)
             .clip(CircleShape)
             .clickable(enabled = !done) {
                 when (state) {

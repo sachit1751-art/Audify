@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
@@ -14,7 +12,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,7 +36,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -48,7 +44,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.MixBlend
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -106,11 +101,12 @@ fun ThinSlider(
     markerColor: Color = Color.White.copy(alpha = 0.5f),
 ) {
     var dragging by remember { mutableStateOf(false) }
-    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val height by animateDpAsState(
         targetValue = if (dragging) activeHeight else idleHeight,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
+        // Stiff enough to answer the touch at once; a slow spring made a quick
+        // tap lift its finger before the bar had finished thickening.
+        animationSpec = spring(
+            dampingRatio = 0.65f,
             stiffness = Spring.StiffnessMedium,
         ),
         label = "sliderHeight",
@@ -137,9 +133,20 @@ fun ThinSlider(
     // beat; a version swap's crossfade follows the audio engine and fades when it finishes.
     // An Automix blend has its own treatment — the beat pulse — and keeps the fill.
     val sheenVisible = shownLoading || (mixing && mixPulse?.active != true)
+    // The window fades in when it is first known and out when it goes, and
+    // the last one is kept drawn for the fade-out rather than vanishing.
+    var shownWindow by remember { mutableStateOf(transitionWindow) }
+    LaunchedEffect(transitionWindow) {
+        if (transitionWindow != null) shownWindow = transitionWindow
+    }
+    val windowAlpha by animateFloatAsState(
+        targetValue = if (transitionWindow != null) 1f else 0f,
+        animationSpec = tween(durationMillis = WINDOW_FADE_MS, easing = FastOutSlowInEasing),
+        label = "transitionWindowAlpha",
+    )
     val fillFactor by animateFloatAsState(
         targetValue = if (sheenVisible) 0f else 1f,
-        animationSpec = tween(durationMillis = if (reduceAnimation) 0 else MORPH_MS, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = MORPH_MS, easing = FastOutSlowInEasing),
         label = "fillFactor",
     )
 
@@ -187,14 +194,37 @@ fun ThinSlider(
             // once the playhead reaches the window the transition is no longer
             // upcoming, and the ordinary progress colour taking it over is what
             // says so.
-            transitionWindow?.let { window ->
+            //
+            // Feathered at both ends rather than drawn as a capsule of its own:
+            // a blend has no hard edge in time, so the marker shouldn't either.
+            // It is painted across the bar's own capsule, so its ends dissolve
+            // into the track instead of sitting on it as a second pill.
+            shownWindow?.takeIf { windowAlpha > 0f }?.let { window ->
                 val from = size.width * window.start.coerceIn(0f, 1f)
                 val to = size.width * window.endInclusive.coerceIn(0f, 1f)
-                if (to > from) {
+                val span = to - from
+                if (span > 0f) {
+                    val feather = (span * WINDOW_FEATHER_SHARE)
+                        .coerceIn(WINDOW_FEATHER_MIN.toPx(), WINDOW_FEATHER_MAX.toPx())
+                        .coerceAtMost(span / 2f)
+                    val f = feather / span
+                    val full = markerColor.alpha * windowAlpha
+                    // Smoothstep down each feather: no slope break where the
+                    // ramp meets the flat middle, so there is no line for the
+                    // eye to catch at either end.
+                    val ramp = (0..WINDOW_FEATHER_STEPS).map { step ->
+                        val t = step / WINDOW_FEATHER_STEPS.toFloat()
+                        t to markerColor.copy(alpha = full * t * t * (3f - 2f * t))
+                    }
+                    val stops = ramp.map { (t, c) -> f * t to c } +
+                        ramp.reversed().map { (t, c) -> 1f - f * t to c }
                     drawRoundRect(
-                        color = markerColor,
-                        topLeft = Offset(from, 0f),
-                        size = Size(to - from, size.height),
+                        brush = Brush.horizontalGradient(
+                            colorStops = stops.toTypedArray(),
+                            startX = from,
+                            endX = to,
+                        ),
+                        size = size,
                         cornerRadius = radius,
                     )
                 }
@@ -224,6 +254,26 @@ fun ThinSlider(
                     cornerRadius = radius,
                 )
             }
+            // While an Automix blend runs, a soft band of light travels the whole
+            // bar on the blend's own clock. A drag in progress always shows the finger.
+            val shineStrength = if (dragging) 0f else mixPulse?.shineStrength ?: 0f
+            if (mixPulse != null && shineStrength > 0.01f) {
+                val band = size.width * MIX_SHINE_BAND_FRACTION
+                val center = -band + mixPulse.shine * (size.width + 2 * band)
+                drawRoundRect(
+                    brush = Brush.horizontalGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Transparent,
+                            0.5f to Color.White.copy(alpha = shineStrength),
+                            1f to Color.Transparent,
+                        ),
+                        startX = center - band,
+                        endX = center + band,
+                    ),
+                    size = size,
+                    cornerRadius = radius,
+                )
+            }
         }
         // Composed only while switching or mixing. The infinite animation therefore costs no
         // frames during ordinary playback, and AnimatedVisibility lets it leave gracefully.
@@ -249,6 +299,21 @@ fun ThinSlider(
 
 private const val SHEEN_BAND_FRACTION = 0.34f
 
+/** Share of the Automix window each feathered end takes, before the limits below. */
+private const val WINDOW_FEATHER_SHARE = 0.4f
+
+/** Shortest feather, so a narrow window still dissolves rather than ends. */
+private val WINDOW_FEATHER_MIN = 6.dp
+
+/** Longest feather, so a long blend still reads as a stretch rather than a smudge. */
+private val WINDOW_FEATHER_MAX = 40.dp
+
+/** Gradient stops per feather; enough that the smoothstep has no visible facets. */
+private const val WINDOW_FEATHER_STEPS = 6
+
+/** How long the Automix window takes to fade in or out. */
+private const val WINDOW_FADE_MS = 500
+
 /**
  * One beat clock for everything that pulses with an Automix blend — the seek bar's fill and
  * the "Mixing" label — so the two can never drift out of step with each other.
@@ -270,6 +335,15 @@ class MixPulse internal constructor(private val blend: () -> MixBlend?) {
     internal val coverAnim = Animatable(0f)
     internal val depthAnim = Animatable(0f)
     internal var level by mutableFloatStateOf(0f)
+
+    /** 0..1 position of the travelling shine, advanced by the same clock as [level]. */
+    internal var shine by mutableFloatStateOf(0f)
+
+    /**
+     * How visible the shine is: zero until a blend claims the bar, and again once the beat
+     * pulse has settled (paused, or reduced motion), so a still bar never carries a frozen band.
+     */
+    val shineStrength: Float get() = cover * depthAnim.value
 
     /** Kept across restarts of the clock, so a blend ending never jumps the phase. */
     internal var phase = 0.0
@@ -302,11 +376,6 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
     val active = pulse.active
     val playing = pulse.playing
     LaunchedEffect(active, playing, enabled) {
-        if (!enabled) {
-            pulse.coverAnim.snapTo(if (active) 1f else 0f)
-            pulse.depthAnim.snapTo(0f)
-            return@LaunchedEffect
-        }
         launch {
             pulse.coverAnim.animateTo(
                 if (active) 1f else 0f,
@@ -317,10 +386,11 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
             // Paused mid-blend, the pulse settles to a steady bar rather than beating on
             // over silence — and the frame clock below gets to stop.
             pulse.depthAnim.animateTo(
-                if (active && playing) 1f else 0f,
+                if (active && playing && enabled) 1f else 0f,
                 tween(durationMillis = PULSE_FADE_MS, easing = FastOutSlowInEasing),
             )
         }
+        if (!enabled) return@LaunchedEffect
         // The pulse's own beat clock. The blend publishes a beat anchor every fade tick, and
         // each one is re-derived from player positions that wobble by a few tens of ms — drawn
         // straight, that wobble is the pulse lurching. So this runs a free phase at the blend's
@@ -336,7 +406,7 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
                 val blend = pulse.blendNow()
                 val beatNanos = blend?.beatMs?.takeIf { it > 0f }?.let { it * 1_000_000.0 }
                 var phase = pulse.phase
-                if (beatNanos != null) {
+                if (beatNanos != null && blend != null) {
                     phase += dt / beatNanos
                     val target = Math.floorMod(now - blend.beatAnchorNanos, beatNanos.toLong()) / beatNanos
                     // Shortest way round the circle to where the beat should be. The very first
@@ -353,6 +423,7 @@ fun rememberMixPulse(mixBlend: () -> MixBlend?, enabled: Boolean): MixPulse {
                 phase -= kotlin.math.floor(phase)
                 pulse.phase = phase
                 pulse.level = beatShape(phase.toFloat())
+                pulse.shine = ((pulse.shine + dt / MIX_SHINE_NANOS) % 1.0).toFloat()
             }
         }
         pulse.locked = false
@@ -371,6 +442,12 @@ private const val PULSE_REST = 0.1f
 
 /** Share of the remaining phase error corrected each frame; small enough to be invisible. */
 private const val PHASE_PULL = 0.06
+
+/** One pass of the shine across the bar and the "Mixing" label. */
+private const val MIX_SHINE_NANOS = 2_000_000_000.0
+
+/** Width of the shine band, as a share of the bar. */
+private const val MIX_SHINE_BAND_FRACTION = 0.3f
 
 /** Breathing period when neither track's tempo is known. */
 private const val BREATH_NANOS = 1_800_000_000.0

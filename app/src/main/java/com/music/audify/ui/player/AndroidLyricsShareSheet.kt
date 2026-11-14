@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import android.content.Intent
@@ -17,7 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.IosShare
+import com.music.audify.ui.icons.SfIcons
 import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,7 +68,6 @@ internal fun AndroidLyricsShareSheet(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val shareLyricsMessage = stringResource(R.string.share_your_lyrics)
     val scope = rememberCoroutineScope()
     val haptics = rememberHaptics()
 
@@ -140,7 +137,7 @@ internal fun AndroidLyricsShareSheet(
 
             ShareAction(
                 label = stringResource(if (story) R.string.lyrics_share_story_revert else R.string.lyrics_share_story),
-                icon = if (story) Icons.Rounded.Undo else Icons.Rounded.PhoneIphone,
+                icon = if (story) SfIcons.Revert else SfIcons.Story,
                 accent = false,
                 enabled = image != null,
                 modifier = Modifier.fillMaxWidth(),
@@ -165,7 +162,7 @@ internal fun AndroidLyricsShareSheet(
             ) {
                 ShareAction(
                     label = stringResource(R.string.save),
-                    icon = Icons.Rounded.Download,
+                    icon = SfIcons.Download,
                     accent = false,
                     enabled = image != null,
                     modifier = Modifier.weight(1f),
@@ -191,7 +188,7 @@ internal fun AndroidLyricsShareSheet(
                 )
                 ShareAction(
                     label = stringResource(R.string.share),
-                    icon = Icons.Rounded.IosShare,
+                    icon = SfIcons.Share,
                     accent = true,
                     enabled = image != null,
                     modifier = Modifier.weight(1f),
@@ -208,7 +205,7 @@ internal fun AndroidLyricsShareSheet(
                                     context.startActivity(
                                         Intent.createChooser(
                                             sendIntent(uri),
-                                            shareLyricsMessage,
+                                            context.getString(R.string.share_your_lyrics),
                                         ),
                                     )
                                 }

@@ -1,30 +1,25 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.sharedui.resources.Res
 import com.music.audify.sharedui.resources.spotify_logo
+import com.music.audify.data.YtMusicRepository
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.download.Downloads
@@ -44,7 +39,7 @@ import com.music.audify.ui.replay.ReplayStoryPage
  * libraries it can reach.
  */
 @Composable
-fun libraryLinks(): List<LibraryLink> {
+fun libraryLinks(signedIn: Boolean): List<LibraryLink> {
     val webdavConfigured by AppSettings.webdavUrl.collectAsStateWithLifecycle()
     val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
     val smbShare by AppSettings.smbShare.collectAsStateWithLifecycle()
@@ -61,6 +56,13 @@ fun libraryLinks(): List<LibraryLink> {
         icon = icon,
     )
     return listOfNotNull(
+        // Paling atas, di atas Downloads. Hanya ada kalau sudah login.
+        link(
+            stringResource(R.string.liked_music),
+            "",
+            YtMusicRepository.LIKED_MUSIC,
+            icon = Icons.Rounded.Favorite,
+        ).takeIf { signedIn },
         link(
             stringResource(R.string.downloads),
             stringResource(R.string.downloaded_songs),
@@ -89,19 +91,13 @@ fun libraryLinks(): List<LibraryLink> {
             stringResource(R.string.smb_subtitle),
             com.music.audify.data.smb.SmbConfig.BROWSE_ID,
         ).takeIf { smbHost.isNotBlank() && smbShare.isNotBlank() },
-        // Always visible: the destination provides sign-in/token setup when no
-        // Spotify account is connected, and playlists when one is.
+        // Only while signed in to Spotify in Settings → Accounts; it opens that
+        // account's playlists rather than a browse page.
         link(
             stringResource(R.string.spotify),
-            stringResource(
-                if (spotifyConnected.isNotBlank()) {
-                    R.string.spotify_library_subtitle
-                } else {
-                    R.string.spotify_connect_subtitle
-                },
-            ),
+            stringResource(R.string.spotify_library_subtitle),
             SPOTIFY_BROWSE_ID,
-        ).copy(logo = Res.drawable.spotify_logo),
+        ).takeIf { spotifyConnected.isNotBlank() }?.copy(logo = Res.drawable.spotify_logo),
     )
 }
 
@@ -162,30 +158,14 @@ fun LibraryReplayEntry(
     loading: Boolean,
     onOpenReplay: (ReplayStoryPage) -> Unit,
 ) {
-    if (loading || cards.isNotEmpty()) {
-        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-            Text(
-                text = stringResource(R.string.replay_section_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = PAGE_GUTTER, vertical = 2.dp),
-            )
-            Text(
-                text = stringResource(R.string.replay_section_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = PAGE_GUTTER).padding(bottom = 10.dp),
-            )
-            if (loading) {
-                ReplayCardRowSkeleton()
-            } else {
-                ReplayCardRow(
-                    cards = cards,
-                    onCardClick = onOpenReplay,
-                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                )
-            }
-        }
+    if (loading) {
+        ReplayCardRowSkeleton()
+    } else if (cards.isNotEmpty()) {
+        ReplayCardRow(
+            cards = cards,
+            onCardClick = onOpenReplay,
+            modifier = Modifier.padding(vertical = 6.dp),
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+        )
     }
 }

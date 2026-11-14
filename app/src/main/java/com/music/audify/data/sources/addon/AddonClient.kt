@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.sources.addon
 
 import com.music.audify.data.Http
@@ -35,7 +33,7 @@ import java.util.concurrent.TimeUnit
  * request abandoned after it has already reached somebody's server is work
  * their server did for nobody.
  */
-class AddonClient(rawBaseUrl: String) {
+class AddonClient(rawBaseUrl: String, private val pickedQuality: String? = null) {
 
     /** Where this addon lives, with `/manifest.json` and trailing slashes off. */
     val baseUrl: String = normalizeBase(rawBaseUrl)
@@ -204,7 +202,8 @@ class AddonClient(rawBaseUrl: String) {
      * quality. See [atmosHint].
      */
     private suspend fun settingsFor(tier: String, stereoOnly: Boolean = false): Map<String, String> {
-        val declared = manifest().getOrNull()?.settings.orEmpty()
+        val manifest = manifest().getOrNull()
+        val declared = manifest?.settings.orEmpty()
         val params = LinkedHashMap<String, String>()
         declared.forEach { setting ->
             val key = setting.key.takeIf { it.isNotBlank() } ?: return@forEach
@@ -214,7 +213,20 @@ class AddonClient(rawBaseUrl: String) {
             val options = declared.firstOrNull { it.key == QUALITY_KEY }
                 ?.options.orEmpty()
                 .mapNotNull { it.stringValue }
-            params[QUALITY_KEY] = matchTier(tier, options) ?: tier
+            // Asking for the best it can get, the app sends the listener's pick
+            // for this addon, or the first option listed when there is none. A
+            // pick the addon has since stopped listing is dropped, since it
+            // would land on the addon's fallback; with no manifest in hand
+            // there is nothing to judge it against, so it goes as chosen.
+            // A lower tier is a setting saying what a file may cost (a
+            // download kept at High, a capped connection), and a pick does not
+            // get to overrule it, so that is still negotiated by [matchTier].
+            val chosen = when {
+                tier != TIER_LOSSLESS -> matchTier(tier, options)
+                manifest == null -> pickedQuality
+                else -> pickedQuality?.takeIf { it in options } ?: options.firstOrNull()
+            }
+            params[QUALITY_KEY] = chosen ?: tier
         }
         if (stereoOnly) {
             // Asked for the stereo mix by name, so nothing that lets the addon
@@ -268,7 +280,7 @@ class AddonClient(rawBaseUrl: String) {
      * nothing on the IO thread it already runs on.
      */
     private fun atmosHint(): String? {
-        val wanted = DeviceCodecs.playsDolbyAtmos && AppSettings.dolbyAtmos.value
+        val wanted = DeviceCodecs.atmosWanted
         return if (wanted) ATMOS_AUTO else null
     }
 
@@ -415,7 +427,7 @@ class AddonClient(rawBaseUrl: String) {
         const val TIER_HIGH = "HIGH"
         const val TIER_LOW = "LOW"
 
-        private const val QUALITY_KEY = "quality"
+        internal const val QUALITY_KEY = "quality"
 
         /** The spec's immersive-audio hint: `auto` normally, an "off" only for a stereo row picked by hand. */
         private const val ATMOS_KEY = "atmos"
@@ -517,11 +529,19 @@ class AddonClient(rawBaseUrl: String) {
          * client bounds each *read*, which a server dribbling a byte at a time
          * never trips, and an addon doing that would otherwise hold a
          * source-resolution slot indefinitely. The spec asks addons to answer
-         * search in under five seconds and streams in under three.
+         * search in under five seconds and streams in under three; the ceiling
+         * is wider than that because a TorBox-backed addon cold-caching a long
+         * FLAC spends twenty to thirty seconds before it can answer at all —
+         * thirty-two was the worst a real Nebula addon took, and 35 s left no
+         * room once the call itself is added to the wait. The read timeout is
+         * lifted above the ceiling for the same reason: that wait is silence,
+         * not a slow trickle, so an inherited read timeout would fire first and
+         * the ceiling here would never be reached.
          */
         private val client: OkHttpClient by lazy {
             Http.client.newBuilder()
-                .callTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .callTimeout(45, TimeUnit.SECONDS)
                 .build()
         }
     }

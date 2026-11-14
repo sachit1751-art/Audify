@@ -1,0 +1,28 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- AirPlay Audio: tiga cincin konsentris terbuka di bawah, cincin terluar hampir menyentuh dasar segitiga. -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M9.7,12.93A3,3 0,1 1,14.3,12.93" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M7.95,15.83A6.3,6.3 0,1 1,16.05,15.83" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M6.36,18.77A9.6,9.6 0,1 1,17.64,18.77" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1"
+        android:strokeLineJoin="round"
+        android:pathData="M12,12.6L16.2,20.6L7.8,20.6Z" />
+</vector>

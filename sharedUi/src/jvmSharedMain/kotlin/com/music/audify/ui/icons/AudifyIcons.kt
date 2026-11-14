@@ -1,8 +1,8 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.icons
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -10,6 +10,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
+
+/**
+ * The share glyph every share button draws. [AudifyIcons.Share] by default; the
+ * app provides its SF Symbol one, so screens in this module and the app's own
+ * screens show the same Apple Music style glyph.
+ */
+val LocalShareIcon = staticCompositionLocalOf { AudifyIcons.Share }
+
+/**
+ * The close glyph for floating action bars. [AudifyIcons.Close] by default; the
+ * app provides its SF Symbol one so the bars match the rest of its icons.
+ */
+val LocalCloseIcon = staticCompositionLocalOf { AudifyIcons.Close }
 
 /**
  * Thick-stroke, round-capped icons in the spirit of Telegram's modern icon set.
@@ -22,6 +35,40 @@ object AudifyIcons {
 
     private const val STROKE = 2.2f
     private val stroke = SolidColor(Color.Black)
+
+    /**
+     * Apple Music's share glyph (SF Symbol "square.and.arrow.up"): an open-topped
+     * box with an arrow rising out of it. Read through [LocalShareIcon].
+     */
+    val Share: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_share", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = stroke, strokeLineWidth = STROKE,
+                strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
+            ) {
+                // The box, open where the arrow leaves it.
+                moveTo(8.5f, 9f)
+                lineTo(7f, 9f)
+                quadTo(4.5f, 9f, 4.5f, 11.5f)
+                lineTo(4.5f, 18.5f)
+                quadTo(4.5f, 21f, 7f, 21f)
+                lineTo(17f, 21f)
+                quadTo(19.5f, 21f, 19.5f, 18.5f)
+                lineTo(19.5f, 11.5f)
+                quadTo(19.5f, 9f, 17f, 9f)
+                lineTo(15.5f, 9f)
+                // The arrow: shaft, then head.
+                moveTo(12f, 14.5f)
+                lineTo(12f, 3.5f)
+                moveTo(8.4f, 7f)
+                lineTo(12f, 3.4f)
+                lineTo(15.6f, 7f)
+            }
+        }.build()
+    }
 
     /** Compact list and quotation-bubble shapes used by the player controls. */
     val Queue: ImageVector by lazy {
@@ -42,6 +89,58 @@ object AudifyIcons {
                     arcToRelative(1.25f, 1.25f, 0f, true, true, 2.5f, 0f)
                     close()
                 }
+            }
+        }.build()
+    }
+
+    /** Apple Music's "Play Next": a play mark leading the first row of a short list. */
+    val PlayNext: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_play_next", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            path(stroke = stroke, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+                moveTo(12.5f, 6f)
+                lineTo(21f, 6f)
+                moveTo(3f, 12f)
+                lineTo(21f, 12f)
+                moveTo(3f, 18f)
+                lineTo(21f, 18f)
+            }
+            path(
+                fill = stroke, stroke = stroke, strokeLineWidth = 1.4f,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(3.5f, 3.3f)
+                lineTo(9.2f, 6f)
+                lineTo(3.5f, 8.7f)
+                close()
+            }
+        }.build()
+    }
+
+    /** "Play Last": the same list with the play mark closing the final row. */
+    val PlayLast: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_play_last", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            path(stroke = stroke, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round) {
+                moveTo(3f, 6f)
+                lineTo(21f, 6f)
+                moveTo(3f, 12f)
+                lineTo(21f, 12f)
+                moveTo(3f, 18f)
+                lineTo(12.5f, 18f)
+            }
+            path(
+                fill = stroke, stroke = stroke, strokeLineWidth = 1.4f,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(15.5f, 15.3f)
+                lineTo(21.2f, 18f)
+                lineTo(15.5f, 20.7f)
+                close()
             }
         }.build()
     }
@@ -156,7 +255,8 @@ object AudifyIcons {
     /**
      * The phone tab bar's Explore, Library and Search glyphs: solid-weight
      * iOS shapes rather than this file's stroked family, taken from the
-     * outlines of Flutter's cupertino_icons font (MIT) — square_grid_2x2,
+     * outlines of Flutter's cupertino_icons font (MIT) — square_grid_2x2
+     * with its four counters dropped so the squares fill solid,
      * square_stack_fill and search.
      *
      * Each is the glyph laid out the way the font sets it: the 512-unit em
@@ -169,12 +269,8 @@ object AudifyIcons {
             "bc_tab_explore",
             "M99.5 230.24Q58.5 230.24 58.5 188.24V93.24Q58.5 51.24 99.5 51.24H197.5Q238.5 51.24 238.5 93.24V188.24Q238.5 230.24 197.5 230.24Z" +
                 "M314.5 230.24Q273.5 230.24 273.5 188.24V93.24Q273.5 51.24 314.5 51.24H412.5Q453.5 51.24 453.5 93.24V188.24Q453.5 230.24 412.5 230.24Z" +
-                "M99.5 200.24H196.5Q207.5 200.24 207.5 188.24V93.24Q207.5 81.24 196.5 81.24H99.5Q88.5 81.24 88.5 93.24V188.24Q88.5 200.24 99.5 200.24Z" +
-                "M314.5 200.24H411.5Q422.5 200.24 422.5 188.24V93.24Q422.5 81.24 411.5 81.24H314.5Q303.5 81.24 303.5 93.24V188.24Q303.5 200.24 314.5 200.24Z" +
                 "M99.5 445.24Q58.5 445.24 58.5 403.24V307.24Q58.5 266.24 99.5 266.24H197.5Q238.5 266.24 238.5 307.24V403.24Q238.5 445.24 197.5 445.24Z" +
-                "M314.5 445.24Q273.5 445.24 273.5 403.24V307.24Q273.5 266.24 314.5 266.24H412.5Q453.5 266.24 453.5 307.24V403.24Q453.5 445.24 412.5 445.24Z" +
-                "M99.5 415.24H196.5Q207.5 415.24 207.5 403.24V308.24Q207.5 296.24 196.5 296.24H99.5Q88.5 296.24 88.5 308.24V403.24Q88.5 415.24 99.5 415.24Z" +
-                "M314.5 415.24H411.5Q422.5 415.24 422.5 403.24V308.24Q422.5 296.24 411.5 296.24H314.5Q303.5 296.24 303.5 308.24V403.24Q303.5 415.24 314.5 415.24Z",
+                "M314.5 445.24Q273.5 445.24 273.5 403.24V307.24Q273.5 266.24 314.5 266.24H412.5Q453.5 266.24 453.5 307.24V403.24Q453.5 445.24 412.5 445.24Z",
         )
     }
 
@@ -183,12 +279,25 @@ object AudifyIcons {
      * just past the em box, and the viewport would clip it flat.
      */
     val TabLibrary: ImageVector by lazy {
-        fontGlyph(
-            "bc_tab_library",
-            "M154 27.24Q156 0.24 185 0.24H322Q352 0.24 353 27.24Z" +
-                "M116 87.24Q121 56.24 150 56.24H356Q385 56.24 390 87.24Z" +
-                "M133 500.24Q66 500.24 66 434.24V187.24Q66 121.24 133 121.24H378Q446 121.24 446 187.24V434.24Q446 500.24 385 500.24Z",
-        )
+        // Apple Music's album stack, solid and without lettering: two edges of
+        // the cards behind and the front card.
+        ImageVector.Builder(
+            name = "bc_tab_library_plain",
+            defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 512f, viewportHeight = 512f,
+        ).addPath(
+            pathData = addPathNodes(
+                "M154 27.24Q156 0.24 185 0.24H322Q352 0.24 353 27.24Z" +
+                    "M116 87.24Q121 56.24 150 56.24H356Q385 56.24 390 87.24Z" +
+                    "M133 500.24Q66 500.24 66 434.24V187.24Q66 121.24 133 121.24H378Q446 121.24 446 187.24V434.24Q446 500.24 385 500.24Z" +
+                    // Beamed double note, cut out of the front card (even-odd): one outline, two heads joined by a beam.
+                    // Shifted 9 left and 3 up from its bounding-box centre: the heads
+                    // sit low and to the left, so the mass reads off-centre otherwise.
+                    "M210.8 219.5L344.1 192.8L344.1 365.5A39.9 30.5 0 1 1 325.2 339.5L325.2 234.4L229.7 253.5L229.7 391.7A39.9 30.5 0 1 1 210.8 365.8L210.8 257.3Z",
+            ),
+            pathFillType = androidx.compose.ui.graphics.PathFillType.EvenOdd,
+            fill = stroke,
+        ).build()
     }
 
     val TabSearch: ImageVector by lazy {
@@ -279,34 +388,64 @@ object AudifyIcons {
         }.build()
     }
 
-    val Repeat: ImageVector by lazy { repeatLoop("bc_repeat") }
+    val Repeat: ImageVector by lazy { repeatArrows("bc_repeat", one = false) }
+
+    /** [Repeat] with the 1 of repeat-one beside the top arrow, as Apple Music draws it. */
+    val RepeatOne: ImageVector by lazy { repeatArrows("bc_repeat_one", one = true) }
 
     /**
-     * Two straight runs joined by semicircles, with the arrow heads lying flat
-     * at the ends of the straights. Putting them on the curves instead — as a
-     * first pass did — makes the glyph read as a refresh/sync symbol.
+     * Apple Music's repeat glyph (SF Symbol "repeat"): two strands with rounded
+     * corners, a solid arrow head on each, the top one pointing right and the
+     * bottom one left. With [one] the top strand stops short to leave room for
+     * the 1.
      */
-    private fun repeatLoop(name: String): ImageVector =
+    private fun repeatArrows(name: String, one: Boolean): ImageVector =
         ImageVector.Builder(
             name = name,
             defaultWidth = 24.dp, defaultHeight = 24.dp,
             viewportWidth = 24f, viewportHeight = 24f,
         ).apply {
+            val topEnd = if (one) 9.0f else 16.0f
+            val headBase = if (one) 8.4f else 15.4f
+            val headTip = if (one) 12.4f else 19.4f
             path(
                 stroke = stroke,
                 strokeLineWidth = STROKE,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
             ) {
-                moveTo(8.6f, 7.6f)
-                lineTo(15.4f, 7.6f)
-                arcToRelative(4.4f, 4.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, 8.8f)
-                lineTo(8.6f, 16.4f)
-                arcToRelative(4.4f, 4.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, 0f, -8.8f)
-                close()
-                // Direction of travel: right along the top, left along the bottom.
-                moveTo(13.5f, 5.7f); lineTo(15.4f, 7.6f); lineTo(13.5f, 9.5f)
-                moveTo(10.5f, 14.5f); lineTo(8.6f, 16.4f); lineTo(10.5f, 18.3f)
+                // Top strand: up from the left, across to the right.
+                moveTo(4.6f, 12.4f)
+                lineTo(4.6f, 9.8f)
+                arcToRelative(2.4f, 2.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, 2.4f, -2.4f)
+                lineTo(topEnd, 7.4f)
+                // Bottom strand: down from the right, back across to the left.
+                moveTo(19.4f, 11.6f)
+                lineTo(19.4f, 14.2f)
+                arcToRelative(2.4f, 2.4f, 0f, isMoreThanHalf = false, isPositiveArc = true, -2.4f, 2.4f)
+                lineTo(8.0f, 16.6f)
+            }
+            path(
+                fill = stroke,
+                stroke = stroke,
+                strokeLineWidth = 1.2f,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                // Top arrow head, pointing right.
+                moveTo(headBase, 4.9f); lineTo(headTip, 7.4f); lineTo(headBase, 9.9f); close()
+                // Bottom arrow head, pointing left.
+                moveTo(8.6f, 14.1f); lineTo(4.6f, 16.6f); lineTo(8.6f, 19.1f); close()
+            }
+            if (one) {
+                path(
+                    stroke = stroke,
+                    strokeLineWidth = 1.9f,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                ) {
+                    moveTo(16.8f, 5.8f); lineTo(19.4f, 4.0f); lineTo(19.4f, 10.6f)
+                }
             }
         }.build()
 
@@ -363,6 +502,28 @@ object AudifyIcons {
                 moveTo(10f, 6.7f); lineTo(20f, 4.9f)
             }
         }.build()
+    }
+
+    /**
+     * Two beamed notes, filled, sitting level — what the lyrics show through an
+     * instrumental section. Apart from [MusicNote], which stays the artwork
+     * placeholder elsewhere.
+     */
+    val Instrumental: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_instrumental",
+            defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).addPath(
+            pathData = addPathNodes(
+                "M19.952 1.651a.75.75 0 0 1 .298.599V16.303a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.403-4.909" +
+                    "l2.311-.66a1.5 1.5 0 0 0 1.088-1.442V6.994l-9 2.572v9.737a3 3 0 0 1-2.176 2.884l-1.32.377" +
+                    "a2.553 2.553 0 1 1-1.402-4.909l2.31-.66a1.5 1.5 0 0 0 1.088-1.442V5.25a.75.75 0 0 1 .544-.721" +
+                    "l10.5-3a.75.75 0 0 1 .658.122Z",
+            ),
+            pathFillType = PathFillType.EvenOdd,
+            fill = stroke,
+        ).build()
     }
 
     /** Speech bubble with two lines of words. */
@@ -468,7 +629,7 @@ object AudifyIcons {
         ).apply {
             path(
                 stroke = stroke,
-                strokeLineWidth = STROKE,
+                strokeLineWidth = 1.6f,
                 strokeLineCap = StrokeCap.Round,
                 strokeLineJoin = StrokeJoin.Round,
                 fill = if (filled) stroke else null,
@@ -488,6 +649,25 @@ object AudifyIcons {
                 close()
             }
         }.build()
+
+    /** Dismissing or cancelling: an X on the same 14-unit span as [Plus]. */
+    val Close: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "bc_close",
+            defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f,
+        ).apply {
+            path(
+                stroke = stroke,
+                strokeLineWidth = STROKE,
+                strokeLineCap = StrokeCap.Round,
+                strokeLineJoin = StrokeJoin.Round,
+            ) {
+                moveTo(6f, 6f); lineTo(18f, 18f)
+                moveTo(18f, 6f); lineTo(6f, 18f)
+            }
+        }.build()
+    }
 
     /** Adding something — a new playlist, on the library shelf. */
     val Plus: ImageVector by lazy {

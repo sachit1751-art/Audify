@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.download
 
 import android.content.ContentValues
@@ -8,6 +6,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import com.music.audify.data.DebugLog as Log
 import com.music.audify.data.settings.AppSettings
@@ -123,8 +122,13 @@ object DownloadStore {
      * will keep: the media store's audio collection accepts a closed list of
      * MIME types, and one it doesn't recognise is refused outright at [begin] —
      * which is a download that cannot start rather than one that sounds worse
-     * than hoped. Anything not answered for here falls the caller back to
-     * YouTube's AAC, so an unfamiliar codec costs quality and not the download.
+     * than hoped.
+     *
+     * Only asked of manifests now, whose segments [ManifestFile] joins into one
+     * of these. A plain file is named for what its opening bytes are — see
+     * [Downloader.Container] — because a codec label alone can't tell raw ADTS
+     * from AAC-in-MP4, and this table used to send every addon `aac` and `mp3`
+     * to YouTube for want of an entry.
      *
      * Kept as a table rather than derived from the codec string because two of
      * these are not the identity mapping they look like. WAV's registered type
@@ -151,7 +155,9 @@ object DownloadStore {
      * have one.
      */
     fun existing(context: Context, name: String): Uri? =
-        if (!AppSettings.exportDownloads.value) {
+        if (customTree(context) != null) {
+            treeChild(context, customTree(context)!!, name)
+        } else if (!AppSettings.exportDownloads.value) {
             privateFile(context, name).takeIf { it.exists() }?.let(Uri::fromFile)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             mediaStoreEntry(context, name)
@@ -161,21 +167,18 @@ object DownloadStore {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun mediaStoreEntry(context: Context, name: String): Uri? = runCatching {
-        val cursor = context.contentResolver.query(
+        context.contentResolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             arrayOf(MediaStore.MediaColumns._ID),
             "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND " +
                 "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
             arrayOf(name, "%$FOLDER%"),
             null,
-        ) ?: return@runCatching null
-        try {
-            if (!cursor.moveToFirst()) null
-            else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.buildUpon()
-                    .appendPath(cursor.getLong(0).toString())
-                    .build()
-        } finally {
-            cursor.close()
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI.buildUpon()
+                .appendPath(cursor.getLong(0).toString())
+                .build()
         }
     }.onFailure { Log.w(TAG, "media store lookup failed for $name: ${it.message}") }.getOrNull()
 
@@ -196,11 +199,8 @@ object DownloadStore {
     /** Exact bytes currently occupied by [uri], or null when the provider won't say. */
     fun sizeBytes(context: Context, uri: Uri): Long? = runCatching {
         if (uri.scheme == "file") {
-            val path = uri.path ?: return null
-            val file = File(path)
+            val file = uri.path?.let(::File) ?: return null
             if (!file.exists()) return null
-            // Offline HLS/DASH records point at the playlist; their storage cost
-            // is the whole package (segments and sidecars), not the tiny index.
             if (file.name == "playlist.m3u8" && file.parentFile?.parentFile?.name == "offline-hls") {
                 return file.parentFile?.walkTopDown()?.filter(File::isFile)?.fold(0L) { total, child ->
                     if (Long.MAX_VALUE - total < child.length()) return null
@@ -211,44 +211,39 @@ object DownloadStore {
         }
         context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
             descriptor.length.takeIf { it >= 0L }
-        } ?: run {
-            val cursor = context.contentResolver.query(
-                uri,
-                arrayOf(MediaStore.MediaColumns.SIZE),
-                null,
-                null,
-                null,
-            ) ?: return@runCatching null
-            try {
-                if (!cursor.moveToFirst()) null
-                else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)).takeIf { it >= 0L }
-            } finally {
-                cursor.close()
-            }
+        } ?: context.contentResolver.query(
+            uri,
+            arrayOf(android.provider.MediaStore.MediaColumns.SIZE),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) null
+            else cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.SIZE))
+                .takeIf { it >= 0L }
         }
     }.getOrNull()
 
-    /** Best available added/modified time for legacy metadata without a timestamp. */
+    /** Best available modified/added time for a saved file. */
     fun lastModifiedMillis(context: Context, uri: Uri): Long? = runCatching {
         if (uri.scheme == "file") return uri.path?.let(::File)?.lastModified()?.takeIf { it > 0L }
-        val cursor = context.contentResolver.query(
+        context.contentResolver.query(
             uri,
-            arrayOf(MediaStore.MediaColumns.DATE_ADDED),
+            arrayOf(android.provider.MediaStore.MediaColumns.DATE_ADDED),
             null,
             null,
             null,
-        ) ?: return@runCatching null
-        try {
+        )?.use { cursor ->
             if (!cursor.moveToFirst()) null
-            else cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED))
+            else cursor.getLong(cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATE_ADDED))
                 .takeIf { it > 0L }?.times(1_000L)
-        } finally {
-            cursor.close()
         }
     }.getOrNull()
 
     fun delete(context: Context, uri: Uri): Boolean = runCatching {
-        if (uri.scheme == "file") {
+        if (uri.scheme == "content" && DocumentsContract.isDocumentUri(context, uri)) {
+            DocumentsContract.deleteDocument(context.contentResolver, uri)
+        } else if (uri.scheme == "file") {
             uri.path?.let { path ->
                 val file = File(path)
                 if (file.name == "playlist.m3u8" && file.parentFile?.parentFile?.name == "offline-hls") {
@@ -300,19 +295,20 @@ object DownloadStore {
                 )
                 return Uri.fromFile(target)
             }
-            val publishedRows = context.contentResolver.update(
+            // A file made in a folder the person chose has no pending row to clear.
+            if (DocumentsContract.isDocumentUri(context, uri)) return uri
+            context.contentResolver.update(
                 uri,
                 ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
                 null,
                 null,
             )
-            requireMediaStorePublishSucceeded(publishedRows, name)
             return uri
         }
 
         fun abort() {
             part?.delete()
-            if (part == null) runCatching { context.contentResolver.delete(uri, null, null) }
+            if (part == null) DownloadStore.delete(context, uri)
         }
     }
 
@@ -324,6 +320,12 @@ object DownloadStore {
      *   download cannot start rather than that it might not finish.
      */
     fun begin(context: Context, name: String, mimeType: String): Pending {
+        customTree(context)?.let { tree ->
+            val created = runCatching {
+                DocumentsContract.createDocument(context.contentResolver, treeRoot(tree), mimeType, name)
+            }.getOrNull() ?: error("Could not create $name in the chosen download folder")
+            return Pending(context, created, name, part = null, target = null)
+        }
         if (!AppSettings.exportDownloads.value) {
             val target = privateFile(context, name)
             val folder = target.parentFile ?: error("No download folder")
@@ -362,6 +364,51 @@ object DownloadStore {
         part.delete()
         return Pending(context, Uri.fromFile(target), name, part = part, target = target)
     }
+
+    /**
+     * The folder the person chose for downloads, when exporting is on and its
+     * read/write grant is still held; null means the default destination.
+     */
+    private fun customTree(context: Context): Uri? {
+        if (!AppSettings.exportDownloads.value) return null
+        val raw = AppSettings.downloadFolderUri.value
+        if (raw.isBlank()) return null
+        val tree = Uri.parse(raw)
+        val granted = runCatching {
+            context.contentResolver.persistedUriPermissions.any {
+                it.uri == tree && it.isReadPermission && it.isWritePermission
+            }
+        }.getOrDefault(false)
+        return tree.takeIf { granted }
+    }
+
+    private fun treeRoot(tree: Uri): Uri =
+        DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+
+    /** The file named [name] directly inside the chosen folder, or null. */
+    private fun treeChild(context: Context, tree: Uri, name: String): Uri? = runCatching {
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+            tree,
+            DocumentsContract.getTreeDocumentId(tree),
+        )
+        context.contentResolver.query(
+            children,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            ),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(1) == name) {
+                    return@use DocumentsContract.buildDocumentUriUsingTree(tree, cursor.getString(0))
+                }
+            }
+            null
+        }
+    }.onFailure { Log.w(TAG, "folder lookup failed for $name: ${it.message}") }.getOrNull()
 
     @Suppress("DEPRECATION")
     private fun legacyFile(name: String) = File(

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.presence
 
 import com.music.audify.data.DebugLog
@@ -105,7 +103,7 @@ class Presence(
                     DebugLog.w(TAG, "presence ping refused: HTTP ${response.code}")
                     return
                 }
-                val text = response.body.string()
+                val text = response.body?.string().orEmpty()
                 runCatching { Json.parseToJsonElement(text).jsonObject["intervalSec"]?.jsonPrimitive?.intOrNull }
                     .getOrNull()
                     ?.let { intervalSec = it }

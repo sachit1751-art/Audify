@@ -1,8 +1,5 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback.cast
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.mediarouter.media.MediaRouteSelector
@@ -56,18 +53,13 @@ object CastController {
     private val _volume = MutableStateFlow(1f)
     val volume: StateFlow<Float> = _volume.asStateFlow()
 
-    // These framework objects are intentionally application-scoped: ensureStarted
-    // and onReady receive only context.applicationContext, never an Activity.
-    @SuppressLint("StaticFieldLeak")
     private var castContext: CastContext? = null
-    @SuppressLint("StaticFieldLeak")
     private var router: MediaRouter? = null
     private var selector: MediaRouteSelector? = null
     private var started = false
     private var playback: CastPlayback? = null
 
     /** The session whose volume is being followed, so it can be let go of. */
-    @SuppressLint("StaticFieldLeak")
     private var watched: CastSession? = null
 
     private val volumeListener = object : Cast.Listener() {

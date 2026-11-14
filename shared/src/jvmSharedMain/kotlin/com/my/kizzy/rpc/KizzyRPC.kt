@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  *
  *  ******************************************************************
@@ -29,18 +27,11 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-private val discordJsonParser = Json { ignoreUnknownKeys = true }
-
 /**
  * Modified by Zion Huang
  */
-/** Runs work with a one-shot client and closes it on success, failure, or cancellation. */
-internal suspend fun <T> withOwnedHttpClient(closeClient: () -> Unit, block: suspend () -> T): T =
-    try {
-        block()
-    } finally {
-        closeClient()
-    }
+internal suspend fun <T> withOwnedHttpClient(close: () -> Unit, block: suspend () -> T): T =
+    try { block() } finally { close() }
 
 open class KizzyRPC(
     private val token: String,
@@ -188,7 +179,8 @@ open class KizzyRPC(
                 }.bodyAsText()
                 // kotlinx rather than org.json: this module is shared with the
                 // desktop, which has no Android JSON on its classpath.
-                val json = discordJsonParser.parseToJsonElement(response).jsonObject
+                val json = Json { ignoreUnknownKeys = true }
+                    .parseToJsonElement(response).jsonObject
                 fun field(name: String): String? =
                     json[name]?.jsonPrimitive?.contentOrNull?.takeIf { it != "null" }
                 val id = field("id") ?: error("Discord returned no user id")

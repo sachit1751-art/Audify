@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Vendored from Kyant0/backdrop v2.0.0 (io.github.kyant0:backdrop)
  * https://github.com/Kyant0/backdrop — Copyright 2025 Kyant0, Apache License 2.0
@@ -14,7 +12,6 @@ package com.music.audify.ui.components.backdrop
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.toArgb
 import org.intellij.lang.annotations.Language
 
@@ -22,10 +19,6 @@ import org.intellij.lang.annotations.Language
 fun RuntimeShader(@Language("AGSL") shaderString: String): RuntimeShader {
     val shader = android.graphics.RuntimeShader(shaderString)
     return AndroidRuntimeShader(shader)
-}
-
-fun RuntimeShader.asComposeShader(): Shader {
-    return this.asAndroidRuntimeShader()
 }
 
 fun RuntimeShader.asAndroidRuntimeShader(): android.graphics.RuntimeShader {

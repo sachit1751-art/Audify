@@ -33,7 +33,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.IosShare
@@ -52,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -75,6 +75,7 @@ import com.music.audify.data.stats.ListeningSummaryCsv
 import com.music.audify.data.stats.ReplayPeriod
 import com.music.audify.data.stats.ReplaySummary
 import com.music.audify.ui.components.PAGE_GUTTER
+import com.music.audify.ui.components.ShimmerBox
 import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.rememberArtworkColors
@@ -208,9 +209,6 @@ fun ReplayScreen(
                 ),
         )
 
-        val textColor = if (dark) Color.White else Color.Black
-        val textVariant = if (dark) Color.White.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.55f)
-
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
@@ -220,9 +218,9 @@ fun ReplayScreen(
 
             when {
                 state.loading && summary == null -> item("loading") {
-                    Box(Modifier.fillMaxWidth().padding(64.dp), Alignment.Center) {
-                        CircularProgressIndicator(color = textColor.copy(alpha = 0.6f))
-                    }
+                    ReplayChartsSkeleton(
+                        titles = listOf(topSongs, topArtists, topAlbums, topGenres),
+                    )
                 }
                 summary == null || summary.isEmpty -> item("empty") { EmptyReplay(state.period, dark) }
                 else -> {
@@ -395,7 +393,49 @@ private fun Heading(state: ReplayState, onPeriodChange: (ReplayPeriod) -> Unit, 
         )
         Spacer(Modifier.height(14.dp))
         PeriodPicker(state.period, onPeriodChange, dark)
+        if (state.period == ReplayPeriod.THIS_MONTH || state.period == ReplayPeriod.THIS_YEAR) {
+            Spacer(Modifier.height(10.dp))
+            AnchorStepper(state, textColor)
+        }
         Spacer(Modifier.height(18.dp))
+    }
+}
+
+/** Keep the migrated month/year browsing controls alongside Audify's original Replay. */
+@Composable
+private fun AnchorStepper(state: ReplayState, textColor: Color) {
+    val today = java.time.LocalDate.now()
+    val first = state.firstMonth
+    val canPrev = first != null && when (state.period) {
+        ReplayPeriod.THIS_MONTH -> java.time.YearMonth.from(state.anchor).isAfter(first)
+        ReplayPeriod.THIS_YEAR -> state.anchor.year > first.year
+        else -> false
+    }
+    val canNext = !state.period.stepAnchor(state.anchor, 1L).isAfter(today)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = AudifyIcons.ChevronRight,
+            contentDescription = null,
+            tint = textColor.copy(alpha = if (canPrev) 0.9f else 0.25f),
+            modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = canPrev) {
+                state.onAnchorChange(state.period.stepAnchor(state.anchor, -1L))
+            }.padding(8.dp).rotate(180f),
+        )
+        Text(
+            text = state.period.anchorLabel(state.anchor),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.W700,
+            color = textColor,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        Icon(
+            imageVector = AudifyIcons.ChevronRight,
+            contentDescription = null,
+            tint = textColor.copy(alpha = if (canNext) 0.9f else 0.25f),
+            modifier = Modifier.size(36.dp).clip(CircleShape).clickable(enabled = canNext) {
+                state.onAnchorChange(state.period.stepAnchor(state.anchor, 1L))
+            }.padding(8.dp),
+        )
     }
 }
 
@@ -571,6 +611,66 @@ private fun ReplayActionRow(icon: ImageVector, label: String, dark: Boolean, onC
 }
 
 // ── Charts ──────────────────────────────────────────────────────────────────
+
+/**
+ * Keeps Replay's chart geometry on screen while the listening summary is read.
+ * The placeholders follow the real rank/artwork/title row dimensions, so the
+ * first result replaces them without a large vertical layout jump.
+ */
+@Composable
+private fun ReplayChartsSkeleton(titles: List<String>) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        titles.forEachIndexed { index, title ->
+            ShimmerBox(
+                modifier = Modifier
+                    .padding(start = PAGE_GUTTER + 4.dp, end = PAGE_GUTTER + 4.dp)
+                    .padding(top = 8.dp, bottom = 10.dp)
+                    .width((title.length.coerceIn(8, 16) * 11).dp)
+                    .height(26.dp),
+                shape = RoundedCornerShape(5.dp),
+            )
+            repeat(4) { row ->
+                ReplayChartRowSkeleton(circularArtwork = index == 1, row = row)
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun ReplayChartRowSkeleton(circularArtwork: Boolean, row: Int) {
+    val titleWidths = listOf(0.66f, 0.52f, 0.74f, 0.59f)
+    val subtitleWidths = listOf(0.38f, 0.52f, 0.31f, 0.44f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = PAGE_GUTTER + 4.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ShimmerBox(Modifier.size(22.dp), CircleShape)
+        Spacer(Modifier.width(10.dp))
+        ShimmerBox(
+            Modifier.size(48.dp),
+            if (circularArtwork) CircleShape else RoundedCornerShape(6.dp),
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            ShimmerBox(
+                Modifier.fillMaxWidth(titleWidths[row]).height(14.dp),
+                RoundedCornerShape(4.dp),
+            )
+            ShimmerBox(
+                Modifier.fillMaxWidth(subtitleWidths[row]).height(11.dp),
+                RoundedCornerShape(4.dp),
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        ShimmerBox(Modifier.width(18.dp).height(12.dp), RoundedCornerShape(4.dp))
+    }
+}
 
 private fun LazyListScope.chart(
     key: String,

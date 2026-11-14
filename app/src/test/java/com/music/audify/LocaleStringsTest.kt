@@ -76,6 +76,22 @@ class LocaleStringsTest(private val tag: String) {
             "spotify_import_language_hint",
             "liquid_flow",
             "liquid_flow_subtitle",
+            "liquid_glass_lightweight",
+            "liquid_glass_lightweight_subtitle",
+            "liquid_glass_transparency",
+            "direct_source_stream_matching",
+            "direct_source_stream_matching_subtitle",
+            "addon_quality",
+            "addon_quality_subtitle",
+            "addon_quality_auto",
+            "addon_quality_low",
+            "addon_quality_high",
+            "addon_quality_lossless",
+            "song_info_credits",
+            "song_info_writers",
+            "song_info_producers",
+            "song_info_additional_vocals",
+            "song_info_sample",
         )
 
         private val baseKeys: Set<String> by lazy {

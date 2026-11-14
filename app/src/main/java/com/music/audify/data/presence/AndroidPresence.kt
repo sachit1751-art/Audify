@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.presence
-
-import androidx.core.content.edit
 
 import android.app.Application
 import android.content.Context
@@ -35,7 +31,7 @@ object AndroidPresence {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.getString(KEY_INSTALL_ID, null)?.let { return it }
         val id = UUID.randomUUID().toString()
-        prefs.edit {putString(KEY_INSTALL_ID, id)}
+        prefs.edit().putString(KEY_INSTALL_ID, id).apply()
         return id
     }
 }

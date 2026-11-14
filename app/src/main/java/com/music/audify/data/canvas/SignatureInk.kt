@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.canvas
-
-import androidx.core.graphics.createBitmap
 
 import android.graphics.Bitmap
 import coil3.size.Size
@@ -57,7 +53,7 @@ object SignatureInkTransformation : Transformation() {
             val outAlpha = (darkness * inAlpha * 255f).roundToInt().coerceIn(0, 255)
             pixels[i] = (outAlpha shl 24) or 0x00FFFFFF
         }
-        return createBitmap(width, height).also {
+        return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also {
             it.setPixels(pixels, 0, width, 0, 0, width, height)
         }
     }

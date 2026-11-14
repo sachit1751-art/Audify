@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.replay
 
 import android.content.Context
@@ -21,6 +19,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -49,6 +48,11 @@ class ReplayState(
      * chips were switched to This month.
      */
     val memberSince: String?,
+    /** The day the open month or year is read around: today, or an earlier one the listener stepped to. */
+    val anchor: LocalDate = LocalDate.now(),
+    val onAnchorChange: (LocalDate) -> Unit = {},
+    /** The first month this device recorded anything, so stepping back knows where to stop. */
+    val firstMonth: YearMonth? = null,
 )
 
 /**
@@ -65,23 +69,24 @@ fun rememberReplayState(active: Boolean): Pair<ReplayState, (ReplayPeriod) -> Un
     var summary by remember { mutableStateOf<ReplaySummary?>(null) }
     var loading by remember { mutableStateOf(true) }
     var memberSince by remember { mutableStateOf<String?>(null) }
+    var anchorDay by rememberSaveable { mutableStateOf<Long?>(null) }
+    var firstMonth by remember { mutableStateOf<YearMonth?>(null) }
+    val anchor = anchorDay?.let { LocalDate.ofEpochDay(it) } ?: LocalDate.now()
 
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
         // A directory listing, so off the composition's thread.
-        memberSince = withContext(Dispatchers.IO) {
-            ListeningStats.months().firstOrNull()?.let {
-                "%02d/%02d".format(Locale.ROOT, it.monthValue, it.year % 100)
-            }
-        }
+        val first = withContext(Dispatchers.IO) { ListeningStats.months().firstOrNull() }
+        firstMonth = first
+        memberSince = first?.let { "%02d/%02d".format(Locale.ROOT, it.monthValue, it.year % 100) }
     }
-    LaunchedEffect(period, active) {
+    LaunchedEffect(period, anchor, active) {
         if (!active) return@LaunchedEffect
         // Only the first read shows a spinner. Switching period must not blank
         // the charts for the beat it takes to merge the files — that reads as
         // the page breaking rather than as it answering a different question.
         loading = summary == null
-        summary = ListeningStats.summary(period)
+        summary = ListeningStats.summary(period, anchor)
         loading = false
 
         // Artist pictures and pages arrive after the page has been built — see
@@ -95,21 +100,19 @@ fun rememberReplayState(active: Boolean): Pair<ReplayState, (ReplayPeriod) -> Un
         // gets as far as a rebuild.
         ArtistFacts.revision.drop(1).collectLatest {
             delay(SETTLE_MILLIS)
-            summary = ListeningStats.summary(period)
+            summary = ListeningStats.summary(period, anchor)
         }
     }
-    return ReplayState(period, summary, loading, memberSince) to
+    return ReplayState(
+        period = period,
+        summary = summary,
+        loading = loading,
+        memberSince = memberSince,
+        anchor = anchor,
+        onAnchorChange = { day -> anchorDay = day.toEpochDay() },
+        firstMonth = firstMonth,
+    ) to
         { next: ReplayPeriod -> period = next }
-}
-
-/** Loads the small Home recap only while Home is visible; it shares Replay's on-device aggregates. */
-@Composable
-fun rememberWeeklyRecap(active: Boolean): ReplaySummary? {
-    var summary by remember { mutableStateOf<ReplaySummary?>(null) }
-    LaunchedEffect(active) {
-        if (active) summary = ListeningStats.summary(ReplayPeriod.THIS_WEEK)
-    }
-    return summary
 }
 
 /** Keep one recap available for the current Monday-based week until opened or dismissed. */
@@ -134,69 +137,34 @@ private fun runs(vararg parts: Pair<String, Boolean>): List<HeadlineRun> =
 
 /** The sentence at the top of [page]. */
 fun ReplaySummary.storyHeadline(context: Context, page: ReplayStoryPage): List<HeadlineRun> = when (page) {
-    ReplayStoryPage.INTRO -> runs(
-        context.getString(R.string.replay_intro_start) to false,
-        " " to false,
-        "Replay" to true,
-        " " to false,
-        context.getString(R.string.replay_intro_end) to false,
-    )
-    ReplayStoryPage.MINUTES -> runs(
-        context.getString(R.string.replay_minutes_start) to false,
-        " " to false,
-        context.resources.getQuantityString(
-            R.plurals.replay_minutes_unit,
-            formatMinutes(totalMs).replace(",", "").toIntOrNull() ?: 0,
-            formatMinutes(totalMs),
-        ) to true,
-        " " to false,
-        context.getString(R.string.replay_minutes_end) to false,
-    )
-    ReplayStoryPage.SONGS -> runs(
-        context.getString(R.string.replay_songs_start) to false,
-        " " to false,
-        context.replayCount(totalPlays, R.plurals.replay_song_count) to true,
-        " " to false,
-        (if (period == ReplayPeriod.THIS_WEEK) context.getString(R.string.replay_songs_end_week) else context.getString(R.string.replay_songs_end)) to false,
-    )
-    ReplayStoryPage.ARTISTS -> runs(
-        (if (period == ReplayPeriod.THIS_WEEK) context.getString(R.string.replay_artist_start_week) else context.getString(R.string.replay_artist_start)) to false,
-        " " to false,
-        context.getString(R.string.replay_artist_focus) to true,
-        " " to false,
-        context.getString(R.string.replay_artist_end) to false,
-    )
-    ReplayStoryPage.ALBUMS -> runs(
-        context.getString(R.string.replay_album_start) to false,
-        " " to false,
-        context.getString(R.string.replay_album_focus) to true,
-        " " to false,
-        context.getString(R.string.replay_album_end) to false,
-    )
-    ReplayStoryPage.GENRES -> runs(
-        context.getString(R.string.replay_genre_start) to false,
-        " " to false,
-        context.getString(R.string.replay_genre_focus) to true,
-        " " to false,
-        context.getString(R.string.replay_genre_end) to false,
-    )
-    ReplayStoryPage.HABITS -> runs(
-        context.getString(R.string.replay_habits_start) to false,
-        " " to false,
-        context.replayCount(distinctSongs, R.plurals.replay_song_count) to true,
-        " " to false,
-        context.getString(R.string.replay_habits_middle) to false,
-        " " to false,
-        context.replayCount(distinctArtists, R.plurals.replay_artist_count) to true,
-        "." to false,
-    )
-    ReplayStoryPage.SUMMARY -> runs(
-        context.getString(R.string.replay_summary_start) to false,
-        " " to false,
-        if (period == ReplayPeriod.THIS_WEEK) context.getString(R.string.replay_summary_end_week) to true else label to true,
-        if (period == ReplayPeriod.THIS_WEEK) " in music." to false else " in music." to false,
-    )
+    ReplayStoryPage.INTRO -> context.twoPart(R.string.replay_story_intro_a, R.string.replay_story_intro_b)
+    ReplayStoryPage.MINUTES -> context.twoPart(R.string.replay_story_minutes_a, R.string.replay_story_minutes_b)
+    ReplayStoryPage.ARTISTS -> context.twoPart(R.string.replay_story_artist_a, R.string.replay_story_artist_b)
+    ReplayStoryPage.SONGS -> context.twoPart(R.string.replay_story_songs_a, R.string.replay_story_songs_b)
+    ReplayStoryPage.ALBUMS -> context.twoPart(R.string.replay_story_albums_a, R.string.replay_story_albums_b)
+    ReplayStoryPage.GENRES -> context.twoPart(R.string.replay_story_personality_a, R.string.replay_story_personality_b)
+    ReplayStoryPage.SUMMARY -> context.twoPart(R.string.replay_story_final_a, R.string.replay_story_final_b)
+    ReplayStoryPage.HABITS -> habitsHeadline(context)
 }
+
+private fun Context.twoPart(first: Int, second: Int): List<HeadlineRun> {
+    // Android memangkas spasi di ujung string resource, jadi spasi antar-bagian
+    // ditambahkan di sini supaya "Lagu-lagu ini" + "menemani" tidak menempel.
+    val a = getString(first)
+    val lead = if (a.isEmpty() || a.last().isWhitespace()) a else "$a "
+    return listOf(HeadlineRun(lead, false), HeadlineRun(getString(second), true))
+}
+
+private fun ReplaySummary.habitsHeadline(context: Context): List<HeadlineRun> = runs(
+    context.getString(R.string.replay_habits_start) to false,
+    " " to false,
+    context.replayCount(distinctSongs, R.plurals.replay_song_count) to true,
+    " " to false,
+    context.getString(R.string.replay_habits_middle) to false,
+    " " to false,
+    context.replayCount(distinctArtists, R.plurals.replay_artist_count) to true,
+    "." to false,
+)
 
 fun ReplayPeriod.localizedChip(context: Context): String = when (this) {
     ReplayPeriod.THIS_WEEK -> context.getString(R.string.replay_this_week)
@@ -216,9 +184,9 @@ fun ReplayPeriod.localizedTab(context: Context): String = when (this) {
 fun ReplaySummary.localizedLabel(context: Context): String = when (period) {
     ReplayPeriod.THIS_WEEK -> "This week"
     ReplayPeriod.THIS_MONTH -> DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
-        .format(LocalDate.now())
+        .format(anchor)
         .replaceFirstChar { it.titlecase(Locale.getDefault()) }
-    ReplayPeriod.THIS_YEAR -> LocalDate.now().year.toString()
+    ReplayPeriod.THIS_YEAR -> anchor.year.toString()
     ReplayPeriod.ALL_TIME -> context.getString(R.string.all_time)
 }
 
@@ -269,6 +237,103 @@ fun storyHue(page: ReplayStoryPage): Float = when (page) {
     ReplayStoryPage.GENRES -> 240f
     ReplayStoryPage.HABITS -> 285f
     ReplayStoryPage.SUMMARY -> 325f
+}
+
+enum class ReplayPersonalityKind { NIGHT_EXPLORER, MELODIC_DREAMER, SONIC_ADVENTURER, RHYTHM_SEEKER }
+
+/** Kepribadian musik, dihitung dari data mendengarkan yang sebenarnya. */
+data class ReplayPersonality(
+    val kind: ReplayPersonalityKind,
+    /** Porsi mendengarkan antara 21.00 dan 04.59. */
+    val nightShare: Float,
+    /** Rata-rata putaran per lagu berbeda. */
+    val repeatRatio: Float,
+)
+
+/**
+ * Aturan sederhana dan berurutan: banyak mendengarkan malam hari, lalu banyaknya
+ * artis berbeda per putaran, lalu seberapa sering lagu yang sama diulang.
+ * Selain itu, Melodic Dreamer.
+ */
+fun ReplaySummary.personality(): ReplayPersonality {
+    val total = hourOfDay.sum().coerceAtLeast(1L)
+    val night = hourOfDay.withIndex().filter { it.index >= 21 || it.index <= 4 }.sumOf { it.value }
+    val nightShare = night.toFloat() / total
+    val variety = distinctArtists.toFloat() / totalPlays.coerceAtLeast(1)
+    val repeat = totalPlays.toFloat() / distinctSongs.coerceAtLeast(1)
+    val kind = when {
+        nightShare >= 0.34f -> ReplayPersonalityKind.NIGHT_EXPLORER
+        variety >= 0.28f && distinctArtists >= 8 -> ReplayPersonalityKind.SONIC_ADVENTURER
+        repeat >= 2.2f -> ReplayPersonalityKind.RHYTHM_SEEKER
+        else -> ReplayPersonalityKind.MELODIC_DREAMER
+    }
+    return ReplayPersonality(kind, nightShare, repeat)
+}
+
+fun ReplayPersonality.title(context: Context): String = context.getString(
+    when (kind) {
+        ReplayPersonalityKind.NIGHT_EXPLORER -> R.string.replay_persona_night_title
+        ReplayPersonalityKind.MELODIC_DREAMER -> R.string.replay_persona_dreamer_title
+        ReplayPersonalityKind.SONIC_ADVENTURER -> R.string.replay_persona_adventurer_title
+        ReplayPersonalityKind.RHYTHM_SEEKER -> R.string.replay_persona_rhythm_title
+    },
+)
+
+fun ReplayPersonality.description(context: Context): String = context.getString(
+    when (kind) {
+        ReplayPersonalityKind.NIGHT_EXPLORER -> R.string.replay_persona_night_desc
+        ReplayPersonalityKind.MELODIC_DREAMER -> R.string.replay_persona_dreamer_desc
+        ReplayPersonalityKind.SONIC_ADVENTURER -> R.string.replay_persona_adventurer_desc
+        ReplayPersonalityKind.RHYTHM_SEEKER -> R.string.replay_persona_rhythm_desc
+    },
+)
+
+/** Sampai tiga baris kebiasaan mendengarkan, semuanya dari angka nyata. */
+fun ReplaySummary.behaviorLines(context: Context, persona: ReplayPersonality): List<String> = buildList {
+    peakHour?.let { add(context.getString(R.string.replay_behavior_peak, formatHour(context, it))) }
+    if (persona.nightShare >= 0.05f) {
+        add(context.getString(R.string.replay_behavior_night, (persona.nightShare * 100f).toInt()))
+    }
+    if (persona.repeatRatio >= 1.2f) {
+        add(context.getString(R.string.replay_behavior_repeat, String.format(Locale.US, "%.1f", persona.repeatRatio)))
+    }
+    busiestDay?.let { add(context.getString(R.string.replay_behavior_day, formatDay(context, it))) }
+}.take(3)
+
+/** Rata-rata waktu mendengarkan per hari dalam periode yang dibuka. */
+fun ReplaySummary.averageMsPerDay(): Long {
+    val today = LocalDate.now()
+    val days = when (period) {
+        ReplayPeriod.THIS_WEEK -> today.dayOfWeek.value.toLong()
+        ReplayPeriod.THIS_MONTH ->
+            if (anchor.year == today.year && anchor.month == today.month) {
+                today.dayOfMonth.toLong()
+            } else {
+                anchor.lengthOfMonth().toLong()
+            }
+        ReplayPeriod.THIS_YEAR ->
+            if (anchor.year == today.year) today.dayOfYear.toLong() else anchor.lengthOfYear().toLong()
+        ReplayPeriod.ALL_TIME -> runCatching {
+            java.time.temporal.ChronoUnit.DAYS.between(LocalDate.parse("$since-01"), today) + 1
+        }.getOrDefault(1L)
+    }
+    return totalMs / days.coerceAtLeast(1L)
+}
+
+/** The label for the month or year being browsed; empty for periods that are not stepped. */
+fun ReplayPeriod.anchorLabel(anchor: LocalDate): String = when (this) {
+    ReplayPeriod.THIS_MONTH -> DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+        .format(anchor)
+        .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    ReplayPeriod.THIS_YEAR -> anchor.year.toString()
+    else -> ""
+}
+
+/** [anchor] moved [delta] months or years, landing on the first day of that month or year. */
+fun ReplayPeriod.stepAnchor(anchor: LocalDate, delta: Long): LocalDate = when (this) {
+    ReplayPeriod.THIS_MONTH -> anchor.withDayOfMonth(1).plusMonths(delta)
+    ReplayPeriod.THIS_YEAR -> anchor.withDayOfYear(1).plusYears(delta)
+    else -> anchor
 }
 
 /** Which page of the story view something opens onto. */

@@ -1,18 +1,18 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data
-
-import androidx.core.net.toUri
 
 import android.Manifest
 import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.media.MediaMetadataRetriever
+import android.media.MediaScannerConnection
 import android.net.Uri
+import androidx.annotation.RequiresApi
 import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import com.music.audify.data.DebugLog as Log
 import androidx.core.content.ContextCompat
 import com.music.audify.data.model.Song
@@ -20,7 +20,11 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.download.DownloadStore
 import com.music.audify.download.Downloads
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.resume
 import java.io.File
 import java.util.Locale
 
@@ -65,8 +69,69 @@ object LocalMediaRepository {
         }
     }
 
+    /** True when a Local Music folder is chosen and its persisted read grant is still held. */
+    fun hasFolderAccess(context: Context): Boolean {
+        val tree = AppSettings.localMusicFolderUri.value
+        if (tree.isBlank()) return false
+        return runCatching {
+            context.contentResolver.persistedUriPermissions.any {
+                it.isReadPermission && it.uri.toString() == tree
+            }
+        }.getOrDefault(false)
+    }
+
     /**
-     * Retrieves all songs in the `Music/Audify` directory, combining app downloads
+     * Whether Local Music can be read at all: the audio permission, or just the
+     * one folder the person picked. The folder alone is the privacy-friendly
+     * path — nothing outside it (recordings, call recordings) is ever visible.
+     */
+    fun canReadLocalMusic(context: Context): Boolean =
+        hasStoragePermission(context) || hasFolderAccess(context)
+
+    /**
+     * Lists the audio files under the chosen folder through the Storage Access
+     * Framework, so no media permission is needed and nothing outside the
+     * granted tree can be reached.
+     */
+    private fun scanChosenFolder(context: Context): List<Song> {
+        val tree = Uri.parse(AppSettings.localMusicFolderUri.value)
+        val filterNonMusic = AppSettings.filterNonMusicAudio.value
+        val songs = mutableListOf<Song>()
+
+        fun walk(documentId: String, depth: Int) {
+            if (depth > 12) return
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
+            val projection = arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            )
+            context.contentResolver.query(children, projection, null, null, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val childId = cursor.getString(0) ?: continue
+                    val name = cursor.getString(1).orEmpty()
+                    val mime = cursor.getString(2).orEmpty()
+                    val modified = cursor.getLong(3).takeIf { it > 0 }?.div(1_000)
+                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                        val segment = "/${name.lowercase(Locale.ROOT)}/"
+                        if (filterNonMusic && nonMusicPathSegments.contains(segment)) continue
+                        walk(childId, depth + 1)
+                    } else if (isAudioFileName(name) || mime.startsWith("audio/")) {
+                        val uri = DocumentsContract.buildDocumentUriUsingTree(tree, childId).toString()
+                        songs.add(buildSongFromUri(context, uri, name, ScannedTags(null, null, modified, modified)))
+                    }
+                }
+            }
+        }
+
+        runCatching { walk(DocumentsContract.getTreeDocumentId(tree), 0) }
+            .onFailure { Log.w(TAG, "Failed scanning chosen music folder: ${it.message}") }
+        return songs.sortedBy { it.title.lowercase(Locale.ROOT) }
+    }
+
+    /**
+     * Retrieves all songs in the `Music/BitChord` directory, combining app downloads
      * with any local audio files present in that folder.
      *
      * The download record is the better source for a title and a credit — it
@@ -84,9 +149,13 @@ object LocalMediaRepository {
 
         /** uri to what the media scanner read off that file. */
         val scanned = mutableMapOf<String, ScannedTags>()
+        /** File names MediaStore already lists in the downloads folder. */
+        val indexedNames = mutableSetOf<String>()
 
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // Files copied in by hand are not in MediaStore until scanned.
+                indexManualDownloads(context)
                 val projection = arrayOf(
                     MediaStore.Audio.Media._ID,
                     MediaStore.Audio.Media.DISPLAY_NAME,
@@ -99,21 +168,20 @@ object LocalMediaRepository {
                 val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
                 val selectionArgs = arrayOf("%${DownloadStore.FOLDER}%")
 
-                val cursor = context.contentResolver.query(
+                context.contentResolver.query(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     projection,
                     selection,
                     selectionArgs,
                     null,
-                )
-                if (cursor != null) try {
+                )?.use { cursor ->
                     val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
                     val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
                     val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                     val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                     val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
                     val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
-                    val albumArtBaseUri = "content://media/external/audio/albumart".toUri()
+                    val albumArtBaseUri = Uri.parse("content://media/external/audio/albumart")
 
                     while (cursor.moveToNext()) {
                         val id = cursor.getLong(idCol)
@@ -131,12 +199,11 @@ object LocalMediaRepository {
                             dateModifiedSeconds = cursor.getLong(dateModifiedCol),
                         )
                         scanned[contentUri] = tags
+                        indexedNames += name.lowercase(Locale.ROOT)
                         if (contentUri !in knownUris && isAudioFileName(name)) {
                             extraSongs.add(buildSongFromUri(context, contentUri, name, tags))
                         }
                     }
-                } finally {
-                    cursor.close()
                 }
             } else {
                 val folder = File(
@@ -164,7 +231,13 @@ object LocalMediaRepository {
                     }
                 }
             }
-        }.onFailure { Log.w(TAG, "Failed scanning Music/Audify directory: ${it.message}") }
+        }.onFailure { Log.w(TAG, "Failed scanning Music/BitChord directory: ${it.message}") }
+
+        // The folder the person chose for downloads is not a MediaStore path, so
+        // whatever they put in it by hand is read through the document tree.
+        val treeSongs = runCatching { scanDownloadFolder(context, knownUris, indexedNames) }
+            .onFailure { Log.w(TAG, "Failed scanning chosen download folder: ${it.message}") }
+            .getOrDefault(emptyList())
 
         val filled = appDownloads.map { song ->
             val uri = song.localUri ?: return@map song
@@ -176,7 +249,7 @@ object LocalMediaRepository {
             )
         }
 
-        (filled + extraSongs).distinctBy { it.localUri ?: it.videoId }
+        (filled + extraSongs + treeSongs).distinctBy { it.localUri ?: it.videoId }
     }
 
     /**
@@ -189,6 +262,105 @@ object LocalMediaRepository {
         val dateAddedSeconds: Long?,
         val dateModifiedSeconds: Long?,
     )
+
+    /**
+     * Asks the media scanner about audio files sitting in Music/Audify that
+     * MediaStore does not list yet, and waits briefly for it, so the listing
+     * that follows includes them.
+     */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    @Suppress("DEPRECATION")
+    private suspend fun indexManualDownloads(context: Context) {
+        val folder = File(
+            android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_MUSIC,
+            ),
+            DownloadStore.FOLDER,
+        )
+        val files = folder.listFiles()?.filter { it.isFile && isAudioFileName(it.name) }.orEmpty()
+        if (files.isEmpty()) return
+        val indexed = HashSet<String>()
+        context.contentResolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.Audio.Media.DISPLAY_NAME),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+            arrayOf("%${DownloadStore.FOLDER}%"),
+            null,
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                indexed += cursor.getString(0).orEmpty().lowercase(Locale.ROOT)
+            }
+        }
+        val missing = files
+            .filter { it.name.lowercase(Locale.ROOT) !in indexed }
+            .map { it.absolutePath }
+        if (missing.isEmpty()) return
+        withTimeoutOrNull(5_000L) {
+            suspendCancellableCoroutine<Unit> { cont ->
+                val left = AtomicInteger(missing.size)
+                MediaScannerConnection.scanFile(context, missing.toTypedArray(), null) { _, _ ->
+                    if (left.decrementAndGet() <= 0) runCatching { cont.resume(Unit) }
+                }
+            }
+        }
+    }
+
+    /**
+     * Audio files inside the folder chosen for downloads, read through the
+     * Storage Access Framework. Files the app wrote itself (already in
+     * [knownUris], matched by document id) and files MediaStore lists
+     * ([indexedNames]) are left out so nothing shows twice.
+     */
+    private fun scanDownloadFolder(
+        context: Context,
+        knownUris: Set<String>,
+        indexedNames: Set<String>,
+    ): List<Song> {
+        if (!AppSettings.exportDownloads.value) return emptyList()
+        val raw = AppSettings.downloadFolderUri.value
+        if (raw.isBlank()) return emptyList()
+        val tree = Uri.parse(raw)
+        val granted = runCatching {
+            context.contentResolver.persistedUriPermissions.any { it.uri == tree && it.isReadPermission }
+        }.getOrDefault(false)
+        if (!granted) return emptyList()
+
+        val knownDocIds = knownUris
+            .filter { it.startsWith("content://") && it.contains("/document/") }
+            .mapNotNull { runCatching { DocumentsContract.getDocumentId(Uri.parse(it)) }.getOrNull() }
+            .toSet()
+        val songs = mutableListOf<Song>()
+
+        fun walk(documentId: String, depth: Int) {
+            if (depth > 4) return
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
+            val projection = arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            )
+            context.contentResolver.query(children, projection, null, null, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    val childId = cursor.getString(0) ?: continue
+                    val name = cursor.getString(1).orEmpty()
+                    val mime = cursor.getString(2).orEmpty()
+                    val modified = cursor.getLong(3).takeIf { it > 0 }?.div(1_000)
+                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                        walk(childId, depth + 1)
+                    } else if (isAudioFileName(name) || mime.startsWith("audio/")) {
+                        if (childId in knownDocIds) continue
+                        if (name.lowercase(Locale.ROOT) in indexedNames) continue
+                        val uri = DocumentsContract.buildDocumentUriUsingTree(tree, childId).toString()
+                        songs.add(buildSongFromUri(context, uri, name, ScannedTags(null, null, modified, modified)))
+                    }
+                }
+            }
+        }
+
+        walk(DocumentsContract.getTreeDocumentId(tree), 0)
+        return songs
+    }
 
     /** What MediaStore writes into a column it has nothing for. */
     private fun String?.cleanTag(): String? =
@@ -208,12 +380,13 @@ object LocalMediaRepository {
      */
     suspend fun getLocalMusic(context: Context): List<Song> = withContext(Dispatchers.IO) {
         if (!hasStoragePermission(context)) {
-            return@withContext extraLocalMusic?.invoke(context, emptyList()) ?: emptyList()
+            val fromFolder = if (hasFolderAccess(context)) scanChosenFolder(context) else emptyList()
+            return@withContext extraLocalMusic?.invoke(context, fromFolder) ?: fromFolder
         }
 
         val songs = mutableListOf<Song>()
         // This scan runs over every audio file on the device, which includes
-        // whatever this app has downloaded into Music/Audify alongside
+        // whatever this app has downloaded into Music/BitChord alongside
         // everything else — but by content URI, the only thing MediaStore
         // offers here, that download is indistinguishable from a file the
         // user copied on by hand. Reversing [Downloads.saved] hands a
@@ -222,19 +395,6 @@ object LocalMediaRepository {
         // for — a content URI fails its id check on purpose, since most rows
         // here really are just local files with nothing to sync.
         val videoIdByUri = Downloads.saved.value.entries.associate { (id, uri) -> uri to id }
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.DISPLAY_NAME,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.DATE_ADDED,
-            MediaStore.Audio.Media.DATE_MODIFIED,
-            MediaStore.Audio.Media.TRACK,
-        )
 
         val filterNonMusic = AppSettings.filterNonMusicAudio.value
         val selection = if (filterNonMusic) {
@@ -268,85 +428,197 @@ object LocalMediaRepository {
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
         runCatching {
-            val cursor = context.contentResolver.query(
+            context.contentResolver.query(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                projection,
+                AUDIO_PROJECTION,
                 selection,
                 selectionArgs,
                 sortOrder,
-            ) ?: return@runCatching
-            try {
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val displayNameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-                val dateModifiedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
-                val trackCol = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
-
-                val albumArtBaseUri = "content://media/external/audio/albumart".toUri()
-
+            )?.use { cursor ->
+                val columns = AudioColumns(cursor)
+                // Parsed once for the scan rather than once per row.
+                val treeUri = AppSettings.localMusicFolderUri.value
+                val chosen = if (treeUri.isBlank()) null else selectedFolder(treeUri)
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val displayName = cursor.getString(displayNameCol).orEmpty()
-                    val rawTitle = cursor.getString(titleCol)
-                    val rawArtist = cursor.getString(artistCol)
-                    val rawAlbum = cursor.getString(albumCol)
-                    val albumId = cursor.getLong(albumIdCol)
-                    val durationMs = cursor.getLong(durationCol)
-                    val path = cursor.getString(dataCol)
+                    val displayName = cursor.getString(columns.displayName).orEmpty()
+                    val durationMs = cursor.getLong(columns.duration)
+                    val path = cursor.getString(columns.data)
 
                     if (filterNonMusic && !isEligibleLocalMusic(durationMs, displayName, path)) continue
-                    if (!isInSelectedFolder(path, AppSettings.localMusicFolderUri.value)) continue
+                    if (treeUri.isNotBlank() && !isInFolder(path, chosen)) continue
 
-                    val contentUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id).toString()
-                    val title = rawTitle.cleanTag()?.removeAudioExtension()
-                        ?: displayName.substringBeforeLast('.').takeIf { it.isNotBlank() }
-                        ?: "Track $id"
-                    val artist = rawArtist.takeUnless { it.isNullOrBlank() || it == "<unknown>" } ?: "Unknown Artist"
-                    val albumName = rawAlbum.takeUnless { it.isNullOrBlank() || it == "<unknown>" }
-                    val artworkUrl = if (albumId > 0) ContentUris.withAppendedId(albumArtBaseUri, albumId).toString() else null
-                    val durationText = durationMs.takeIf { it > 0 }?.let(::formatDuration)
-                    val trackNumber = if (trackCol >= 0 && !cursor.isNull(trackCol)) {
-                        trackNumberFromMediaStore(cursor.getInt(trackCol))
-                    } else {
-                        null
-                    }
-
-                    songs.add(
-                        Song(
-                            videoId = videoIdByUri[contentUri] ?: contentUri,
-                            title = title,
-                            artist = artist,
-                            thumbnailUrl = artworkUrl,
-                            durationText = durationText,
-                            albumName = albumName,
-                            localUri = contentUri,
-                            localPath = path,
-                            localDateAddedSeconds = cursor.getLong(dateAddedCol),
-                            localDateModifiedSeconds = cursor.getLong(dateModifiedCol),
-                            trackNumber = trackNumber,
-                        )
-                    )
+                    songs.add(columns.song(cursor, videoIdByUri))
                 }
-            } finally {
-                cursor.close()
             }
         }.onFailure { Log.w(TAG, "Failed scanning device local music: ${it.message}") }
 
         extraLocalMusic?.invoke(context, songs) ?: songs
     }
 
+    private val AUDIO_PROJECTION = arrayOf(
+        MediaStore.Audio.Media._ID,
+        MediaStore.Audio.Media.DISPLAY_NAME,
+        MediaStore.Audio.Media.TITLE,
+        MediaStore.Audio.Media.ARTIST,
+        MediaStore.Audio.Media.ALBUM,
+        MediaStore.Audio.Media.ALBUM_ID,
+        MediaStore.Audio.Media.DURATION,
+        MediaStore.Audio.Media.DATA,
+        MediaStore.Audio.Media.DATE_ADDED,
+        MediaStore.Audio.Media.DATE_MODIFIED,
+        MediaStore.Audio.Media.TRACK,
+    )
+
+    /**
+     * Where [AUDIO_PROJECTION]'s columns landed in one cursor, looked up once
+     * rather than per row — and the one reading of a row into a [Song], so a
+     * file opened from a file manager comes out exactly as the same file does
+     * in Local Music. That sameness is what lets a like or a playlist entry
+     * made from either be found from the other.
+     */
+    private class AudioColumns(cursor: Cursor) {
+        val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+        val displayName = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+        val title = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+        val artist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+        val album = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+        val albumId = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+        val duration = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+        val data = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+        val dateAdded = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+        val dateModified = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+        val track = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
+
+        fun song(cursor: Cursor, videoIdByUri: Map<String, String>): Song {
+            val rowId = cursor.getLong(id)
+            val name = cursor.getString(displayName).orEmpty()
+            val artId = cursor.getLong(albumId)
+            val durationMs = cursor.getLong(duration)
+            val contentUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, rowId).toString()
+            val songTitle = cursor.getString(title).cleanTag()?.removeAudioExtension()
+                ?: name.substringBeforeLast('.').takeIf { it.isNotBlank() }
+                ?: "Track $rowId"
+            val trackNumber = if (track >= 0 && !cursor.isNull(track)) {
+                trackNumberFromMediaStore(cursor.getInt(track))
+            } else {
+                null
+            }
+            return Song(
+                videoId = videoIdByUri[contentUri] ?: contentUri,
+                title = songTitle,
+                artist = cursor.getString(artist).cleanTag() ?: "Unknown Artist",
+                thumbnailUrl = if (artId > 0) ContentUris.withAppendedId(ALBUM_ART_URI, artId).toString() else null,
+                durationText = durationMs.takeIf { it > 0 }?.let { formatDuration(it) },
+                albumName = cursor.getString(album).cleanTag(),
+                localUri = contentUri,
+                localPath = cursor.getString(data),
+                localDateAddedSeconds = cursor.getLong(dateAdded),
+                localDateModifiedSeconds = cursor.getLong(dateModified),
+                trackNumber = trackNumber,
+            )
+        }
+    }
+
+    // Lazy so loading this object doesn't touch the framework: unit tests of
+    // the pure helpers here run against a stub Uri.parse that returns null.
+    private val ALBUM_ART_URI: Uri by lazy { Uri.parse("content://media/external/audio/albumart") }
+
+    /**
+     * Which of [songs] still have a file behind them, in their order — for an
+     * offline playlist, whose record outlives a file deleted from under it.
+     *
+     * One MediaStore query for every row it indexes, by id, rather than a
+     * listing of the whole device; a `file://` row is asked of the disk. Rows
+     * this can't check — another provider's, or every row while the storage
+     * permission is missing — are kept: hiding a track because it couldn't be
+     * looked at would empty a playlist over a permission prompt.
+     */
+    suspend fun present(context: Context, songs: List<Song>): List<Song> = withContext(Dispatchers.IO) {
+        val mediaIds = songs.mapNotNull { it.localUri?.mediaStoreAudioId() }
+        val existing = HashSet<Long>()
+        val canAsk = mediaIds.isNotEmpty() && runCatching {
+            mediaIds.distinct().chunked(500).forEach { chunk ->
+                context.contentResolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    arrayOf(MediaStore.Audio.Media._ID),
+                    "${MediaStore.Audio.Media._ID} IN (${chunk.joinToString(",")})",
+                    null,
+                    null,
+                )?.use { cursor ->
+                    while (cursor.moveToNext()) existing += cursor.getLong(0)
+                }
+            }
+        }.isSuccess
+        // MediaStore only answers for files this app may see. Without the
+        // permission its silence is not an answer, except for this app's own
+        // downloads, which it always sees.
+        val trustMissing = canAsk && hasStoragePermission(context)
+        songs.filter { song ->
+            val uri = song.localUri ?: return@filter false
+            val id = uri.mediaStoreAudioId()
+            when {
+                id != null -> id in existing || !trustMissing
+                uri.startsWith("file://") -> Uri.parse(uri).path?.let { File(it).exists() } != false
+                else -> true
+            }
+        }
+    }
+
+    /** The row id of a `content://media/…/audio/media/<id>` uri, else null. */
+    private fun String.mediaStoreAudioId(): Long? {
+        if (!startsWith("content://media/")) return null
+        val uri = Uri.parse(this)
+        val segments = uri.pathSegments
+        if (segments.size < 2 || segments[segments.size - 2] != "media" || "audio" !in segments) return null
+        return segments.last().toLongOrNull()
+    }
+
+    /**
+     * A file another app handed over to be played — "Open with" from a file
+     * manager, a tap on an attachment.
+     *
+     * Read as Local Music would read it whenever MediaStore indexes it, so a
+     * heart or a playlist entry made from here is the same entry the Local
+     * Music folder shows; otherwise off the file's own tags, under the name
+     * the sending app gave it.
+     */
+    suspend fun songFromUri(context: Context, uri: Uri): Song = withContext(Dispatchers.IO) {
+        mediaStoreRow(context, uri)?.let { return@withContext it }
+        val name = runCatching {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Audio"
+        buildSongFromUri(context, uri.toString(), name)
+    }
+
+    /** The MediaStore row behind [uri], when there is one this app may read. */
+    private fun mediaStoreRow(context: Context, uri: Uri): Song? = runCatching {
+        val resolver = context.contentResolver
+        val (target, selection, args) = when {
+            uri.scheme == "file" -> {
+                val path = uri.path ?: return@runCatching null
+                Triple(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "${MediaStore.Audio.Media.DATA} = ?", arrayOf(path))
+            }
+            uri.authority == MediaStore.AUTHORITY -> Triple(uri, null, null)
+            // A documents-provider uri (most file managers) names the same
+            // file MediaStore does under another id; API 29 can translate.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && DocumentsContract.isDocumentUri(context, uri) ->
+                Triple(MediaStore.getMediaUri(context, uri) ?: return@runCatching null, null, null)
+            else -> return@runCatching null
+        }
+        resolver.query(target, AUDIO_PROJECTION, selection, args, null)?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val videoIdByUri = Downloads.saved.value.entries.associate { (id, saved) -> saved to id }
+            AudioColumns(cursor).song(cursor, videoIdByUri)
+        }
+    }.getOrNull()
+
     /** Human-readable path for the folder setting without exposing provider internals. */
     fun selectedFolderLabel(treeUri: String): String? = selectedFolder(treeUri)?.label
 
-    internal fun isInSelectedFolder(path: String?, treeUri: String): Boolean {
-        if (treeUri.isBlank()) return true
-        val folder = selectedFolder(treeUri) ?: return false
+    private fun isInFolder(path: String?, folder: SelectedFolder?): Boolean {
+        if (folder == null) return false
         val candidate = path?.normalizedPath() ?: return false
         return candidate == folder.absolutePath || candidate.startsWith("${folder.absolutePath}/")
     }
@@ -354,7 +626,7 @@ object LocalMediaRepository {
     private data class SelectedFolder(val absolutePath: String, val label: String)
 
     private fun selectedFolder(treeUri: String): SelectedFolder? = runCatching {
-        val documentId = DocumentsContract.getTreeDocumentId(treeUri.toUri())
+        val documentId = DocumentsContract.getTreeDocumentId(Uri.parse(treeUri))
         if (documentId.startsWith("raw:")) {
             val path = documentId.removePrefix("raw:").normalizedPath()
             return@runCatching SelectedFolder(path, path.substringAfterLast('/'))
@@ -435,7 +707,7 @@ object LocalMediaRepository {
         runCatching {
             val retriever = MediaMetadataRetriever()
             try {
-                retriever.setDataSource(context, uriStr.toUri())
+                retriever.setDataSource(context, Uri.parse(uriStr))
                 val metaTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                 val metaArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
                 val metaAlbum = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
@@ -456,7 +728,7 @@ object LocalMediaRepository {
             videoId = uriStr,
             title = title,
             artist = artist,
-            thumbnailUrl = scanned?.artworkUrl,
+            thumbnailUrl = scanned?.artworkUrl ?: LocalArtFetcher.trackArtUrl(uriStr),
             durationText = durationText,
             albumName = albumName ?: scanned?.albumName,
             localUri = uriStr,

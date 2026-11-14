@@ -1,13 +1,5 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
-import com.music.audify.ui.motion.MotionTokens
-import com.music.audify.ui.motion.microPressScale
-
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
@@ -18,20 +10,17 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -43,7 +32,6 @@ import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
-import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,11 +40,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,16 +59,10 @@ import coil3.compose.AsyncImage
 import com.music.audify.R
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.artworkAt
-import com.music.audify.data.settings.AppSettings
 import com.music.audify.download.DownloadProgress
 import com.music.audify.download.DownloadSession
 import com.music.audify.download.Downloads
-import com.music.audify.download.DownloadFileCheckState
-import com.music.audify.download.DownloadFileCheckStatus
-import com.music.audify.download.DownloadVerificationScheduler
-import com.music.audify.download.formatStorageBudget
-import com.music.audify.download.formatStorageBytes
-import kotlinx.coroutines.launch
+import com.music.audify.playback.smart.AutomixModels
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 
@@ -105,8 +85,6 @@ import com.music.audify.ui.haptics.rememberHaptics
 @Composable
 fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val session by DownloadSession.state.collectAsStateWithLifecycle()
-    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
-    val interactionSource = remember { MutableInteractionSource() }
 
     val haptics = rememberHaptics()
     // Animated, because the fraction lands in steps — one track at a time, plus
@@ -114,7 +92,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     // reads as a stutter rather than as progress.
     val progress by animateFloatAsState(
         targetValue = session.fraction,
-        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.CONTROL_STATE_MS),
+        animationSpec = tween(300),
         label = "downloadRingProgress",
     )
     val failed = session.failed > 0
@@ -123,7 +101,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             failed -> MaterialTheme.colorScheme.error
             else -> MaterialTheme.colorScheme.primary
         },
-        animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.TOGGLE_STATE_MS),
+        animationSpec = tween(220),
         label = "downloadRingTint",
     )
 
@@ -133,13 +111,13 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         // Open the slot first; the glyph arrives as the pill approaches its
         // new width. Siblings move with the expanding slot and make room rather
         // than jumping directly to their final positions.
-        enter = if (reduceAnimation) EnterTransition.None else expandHorizontally(
-            animationSpec = tween(MotionTokens.SHEET_ENTER_MS),
+        enter = expandHorizontally(
+            animationSpec = tween(260),
             expandFrom = Alignment.End,
         ) + fadeIn(
             animationSpec = tween(durationMillis = 160, delayMillis = 100),
         ),
-        exit = if (reduceAnimation) ExitTransition.None else fadeOut(
+        exit = fadeOut(
             animationSpec = tween(120),
         ) + shrinkHorizontally(
             animationSpec = tween(durationMillis = 220, delayMillis = 60),
@@ -151,9 +129,8 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 haptics.play(Haptic.Select)
                 onClick()
             },
-            interactionSource = interactionSource,
         ) {
-            Box(modifier = Modifier.microPressScale(interactionSource), contentAlignment = Alignment.Center) {
+            Box(contentAlignment = Alignment.Center) {
                 if (session.busy) {
                     CircularProgressIndicator(
                         // Never quite zero: a ring pinned at nothing reads as
@@ -167,29 +144,30 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
                         gapSize = 0.dp,
                     )
                 }
-                val statusIcon = when {
-                    failed -> Icons.Rounded.ErrorOutline
-                    // The ring already communicates progress; the arrow identifies the active operation.
-                    session.busy -> Icons.Rounded.ArrowDownward
-                    else -> Icons.Rounded.DownloadDone
-                }
-                val statusDescription = when {
-                    session.busy -> stringResource(R.string.downloads_progress, (session.fraction * 100).toInt())
-                    failed -> pluralStringResource(R.plurals.downloads_failed_count, session.failed, session.failed)
-                    else -> stringResource(R.string.downloads_finished)
-                }
-                Crossfade(
-                    targetState = statusIcon,
-                    animationSpec = tween(if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS),
-                    label = "downloadStatusIcon",
-                ) { icon ->
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = statusDescription,
-                        tint = tint,
-                        modifier = Modifier.size(if (session.busy) GLYPH_IN_RING else GLYPH_SIZE),
-                    )
-                }
+                Icon(
+                    imageVector = when {
+                        failed -> Icons.Rounded.ErrorOutline
+                        // A bare arrow inside the ring, not the tray-and-arrow: the
+                        // ring is already saying "downloading", and a second glyph
+                        // that says it too is detail nobody can resolve at 15dp.
+                        session.busy -> Icons.Rounded.ArrowDownward
+                        else -> Icons.Rounded.DownloadDone
+                    },
+                    contentDescription = when {
+                        session.busy -> stringResource(
+                            R.string.downloads_progress,
+                            (session.fraction * 100).toInt(),
+                        )
+                        failed -> pluralStringResource(
+                            R.plurals.downloads_failed_count,
+                            session.failed,
+                            session.failed,
+                        )
+                        else -> stringResource(R.string.downloads_finished)
+                    },
+                    tint = tint,
+                    modifier = Modifier.size(if (session.busy) GLYPH_IN_RING else GLYPH_SIZE),
+                )
             }
         }
     }
@@ -200,7 +178,7 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
  * became of it, and a way out of the ones still going.
  *
  * A list rather than a single line because the thing being reported on is a
- * batch. `SongActionsSheet`'s download row already answers "what about *this*
+ * batch. `SongActionsMenu`'s download row already answers "what about *this*
  * song" perfectly well and is the right size for that question; the question
  * here is the one it cannot answer — forty tracks were asked for, which of them
  * arrived — and that has as many answers as there were tracks.
@@ -210,242 +188,111 @@ fun TopBarDownloadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
  * user cannot tell from a name whether the right thing is being fetched: the
  * track that fails is one of forty and the only way to recognise it is to see it.
  *
- * @param onDismiss closes the sheet. Called by the header's own control rather
- *   than left to the drag, so there is something obvious to press once the list
- *   is read — and the host marks the batch seen on the way out, which is what
- *   takes the indicator down.
+ * A page on the back stack, so leaving it is whatever leaves any other page.
+ * Leaving is also what marks the batch seen and takes the indicator down, and
+ * marking it on the way *out* rather than on the way in is deliberate: it is the
+ * outcome the user is signing off on, and while the page is up there may not be
+ * one yet.
+ *
+ * @param onCleared leaves the page once its list has been cleared, there being
+ *   nothing left on it to read.
  */
 @Composable
-fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+fun DownloadManagerPage(
+    onCleared: () -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val session by DownloadSession.state.collectAsStateWithLifecycle()
-    val fileChecks by Downloads.fileChecks.collectAsStateWithLifecycle()
-    val storageBudget by Downloads.storageBudgetBytes.collectAsStateWithLifecycle()
-    val storagePrompt by Downloads.storagePrompt.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    var confirmStorageDeletion by remember { mutableStateOf(false) }
     // Newest ask last, the order the queue will actually reach them in.
     val items = remember(session.items) { session.items.sortedBy { it.sequence } }
 
-    Column(modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.downloads),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = session.summary(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (session.failed > 0 && !session.busy) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
-            if (session.busy) {
-                TextButton(
-                    onClick = {
-                        // Only what is still going. Cancelling a finished row
-                        // would drop it from the list, which is the one thing
-                        // this sheet exists to still be showing.
-                        items.filterNot { it.progress.settled }
-                            .forEach { Downloads.cancel(it.videoId) }
-                    },
-                ) {
-                    Text(stringResource(R.string.cancel_all))
-                }
-            } else {
-                TextButton(
-                    onClick = {
-                        DownloadSession.clear()
-                        onDismiss()
-                    },
-                ) {
-                    Text(stringResource(R.string.clear))
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.download_storage_budget),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TextButton(onClick = Downloads::cycleStorageBudget, enabled = !session.busy) {
-                Text(formatStorageBudget(storageBudget))
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.download_file_check_note),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TextButton(onClick = { DownloadVerificationScheduler.checkNow(context) }) {
-                Text(stringResource(R.string.download_file_check_action))
-            }
-        }
-
-        // The batch's own bar, under the heading it belongs to. The per-row bars
-        // below are about one track each; this is the one that answers "how much
-        // longer", which is what someone opening this sheet mid-album wants.
-        if (session.busy) {
-            LinearProgressIndicator(
-                progress = { session.fraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(3.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                strokeCap = StrokeCap.Round,
-                gapSize = 0.dp,
-                drawStopIndicator = {},
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-
-        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)
-
-        // Capped rather than left to grow: a hundred-track playlist would
-        // otherwise be a sheet that covers the screen and has to be scrolled
-        // back up before anything else can be reached.
-        LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-            items(items, key = { it.videoId }) { item ->
-                DownloadManagerRow(
-                    item = item,
-                    fileCheckStatus = fileChecks[item.videoId],
-                    onCancel = { Downloads.cancel(item.videoId) },
-                    onRetry = { Downloads.enqueue(context, item.song, item.from) },
-                )
-            }
-        }
-        Spacer(Modifier.height(24.dp))
+    DisposableEffect(Unit) {
+        onDispose { DownloadSession.markSeen() }
     }
 
-    storagePrompt?.let { prompt ->
-        val plan = prompt.plan
-        AlertDialog(
-            onDismissRequest = {
-                confirmStorageDeletion = false
-                Downloads.dismissStoragePrompt()
-            },
-            title = {
-                Text(
-                    stringResource(
-                        if (plan == null && prompt.unknown) R.string.download_storage_unknown_title
-                        else R.string.download_storage_budget_title,
-                    ),
-                )
-            },
-            text = {
-                Column(
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+    ) {
+        item(key = "header") {
+            Column(Modifier.fillMaxWidth()) {
+                Row(
                     modifier = Modifier
-                        .heightIn(max = 280.dp)
-                        .verticalScroll(rememberScrollState()),
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (plan == null) {
-                        Text(prompt.reason.orEmpty())
-                        prompt.files.forEach { file ->
-                            Text(
-                                text = "${file.artist} · ${file.title} — ${formatStorageBytes(file.sizeBytes)}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                    // The title is the bar's, in the same style as the new-playlist
+                    // form's; a second one here would only repeat it.
+                    Text(
+                        text = session.summary(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (session.failed > 0 && !session.busy) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (session.busy) {
+                        TextButton(
+                            onClick = {
+                                // Only what is still going. Cancelling a finished
+                                // row would drop it from the list, which is the
+                                // one thing this page exists to still be showing.
+                                items.filterNot { it.progress.settled }
+                                    .forEach { Downloads.cancel(it.videoId) }
+                            },
+                        ) {
+                            Text(stringResource(R.string.cancel_all))
                         }
                     } else {
-                        Text(
-                            stringResource(
-                                R.string.download_storage_budget_detail,
-                                formatStorageBytes(plan.usedBytes),
-                                formatStorageBytes(plan.projectedBytes),
-                                formatStorageBudget(plan.budgetBytes),
-                            ),
-                        )
-                        Text(
-                            text = stringResource(R.string.download_storage_estimate_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(stringResource(R.string.download_storage_free_detail, formatStorageBytes(plan.requiredFreeBytes)))
-                        plan.oldestFiles.forEach { file ->
-                            Text(
-                                text = "${file.artist} · ${file.title} — ${formatStorageBytes(file.sizeBytes)}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
+                        TextButton(
+                            onClick = {
+                                DownloadSession.clear()
+                                onCleared()
+                            },
+                        ) {
+                            Text(stringResource(R.string.clear))
                         }
                     }
                 }
-            },
-            confirmButton = {
-                if (plan != null) {
-                    TextButton(onClick = { confirmStorageDeletion = true }) {
-                        Text(stringResource(R.string.download_storage_review_delete))
-                    }
-                } else {
-                    TextButton(onClick = Downloads::dismissStoragePrompt) { Text(stringResource(R.string.close)) }
-                }
-            },
-            dismissButton = {
-                if (plan != null) {
-                    TextButton(onClick = Downloads::dismissStoragePrompt) { Text(stringResource(R.string.cancel)) }
-                }
-            },
-        )
 
-        if (confirmStorageDeletion && plan != null) {
-            AlertDialog(
-                onDismissRequest = { confirmStorageDeletion = false },
-                title = { Text(stringResource(R.string.download_storage_confirm_title)) },
-                text = {
-                    Column(
+                // The batch's own bar, under the heading it belongs to. The
+                // per-row bars below are about one track each; this is the one
+                // that answers "how much longer", which is what someone opening
+                // this page mid-album wants.
+                if (session.busy) {
+                    LinearProgressIndicator(
+                        progress = { session.fraction },
                         modifier = Modifier
-                            .heightIn(max = 280.dp)
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        Text(stringResource(R.string.download_storage_delete_warning))
-                        Spacer(Modifier.height(8.dp))
-                        plan.oldestFiles.forEach { file ->
-                            Text(
-                                text = "${file.artist} · ${file.title} — ${formatStorageBytes(file.sizeBytes)}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            confirmStorageDeletion = false
-                            scope.launch { Downloads.confirmStorageDeletion(context, plan.oldestFiles) }
-                        },
-                    ) { Text(stringResource(R.string.download_storage_delete_files)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { confirmStorageDeletion = false }) {
-                        Text(stringResource(R.string.cancel))
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .height(3.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                        strokeCap = StrokeCap.Round,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {},
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)
+            }
+        }
+
+        items(items, key = { it.videoId }) { item ->
+            DownloadManagerRow(
+                item = item,
+                onCancel = { Downloads.cancel(item.videoId) },
+                onRetry = {
+                    if (item.videoId == AutomixModels.SESSION_ID) {
+                        AutomixModels.start(context)
+                    } else {
+                        Downloads.enqueue(context, item.song, item.from)
                     }
                 },
             )
@@ -457,7 +304,6 @@ fun DownloadManagerSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun DownloadManagerRow(
     item: DownloadSession.Item,
-    fileCheckStatus: DownloadFileCheckStatus?,
     onCancel: () -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -474,10 +320,10 @@ private fun DownloadManagerRow(
             AsyncImage(
                 model = item.song.artworkAt(ROW_ART_PX),
                 contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                 modifier = Modifier
                     .size(ART_SIZE)
                     .clip(RoundedCornerShape(8.dp))
+                    .thumbnailBorder(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
             )
             // A finished or failed track is stated over its own cover rather
@@ -555,15 +401,10 @@ private fun DownloadManagerRow(
                     )
                 }
                 is DownloadProgress.Done -> RowStatus(
-                    when (fileCheckStatus?.state ?: DownloadFileCheckState.UNCHECKED) {
-                        DownloadFileCheckState.UNCHECKED -> stringResource(R.string.download_file_check_unchecked)
-                        DownloadFileCheckState.AVAILABLE -> stringResource(R.string.download_file_check_available)
-                        DownloadFileCheckState.UNAVAILABLE -> stringResource(R.string.download_file_check_unavailable)
-                    },
-                    color = if (fileCheckStatus?.state == DownloadFileCheckState.UNAVAILABLE) {
-                        MaterialTheme.colorScheme.error
+                    if (item.videoId == AutomixModels.SESSION_ID) {
+                        "Ready to use"
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        stringResource(R.string.saved_to_audify_folder)
                     },
                 )
                 is DownloadProgress.Failed ->
@@ -601,7 +442,7 @@ private fun RowAction(
 ) {
     Box(
         modifier = Modifier
-            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+            .size(36.dp)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -618,7 +459,7 @@ private fun RowAction(
 /**
  * The one line under the heading — what state the batch as a whole is in.
  *
- * Counts rather than a percentage: the sheet already draws the percentage as a
+ * Counts rather than a percentage: the page already draws the percentage as a
  * bar, and what a percentage cannot say is that thirty-nine of forty arrived and
  * one did not, which is the only outcome anybody needs to act on.
  */
@@ -653,6 +494,3 @@ private val GLYPH_SIZE = 22.dp
 
 /** A row's cover: under a track row's 52dp, since this is a status list. */
 private val ART_SIZE = 44.dp
-
-/** How much of the screen the list may take before it scrolls instead. */
-private val LIST_MAX_HEIGHT = 380.dp

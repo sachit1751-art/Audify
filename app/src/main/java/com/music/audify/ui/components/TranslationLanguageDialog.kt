@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import androidx.appcompat.app.AppCompatDelegate
@@ -8,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,17 +15,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Search
@@ -42,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -59,18 +49,18 @@ import com.music.audify.data.lyrics.TRANSLATION_LANGUAGES
 import com.music.audify.data.lyrics.translationLanguageName
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+import java.util.Locale
 
 /** How much of the screen the list may take before it scrolls inside the card. */
-private val LIST_MAX_HEIGHT = 420.dp
+private val LIST_MAX_HEIGHT = 340.dp
 
-/** Below this viewport height, the fixed header/search/action chrome cannot leave a useful list viewport. */
 internal val TRANSLATION_DIALOG_PINNED_CHROME_MIN_HEIGHT = 240.dp
 
 internal fun translationDialogNeedsOuterScroll(availableHeight: androidx.compose.ui.unit.Dp): Boolean =
     availableHeight < TRANSLATION_DIALOG_PINNED_CHROME_MIN_HEIGHT
 
-/** Translation picker uses more of a landscape window while retaining phone gutters. */
 internal fun translationDialogCardWidth(width: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
     (width - 32.dp).coerceAtLeast(0.dp).coerceAtMost(640.dp)
 
@@ -88,6 +78,7 @@ internal fun translationDialogCardWidth(width: androidx.compose.ui.unit.Dp): and
  * "follow the app", which is a different answer from naming today's app
  * language and having it stick when the app changes.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TranslationLanguageDialog(
     hazeState: HazeState,
@@ -97,7 +88,8 @@ fun TranslationLanguageDialog(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val selected by AppSettings.translationLanguage.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
-    val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: LocalLocale.current.platformLocale
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
+    val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault()
     var query by remember { mutableStateOf("") }
 
     // Names are resolved once per locale rather than per row per frame: the
@@ -120,46 +112,29 @@ fun TranslationLanguageDialog(
         }
     }
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .imePadding()
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
-                .width(translationDialogCardWidth(maxWidth))
-                .heightIn(max = maxHeight)
+                .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
-                .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(MaterialTheme.colorScheme.surface)
-                    } else {
-                        Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
+                .alertSurface(hazeState, frosted = true, shape = shape)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
                 )
-                .then(
-                    if (translationDialogNeedsOuterScroll(maxHeight)) {
-                        Modifier.verticalScroll(rememberScrollState())
-                    } else {
-                        Modifier
-                    },
-                ),
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier
@@ -192,16 +167,12 @@ fun TranslationLanguageDialog(
             SearchField(query = query, onQueryChange = { query = it })
             AlertRule()
 
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .heightIn(max = LIST_MAX_HEIGHT),
-            ) {
+            LazyColumn(modifier = Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
                 // Only with an empty field: it is the default rather than a
                 // language, so it has no name to match and filtering it in on a
                 // near-miss would be noise.
                 if (query.isBlank()) {
-                    item(key = "translation-language:app-default") {
+                    item {
                         LanguageChoiceRow(
                             label = stringResource(R.string.translation_language_app_default),
                             detail = stringResource(R.string.translation_language_subtitle),
@@ -231,7 +202,7 @@ fun TranslationLanguageDialog(
                     )
                 }
                 if (shown.isEmpty()) {
-                    item(key = "translation-language:no-match") {
+                    item {
                         Text(
                             text = stringResource(R.string.no_languages_match),
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
@@ -343,7 +314,7 @@ private fun LanguageChoiceRow(
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(19.dp),
             )
         }

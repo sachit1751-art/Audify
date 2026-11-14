@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import androidx.media3.common.C
@@ -28,6 +26,15 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
 
     @Volatile
     var enabled: Boolean = false
+
+    /**
+     * Wet/dry blend: 0 = untouched, 1 = fully widened. Ramps toward [enabled]
+     * over [RAMP_MS] so a mid-song toggle doesn't click. Audio thread only.
+     */
+    private var mix = 0f
+
+    /** After a flush the blend jumps straight to its target instead of ramping. */
+    private var snapMix = true
 
     /** How much wider the stereo image gets. 1.0 = untouched. */
     private val widthGain = 2.5f
@@ -79,11 +86,19 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
      * Preserves dynamic headroom without clamping to [-1.0f, +1.0f].
      */
     fun process(block: AudioBlock) {
-        if (!enabled || block.frameCount == 0) return
+        if (block.frameCount == 0) return
         if (block.channelCount != 2) return // Spatial widening only applies to stereo
 
         val delaySize = delayLeft.size
         if (delaySize == 0) return
+
+        val target = if (enabled) 1f else 0f
+        if (snapMix) {
+            mix = target
+            snapMix = false
+        }
+        if (mix == 0f && target == 0f) return
+        val step = rampStep()
 
         val totalSamples = block.frameCount * 2
         var idx = 0
@@ -111,9 +126,14 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
             delayRight[dIdx] = right
             dIdx = (dIdx + 1) % delaySize
 
+            if (mix < target) mix = minOf(target, mix + step)
+            else if (mix > target) mix = maxOf(target, mix - step)
+            val wetLeft = widenedLeft * outputGain
+            val wetRight = widenedRight * outputGain
+
             // Headroom is preserved: no clamping to [-1.0f, +1.0f]
-            block.samples[idx] = widenedLeft * outputGain
-            block.samples[idx + 1] = widenedRight * outputGain
+            block.samples[idx] = if (mix >= 1f) wetLeft else left + (wetLeft - left) * mix
+            block.samples[idx + 1] = if (mix >= 1f) wetRight else right + (wetRight - right) * mix
             idx += 2
         }
 
@@ -151,6 +171,7 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
     }
 
     override fun onFlush() {
+        snapMix = true
         delayLeft.fill(0f)
         delayRight.fill(0f)
         delayIndex = 0
@@ -173,11 +194,17 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
         if (frameCount == 0) return
         val outputBuffer = replaceOutputBuffer(frameCount * BYTES_PER_FRAME)
 
-        if (!enabled) {
+        val target = if (enabled) 1f else 0f
+        if (snapMix) {
+            mix = target
+            snapMix = false
+        }
+        if (mix == 0f && target == 0f) {
             outputBuffer.put(inputBuffer)
             outputBuffer.flip()
             return
         }
+        val step = rampStep()
 
         inputBuffer.order(ByteOrder.nativeOrder())
         outputBuffer.order(ByteOrder.nativeOrder())
@@ -214,8 +241,14 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
             delayRight[dIdx] = right
             dIdx = (dIdx + 1) % delaySize
 
-            outputBuffer.putShort(PcmBoundary.clamp16FromFloat(widenedLeft * outputGain))
-            outputBuffer.putShort(PcmBoundary.clamp16FromFloat(widenedRight * outputGain))
+            if (mix < target) mix = minOf(target, mix + step)
+            else if (mix > target) mix = maxOf(target, mix - step)
+            val wetLeft = widenedLeft * outputGain
+            val wetRight = widenedRight * outputGain
+            val outLeft = if (mix >= 1f) wetLeft else left + (wetLeft - left) * mix
+            val outRight = if (mix >= 1f) wetRight else right + (wetRight - right) * mix
+            outputBuffer.putShort(PcmBoundary.clamp16FromFloat(outLeft))
+            outputBuffer.putShort(PcmBoundary.clamp16FromFloat(outRight))
         }
         delayIndex = dIdx
         lowpassLeft = lpL
@@ -224,8 +257,13 @@ class SpatialAudioProcessor : BaseAudioProcessor() {
         outputBuffer.flip()
     }
 
+    /** Per-sample [mix] increment: a full 0 to 1 swing takes [RAMP_MS]. */
+    private fun rampStep(): Float =
+        if (sampleRate > 0) 1000f / (sampleRate * RAMP_MS) else 1f
+
     private companion object {
         const val BYTES_PER_FRAME = 4 // stereo, 16-bit
         const val DELAY_MS = 15
+        const val RAMP_MS = 300f
     }
 }

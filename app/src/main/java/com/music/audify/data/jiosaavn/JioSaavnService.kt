@@ -1,13 +1,9 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.jiosaavn
 
-import com.music.audify.data.Http
-
-import android.annotation.SuppressLint
 import android.util.Base64
 import com.music.audify.data.TrackLog
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
@@ -133,8 +129,7 @@ object JioSaavnService {
 
     // Note: Audify uses OkHttp engine for ktor
     private val client by lazy {
-        HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
-            engine { preconfigured = Http.client }
+        HttpClient(OkHttp) {
             install(ContentNegotiation) { json(json) }
             install(HttpTimeout) {
                 requestTimeoutMillis = 6_000
@@ -154,9 +149,6 @@ object JioSaavnService {
         }
     }
 
-    // The provider's stream URLs are encrypted with this exact legacy transform;
-    // changing the mode would make every returned CDN URL undecryptable.
-    @SuppressLint("GetInstance")
     private fun decryptUrl(encryptedUrl: String): String {
         if (encryptedUrl.isBlank()) return ""
         return try {

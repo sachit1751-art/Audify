@@ -1,4 +1,3 @@
-// Adapted from Zenith (https://github.com/rezapranata089-bit/Zenith), GPL-3.0; Audify is also GPL-3.0.
 package com.motion.lyrics
 
 import kotlin.math.max

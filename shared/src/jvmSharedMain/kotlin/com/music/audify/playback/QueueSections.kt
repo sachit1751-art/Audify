@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 /** Past this point in a track, back restarts it instead of skipping to the previous one. */

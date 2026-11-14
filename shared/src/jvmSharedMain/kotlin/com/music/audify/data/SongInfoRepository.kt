@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data
 
 import com.music.audify.data.innertube.Innertube
@@ -28,7 +26,13 @@ data class SongInfo(
     val likes: String? = null,
     val comments: String? = null,
     val failed: Boolean = false,
+    val credits: List<SongCredit> = emptyList(),
 )
+
+/** The groups of credits the info card shows, in the order it shows them. */
+enum class CreditKind { WRITERS, PRODUCERS, ADDITIONAL_VOCALS, SAMPLE }
+
+data class SongCredit(val kind: CreditKind, val names: List<String>)
 
 /**
  * YouTube-style short form of a raw count: 950 → "950", 1234 → "1.2K",
@@ -38,16 +42,18 @@ data class SongInfo(
  */
 fun compactCount(raw: String): String {
     val n = raw.toLongOrNull()?.takeIf { it >= 0 } ?: return raw
+    val locale = java.util.Locale.forLanguageTag(Innertube.currentLocaleTag)
+    val indonesian = locale.language == "id"
     val (unit, suffix) = when {
-        n >= 1_000_000_000 -> 1_000_000_000L to "B"
-        n >= 1_000_000 -> 1_000_000L to "M"
-        n >= 1_000 -> 1_000L to "K"
+        n >= 1_000_000_000 -> 1_000_000_000L to (if (indonesian) " M" else "B")
+        n >= 1_000_000 -> 1_000_000L to (if (indonesian) " jt" else "M")
+        n >= 1_000 -> 1_000L to (if (indonesian) " rb" else "K")
         else -> return n.toString()
     }
     val whole = n / unit
     if (whole >= 10) return "$whole$suffix"
     val tenth = n % unit * 10 / unit
-    val separator = java.text.DecimalFormatSymbols.getInstance().decimalSeparator
+    val separator = java.text.DecimalFormatSymbols.getInstance(locale).decimalSeparator
     return if (tenth == 0L) "$whole$suffix" else "$whole$separator$tenth$suffix"
 }
 
@@ -137,6 +143,7 @@ internal object SongInfoParser {
             likes = (newLike ?: oldLike)?.withCount(),
             comments = comments,
             failed = data == null,
+            credits = credits(details.str("shortDescription")),
         )
     }
 
@@ -148,6 +155,36 @@ internal object SongInfoParser {
                 .matchEntire(line.trim())?.groupValues?.get(1)
         } ?: return null
         return runCatching { LocalDate.parse(date).toString() }.getOrNull()
+    }
+
+    private val CREDIT_LINE = Regex("([A-Za-z][A-Za-z ,&/'-]{1,60}):\\s*(.+)")
+
+    /**
+     * Catalogue uploads list their credits as "Role: Name" lines under the
+     * release date ("Producer: Gordo", "Writer: Drake"), one line per person.
+     * Folded into the groups the info card shows. A role that is none of them
+     * is left out rather than guessed at.
+     */
+    fun credits(description: String?): List<SongCredit> {
+        if (description.isNullOrBlank()) return emptyList()
+        val byKind = LinkedHashMap<CreditKind, LinkedHashSet<String>>()
+        description.lineSequence().forEach { raw ->
+            val match = CREDIT_LINE.matchEntire(raw.trim()) ?: return@forEach
+            val role = match.groupValues[1].trim().lowercase()
+            val value = match.groupValues[2].trim().takeIf { it.isNotEmpty() } ?: return@forEach
+            val kind = when {
+                role.startsWith("sample") -> CreditKind.SAMPLE
+                "producer" in role && "executive" !in role -> CreditKind.PRODUCERS
+                "writer" in role || "composer" in role || "lyricist" in role || "author" in role ->
+                    CreditKind.WRITERS
+                "vocal" in role && "lead" !in role && "main" !in role -> CreditKind.ADDITIONAL_VOCALS
+                else -> return@forEach
+            }
+            byKind.getOrPut(kind) { LinkedHashSet() } += value
+        }
+        return CreditKind.entries.mapNotNull { kind ->
+            byKind[kind]?.let { SongCredit(kind, it.toList()) }
+        }
     }
 
     /** Balanced JSON extraction tolerates braces inside titles and trailing script statements. */

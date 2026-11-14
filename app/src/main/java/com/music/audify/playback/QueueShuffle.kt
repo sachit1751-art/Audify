@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import android.os.Bundle
@@ -262,21 +260,6 @@ object QueueShuffle {
             AppSettings.setShuffleEnabled(true)
         }
     }
-
-    /**
-     * Randomises one queue section but never returns its unchanged order when
-     * at least two tracks can move.
-     */
-    internal fun avoidIdentityShuffleMediaItems(
-        original: List<MediaItem>,
-        shuffled: List<MediaItem>,
-    ): List<MediaItem> {
-        if (original.size <= 1 || shuffled != original) return shuffled
-        return shuffled.drop(1) + shuffled.first()
-    }
-
-    private fun shuffledSection(indices: List<Int>): List<Int> =
-        avoidIdentityShuffle(indices, indices.shuffled())
 
     internal fun avoidIdentityShuffle(original: List<Int>, shuffled: List<Int>): List<Int> {
         if (original.size <= 1 || shuffled != original) return shuffled

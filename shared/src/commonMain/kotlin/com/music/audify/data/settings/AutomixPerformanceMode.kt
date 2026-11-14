@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.settings
 
 /** CPU budget for Automix's background analysis, not its audible mix algorithm. */

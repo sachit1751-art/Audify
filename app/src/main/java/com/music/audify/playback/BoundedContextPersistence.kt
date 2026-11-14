@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
-
-import androidx.core.content.edit
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -126,9 +122,9 @@ object BoundedContextPersistence {
     fun savePlaybackState(currentEntryId: String?, positionMs: Long) {
         if (currentEntryId.isNullOrBlank() || !prefs.contains(KEY_STATE)) return
         if (runCatching { prefs.getString(KEY_CURRENT_ENTRY_ID, null) }.getOrNull() != currentEntryId) return
-        prefs.edit {
-                putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
-            }
+        prefs.edit()
+            .putLong(KEY_POSITION, positionMs.coerceAtLeast(0L))
+            .apply()
     }
 
     /** A malformed snapshot is treated as absent by design. */
@@ -148,14 +144,14 @@ object BoundedContextPersistence {
     fun clear() {
         generation += 1
         pending = null
-        prefs.edit {clear()}
+        prefs.edit().clear().apply()
     }
 
     @Synchronized
     fun clearImmediately() {
         generation += 1
         pending = null
-        prefs.edit(commit = true) {clear()}
+        prefs.edit().clear().commit()
     }
 
     /** Visible to JVM tests; the Android wrapper above remains the only writer. */
@@ -643,7 +639,7 @@ object BoundedContextPersistence {
     private const val MAX_PHYSICAL_ENTRIES = 100_000
     private const val MAX_HISTORY = 25
     private const val MAX_CONTEXT_UPCOMING = 25
-    private const val PREFS_NAME = "audify_bounded_context"
+    private const val PREFS_NAME = "bitchord_bounded_context"
     private const val KEY_STATE = "state"
     private const val KEY_CURRENT_ENTRY_ID = "current_entry_id"
     private const val KEY_POSITION = "position"

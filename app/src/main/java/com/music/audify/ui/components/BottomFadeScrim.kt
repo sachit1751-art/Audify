@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
-
-import com.music.audify.ui.motion.MotionTokens
 
 import androidx.compose.animation.core.EaseInCubic
 import androidx.compose.animation.core.animateDpAsState
@@ -86,15 +82,11 @@ fun BottomFadeScrim(
         targetValue = inset + if (withMiniPlayer) FADE_HEIGHT_WITH_MINI_PLAYER else FADE_HEIGHT,
         // Matches the beat the mini player takes to appear, so the floor grows
         // with it instead of snapping ahead of it.
-        animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS),
+        animationSpec = tween(220),
         label = "bottomScrimHeight",
     )
 
-    // The floating player and tab bar already provide their own glass surface.
-    // A page-colour ramp here becomes a solid black veil on custom backgrounds
-    // and is especially noticeable while scrolling beneath the bars. Keep the
-    // spacer geometry, but never paint a second opaque wallpaper-colour layer.
-    val brush = remember {
+    val brush = remember(pageColor) {
         Brush.verticalGradient(
             // A cubic ease-in rather than a straight ramp: the alpha then holds
             // under a few percent for the first half of the strip, which is what
@@ -103,7 +95,7 @@ fun BottomFadeScrim(
             // ramped its radius along, so the strip reads at the same weight.
             colorStops = Array(STOPS) { i ->
                 val t = i / (STOPS - 1f)
-                t to Color.Transparent
+                t to pageColor.copy(alpha = EaseInCubic.transform(t))
             },
         )
     }

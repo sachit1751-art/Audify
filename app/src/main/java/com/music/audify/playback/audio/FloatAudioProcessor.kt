@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback.audio
 
 /**
@@ -34,7 +32,6 @@ interface FloatAudioProcessor {
 }
 
 /** Adapts [com.music.audify.playback.SpatialAudioProcessor] to [FloatAudioProcessor]. */
-@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 fun com.music.audify.playback.SpatialAudioProcessor.asFloatAudioProcessor(): FloatAudioProcessor =
     object : FloatAudioProcessor {
         override fun configure(sampleRate: Int, channelCount: Int) =
@@ -47,7 +44,6 @@ fun com.music.audify.playback.SpatialAudioProcessor.asFloatAudioProcessor(): Flo
     }
 
 /** Adapts [com.music.audify.playback.EqualizerProcessor] to [FloatAudioProcessor]. */
-@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 fun com.music.audify.playback.EqualizerProcessor.asFloatAudioProcessor(): FloatAudioProcessor =
     object : FloatAudioProcessor {
         override fun configure(sampleRate: Int, channelCount: Int) =
@@ -60,7 +56,6 @@ fun com.music.audify.playback.EqualizerProcessor.asFloatAudioProcessor(): FloatA
     }
 
 /** Adapts [com.music.audify.playback.TransitionFilterProcessor] to [FloatAudioProcessor]. */
-@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 fun com.music.audify.playback.TransitionFilterProcessor.asFloatAudioProcessor(): FloatAudioProcessor =
     object : FloatAudioProcessor {
         override fun configure(sampleRate: Int, channelCount: Int) =

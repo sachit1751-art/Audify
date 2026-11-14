@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import androidx.compose.foundation.background
@@ -7,19 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -29,9 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,13 +39,15 @@ import com.music.audify.R
 import com.music.audify.data.AppUpdateChecker
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 
-/** UIAlertController's visual metrics: responsive bounded width, 14pt corner, 44pt rows. */
+/** UIAlertController's own metrics: fixed narrow width, 14pt corner, 44pt rows. */
+internal val ALERT_WIDTH = 270.dp
 internal val ALERT_CORNER = 14.dp
 internal val ACTION_HEIGHT = 44.dp
 
-/** Responsive alert width: compact on phones, bounded on tablets and desktop-sized windows. */
+/** Responsive alert width retained for compact and expanded window layouts. */
 internal fun alertCardWidth(availableWidth: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp =
     (availableWidth - 32.dp).coerceAtLeast(0.dp).coerceAtMost(420.dp)
 
@@ -90,30 +82,28 @@ private val NOTES_MAX_HEIGHT = 220.dp
  * so its glass can sample the same [HazeState] the rest of the app's frosted
  * surfaces use, the way [FrostedTopBar] and [MiniPlayer] already do.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun UpdateAvailableDialog(
     version: String,
     notes: String?,
-    modifier: Modifier = Modifier,
-    requiresManualMigration: Boolean,
-    migrationAlreadyInstalled: Boolean = false,
     hazeState: HazeState,
     onDismiss: () -> Unit,
     onDownload: () -> Unit,
     onCancelDownload: () -> Unit,
     onInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()
-    var showReleaseNotes by remember(version) { mutableStateOf(false) }
     val shape = RoundedCornerShape(ALERT_CORNER)
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             // Tapping the scrim reads the same as Remind Me Later — nothing
             // about this update is mandatory, so backing out of it should be as
             // easy as getting into it. Mid-download it only closes the sheet;
@@ -121,26 +111,16 @@ fun UpdateAvailableDialog(
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 420.dp)
-                .fillMaxWidth(0.88f)
-                .heightIn(max = maxHeight)
+                .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
-                .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(MaterialTheme.colorScheme.surface)
-                    } else {
-                        Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
+                .alertSurface(hazeState, frosted = true, shape = shape)
                 // Swallows the tap before it reaches the scrim behind, so
                 // touching the card itself never dismisses it.
                 .clickable(
@@ -148,7 +128,7 @@ fun UpdateAvailableDialog(
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
                 )
-                .verticalScroll(rememberScrollState()),
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier
@@ -165,36 +145,16 @@ fun UpdateAvailableDialog(
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                 )
-
-                if (requiresManualMigration) {
-                    Text(
-                        text = stringResource(
-                            if (migrationAlreadyInstalled) {
-                                R.string.update_migration_complete_body
-                            } else {
-                                R.string.update_manual_migration_body
-                            },
-                        ),
-                        modifier = Modifier.padding(top = 12.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Start,
-                    )
-                }
                 Text(
-                    text = if (requiresManualMigration) {
-                        stringResource(R.string.update_manual_migration_title)
-                    } else {
-                        when (state) {
-                            is AppUpdateChecker.DownloadState.Downloading ->
-                                stringResource(R.string.update_downloading_body, version)
-                            is AppUpdateChecker.DownloadState.Ready ->
-                                stringResource(R.string.update_ready_body, version)
-                            is AppUpdateChecker.DownloadState.Failed ->
-                                stringResource(R.string.update_failed_body, version)
-                            else ->
-                                stringResource(R.string.update_available_body, version)
-                        }
+                    text = when (state) {
+                        is AppUpdateChecker.DownloadState.Downloading ->
+                            stringResource(R.string.update_downloading_body, version)
+                        is AppUpdateChecker.DownloadState.Ready ->
+                            stringResource(R.string.update_ready_body, version)
+                        is AppUpdateChecker.DownloadState.Failed ->
+                            stringResource(R.string.update_failed_body, version)
+                        else ->
+                            stringResource(R.string.update_available_body, version)
                     },
                     modifier = Modifier.padding(top = 4.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -245,44 +205,32 @@ fun UpdateAvailableDialog(
                 // whole point of reading this before installing.
                 if (!notes.isNullOrBlank()) {
                     AlertRule(modifier = Modifier.padding(top = 12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp)
-                            .clickable { showReleaseNotes = !showReleaseNotes }
-                            .padding(vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Text(
+                        text = stringResource(R.string.whats_new),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.W600,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Start,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .heightIn(max = NOTES_MAX_HEIGHT)
+                            .verticalScroll(rememberScrollState()),
                     ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.whats_new),
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.W600),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = if (showReleaseNotes) "Hide release notes" else "Release highlights and changes",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Text(
-                            text = if (showReleaseNotes) "Hide" else "View",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    if (showReleaseNotes) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 6.dp)
-                                .heightIn(max = NOTES_MAX_HEIGHT)
-                                .verticalScroll(rememberScrollState()),
-                        ) {
-                            // RichText uses LocalContentColor; provide the card's
-                            // foreground explicitly so notes remain legible in
-                            // both light and dark themes.
-                            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-                                RichText(style = RichTextStyle.Default) {
-                                    Markdown(notes)
-                                }
+                        // RichText's Material3 Text leans on LocalContentColor,
+                        // which nothing here provides — this card is a plain
+                        // Column.background(...), not a Surface, so without
+                        // this the notes render at LocalContentColor's black
+                        // default regardless of theme.
+                        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                            RichText(style = RichTextStyle.Default) {
+                                Markdown(notes)
                             }
                         }
                     }
@@ -290,25 +238,16 @@ fun UpdateAvailableDialog(
             }
 
             AlertRule()
-            when {
-                requiresManualMigration -> {
-                    AlertAction(
-                        label = stringResource(R.string.open_v189_release),
-                        emphasised = true,
-                        onClick = onDownload,
-                    )
-                    AlertRule()
-                    AlertAction(label = stringResource(R.string.remind_me_later), emphasised = false, onClick = onDismiss)
-                }
-                state is AppUpdateChecker.DownloadState.Downloading -> {
+            when (state) {
+                is AppUpdateChecker.DownloadState.Downloading -> {
                     AlertAction(label = stringResource(R.string.cancel), emphasised = false, onClick = onCancelDownload)
                 }
-                state is AppUpdateChecker.DownloadState.Ready -> {
+                is AppUpdateChecker.DownloadState.Ready -> {
                     AlertAction(label = stringResource(R.string.install_now), emphasised = true, onClick = onInstall)
                     AlertRule()
                     AlertAction(label = stringResource(R.string.later), emphasised = false, onClick = onDismiss)
                 }
-                state is AppUpdateChecker.DownloadState.Failed -> {
+                is AppUpdateChecker.DownloadState.Failed -> {
                     AlertAction(label = stringResource(R.string.try_again), emphasised = true, onClick = onDownload)
                     AlertRule()
                     AlertAction(label = stringResource(R.string.open_releases_page), emphasised = false, onClick = onOpenReleasePage)

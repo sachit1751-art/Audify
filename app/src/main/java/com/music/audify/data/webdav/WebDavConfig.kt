@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.webdav
 
 import com.music.audify.data.model.Song
@@ -68,9 +66,6 @@ object WebDavConfig {
     fun idFor(fileUrl: String): String = "webdav:$fileUrl"
 
     fun isWebDavId(videoId: String): Boolean = videoId.startsWith("webdav:")
-
-    fun fileUrlOf(videoId: String): String? =
-        videoId.removePrefix("webdav:").takeIf { isWebDavId(videoId) && it.startsWith("http") }
 
     /**
      * A row for a remote file. Title/artist come from the filename —

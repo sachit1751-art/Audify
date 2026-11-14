@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import androidx.appcompat.app.AppCompatDelegate
@@ -8,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,10 +14,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -47,7 +39,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.data.settings.AppSettings
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+import java.util.Locale
 
 /** Language tag paired with its display-name string.
  *
@@ -61,19 +55,8 @@ data class AppLanguage(val tag: String, val nameRes: Int)
 
 val SUPPORTED_LANGUAGES = listOf(
     AppLanguage("en", R.string.english),
-    AppLanguage("es", R.string.spanish),
-    AppLanguage("fr", R.string.french),
-    AppLanguage("de", R.string.german),
-    AppLanguage("pl", R.string.polish),
-    AppLanguage("pt", R.string.portuguese),
-    AppLanguage("hi", R.string.hindi),
-    AppLanguage("ja", R.string.japanese),
-    AppLanguage("ru", R.string.russian),
-    AppLanguage("zh-CN", R.string.chinese_simplified),
-    AppLanguage("zh-TW", R.string.chinese_traditional),
-    AppLanguage("it", R.string.italian),
-    AppLanguage("tr", R.string.turkish),
-    AppLanguage("th", R.string.thai),
+    AppLanguage("id", R.string.indonesian),
+    AppLanguage("ko", R.string.korean),
     AppLanguage("vi", R.string.vietnamese),
 )
 
@@ -93,6 +76,7 @@ private val LANGUAGE_LIST_MAX_HEIGHT = 340.dp
  * just one active language, so tapping a row applies it and closes the sheet
  * immediately rather than waiting on a separate Done action.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AppLanguageDialog(
     hazeState: HazeState,
@@ -101,47 +85,38 @@ fun AppLanguageDialog(
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
     // Full script tag (zh-Hant / zh-Hans preserved); legacy bare "zh" reads as Simplified.
     val currentLanguage = com.music.audify.data.LocaleTags.normalizeAppTag(
         AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
-            ?: LocalLocale.current.platformLocale.toLanguageTag(),
+            ?: Locale.getDefault().toLanguageTag(),
     )
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 420.dp)
-                .fillMaxWidth(0.88f)
-                .heightIn(max = maxHeight)
+                .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
                 .clip(shape)
-                .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(MaterialTheme.colorScheme.surface)
-                    } else {
-                        Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
+                .alertSurface(hazeState, frosted = true, shape = shape)
                 // Swallows the tap before it reaches the scrim behind, so
                 // touching the card itself never dismisses it.
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                ),
+                )
+                .macOSPopupContent(motion),
         ) {
             Column(
                 modifier = Modifier
@@ -174,11 +149,7 @@ fun AppLanguageDialog(
             // [TranslationLanguageDialog] — sixteen rows is short enough not
             // to need that dialog's filter field, but still taller than the
             // card should get to stay centred on a phone.
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .heightIn(max = LANGUAGE_LIST_MAX_HEIGHT),
-            ) {
+            LazyColumn(modifier = Modifier.heightIn(max = LANGUAGE_LIST_MAX_HEIGHT)) {
                 items(SUPPORTED_LANGUAGES, key = { it.tag }) { language ->
                     AlertRule()
                     LanguageRow(
@@ -226,7 +197,7 @@ private fun LanguageRow(language: AppLanguage, selected: Boolean, onClick: () ->
             Icon(
                 imageVector = Icons.Rounded.Check,
                 contentDescription = null,
-                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(19.dp),
             )
         }

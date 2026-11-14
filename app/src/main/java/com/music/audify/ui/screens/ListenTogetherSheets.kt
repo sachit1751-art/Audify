@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
-
-import androidx.core.graphics.scale
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -37,6 +33,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -158,9 +157,14 @@ internal fun GlowingAvatar(
                 ),
         )
         if (url != null) {
+            // The saved avatar is a thumbnail-size URL and looks pixelated at this
+            // size, so ask for a big one first. If that can't load (offline), fall
+            // back to the saved URL, which is already in the image cache.
+            var sharp by remember(url) { mutableStateOf(true) }
             AsyncImage(
-                model = url,
+                model = if (sharp) url.sharpAvatar() else url,
                 contentDescription = null,
+                onError = { sharp = false },
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
@@ -254,6 +258,11 @@ internal fun PartyLanding(
         }
     }
 }
+
+/** Rewrites a Google avatar URL's size parameter (=s88, =w60-h60) to [px]; other URLs pass through. */
+private fun String.sharpAvatar(px: Int = 512): String =
+    replace(Regex("=s\\d+(?=-|$)"), "=s$px")
+        .replace(Regex("=w\\d+-h\\d+"), "=w$px-h$px")
 
 /** The shared head of every sheet here: a title, and an optional line under it. */
 @Composable
@@ -584,7 +593,7 @@ internal fun JoinConfirmSheet(
                 Icon(
                     Icons.Rounded.Person,
                     contentDescription = null,
-                    tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(6.dp))
@@ -730,7 +739,3 @@ internal fun InviteSheet(
         Spacer(Modifier.height(16.dp))
     }
 }
-
-/** @see ListenTogether.myAvatarUrl */
-@Composable
-internal fun rememberMyAvatar(): String? = ListenTogether.myAvatarUrl()

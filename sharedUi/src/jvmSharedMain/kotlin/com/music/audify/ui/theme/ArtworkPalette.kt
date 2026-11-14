@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.theme
 
 import androidx.compose.animation.animateColorAsState
@@ -69,6 +67,12 @@ data class ArtworkPalette(
     val onBackground: Color,
     val onBackgroundVariant: Color,
     val divider: Color,
+    /**
+     * False while the artwork's colours are still being read. A surface that
+     * paints the artwork itself holds it back until this is true, so the
+     * picture and the page colour arrive on the same frame.
+     */
+    val ready: Boolean = true,
 )
 
 /**
@@ -141,6 +145,7 @@ fun rememberArtworkPalette(
             target.onBackgroundVariant, spec, label = "tintOnVariant",
         ).value,
         divider = animateColorAsState(target.divider, spec, label = "tintDivider").value,
+        ready = keyColors != null || decoded != null || imageUrl == null,
     )
 }
 
@@ -172,6 +177,18 @@ fun rememberArtworkTopBandLuminance(
 fun rememberPlayerTint(imageUrl: String?, artPx: Int = CARD_ART_PX): Color? {
     val seed = rememberArtworkSeed(imageUrl, artPx)
     return remember(seed) { seed?.playerTint() }
+}
+
+/**
+ * Solid dark colour of the artwork at [imageUrl] for the player's panel, or
+ * null until it has been read. Unlike [rememberArtworkPalette] it never
+ * crossfades through the theme's colours on the way, so a panel painted with
+ * it is the sleeve's colour from its first frame or the caller's own neutral.
+ */
+@Composable
+fun rememberArtworkPanelColor(imageUrl: String?, artPx: Int = CARD_ART_PX): Color? {
+    val seed = rememberArtworkSeed(imageUrl, artPx)
+    return remember(seed) { seed?.toPalette(dark = true)?.background }
 }
 
 private fun Seed.playerTint(): Color? {

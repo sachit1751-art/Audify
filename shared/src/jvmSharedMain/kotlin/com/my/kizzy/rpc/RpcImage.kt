@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  *
  *  ******************************************************************
@@ -21,11 +19,10 @@ sealed class RpcImage {
     abstract suspend fun resolveImage(resolveExternalImage: suspend (String) -> String?): String?
 
     class DiscordImage(val image: String) : RpcImage() {
-        override suspend fun resolveImage(resolveExternalImage: suspend (String) -> String?): String {
+        override suspend fun resolveImage(resolveExternalImage: suspend (String) -> String?): String? {
             return if (image.startsWith("http")) image else "mp:$image"
         }
     }
-
     class ExternalImage(
         val image: String,
         private val fallbackDiscordAsset: String? = null,

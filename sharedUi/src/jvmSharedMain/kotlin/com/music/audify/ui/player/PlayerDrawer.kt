@@ -1,15 +1,13 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import com.music.audify.ui.motion.MotionTokens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -18,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -57,10 +54,13 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.music.audify.ui.components.optimizedHazeEffect
+import com.music.audify.ui.components.MENU_FROST_ALPHA
+import com.music.audify.ui.components.MenuFrostDark
+import com.music.audify.ui.components.liveMenuFrost
+import com.music.audify.ui.components.touchGlow
 import com.music.audify.ui.utils.containSheetGestures
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 internal val DRAWER_SHAPE = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)
@@ -88,6 +88,9 @@ internal val SCRIM_COLOR = Color.Black.copy(alpha = 0.5f)
  */
 private const val DISMISS_DRAG_FRACTION = 0.25f
 
+/** How long the drawer takes to leave, and so how long [PlayerDrawer] waits before telling its caller. */
+private const val DRAWER_EXIT_MS = 180
+
 /**
  * The bottom-edge drawer shell every player sheet in this package puts up —
  * [AudioOutputSheet] and [ListenTogetherMembersSheet] alike: dark over a
@@ -107,13 +110,10 @@ fun PlayerDrawer(
     modifier: Modifier = Modifier,
     /** Air between the title and whatever the drawer opens with. */
     titleGap: Dp = 14.dp,
-    /** Maximum drawer height; taller sheets can clear persistent player controls. */
-    maxHeight: Dp = 560.dp,
-    /** Minimum fraction of the available window height, clamped to that window. */
-    minHeightFraction: Float = 0f,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val reduceDynamicBlur by PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val frost = LocalPlayerFrost.current
 
     // How far the drawer has been dragged down, in pixels. Released, it either
     // springs back or goes — see [DISMISS_DRAG_FRACTION].
@@ -133,6 +133,24 @@ fun PlayerDrawer(
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
 
+    // Closing is played before it is reported: the caller removes the drawer
+    // from the tree the moment [onDismiss] runs, which cut the exit short.
+    var closing by remember { mutableStateOf(false) }
+    val closeFade by animateFloatAsState(
+        targetValue = if (closing) 0f else 1f,
+        animationSpec = tween(DRAWER_EXIT_MS),
+        label = "playerDrawerScrim",
+    )
+    LaunchedEffect(closing) {
+        if (closing) {
+            shown = false
+            delay(DRAWER_EXIT_MS.toLong())
+            onDismiss()
+        }
+    }
+    val close: () -> Unit = { closing = true }
+    PlayerBackHandler(enabled = !closing) { close() }
+
     // The drawer's rows scroll, and that scroll takes the finger before the
     // drag detector below ever sees it. So a pull down past the top of the
     // list moves the drawer itself — the way a sheet with a list in it
@@ -145,7 +163,7 @@ fun PlayerDrawer(
     // answers to its own drag alone, because a scroll leftover means something
     // else there and must not be read as a pull.
     val dismissOnRelease: () -> Unit = {
-        if (height > 0 && drag > height * DISMISS_DRAG_FRACTION) onDismiss() else drag = 0f
+        if (height > 0 && drag > height * DISMISS_DRAG_FRACTION) close() else drag = 0f
     }
     val drawerScroll = remember {
         object : NestedScrollConnection {
@@ -187,21 +205,24 @@ fun PlayerDrawer(
         modifier = modifier
             .fillMaxSize()
             .containSheetGestures()
-            .background(SCRIM_COLOR.copy(alpha = SCRIM_COLOR.alpha * scrimAlpha))
+            .background(SCRIM_COLOR.copy(alpha = SCRIM_COLOR.alpha * scrimAlpha * closeFade))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = close,
             ),
         contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
             visible = shown,
-            enter = slideInVertically(tween(MotionTokens.SHEET_ENTER_MS, easing = MotionTokens.STANDARD_EASING)) { it },
-            exit = slideOutVertically(tween(MotionTokens.SHORT_FADE_MS)) { it },
+            enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it },
+            exit = slideOutVertically(tween(DRAWER_EXIT_MS)) { it },
         ) {
         Column(
             modifier = Modifier
+                // Capped so a phone full of rows scrolls inside the drawer
+                // rather than growing one into a full-screen page.
+                .heightIn(max = 560.dp)
                 // Capped before the fill, so [Modifier.fillMaxWidth] fills to
                 // the cap rather than to the window. Centred by the parent's
                 // own BottomCenter alignment once it is narrower.
@@ -211,17 +232,18 @@ fun PlayerDrawer(
                 .offset { IntOffset(0, offset.roundToInt()) }
                 .clip(DRAWER_SHAPE)
                 .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(Color(0xFF121212))
-                    } else {
-                        Modifier
-                            .optimizedHazeEffect(
-                                state = hazeState,
-                                style = HazeMaterials.regular(Color(0xFF141414)),
-                            )
-                            .background(Color(0xFF121212).copy(alpha = 0.9f))
+                    // The ⋯ menu's frost, so the drawers and the menu read as one
+                    // material over the player — its own where the player is
+                    // recorded for it, else the same look through the haze.
+                    when {
+                        reduceDynamicBlur -> Modifier.background(MenuFrostDark)
+                        frost != null -> with(frost) {
+                            Modifier.frostPanel(DRAWER_SHAPE, MenuFrostDark.copy(alpha = MENU_FROST_ALPHA))
+                        }
+                        else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
                     }
                 )
+                .touchGlow()
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -242,15 +264,7 @@ fun PlayerDrawer(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp)
                 .padding(top = 10.dp, bottom = 20.dp)
-                // These constraints must wrap the scroll modifier: otherwise
-                // verticalScroll measures its child with an unbounded height
-                // and silently discards the requested responsive sheet size.
-                .verticalScroll(rememberScrollState())
-                .heightIn(max = maxHeight)
-                .then(
-                    if (minHeightFraction > 0f) Modifier.fillMaxHeight(minHeightFraction.coerceIn(0f, 1f))
-                    else Modifier
-                ),
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // The grab handle every sheet here has, and the thing that says the

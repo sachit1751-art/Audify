@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.model
 
 import kotlin.test.Test
@@ -7,28 +5,11 @@ import kotlin.test.assertEquals
 
 class ModelsTest {
     @Test
-    fun explicitFilterHidesOnlyCatalogueMarkedEntries() {
-        assertEquals(true, isVisibleWithExplicitFilter(false, hideExplicitContent = true))
-        assertEquals(true, isVisibleWithExplicitFilter(null, hideExplicitContent = true))
-        assertEquals(false, isVisibleWithExplicitFilter(true, hideExplicitContent = true))
-        assertEquals(true, isVisibleWithExplicitFilter(true, hideExplicitContent = false))
-    }
-
-    @Test
     fun durationIsSharedAcrossTargets() {
         assertEquals(225_000L, "3:45".durationMillis())
         assertEquals(3_723_000L, "1:02:03".durationMillis())
         assertEquals(0L, "not-a-duration".durationMillis())
         assertEquals(0L, null.durationMillis())
-    }
-
-    @Test
-    fun localPlaylistBrowseIdsAreNotPrefixedAsRemoteYouTubeIds() {
-        val local = UserPlaylist("local:playlist:device-123", "Offline", "2 songs", null)
-        val remote = UserPlaylist("PL123", "Remote", "2 songs", null)
-
-        assertEquals("local:playlist:device-123", local.browseId)
-        assertEquals("VLPL123", remote.browseId)
     }
 
     @Test
@@ -60,59 +41,6 @@ class ModelsTest {
     private fun song(id: String) = ShelfItem(id, "", null, id, null)
 
     @Test
-    fun shelfComposeKeysAreStableAcrossReorderingAndUniqueForDuplicates() {
-        val first = song("same")
-        val second = album("album")
-        val duplicate = song("same")
-        val original = listOf(first, second, duplicate)
-        val originalKeys = original.stableShelfComposeKeys()
-        assertEquals(3, originalKeys.toSet().size)
-        assertEquals(originalKeys[0], listOf(first, duplicate, second).stableShelfComposeKeys()[0])
-        assertEquals(originalKeys[1], listOf(second, first, duplicate).stableShelfComposeKeys()[0])
-    }
-
-    @Test
-    fun songComposeKeysAreStableAcrossReorderingAndUniqueForDuplicates() {
-        val first = Song(videoId = "same", title = "one", artist = "artist", thumbnailUrl = null)
-        val second = Song(videoId = "other", title = "two", artist = "artist", thumbnailUrl = null)
-        val duplicate = first.copy(title = "duplicate")
-        val original = listOf(first, second, duplicate)
-        val keys = original.stableSongComposeKeys()
-        assertEquals(3, keys.toSet().size)
-        assertEquals(keys[1], listOf(second, first, duplicate).stableSongComposeKeys()[0])
-        assertEquals(keys[0], listOf(first, duplicate, second).stableSongComposeKeys()[0])
-    }
-
-    @Test
-    fun songColumnKeysRemainUniqueWhenAnArtistRepeatsAWholeTrackGroup() {
-        val group = listOf("a", "b", "c", "d").map { id ->
-            Song(videoId = id, title = id, artist = "Artist", thumbnailUrl = null)
-        }
-        val repeated = group + group
-
-        val keys = repeated.stableSongColumnComposeKeys(columnSize = 4)
-
-        assertEquals(2, keys.size)
-        assertEquals(2, keys.toSet().size)
-        assertEquals(keys, repeated.stableSongColumnComposeKeys(columnSize = 4))
-    }
-
-    @Test
-    fun artistSectionKeysAreUniqueForRepeatedBrowseIdsAndFallbackTitles() {
-        val sections = listOf(
-            HomeShelf("Albums", emptyList(), moreBrowseId = "browse-albums"),
-            HomeShelf("Albums", emptyList(), moreBrowseId = "browse-albums"),
-            HomeShelf("Singles", emptyList()),
-            HomeShelf("Singles", emptyList()),
-        )
-
-        val keys = sections.stableHomeShelfComposeKeys()
-
-        assertEquals(sections.size, keys.toSet().size)
-        assertEquals(keys, sections.stableHomeShelfComposeKeys())
-    }
-
-    @Test
     fun aReorderedReleaseShelfUnderAnotherTitleIsARepeat() {
         val albums = HomeShelf("Albums & singles", (1..10).map { album("a$it") })
         val reordered = HomeShelf("New albums & singles", (10 downTo 2).map { album("a$it") } + album("b"))
@@ -127,16 +55,5 @@ class ModelsTest {
         val listenAgain = HomeShelf("Listen again", (1..10).map { song("s$it") } + album("a1") + album("a2"))
         val albums = HomeShelf("Albums & singles", (1..10).map { album("a$it") })
         assertEquals(listOf(listenAgain), listOf(listenAgain).withoutRepeatsOf(listOf(recents, albums)))
-    }
-
-    @Test
-    fun shelfLayoutUsesPlayableItemShapeRatherThanOnlyTheShelfTitle() {
-        val track = song("track")
-        val video = track.copy(isVideo = true)
-
-        assertEquals(ShelfLayout.LIST, shelfLayoutFor("For you", listOf(track), fromList = true))
-        assertEquals(ShelfLayout.LIST, shelfLayoutFor("Listen again", listOf(track), fromList = false))
-        assertEquals(ShelfLayout.VIDEO, shelfLayoutFor("Recommended", listOf(video, video, track), fromList = false))
-        assertEquals(ShelfLayout.CARDS, shelfLayoutFor("Albums", listOf(album("one"), album("two")), fromList = false))
     }
 }

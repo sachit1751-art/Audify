@@ -1,10 +1,7 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.scrobbling
 
-import com.music.audify.data.Http
-
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.forms.FormDataContent
@@ -66,8 +63,7 @@ object LastFM {
         }
 
     private val client by lazy {
-        HttpClient(io.ktor.client.engine.okhttp.OkHttp) {
-            engine { preconfigured = Http.client }
+        HttpClient(OkHttp) {
             install(ContentNegotiation) {
                 json(json)
             }
@@ -90,7 +86,7 @@ object LastFM {
         extra: Map<String, String> = emptyMap(),
         format: String = "json",
     ) {
-        headers.append(HttpHeaders.UserAgent, "Audify (https://github.com/sachit1751-art/Audify)")
+        headers.append(HttpHeaders.UserAgent, "Audify (https://github.com/kushagrasinghx/BitChord)")
         val paramsForSig =
             mutableMapOf(
                 "method" to method,

@@ -1,11 +1,11 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.sources
 
 import android.media.MediaCodecList
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import com.music.audify.data.TrackLog
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.playback.audio.bitperfect.BitPerfectOutput
 import java.util.Locale
 
 /**
@@ -100,6 +100,24 @@ object DeviceCodecs {
         get() = forced ?: probed ?: probe().also { probed = it }
 
     /**
+     * Whether sources should be asked for Dolby Atmos at all: this phone can
+     * decode it, the listener has it on, and no bit-perfect output is ready
+     * to take the music. Bit-perfect output carries stereo PCM only and
+     * bypasses the mixer where Atmos is rendered, so an Atmos track would
+     * only fall back to normal output; the stereo lossless version plays
+     * bit-perfect instead.
+     */
+    val atmosWanted: Boolean
+        get() = playsDolbyAtmos && AppSettings.dolbyAtmos.value && !BitPerfectOutput.ready.value
+
+    /** Why [atmosWanted] is false, for logs. */
+    fun atmosRefusal(): String = when {
+        !playsDolbyAtmos -> "which this device has no decoder for"
+        BitPerfectOutput.ready.value -> "which bit-perfect output cannot carry"
+        else -> "which is switched off in Settings"
+    }
+
+    /**
      * Yes on anything that cannot be established.
      *
      * A probe that fails outright is exotic and an unsupported device is not,
@@ -109,7 +127,6 @@ object DeviceCodecs {
      * restores the behaviour that shipped before any of this existed. So the
      * uncertain case keeps the old behaviour.
      */
-    @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     private fun probe(): Boolean {
         val viaMedia3 = media3Decoders()
         if (viaMedia3 != null) {

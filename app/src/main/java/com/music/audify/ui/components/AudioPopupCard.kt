@@ -1,21 +1,15 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,11 +30,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.utils.containSheetGestures
+import com.music.audify.ui.player.LocalPlayerFrost
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
 
 private val POPUP_CARD_SHAPE = RoundedCornerShape(ALERT_CORNER)
 private val POPUP_SCRIM_COLOR = Color.Black.copy(alpha = 0.4f)
+private val POPUP_WIDTH = 320.dp
 private val POPUP_CONTENT_MAX_HEIGHT = 420.dp
 
 /**
@@ -68,37 +63,42 @@ internal fun AudioPopupCard(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val frost = LocalPlayerFrost.current
+    // onDismiss now fires once the exit has played; scrim, Back and Done all
+    // go through the same reverse animation.
+    val popup = rememberMacOSPopupState(onClosed = onDismiss)
+    androidx.activity.compose.BackHandler { popup.requestClose() }
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .containSheetGestures()
-            .background(POPUP_SCRIM_COLOR)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .macOSPopupScrim(popup, POPUP_SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = popup::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
-                .width(alertCardWidth(maxWidth))
-                .heightIn(max = maxHeight)
+                .width(POPUP_WIDTH)
+                .macOSPopupMotion(popup)
+                .jellyPopIn(animateIn = false)
                 .clip(POPUP_CARD_SHAPE)
                 .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(Color(0xFF121212))
-                    } else {
-                        Modifier
-                            .optimizedHazeEffect(
-                                state = hazeState,
-                                style = HazeMaterials.regular(Color(0xFF141414)),
-                            )
-                            .background(Color(0xFF121212).copy(alpha = 0.9f))
+                    // The ⋯ menu's frost — see [PlayerDrawer], whose drawers
+                    // these popups open from.
+                    when {
+                        reduceDynamicBlur -> Modifier.background(MenuFrostDark)
+                        frost != null -> with(frost) {
+                            Modifier.frostPanel(POPUP_CARD_SHAPE, MenuFrostDark.copy(alpha = MENU_FROST_ALPHA))
+                        }
+                        else -> Modifier.liveMenuFrost(hazeState, MenuFrostDark)
                     }
                 )
+                .touchGlow()
                 // Swallows the tap before it reaches the scrim behind, so
                 // touching the card itself never dismisses it.
                 .clickable(
@@ -107,11 +107,11 @@ internal fun AudioPopupCard(
                     onClick = {},
                 ),
         ) {
+            // The children fade in once the card has grown out of its trigger.
+            Column(Modifier.fillMaxWidth().macOSPopupContent(popup)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = (this@BoxWithConstraints.maxHeight - ACTION_HEIGHT - 1.dp).coerceAtLeast(0.dp))
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 19.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -138,7 +138,6 @@ internal fun AudioPopupCard(
 
             Box(
                 modifier = Modifier
-                    .weight(1f, fill = false)
                     .heightIn(max = POPUP_CONTENT_MAX_HEIGHT)
                     .verticalScroll(rememberScrollState()),
                 content = content,
@@ -147,7 +146,8 @@ internal fun AudioPopupCard(
             // Full width: the default rule is indented to clear the pipeline's
             // icon lane, which left this one sitting right of centre.
             PipelineRule(Modifier)
-            PipelineDoneAction(label = doneLabel, onClick = onDismiss)
+            PipelineDoneAction(label = doneLabel, onClick = popup::requestClose)
+            }
         }
     }
 }

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.lyrics
 
 import kotlinx.coroutines.Dispatchers
@@ -7,9 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import java.text.Normalizer
 import java.util.Locale
-import kotlin.math.abs
 
 /**
  * Apple Music TTML again, from a third host — and the only one here that will
@@ -84,48 +80,30 @@ object BiniLyrics {
         bestHit(response.results.orEmpty(), title, artist, durationMs)
     }
 
-    /**
-     * The API ranks candidates, but its first row is not proof that it is the
-     * requested recording. Reject contradictory title/artist/duration metadata
-     * before its ISRC is allowed to steer every other lyrics provider.
-     * Missing optional metadata is tolerated; contradictory metadata is not.
-     */
-    internal fun bestHit(
-        hits: List<Hit>,
-        title: String,
-        artist: String,
-        durationMs: Long,
-    ): Hit? {
-        val wantedTitle = identityTitle(title)
-        val wantedArtists = artistCredits(artist)
-        val wantedSeconds = durationMs / 1000.0
-
-        return hits.firstOrNull { hit ->
-            val candidateTitle = hit.trackName?.takeIf { it.isNotBlank() }?.let(::identityTitle)
-            val candidateArtists = hit.artistName?.takeIf { it.isNotBlank() }?.let(::artistCredits)
-            val titleMatches = candidateTitle == null || candidateTitle == wantedTitle
-            val artistMatches = candidateArtists.isNullOrEmpty() || wantedArtists.isEmpty() ||
-                candidateArtists.any { it in wantedArtists }
-            val durationMatches = durationMs <= 0 || hit.duration == null || hit.duration <= 0 ||
-                abs(hit.duration - wantedSeconds) <= DURATION_TOLERANCE_SECONDS
-            titleMatches && artistMatches && durationMatches
-        }
+    /** Select only the same recording; search ranking alone is not identity. */
+    internal fun bestHit(hits: List<Hit>, title: String, artist: String, durationMs: Long): Hit? {
+        val wantedTitle = title.identityText()
+        val wantedArtist = artist.identityText().removeTopicSuffix()
+        if (wantedTitle.isBlank() || wantedArtist.isBlank()) return null
+        val expectedSeconds = (durationMs / 1_000L).takeIf { it > 0L }
+        return hits.mapNotNull { hit ->
+            val hitTitle = hit.trackName?.identityText() ?: return@mapNotNull null
+            if (hitTitle != wantedTitle) return@mapNotNull null
+            val artists = hit.artistName.orEmpty().split(Regex("\\s*(?:,|&|\\band\\b)\\s*"))
+                .map { it.identityText().removeTopicSuffix() }
+            if (wantedArtist !in artists) return@mapNotNull null
+            val distance = if (expectedSeconds != null && hit.duration != null) {
+                kotlin.math.abs(hit.duration.toLong() - expectedSeconds)
+            } else 0L
+            if (distance > 5L) return@mapNotNull null
+            hit to distance
+        }.minByOrNull { it.second }?.first
     }
 
-    private fun identityTitle(value: String): String =
-        Normalizer.normalize(value.forLyricsSearch(), Normalizer.Form.NFD)
-            .replace(Regex("\\p{Mn}+"), "")
-            .lowercase(Locale.ROOT)
-            .filter(Char::isLetterOrDigit)
+    private fun String.identityText(): String = lowercase(Locale.ROOT)
+        .replace(Regex("\\s+"), " ").trim()
 
-    private fun artistCredits(value: String): Set<String> =
-        value.artistForLyricsSearch()
-            .split(Regex("\\s*(?:,|&|;|/|\\band\\b|\\bwith\\b|\\bfeaturing\\b|\\bfeat\\.?\\s*|\\bft\\.?\\s*)\\s*", RegexOption.IGNORE_CASE))
-            .map(::identityTitle)
-            .filter(String::isNotEmpty)
-            .toSet()
-
-    private const val DURATION_TOLERANCE_SECONDS = 3.0
+    private fun String.removeTopicSuffix(): String = removeSuffix(" - topic").trim()
 
     /**
      * The document a search already found, fetched and parsed. These are

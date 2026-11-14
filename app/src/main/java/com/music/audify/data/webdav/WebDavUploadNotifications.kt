@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.webdav
 
 import android.app.NotificationChannel
@@ -36,19 +34,13 @@ object WebDavUploadNotifications {
             else -> current?.title ?: context.getString(R.string.upload_notification_title)
         }
         val text = when {
-            runningCount > 1 && queuedCount > 0 -> context.resources.getQuantityString(
-                R.plurals.upload_notification_queued,
-                queuedCount,
-                current?.title.orEmpty(),
-                queuedCount,
+            runningCount > 1 && queuedCount > 0 -> context.getString(
+                R.string.upload_notification_queued, current?.title.orEmpty(), queuedCount,
             )
             runningCount > 1 -> current?.title.orEmpty()
             current == null -> context.getString(R.string.download_notification_starting)
-            queuedCount > 0 -> context.resources.getQuantityString(
-                R.plurals.upload_notification_queued,
-                queuedCount,
-                current.artist,
-                queuedCount,
+            queuedCount > 0 -> context.getString(
+                R.string.upload_notification_queued, current.artist, queuedCount,
             )
             else -> current.artist
         }
@@ -72,9 +64,8 @@ object WebDavUploadNotifications {
             .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(context.getString(R.string.upload_channel_name))
             .setContentText(
-                context.resources.getQuantityString(
-                    R.plurals.webdav_upload_summary,
-                    summary.uploaded,
+                context.getString(
+                    R.string.webdav_upload_summary,
                     summary.uploaded,
                     summary.skipped,
                     summary.failed,

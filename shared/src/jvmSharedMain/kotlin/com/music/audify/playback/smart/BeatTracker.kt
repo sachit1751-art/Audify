@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Ported from Orchard (https://github.com/SFG5453/Orchard).
  *
@@ -33,6 +31,7 @@ import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Beat and downbeat tracking with the Beat This! model (CPJKU, ISMIR 2024).
@@ -129,10 +128,13 @@ class BeatTracker(
 
         val fps = MelSpectrogram.frameRate
         val beatFrames = pickPeaks(beatLogits)
-        val beats = beatFrames.map { it / fps + offsetSeconds }
-        if (beats.size < MIN_BEATS) return null
+        val rawBeats = beatFrames.map { it / fps + offsetSeconds }
+        if (rawBeats.size < MIN_BEATS) return null
+        // Grid yang stabil dirapikan ke garis hasil fit, supaya jitter satu puncak
+        // (+-10-20 ms) tidak ikut menjadi selisih fase saat dua track di-mix.
+        val beats = regularize(rawBeats)
 
-        val bpm = tempoFromBeats(beats)
+        val bpm = tempoFromBeats(rawBeats)
         if (bpm <= 0) return null
 
         // Every downbeat is a beat. The two heads are predicted independently, so their peaks can
@@ -152,7 +154,7 @@ class BeatTracker(
             beatInterval = 60 / bpm,
             firstBeat = beats.first(),
             beatConfidence = gridConfidence(
-                beats,
+                rawBeats,
                 beatFrames.map { frame -> beatLogits.getOrElse(frame.roundToInt()) { 0f }.toDouble() },
             ),
         )
@@ -218,8 +220,18 @@ class BeatTracker(
 
     companion object {
         private const val TAG = "AudifyBeatTracker"
-        /** The weights this tracker needs, named once for every build that ships them. */
-        const val MODEL_ASSET = "beat_this_int8.onnx"
+        /**
+         * The weights this tracker needs, named once for every build that ships them.
+         *
+         * The official final0 checkpoint with only its MatMuls quantized (int8, per channel); the
+         * convolutions stay float. The earlier `beat_this_int8.onnx` quantized the convolutions
+         * too and found no beats at all. A new name rather than the old one because the app
+         * unpacks assets once by name and would keep serving the stale copy.
+         */
+        const val MODEL_ASSET = "beat_this_final0_q8.onnx"
+
+        /** The broken earlier export, whose unpacked copy is deleted on first use of the new one. */
+        const val RETIRED_MODEL_ASSET = "beat_this_int8.onnx"
         /** The window the model was trained on, and the margin discarded from each chunk's edges. */
         const val CHUNK_FRAMES = 1500
         const val BORDER_FRAMES = 6
@@ -307,8 +319,95 @@ class BeatTracker(
             val kept = gaps.filter { abs(it - rough) <= rough * 0.2 }
             val interval = median(if (kept.size >= 4) kept else gaps)
             if (interval <= 0) return 0.0
-            val bpm = 60 / interval
+            // Median interval cukup untuk menolak grid buruk, tapi terlalu kasar untuk
+            // menyamakan tempo: selisih 0.2% sudah menggeser 60 ms di akhir 30 detik overlap.
+            // Garis least-squares lewat semua beat memberi interval yang jauh lebih presisi.
+            val refined = fitBeats(beats, interval)?.interval ?: interval
+            val bpm = 60 / refined
             return if (bpm in MIN_TEMPO..MAX_TEMPO) bpm else 0.0
+        }
+
+        private const val FIT_PASSES = 3
+
+        /** Di bawah ini sebuah grid dianggap stabil (elektronik/sequenced) dan layak dirapikan. */
+        private const val REGULAR_RMS_SECONDS = 0.012
+
+        private class BeatFit(
+            val interval: Double,
+            val origin: Double,
+            val rms: Double,
+            val indices: DoubleArray,
+            val kept: BooleanArray,
+        )
+
+        /**
+         * Garis least-squares waktu-beat terhadap nomor-beat: kemiringan adalah interval,
+         * titik potong adalah fase. Beat yang jatuh jauh dari garis (tersasar atau terlewat)
+         * dibuang dan garis dihitung ulang. Null kalau garisnya menyimpang >3% dari [rough].
+         */
+        private fun fitBeats(beats: List<Double>, rough: Double): BeatFit? {
+            if (beats.size < MIN_BEATS || rough <= 0) return null
+            val base = beats.first()
+            // Nomor beat dihitung dari selisih berurutan, bukan dari awal, supaya tempo yang
+            // meleset sedikit tidak salah menomori beat di ujung yang jauh.
+            val indices = DoubleArray(beats.size)
+            for (i in 1 until beats.size) {
+                val steps = ((beats[i] - beats[i - 1]) / rough).roundToInt().coerceAtLeast(1)
+                indices[i] = indices[i - 1] + steps
+            }
+            val kept = BooleanArray(beats.size) { true }
+            var interval = rough
+            var origin = base
+            repeat(FIT_PASSES) {
+                var n = 0.0
+                var sx = 0.0
+                var sy = 0.0
+                var sxx = 0.0
+                var sxy = 0.0
+                for (i in beats.indices) {
+                    if (!kept[i]) continue
+                    val x = indices[i]
+                    val y = beats[i] - base
+                    n += 1
+                    sx += x
+                    sy += y
+                    sxx += x * x
+                    sxy += x * y
+                }
+                val denominator = n * sxx - sx * sx
+                if (n < MIN_BEATS || abs(denominator) < 1e-9) return null
+                interval = (n * sxy - sx * sy) / denominator
+                origin = base + (sy - interval * sx) / n
+                for (i in beats.indices) {
+                    kept[i] = abs(beats[i] - (origin + interval * indices[i])) <= rough * 0.2
+                }
+            }
+            if (interval <= 0 || abs(interval - rough) > rough * 0.03) return null
+            var squares = 0.0
+            var count = 0
+            for (i in beats.indices) {
+                if (!kept[i]) continue
+                val residual = beats[i] - (origin + interval * indices[i])
+                squares += residual * residual
+                count++
+            }
+            if (count < MIN_BEATS) return null
+            return BeatFit(interval, origin, sqrt(squares / count), indices, kept)
+        }
+
+        /**
+         * Merapikan beat ke garis fit hanya bila hampir semuanya sudah rapi di sana. Tempo
+         * yang bergeser (rubato, live) tidak disentuh: di sana puncak model lebih jujur
+         * daripada garis lurus.
+         */
+        private fun regularize(beats: List<Double>): List<Double> {
+            val rough = median(beats.zipWithNext { left, right -> right - left })
+            val fit = fitBeats(beats, rough) ?: return beats
+            if (fit.rms > REGULAR_RMS_SECONDS) return beats
+            if (fit.kept.count { it } < beats.size * 0.9) return beats
+            return beats.indices
+                .map { if (fit.kept[it]) fit.origin + fit.interval * fit.indices[it] else beats[it] }
+                .sorted()
         }
 
         /**

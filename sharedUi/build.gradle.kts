@@ -68,9 +68,9 @@ kotlin {
             api("org.jetbrains.compose.components:components-resources:$cmp")
             api("org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
             api("io.coil-kt.coil3:coil-compose:3.6.3")
-            api("dev.chrisbanes.haze:haze:2.0.1")
-            api("dev.chrisbanes.haze:haze-blur:2.0.1")
-            api("dev.chrisbanes.haze:haze-blur-materials:2.0.1")
+            api("dev.chrisbanes.haze:haze:1.3.1")
+            api("dev.chrisbanes.haze:haze-materials:1.3.1")
+
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
         }

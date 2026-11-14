@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.model
 
 /** Tier of an item in the playback queue. */
@@ -23,10 +21,7 @@ data class ArtistRef(
     val browseId: String? = null,
 )
 
-/**
- * Hide only catalogue entries positively marked explicit. Missing metadata is
- * not evidence that a track is explicit, so unknown remains visible.
- */
+/** Unknown catalogue metadata remains visible; only a positive explicit mark is filtered. */
 fun isVisibleWithExplicitFilter(isExplicit: Boolean?, hideExplicitContent: Boolean): Boolean =
     !hideExplicitContent || isExplicit != true
 
@@ -144,6 +139,12 @@ data class Song(
     val playbackSourceType: PlaybackSourceType? = null,
     /** Browse id for an album, playlist, or other source page. */
     val playbackSourceId: String? = null,
+    /**
+     * Feedback token extracted from the watch-queue row's menu — used to remove
+     * this entry from the account's listening history on YouTube Music. Null on
+     * non-history rows (e.g. search results, library).
+     */
+    val feedbackToken: String? = null,
 ) {
     /** Legacy derived property: true if and only if [queueTier] is [QueueTier.AUTOPLAY]. */
     val fromAutoplay: Boolean get() = queueTier == QueueTier.AUTOPLAY
@@ -374,14 +375,14 @@ enum class PlaybackSourceType {
     QUEUE,
 }
 
-/** A non-track search result: album, artist, playlist or podcast show. */
+/** A non-track search result: album, artist or playlist. */
 data class BrowseItem(
     val browseId: String,
     val title: String,
     val subtitle: String,
     val thumbnailUrl: String?,
     val type: BrowseType,
-    /** Explicit badge supplied by the catalogue, unknown when absent. */
+    /** Explicit-content marker when the provider supplies one. */
     val isExplicit: Boolean? = null,
 )
 
@@ -403,6 +404,20 @@ enum class SearchFilter(val label: String, val params: String?) {
     PLAYLISTS("Playlists", "EgWKAQIoAWoKEAkQChAFEAMQBA=="),
 }
 
+/** A YouTube Music podcast show, identified only by a verified podcast browse id. */
+data class PodcastProviderShow(
+    val browseId: String,
+    val title: String,
+    val subtitle: String,
+    val thumbnailUrl: String?,
+)
+
+/** A real discovery shelf returned by the podcast provider. */
+data class PodcastDiscoveryCategory(
+    val title: String,
+    val shows: List<PodcastProviderShow>,
+)
+
 /** A card in a home-feed carousel: either a track (videoId) or an album/playlist (browseId). */
 data class ShelfItem(
     val title: String,
@@ -410,40 +425,25 @@ data class ShelfItem(
     val thumbnailUrl: String?,
     val videoId: String?,
     val browseId: String?,
-    /** A playable music-video upload; its artwork must remain widescreen. */
+    /**
+     * A music-video upload rather than a catalogue track: widescreen art, and a
+     * picture the player can show. Drawn as a 16:9 card, as the web player does.
+     */
     val isVideo: Boolean = false,
-    /** Explicit badge from the catalogue; null when the shelf did not label it. */
+    /** Explicit-content marker when the provider supplies one. */
     val isExplicit: Boolean? = null,
 )
 
-/**
- * How a home shelf is presented. Adapted from BitChord's GPL-3.0 home-feed
- * classification: https://github.com/kushagrasinghx/BitChord
- */
-data class PodcastProviderShow(val browseId: String, val title: String, val subtitle: String, val thumbnailUrl: String?)
-
-data class PodcastDiscoveryCategory(val title: String, val shows: List<PodcastProviderShow>)
-
-/** A provider show page and its verified episode catalogue, fetched together. */
-data class PodcastProviderPage(
-    val show: PodcastProviderShow,
-    val description: String?,
-    val episodes: List<ShelfItem>,
-)
-
+/** How a shelf's items are laid out — the web player's `ShelfLayout`, by the same rules. */
 enum class ShelfLayout {
+    /** Square cards in one scrolling row. */
     CARDS,
-    LIST,
-    VIDEO,
-}
 
-/** Match the source feed's structure instead of guessing from its heading. */
-fun shelfLayoutFor(title: String, items: List<ShelfItem>, fromList: Boolean): ShelfLayout {
-    if (items.isEmpty()) return ShelfLayout.CARDS
-    if (fromList && items.first().videoId != null) return ShelfLayout.LIST
-    if (title.trim().equals("Listen again", ignoreCase = true)) return ShelfLayout.LIST
-    if (items.count(ShelfItem::isVideo) * 2 > items.size) return ShelfLayout.VIDEO
-    return ShelfLayout.CARDS
+    /** Track rows, four to a column — Quick picks, Listen again, Recents. */
+    LIST,
+
+    /** Widescreen cards for music videos. */
+    VIDEO,
 }
 
 /** The signed-in Google account, as YouTube Music reports it. */
@@ -483,40 +483,6 @@ data class AccountChannel(
     val key: String get() = pageId ?: dataSyncId ?: name
 }
 
-/** Stable, duplicate-safe Compose keys for dynamically reordered shelf cards. */
-fun List<ShelfItem>.stableShelfComposeKeys(): List<String> {
-    val occurrences = HashMap<String, Int>()
-    return map { item ->
-        val identity = item.videoId?.takeIf(String::isNotBlank)?.let { "track:$it" }
-            ?: item.browseId?.takeIf(String::isNotBlank)?.let { "browse:$it" }
-            ?: "text:${item.title}:${item.subtitle}"
-        val occurrence = occurrences.getOrDefault(identity, 0)
-        occurrences[identity] = occurrence + 1
-        "$identity#$occurrence"
-    }
-}
-
-/** Stable, duplicate-safe Compose keys for track rows in dynamic feeds. */
-fun List<Song>.stableSongComposeKeys(): List<String> {
-    val occurrences = HashMap<String, Int>()
-    return map { song ->
-        val identity = "track:${song.videoId}"
-        val occurrence = occurrences.getOrDefault(identity, 0)
-        occurrences[identity] = occurrence + 1
-        "$identity#$occurrence"
-    }
-}
-
-/** Stable, collision-free keys for lazy columns made from groups of tracks. */
-fun List<Song>.stableSongColumnComposeKeys(columnSize: Int): List<String> {
-    require(columnSize > 0) { "columnSize must be positive" }
-    return stableSongComposeKeys().chunked(columnSize).map { column ->
-        // Length-prefixing makes the composite unambiguous even when a provider
-        // ID contains punctuation that would otherwise be used as a separator.
-        column.joinToString(separator = "") { key -> "${key.length}:$key" }
-    }
-}
-
 data class HomeShelf(
     val title: String,
     val items: List<ShelfItem>,
@@ -524,22 +490,30 @@ data class HomeShelf(
     val subtitle: String = "",
     val moreBrowseId: String? = null,
     val moreParams: String? = null,
+    val layout: ShelfLayout = ShelfLayout.CARDS,
     /** Exact category label supplied by YouTube's Moods & genres catalogue, when applicable. */
     val discoveryCategory: String? = null,
-    /** Source-derived layout, appended to preserve existing positional constructors. */
-    val layout: ShelfLayout = ShelfLayout.CARDS,
 )
 
-/** Stable, duplicate-safe keys for the sections of an artist's page. */
-fun List<HomeShelf>.stableHomeShelfComposeKeys(): List<String> {
-    val occurrences = HashMap<String, Int>()
-    return map { shelf ->
-        val identity = shelf.moreBrowseId?.takeIf(String::isNotBlank)?.let { "browse:$it" }
-            ?: "text:${shelf.title}:${shelf.subtitle}"
-        val occurrence = occurrences.getOrDefault(identity, 0)
-        occurrences[identity] = occurrence + 1
-        "$identity#$occurrence"
-    }
+/** These shelves without their music videos, and without any shelf that ends up empty. */
+fun List<HomeShelf>.withoutVideos(): List<HomeShelf> = mapNotNull { shelf ->
+    if (shelf.layout == ShelfLayout.VIDEO) return@mapNotNull null
+    val items = shelf.items.filterNot { it.isVideo }
+    if (items.isEmpty()) null else shelf.copy(items = items)
+}
+
+/**
+ * The layout a shelf of [items] gets, as the web player decides it: rows when
+ * YouTube itself listed tracks as rows (or the shelf is Listen again, which the
+ * web player shows that way), widescreen cards when most of it is videos.
+ */
+fun shelfLayoutFor(title: String, items: List<ShelfItem>, fromList: Boolean): ShelfLayout {
+    if (items.isEmpty()) return ShelfLayout.CARDS
+    val first = items.first()
+    if (fromList && first.videoId != null) return ShelfLayout.LIST
+    if (title.trim().equals("Listen again", ignoreCase = true)) return ShelfLayout.LIST
+    if (items.count { it.isVideo } * 2 > items.size) return ShelfLayout.VIDEO
+    return ShelfLayout.CARDS
 }
 
 /**
@@ -568,6 +542,29 @@ fun List<HomeShelf>.withoutRepeatsOf(existing: List<HomeShelf>): List<HomeShelf>
 private const val REPEAT_SHELF_SHARE = 0.6
 
 private fun HomeShelf.browseKeys(): Set<String> = items.mapNotNullTo(HashSet()) { it.browseId }
+
+/**
+ * These shelves minus every card already on [other] (the Home feed), and minus any shelf
+ * left with too few cards to be worth a row. A card is matched by its album, playlist or
+ * artist page, or by its track when it has no page.
+ */
+fun List<HomeShelf>.withoutItemsOn(other: List<HomeShelf>): List<HomeShelf> {
+    if (other.isEmpty()) return this
+    val seen = other.flatMapTo(HashSet()) { shelf -> shelf.items.mapNotNull { it.cardKey() } }
+    return mapNotNull { shelf ->
+        val kept = shelf.items.filter { item -> item.cardKey()?.let { it !in seen } ?: true }
+        when {
+            kept.size == shelf.items.size -> shelf
+            kept.size >= MIN_SHELF_CARDS_LEFT -> shelf.copy(items = kept)
+            else -> null
+        }
+    }
+}
+
+/** Fewest cards a shelf keeps after its repeats of Home are taken out; fewer and the row is dropped. */
+private const val MIN_SHELF_CARDS_LEFT = 3
+
+private fun ShelfItem.cardKey(): String? = browseId?.let { "b:$it" } ?: videoId?.let { "v:$it" }
 
 /** A page of the Home feed, plus the token for the next one — null once exhausted. */
 data class HomeFeed(
@@ -654,8 +651,10 @@ data class DetailPage(
      * fetched with a session; see [SubscriptionState].
      */
     val subscription: SubscriptionState? = null,
-    /** Explicit-content state supplied by the catalogue for this release page. */
-    val isExplicit: Boolean? = null,
+    /** Cover-cover yang membentuk mosaic sleeve (halaman Most Played); kosong untuk halaman lain. */
+    val covers: List<String> = emptyList(),
+    /** Judul Made for You Mix: sleeve halaman ini menggambar blob cairan mix itu. */
+    val mix: String? = null,
 )
 
 /**
@@ -704,6 +703,10 @@ data class ArtistPage(
     val monthlyListenerCount: String? = null,
     /** The header's subscribe button, when the page carries one. */
     val subscription: SubscriptionState? = null,
+    /** The header's Mix button: the artist's radio, them and the artists around them. */
+    val radio: WatchTarget? = null,
+    /** The header's Shuffle button: the artist's own catalogue, shuffled. */
+    val shuffle: WatchTarget? = null,
 )
 
 /**
@@ -735,8 +738,7 @@ data class UserPlaylist(
     val subtitle: String,
     val thumbnailUrl: String?,
 ) {
-    /** Local playlists already carry their full browse id; remote ids need YouTube's VL prefix. */
-    val browseId: String get() = if (playlistId.startsWith("local:playlist:")) playlistId else "VL$playlistId"
+    val browseId: String get() = "VL$playlistId"
 }
 
 /**

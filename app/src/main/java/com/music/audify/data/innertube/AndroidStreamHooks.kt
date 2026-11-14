@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.innertube
-
-import androidx.core.content.edit
 
 import android.content.Context
 import android.os.Build
@@ -27,8 +23,10 @@ object AndroidStreamHooks {
     /** Before anything logs or resolves. */
     fun installEarly() {
         MonotonicClock.nowMs = SystemClock::elapsedRealtime
-        TrackLog.echo = { level, tag, message, error ->
-            if (BuildConfig.DEBUG) {
+        // logcat on debug builds only; a release build keeps the lines for Copy
+        // Log and writes them nowhere else.
+        if (BuildConfig.DEBUG) {
+            TrackLog.echo = { level, tag, message, error ->
                 when (level) {
                     'D' -> Log.d(tag, message, error)
                     'I' -> Log.i(tag, message, error)
@@ -48,15 +46,12 @@ object AndroidStreamHooks {
             )
         }
         StreamResolver.maxKbps = { AppSettings.effectiveAudioQuality.maxKbps }
+        InnerTubeXResolver.debugLogging = BuildConfig.DEBUG
     }
 
     /** What `InnerTubeXResolver.init(context)` did when it lived in the app. */
     fun initInnerTubeX(context: Context) {
         val app = context.applicationContext
-        // First access to this Kotlin object constructs its Ktor client and
-        // InnerTubeX graph. Keep that class initialization on startup-init,
-        // never on the main thread through installEarly().
-        InnerTubeXResolver.debugLogging = BuildConfig.DEBUG
         val prefs = app.getSharedPreferences("innertubex_player_config", Context.MODE_PRIVATE)
         // BotGuard PoTokens minted in a hidden WebView; what WEB_REMIX needs for age-restricted tracks.
         val webViewSupported by lazy { runCatching { CookieManager.getInstance() }.isSuccess }
@@ -69,8 +64,8 @@ object AndroidStreamHooks {
             store = object : InnerTubeXResolver.ConfigStore {
                 override fun getString(key: String): String? = prefs.getString(key, null)
                 override fun getLong(key: String): Long? = if (prefs.contains(key)) prefs.getLong(key, 0L) else null
-                override fun putString(key: String, value: String) = prefs.edit {putString(key, value)}
-                override fun putLong(key: String, value: Long) = prefs.edit {putLong(key, value)}
+                override fun putString(key: String, value: String) = prefs.edit().putString(key, value).apply()
+                override fun putLong(key: String, value: Long) = prefs.edit().putLong(key, value).apply()
             },
             poTokenProvider = poTokens.asTokenProvider(),
         )

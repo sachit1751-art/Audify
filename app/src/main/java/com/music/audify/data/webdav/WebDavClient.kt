@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.webdav
 
 import com.music.audify.data.Http
@@ -106,13 +104,6 @@ object WebDavClient {
             Listing(foundAudio.values.toList(), foundImages.values.toList())
         }
     }
-
-    suspend fun listAudioFiles(
-        baseUrl: String,
-        username: String,
-        password: String,
-        maxFiles: Int = 10_000,
-    ): Result<List<Entry>> = listLibrary(baseUrl, username, password, maxFiles).map { it.audio }
 
     fun isImageFile(name: String): Boolean {
         val ext = name.substringAfterLast('.', "").lowercase(Locale.ROOT)

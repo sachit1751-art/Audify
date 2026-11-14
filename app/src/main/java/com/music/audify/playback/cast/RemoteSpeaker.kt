@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback.cast
 
 import androidx.media3.common.C
@@ -53,6 +51,26 @@ interface RemoteSpeaker {
     fun onLocalStartedPlaying(player: Player)
 }
 
+/** A platform with no remote-speaker integration, such as Android TV. */
+object NoSpeaker : RemoteSpeaker {
+    override var sink: CastSink? = null
+    override val active: Boolean = false
+    override val playWhenReady: Boolean = false
+    override val isPlaying: Boolean = false
+    override val playbackState: Int = Player.STATE_IDLE
+    override val positionMs: Long = 0L
+    override val durationMs: Long = C.TIME_UNSET
+    override val deviceVolume: Int = 0
+    override fun play() = Unit
+    override fun pause() = Unit
+    override fun seekTo(positionMs: Long) = Unit
+    override fun setVolume(fraction: Float) = Unit
+    override fun onLocalTransition(item: MediaItem?, reason: Int) = Unit
+    override fun onLocalQueueChanged() = Unit
+    override fun onLocalRepeatChanged(repeatMode: Int) = Unit
+    override fun onLocalStartedPlaying(player: Player) = Unit
+}
+
 /**
  * Every receiver, as one: whichever is the speaker answers, and the phone's
  * moves are told to all of them (each ignores them unless it is active).
@@ -84,24 +102,4 @@ class Speakers(private val all: List<RemoteSpeaker>) : RemoteSpeaker {
     override fun onLocalQueueChanged() = all.forEach { it.onLocalQueueChanged() }
     override fun onLocalRepeatChanged(repeatMode: Int) = all.forEach { it.onLocalRepeatChanged(repeatMode) }
     override fun onLocalStartedPlaying(player: Player) = all.forEach { it.onLocalStartedPlaying(player) }
-}
-
-/** A receiver that never is one — the TV build's watch speaker. */
-object NoSpeaker : RemoteSpeaker {
-    override var sink: CastSink? = null
-    override val active = false
-    override val playWhenReady = false
-    override val isPlaying = false
-    override val playbackState = Player.STATE_IDLE
-    override val positionMs = 0L
-    override val durationMs = C.TIME_UNSET
-    override val deviceVolume = 0
-    override fun play() = Unit
-    override fun pause() = Unit
-    override fun seekTo(positionMs: Long) = Unit
-    override fun setVolume(fraction: Float) = Unit
-    override fun onLocalTransition(item: MediaItem?, reason: Int) = Unit
-    override fun onLocalQueueChanged() = Unit
-    override fun onLocalRepeatChanged(repeatMode: Int) = Unit
-    override fun onLocalStartedPlaying(player: Player) = Unit
 }

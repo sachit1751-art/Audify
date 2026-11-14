@@ -1,10 +1,14 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
 
+import com.music.audify.ui.components.trackArtSize
+import com.music.audify.ui.components.OrganicFluidBackground
 import android.os.Build
+import android.content.Context
+import android.os.SystemClock
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import com.music.audify.R
-import com.music.audify.ui.motion.MotionTokens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -16,8 +20,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import com.music.audify.ui.animation.sharedArtworkModifier
 import com.music.audify.ui.components.liquidGlassRim
+import com.music.audify.ui.components.continuous
+import com.music.audify.ui.components.FadingText
 import com.music.audify.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,7 +39,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -45,7 +49,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -54,7 +57,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import com.music.audify.data.model.LibraryState
@@ -63,6 +65,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.HorizontalDivider
@@ -72,11 +76,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberOverscrollEffect
+import com.music.audify.ui.utils.PullDownOverscrollEffect
+import com.music.audify.ui.utils.rememberIosOverscrollEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -88,6 +97,10 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.contentDescription
@@ -108,6 +121,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -117,6 +131,23 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.music.audify.ui.components.coverFlightSource
+import androidx.compose.runtime.CompositionLocalProvider
+import com.music.audify.ui.components.LocalSettledMosaic
+import com.music.audify.ui.graphics.forPixelAccess
+import com.music.audify.ui.graphics.paletteSwatches
+import com.music.audify.ui.graphics.toImageBitmap
+import androidx.core.graphics.ColorUtils
+import com.music.audify.ui.components.coverFlightTarget
+import com.music.audify.ui.components.coverFlightClip
+import com.music.audify.ui.components.coverFlightClipRendered
+import com.music.audify.ui.components.RegisterCoverFlightGrab
+import com.music.audify.ui.player.CanvasFrameGrab
+import com.music.audify.ui.components.rememberCoverFlightTap
+import com.music.audify.ui.components.enterReveal
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.Crossfade
+import androidx.compose.ui.draw.drawBehind
 import coil3.compose.LocalPlatformContext
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
@@ -128,18 +159,23 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
 import com.music.audify.data.LocalGroups
+import com.music.audify.data.OfflinePlaylists
 import com.music.audify.data.matchesSearch
 import com.music.audify.data.sortedForLibrary
 import com.music.audify.data.useTrackTags
 import com.music.audify.ui.components.CoverPlaceholder
 import com.music.audify.data.canvas.AppleArtistArt
 import com.music.audify.data.DebugLog as Log
+import com.music.audify.data.canvas.AppleAlbumInfoRepository
 import com.music.audify.data.canvas.AppleArtistArtRepository
+import com.music.audify.data.canvas.releaseDateText
+import com.music.audify.data.canvas.appleCatalogue
 import com.music.audify.data.canvas.ArtistSignature
 import com.music.audify.data.canvas.ArtistSignatureRepository
 import com.music.audify.data.canvas.SignatureInkTransformation
 import com.music.audify.data.canvas.keyColors
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import com.music.audify.data.canvas.CanvasArtwork
 import com.music.audify.data.canvas.CanvasRepository
 import com.music.audify.data.model.BrowseType
@@ -149,9 +185,6 @@ import com.music.audify.data.model.HEADER_ART_PX
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.ShelfItem
-import com.music.audify.data.model.stableShelfComposeKeys
-import com.music.audify.data.model.stableHomeShelfComposeKeys
-import com.music.audify.data.model.stableSongColumnComposeKeys
 import com.music.audify.data.settings.SongSort
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.SubscriptionState
@@ -162,7 +195,6 @@ import com.music.audify.data.model.playingRowMatcher
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.components.DownloadedBadge
 import com.music.audify.ui.components.ExplicitSongTitle
-import com.music.audify.ui.components.ExplicitBadge
 import com.music.audify.ui.components.LIBRARY_GRID_SPACING
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
@@ -185,11 +217,33 @@ import com.music.audify.ui.player.CanvasArtworkPlayer
 import com.music.audify.ui.theme.ArtworkPalette
 import com.music.audify.ui.theme.rememberArtworkPalette
 import kotlin.math.roundToInt
+import kotlin.random.Random
 import java.util.Locale
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import com.music.audify.data.YtMusicRepository
 
 private const val MAX_ARTIST_SONGS = 20
 private const val SONGS_PER_COLUMN = 4
 private const val ARTIST_ROW_MAX_ITEMS = 5
+
+/** Content that arrives after the page is already up fades in instead of popping in. */
+private fun androidx.compose.foundation.lazy.LazyItemScope.arriveFade(): Modifier =
+    Modifier.animateItem(
+        fadeInSpec = androidx.compose.animation.core.tween(
+            durationMillis = 380,
+            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+        ),
+        placementSpec = null,
+        fadeOutSpec = null,
+    )
 
 /** The artist photo, very slightly taller than it is wide. */
 private const val ARTIST_PHOTO_RATIO = 0.95f
@@ -200,15 +254,21 @@ private const val SLEEVE_FRACTION = 0.76f
 /** ...and of its height, so a landscape window still shows the title under it. */
 private const val SLEEVE_MAX_HEIGHT = 0.5f
 
-private val SLEEVE_SHAPE = RoundedCornerShape(12.dp)
+private val SLEEVE_CORNER = 20.dp
+private val SLEEVE_SHAPE = RoundedCornerShape(SLEEVE_CORNER)
 private val SLEEVE_SHADOW = 18.dp
 
 /** Shuffle and Add to Library either side of the release page's Play pill. */
 private val RELEASE_SIDE_BUTTON = 50.dp
 private val RELEASE_ACTION_GAP = 14.dp
 
-/** Past this the Play pill stops growing, so a tablet doesn't get a bar. */
-private val RELEASE_ACTIONS_MAX_WIDTH = 420.dp
+/**
+ * Past this the Play pill stops growing, so neither a tablet nor a wide phone
+ * gets a bar. Termasuk gutter kiri-kanan (24dp per sisi): sisa ~288dp untuk
+ * Shuffle, Play, dan Add, sehingga Play ~160dp dan tombol samping ~41dp dari
+ * tepi layar 360dp, seperti Apple Music.
+ */
+private val RELEASE_ACTIONS_MAX_WIDTH = 336.dp
 private val PILL_SHAPE = RoundedCornerShape(12.dp)
 
 /**
@@ -291,13 +351,12 @@ fun DetailScreen(
     onSongClick: (List<Song>, Int) -> Unit,
     onSongLongPress: (Song) -> Unit,
     onSongSwipe: (Song) -> Unit,
-    modifier: Modifier = Modifier,
-    onRetry: () -> Unit = {},
     onShuffle: (List<Song>) -> Unit,
     onSectionItemClick: (ShelfItem) -> Unit,
     onArtistClick: (String, String) -> Unit,
     onAddSuggested: (Song) -> Unit,
     contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
     activeShelf: HomeShelf? = null,
     onActiveShelfChange: (HomeShelf?) -> Unit = {},
@@ -354,11 +413,10 @@ fun DetailScreen(
      * [ArtworkPalette] so it reads as this page rather than a sheet over it.
      */
     reorder: (@Composable (ArtworkPalette) -> Unit)? = null,
+    /** Membuka popup tambah lagu. Hanya diberikan untuk playlist milik akun; null menyembunyikan tombolnya. */
+    onAddSongs: (() -> Unit)? = null,
 ) {
     val rawSongs = (page.songs as? UiState.Success)?.data.orEmpty()
-    // The section keys are computed in the composable scope, not inside the
-    // LazyListScope builder below (which is a regular DSL receiver).
-    val sectionKeys = remember(page.sections) { page.sections.stableHomeShelfComposeKeys() }
     // A folder keeps its own sort — the one its top bar menu sets — rather
     // than the per-page one a release takes.
     val folderSort = folder?.sort
@@ -379,10 +437,18 @@ fun DetailScreen(
     // item; it is read off the album once, as soon as the card is known.
     val topReleaseId = if (isArtist) page.sections.topRelease()?.browseId else null
     LaunchedEffect(topReleaseId) { topReleaseId?.let { onLoadReleaseLibrary?.invoke(it) } }
-    // Apple Music's hero photo and title logo for this artist, found by name.
-    // Null until (and unless) it arrives; the YouTube header stands in meanwhile.
+    // Apple Music's hero photo and title logo for this artist, found by name and
+    // confirmed by a shared title in both catalogues — so it waits for the
+    // page's songs. Null until (and unless) it arrives; the YouTube header
+    // stands in meanwhile.
     var appleArt by remember(page.browseId) {
-        mutableStateOf(if (isArtist) AppleArtistArtRepository.cached(page.title) else null)
+        mutableStateOf(if (isArtist) AppleArtistArtRepository.cached(page.browseId) else null)
+    }
+    val songsLoading = page.songs is UiState.Loading
+    LaunchedEffect(page.browseId, page.title, songsLoading) {
+        if (isArtist && !songsLoading) {
+            appleArt = AppleArtistArtRepository.artFor(page.browseId, page.title) { page.appleCatalogue() } ?: appleArt
+        }
     }
     // Secondary provider: handwritten signature from the user's own
     // artist-signature API. Drawn only when Apple has no title logo.
@@ -395,9 +461,6 @@ fun DetailScreen(
     // nobody, so a title that reads as several artists waits for that swap; any
     // other name starts the moment the page opens.
     val nameSettled = !page.title.looksLikeCredit() || page.songs !is UiState.Loading
-    LaunchedEffect(page.browseId, page.title, nameSettled) {
-        if (isArtist && nameSettled) appleArt = AppleArtistArtRepository.artFor(page.title) ?: appleArt
-    }
     LaunchedEffect(page.browseId, page.title, nameSettled, signatureEnabled, signatureBaseUrl, signatureUpdates) {
         if (!isArtist || !nameSettled) return@LaunchedEffect
         val base = ArtistSignatureRepository.effectiveBaseUrl(signatureEnabled, signatureBaseUrl)
@@ -419,8 +482,12 @@ fun DetailScreen(
         }
     }
     val palette = rememberArtworkPalette(
-        imageUrl = appleArt?.heroUrl ?: page.thumbnailUrl,
-        keyColors = appleArt?.keyColors(),
+        // Folder perangkat (Local, Downloads, Cached) tidak punya sampul sendiri:
+        // warnanya diambil dari cover lagu pertama, sama dengan hero, supaya
+        // halamannya menyatu seperti halaman artis.
+        imageUrl = appleArt?.heroUrl ?: page.thumbnailUrl
+            ?: if (page.isFolderCover()) songs.firstOrNull { it.thumbnailUrl != null }?.thumbnailUrl else null,
+        keyColors = appleArt?.keyColors() ?: page.mix?.let { mixKeyColors(it) },
     )
 
     // Narrowing the running order in place — the release equivalent of the
@@ -478,7 +545,11 @@ fun DetailScreen(
     // services are concerned. A browse card's subtitle sometimes omits it, in
     // which case the tracks themselves know who it is.
     val credit = page.headerLines(songs.size).first.ifBlank { songs.firstOrNull()?.artist.orEmpty() }
-    var canvas by remember(page.browseId) { mutableStateOf<CanvasArtwork?>(null) }
+    // Starts from the clip the card was playing when it was tapped, so the page
+    // has it from its first frame instead of looking it up after the cover lands.
+    var canvas by remember(page.browseId) {
+        mutableStateOf<CanvasArtwork?>(coverFlightClip(page.browseId)?.takeIf { canvasEnabled })
+    }
     LaunchedEffect(page.browseId, page.title, credit, canvasEnabled, prioritizeSpotifyCanvas) {
         // An artist's clip is set below, by the lookup that finds it.
         if (isArtist) return@LaunchedEffect
@@ -489,12 +560,36 @@ fun DetailScreen(
         // As on the player: the credit fills in once the tracks load, so this
         // can run twice. Keep a clip that is already playing if the second
         // pass comes back empty.
-        canvas = CanvasRepository.canvasForAlbum(page.title, credit) ?: canvas
+        // The same clip as the one handed over is left running, not rebuilt.
+        val found = CanvasRepository.canvasForAlbum(page.title, credit)
+        if (found != null && found.url != canvas?.url) canvas = found
     }
+    // Tanggal rilis lengkap dan baris ℗ dari Apple, hanya untuk album. Tahun dari
+    // subtitle tampil lebih dulu; jawaban Apple menggantinya begitu datang.
+    var albumInfo by remember(page.browseId) {
+        mutableStateOf(AppleAlbumInfoRepository.cached(page.browseId))
+    }
+    LaunchedEffect(page.browseId, page.title, credit, songsLoading) {
+        if (page.type == BrowseType.ALBUM && folder == null &&
+            !page.browseId.startsWith("local:") && !songsLoading && credit.isNotBlank()
+        ) {
+            albumInfo = AppleAlbumInfoRepository.infoFor(
+                page.browseId, page.title, credit, songs.size,
+            ) ?: albumInfo
+        }
+    }
+
     // An artist's clip comes with the same Apple lookup as its photograph.
     val artistVideo = appleArt?.videoUrl
     LaunchedEffect(artistVideo, canvasEnabled) {
-        if (isArtist) canvas = artistVideo?.takeIf { canvasEnabled }?.let { CanvasArtwork(url = it) }
+        if (!isArtist) return@LaunchedEffect
+        canvas = when {
+            !canvasEnabled -> null
+            // Not found yet: keep the clip the card handed over.
+            artistVideo == null -> canvas
+            artistVideo == canvas?.url -> canvas
+            else -> CanvasArtwork(url = artistVideo)
+        }
     }
 
     // Opening the search carries the page up to it, so the field lands just
@@ -515,8 +610,7 @@ fun DetailScreen(
     AnimatedContent(
         targetState = activeShelf,
         transitionSpec = {
-            fadeIn(animationSpec = tween(MotionTokens.CONTENT_TRANSITION_MS)) togetherWith
-                fadeOut(animationSpec = tween(MotionTokens.SHORT_FADE_MS))
+            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
         },
         label = "artist_shelf_transition",
         modifier = modifier.fillMaxSize(),
@@ -526,7 +620,12 @@ fun DetailScreen(
             // release's sleeve sits framed on one flat colour with nothing to
             // dissolve, so it takes the same [ArtworkPalette.background] the
             // bars at either end of the screen are already fading into.
-            val pageColor = if (isArtist) palette.wash else palette.background
+            // [palette] already eases into the artwork's colour (see
+            // rememberArtworkPalette). A second ease here lagged behind every
+            // other surface painted from it, and the two showed as mismatched squares.
+            // Album full-bleed seperti foto artis: halamannya memakai wash yang
+            // sama dengan tempat kaki cover larut, bukan latar bingkai polos.
+            val pageColor = if (isArtist || page.isAlbumHero() || page.isMixHero()) palette.wash else palette.background
             BoxWithConstraints(Modifier.fillMaxSize().background(pageColor)) {
                 // Measured rather than read off the window. The player runs
                 // full-screen at every window size, so this page's own width in
@@ -541,6 +640,13 @@ fun DetailScreen(
                 // A folder's grid view: the same column count the Library's
                 // "Show all" grids reach at this width.
                 val gridColumns = libraryGrid(maxWidth - PAGE_GUTTER * 2).columns
+                // Liked Music: tarikan ke bawah dibatasi kecil, jadi seni ekstra di
+                // atas hero cukup tipis dan lubang tidak pernah terlihat.
+                val listOverscroll = if (isArtist || page.isLikedMusic() || page.covers.isNotEmpty() || page.isFolderCover() || page.isAlbumHero() || page.isMixHero()) {
+                    rememberIosOverscrollEffect(LIKED_MAX_PULL)
+                } else {
+                    rememberOverscrollEffect()
+                }
 
                 // The artist photo is drawn behind the list rather than in it, so
                 // both need to agree on its height without being able to ask each
@@ -554,6 +660,7 @@ fun DetailScreen(
                         artHeight = artHeight,
                         listState = listState,
                         heroUrl = appleArt?.heroUrl,
+                        pull = { (listOverscroll as? PullDownOverscrollEffect)?.pullDownPx ?: 0f },
                         modifier = Modifier.matchParentSize(),
                     )
                 }
@@ -562,6 +669,7 @@ fun DetailScreen(
                     reorder(palette)
                 } else LazyColumn(
                     state = listState,
+                    overscrollEffect = listOverscroll,
                     modifier = Modifier.fillMaxSize(),
                     // The artist photo runs edge-to-edge up under the glass bar;
                     // a release header clears the bar itself, see [ReleaseHeader].
@@ -575,6 +683,9 @@ fun DetailScreen(
                         page = page,
                         palette = palette,
                         sleeveSize = sleeveSize,
+                        heroHeight = artHeight * 0.92f,
+                        pull = { (listOverscroll as? PullDownOverscrollEffect)?.pullDownPx ?: 0f },
+                        albumGenre = albumInfo?.genre,
                         canvas = canvas,
                         songs = songs,
                         onPlay = { onSongClick(songs, 0) },
@@ -583,6 +694,7 @@ fun DetailScreen(
                         onArtistClick = onArtistClick.takeIf { folder == null },
                         onToggleLibrary = onToggleLibrary,
                         onDownloadAll = folder?.onDownload?.let { download -> { download(songs) } },
+                        onAddSongs = onAddSongs,
                     )
                 }
             }
@@ -605,6 +717,7 @@ fun DetailScreen(
 
             if (songs.isNotEmpty() && isArtist) {
                 item(key = "actions") {
+                    Column(arriveFade()) {
                     ActionRow(
                         onPlay = { onSongClick(songs, 0) },
                         onShuffle = { onShuffle(songs) },
@@ -613,6 +726,7 @@ fun DetailScreen(
                         bottomSpace = 22.dp,
                         playColor = appleArt?.keyColor?.let { Color(it) },
                     )
+                    }
                 }
             }
 
@@ -620,6 +734,7 @@ fun DetailScreen(
             val topRelease = if (isArtist) page.sections.topRelease() else null
             if (topRelease != null) {
                 item(key = "top-release") {
+                    Column(arriveFade()) {
                     TopReleaseCard(
                         item = topRelease,
                         palette = palette,
@@ -630,6 +745,7 @@ fun DetailScreen(
                             topRelease.browseId?.let { id -> { toggle(id) } }
                         },
                     )
+                    }
                 }
             }
 
@@ -659,6 +775,7 @@ fun DetailScreen(
                         text = description?.takeIf { it.isNotBlank() },
                         palette = palette,
                         horizontalPadding = if (isArtist) ARTIST_CONTENT_GUTTER else ABOUT_GUTTER,
+                        compact = !isArtist,
                         stats = if (hasStats) {
                             {
                                 ArtistStatsRow(
@@ -688,11 +805,10 @@ fun DetailScreen(
 
             when (val state = page.songs) {
                 is UiState.Loading -> detailSkeleton(isArtist)
-                is UiState.Error -> item(key = "detail:error") {
-                    MessageState(state.message, actionLabel = stringResource(R.string.try_again), onAction = onRetry)
-                }
+                is UiState.Error -> item { MessageState(state.message) }
                 is UiState.Success -> if (folder != null && folderState != null) {
                     localFolderItems(
+                        afterFlight = page.covers.isNotEmpty(),
                         folder = folder,
                         state = folderState,
                         songs = queue,
@@ -709,13 +825,10 @@ fun DetailScreen(
                 } else if (isArtist) {
                     // An artist's full song list would bury the album shelves, so
                     // it pages sideways four at a time and stops at twenty.
-                    item(key = "detail:top-songs") {
+                    item(key = "artist-songs") {
                         val top = state.data.take(MAX_ARTIST_SONGS)
-                        val topColumns = remember(top) { top.chunked(SONGS_PER_COLUMN) }
-                        val topColumnKeys = remember(top) {
-                            top.stableSongColumnComposeKeys(SONGS_PER_COLUMN)
-                        }
                         val isCurrentRow = playingRowMatcher(top, currentSong)
+                        Column(arriveFade()) {
                         SectionHeading(
                             title = stringResource(R.string.top_songs),
                             palette = palette,
@@ -730,14 +843,13 @@ fun DetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 flingBehavior = rememberSnapFlingBehavior(lazyListState = topSongsState),
                             ) {
-                                itemsIndexed(topColumns, key = { index, _ -> topColumnKeys[index] }) { columnIndex, column ->
+                                items(top.chunked(SONGS_PER_COLUMN)) { column ->
                                     Column(Modifier.width(columnWidth)) {
-                                        column.forEachIndexed { songOffset, song ->
-                                            val songIndex = columnIndex * SONGS_PER_COLUMN + songOffset
+                                        column.forEach { song ->
                                             CompactSongRow(
                                                 song = song,
                                                 palette = palette,
-                                                onClick = { onSongClick(top, songIndex) },
+                                                onClick = { onSongClick(top, top.indexOf(song)) },
                                                 onLongPress = { onSongLongPress(song) },
                                                 downloadedTint = downloadedTint,
                                                 isCurrent = isCurrentRow(song),
@@ -747,6 +859,7 @@ fun DetailScreen(
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 } else {
@@ -763,7 +876,11 @@ fun DetailScreen(
                     itemsIndexed(
                         items = matches,
                         key = { _, entry -> "${entry.index}_${entry.value.videoId}" },
+                        contentType = { _, _ -> "song-row" },
                     ) { position, entry ->
+                        // The first rows arrive one after another; later ones, composed
+                        // while scrolling, are already visible and draw as they are.
+                        Column(Modifier.enterReveal(340 + position.coerceAtMost(8) * 30)) {
                         val song = entry.value
                         val isCurrent = isCurrentRow(song)
                         SongRow(
@@ -782,6 +899,10 @@ fun DetailScreen(
                             // what the filter — or a sort — left standing.
                             trackNumber = originalTrackNumbers[song.videoId].takeIf { numbered },
                             subtitleColor = palette.onBackgroundVariant,
+                            // Apple Music: no artist line when it is the album's own
+                            // artist, and no per-row duration on an album.
+                            hideArtistOf = credit.takeIf { numbered && it.isNotBlank() },
+                            showDuration = !numbered,
                             downloadedTint = downloadedTint,
                             isCurrent = isCurrent,
                             isPlaying = isCurrent && isPlaying,
@@ -797,6 +918,23 @@ fun DetailScreen(
                                 color = palette.divider,
                             )
                         }
+                        }
+                    }
+                }
+            }
+
+            // Info album di bawah daftar lagu: tahun, jumlah lagu, total durasi.
+            if (page.type == BrowseType.ALBUM && folder == null) {
+                val albumSongs = (page.songs as? UiState.Success)?.data.orEmpty()
+                if (albumSongs.isNotEmpty()) {
+                    item(key = "album-info") {
+                        AlbumInfoFooter(
+                            releaseDate = albumInfo?.releaseDateText(),
+                            year = RELEASE_YEAR.find(page.subtitle)?.value,
+                            copyright = albumInfo?.copyright,
+                            songs = albumSongs,
+                            palette = palette,
+                        )
                     }
                 }
             }
@@ -833,12 +971,11 @@ fun DetailScreen(
             }
 
             // Albums / Singles & EPs carousels (artist pages).
-            itemsIndexed(page.sections, key = { index, _ -> sectionKeys[index] }) { _, shelf ->
+            items(page.sections, contentType = { "section-shelf" }) { shelf ->
                 val canShowAll = shelf.items.size > ARTIST_ROW_MAX_ITEMS
                 val displayItems = remember(shelf.items) {
                     if (canShowAll) shelf.items.take(ARTIST_ROW_MAX_ITEMS) else shelf.items
                 }
-                val displayItemKeys = remember(displayItems) { displayItems.stableShelfComposeKeys() }
                 Column(Modifier.padding(top = 22.dp)) {
                     SectionHeading(
                         title = shelf.title,
@@ -853,12 +990,13 @@ fun DetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         flingBehavior = rememberSnapFlingBehavior(lazyListState = carouselState),
                     ) {
-                        itemsIndexed(displayItems, key = { index, _ -> displayItemKeys[index] }) { _, item ->
+                        items(displayItems) { item ->
                             SectionCard(
                                 item = item,
                                 palette = palette,
                                 onClick = { onSectionItemClick(item) },
                                 onLongPress = onSectionItemLongPress?.let { { it(item) } },
+                                modifier = Modifier.width(if (item.isVideo) VIDEO_CARD_WIDTH else SHELF_CARD_WIDTH),
                             )
                         }
                     }
@@ -914,8 +1052,26 @@ private fun ReleaseHeader(
     onToggleLibrary: (() -> Unit)?,
     /** The Cached songs folder's: saves every track on it to Downloads. Null hides it. */
     onDownloadAll: (() -> Unit)? = null,
+    /** Tombol "Add songs" di bawah baris aksi; juga tampil saat playlist masih kosong. */
+    onAddSongs: (() -> Unit)? = null,
+    /** Tinggi hero full-bleed, hanya dipakai halaman Liked Music. */
+    heroHeight: Dp = sleeveSize * 1.2f,
+    /** Genre yang Apple catat untuk album ini; tampil menggantikan label "Album". */
+    albumGenre: String? = null,
+    /** How far the list is pulled past its top right now, in px; the hero zooms by it. */
+    pull: () -> Float = { 0f },
 ) {
-    val (credit, meta) = page.headerLines(songs.size, songs.playtime())
+    val (credit, listMeta) = page.headerLines(songs.size, songs.playtime())
+    // Apple Music: "Jazz • 2023". Jumlah lagu dan durasi pindah ke kaki halaman.
+    val meta = if (page.type == BrowseType.ALBUM && !page.browseId.startsWith("local:")) {
+        page.albumMeta(albumGenre)
+    } else {
+        listMeta
+    }
+    // Liked Music dan Most Played tidak memakai sleeve berbingkai: seninya full-bleed.
+    val albumHero = page.isAlbumHero()
+    val mixHero = page.isMixHero()
+    val fullBleed = page.isLikedMusic() || page.covers.isNotEmpty() || page.isFolderCover() || albumHero || mixHero
     // Every row on a release carries the same credit — see [pageCredit] — so
     // the first one speaks for the whole page, the same source the rows'
     // own long-press "Open artist" already reads from.
@@ -925,11 +1081,55 @@ private fun ReleaseHeader(
         modifier = Modifier
             .fillMaxWidth()
             // Clear of the floating bar, which the sleeve no longer runs under.
-            .padding(top = topBarContentPadding(), bottom = 18.dp),
+            // Hero full-bleed justru naik sampai di bawah bar.
+            .padding(top = if (fullBleed) 0.dp else topBarContentPadding(), bottom = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
+        if (page.covers.isNotEmpty()) {
+            MostPlayedHero(
+                page = page,
+                palette = palette,
+                height = heroHeight * 1.3f,
+                modifier = Modifier.zoomOnPull(pull),
+            )
+        } else if (page.isFolderCover()) {
+            FolderCoverHero(
+                page = page,
+                palette = palette,
+                songs = songs,
+                height = heroHeight,
+                modifier = Modifier.zoomOnPull(pull),
+            )
+        } else if (albumHero) {
+            AlbumHero(
+                page = page,
+                // Kaki hero, jahitan, dan wash target terbang semuanya membaca
+                // palette.background di dalam AlbumHero; diganti wash di sini
+                // supaya ketiganya sama dengan warna halaman di atas.
+                palette = palette.copy(background = palette.wash),
+                canvas = canvas,
+                height = heroHeight * ALBUM_HERO_HEIGHT_SCALE,
+                modifier = Modifier.zoomOnPull(pull),
+            )
+        } else if (mixHero) {
+            MixHero(
+                page = page,
+                // Sama seperti AlbumHero: kaki hero dan wash target terbang memakai warna halaman.
+                palette = palette.copy(background = palette.wash),
+                height = heroHeight * ALBUM_HERO_HEIGHT_SCALE,
+                modifier = Modifier.zoomOnPull(pull),
+            )
+        } else if (fullBleed) {
+            LikedMusicHero(
+                page = page,
+                palette = palette,
+                songs = songs,
+                height = heroHeight,
+                modifier = Modifier.zoomOnPull(pull),
+            )
+        } else Box(
             Modifier
+                .coverFlightTarget(page.browseId, SLEEVE_CORNER)
                 .size(sleeveSize)
                 .shadow(SLEEVE_SHADOW, SLEEVE_SHAPE)
                 .background(palette.elevated)
@@ -940,8 +1140,19 @@ private fun ReleaseHeader(
             // placeholder sleeve rather than an empty square. Not shown while a
             // real one is still on its way, so a loading cover doesn't flash
             // a glyph first.
-            var artFailed by remember(page.thumbnailUrl) { mutableStateOf(false) }
-            if (page.thumbnailUrl == null || artFailed) {
+            // Halaman folder Downloads, Local Music dan Cached songs tidak punya
+            // sampul sendiri, jadi memakai sampul lagu pertama di halamannya.
+            val coverUrl = page.thumbnailUrl ?: if (
+                page.browseId == "local:downloads" ||
+                page.browseId == "local:all" ||
+                page.browseId == CACHE_FOLDER_BROWSE_ID
+            ) {
+                songs.firstOrNull { it.thumbnailUrl != null }?.thumbnailUrl
+            } else {
+                null
+            }
+            var artFailed by remember(coverUrl) { mutableStateOf(false) }
+            if (coverUrl == null || artFailed) {
                 CoverPlaceholder(
                     icon = page.placeholderIcon(),
                     base = palette.elevated,
@@ -949,45 +1160,86 @@ private fun ReleaseHeader(
                     modifier = Modifier.matchParentSize(),
                 )
             }
+            // The card's own picture, already in the cache, underneath: the cover
+            // is on screen from the first frame of the flight, instead of an
+            // empty sleeve flying over until the larger one has downloaded.
             AsyncImage(
-                model = page.thumbnailUrl.artworkAt(HEADER_ART_PX),
+                model = coverUrl.artworkAt(CARD_ART_PX),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+            AsyncImage(
+                model = coverUrl.artworkAt(HEADER_ART_PX),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onState = { artFailed = it is AsyncImagePainter.State.Error },
-                modifier = Modifier.matchParentSize().then(sharedArtworkModifier(page.browseId)),
+                modifier = Modifier.matchParentSize(),
             )
+            // Halaman Most Played: sleeve-nya kolase statis yang sama dengan kartu,
+            // jadi cover yang terbang mendarat di atas dirinya sendiri.
+            if (page.covers.isNotEmpty()) {
+                MostPlayedArt(
+                    covers = page.covers,
+                    motion = true,
+                    modifier = Modifier.matchParentSize().clip(SLEEVE_SHAPE),
+                )
+            }
+            // Halaman Made for You Mix: sleeve-nya blob cairan yang sama dengan kartu.
+            page.mix?.let { mixTitle ->
+                MixFluidArt(
+                    title = mixTitle,
+                    modifier = Modifier.matchParentSize().clip(SLEEVE_SHAPE),
+                )
+                // Teks/logo sampul ikut muncul pelan setelah cover mendarat.
+                MixCoverOverlay(
+                    title = mixTitle,
+                    subtitle = "",
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(SLEEVE_SHAPE)
+                        .flightReveal(delayMs = 0, rise = 0.dp, afterFlight = true),
+                )
+            }
             // Animated cover art, inside the same frame. Always running:
             // unlike the player's sleeve there is no transport here to follow,
             // and the page is only up while it's being read.
             canvas?.let { clip ->
+                val frameGrab = remember(clip) { CanvasFrameGrab() }
+                RegisterCoverFlightGrab(page.browseId, frameGrab)
+                // The clip eases in once it is actually drawing, instead of
+                // popping over the still the moment it is composed.
+                var clipShown by remember(clip) { mutableStateOf(false) }
+                val clipAlpha by animateFloatAsState(
+                    targetValue = if (clipShown) 1f else 0f,
+                    animationSpec = tween(400),
+                    label = "artistClipFade",
+                )
                 CanvasArtworkPlayer(
                     canvas = clip,
                     isPlaying = true,
-                    modifier = Modifier.matchParentSize(),
+                    modifier = Modifier
+                        .matchParentSize()
+                        .graphicsLayer { alpha = clipAlpha },
+                    onRenderedChanged = {
+                        clipShown = it
+                        if (it) coverFlightClipRendered(page.browseId)
+                    },
+                    frameGrab = frameGrab,
                 )
             }
         }
 
         Spacer(Modifier.height(20.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = HEADER_GUTTER),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            if (page.isExplicit == true) {
-                ExplicitBadge(palette.onBackground)
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(
-                text = page.title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = palette.onBackground,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        Text(
+            text = page.title,
+            style = MaterialTheme.typography.headlineMedium,
+            color = palette.onBackground,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.flightReveal(150, afterFlight = page.covers.isNotEmpty()).padding(horizontal = HEADER_GUTTER),
+        )
         if (credit.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
             Text(
@@ -1001,6 +1253,7 @@ private fun ReleaseHeader(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
+                    .flightReveal(200, afterFlight = page.covers.isNotEmpty())
                     .padding(horizontal = HEADER_GUTTER)
                     .let { m ->
                         val id = artist?.artistId
@@ -1022,7 +1275,7 @@ private fun ReleaseHeader(
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = HEADER_GUTTER),
+                modifier = Modifier.flightReveal(240, afterFlight = page.covers.isNotEmpty()).padding(horizontal = HEADER_GUTTER),
             )
         }
 
@@ -1033,13 +1286,14 @@ private fun ReleaseHeader(
             Spacer(Modifier.height(18.dp))
             Row(
                 modifier = Modifier
+                    .flightReveal(290, afterFlight = page.covers.isNotEmpty())
                     .widthIn(max = RELEASE_ACTIONS_MAX_WIDTH)
                     .fillMaxWidth()
                     .padding(horizontal = HEADER_GUTTER),
                 horizontalArrangement = Arrangement.spacedBy(RELEASE_ACTION_GAP),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (page.browseId.startsWith("local:")) {
+                if (page.browseId.startsWith("local:") || library == null) {
                     // Already on this device — a folder, a download, a local
                     // playlist — so there is no library to add it to, and a
                     // greyed-out plus would only promise one. Apple Music's
@@ -1101,18 +1355,26 @@ private fun ReleaseHeader(
                         haptic = if (library.saved) Haptic.ToggleOff else Haptic.ToggleOn,
                         size = RELEASE_SIDE_BUTTON,
                     )
-                } else {
-                    // Shown but greyed out for a guest, rather than leaving a
-                    // hole beside Play.
-                    CircleIconButton(
-                        icon = AudifyIcons.Plus,
-                        contentDescription = stringResource(R.string.add_to_library),
-                        onClick = {},
-                        size = RELEASE_SIDE_BUTTON,
-                        enabled = false,
-                    )
                 }
             }
+        }
+
+        // Di luar blok "songs.isNotEmpty()" di atas: playlist yang baru dibuat
+        // masih kosong, dan baris Shuffle/Play belum ada, tapi tombol ini harus.
+        if (onAddSongs != null) {
+            Spacer(Modifier.height(if (songs.isEmpty()) 18.dp else 10.dp))
+            ActionPill(
+                icon = AudifyIcons.Plus,
+                label = stringResource(R.string.playlist_add_songs),
+                onClick = onAddSongs,
+                filled = songs.isEmpty(),
+                size = RELEASE_SIDE_BUTTON,
+                modifier = Modifier
+                    .flightReveal(290, afterFlight = page.covers.isNotEmpty())
+                    .widthIn(max = RELEASE_ACTIONS_MAX_WIDTH)
+                    .fillMaxWidth()
+                    .padding(horizontal = HEADER_GUTTER),
+            )
         }
     }
 }
@@ -1155,10 +1417,15 @@ private fun DetailSearchField(
             .padding(horizontal = HEADER_GUTTER)
             .padding(bottom = 10.dp)
             .height(46.dp)
-            .clip(PILL_SHAPE)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
-            .border(0.5.dp, Color.White.copy(alpha = 0.10f), PILL_SHAPE)
-            .padding(horizontal = 12.dp),
+            .clip(CircleShape)
+            // The recipe the Play, Shuffle and Add songs pills above it wear:
+            // a light fill, the glass rim the floating bars have, and the
+            // bright top edge. Rim only, since over the page's flat tint a
+            // blurred fill would look the same.
+            .background(Color.White.copy(alpha = LIGHT_FILL_ALPHA), CircleShape)
+            .liquidGlassRim(CircleShape)
+            .border(1.dp, Color.White.copy(alpha = TOP_RELEASE_EDGE_ALPHA), CircleShape)
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -1191,7 +1458,7 @@ private fun DetailSearchField(
         }
         Box(
             modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                .size(30.dp)
                 .clip(CircleShape)
                 // Clearing and closing are the same gesture: an empty filter
                 // showing an unfiltered list is a row of furniture with nothing
@@ -1327,7 +1594,7 @@ private fun ArtistHeader(
             val sizeFactor = if (isSignature) SIGNATURE_SCALE else 1f
             val maxLogoHeight = artHeight * ARTIST_LOGO_MAX_HEIGHT * sizeFactor
             Column(
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier.align(Alignment.BottomCenter).enterReveal(500),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
             AsyncImage(
@@ -1377,6 +1644,7 @@ private fun ArtistHeader(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .enterReveal(500)
                 // Bottom is half the top inset — the stats pills (or, absent
                 // those, the action row) sit closer under the name than the
                 // name sits under the artwork.
@@ -1408,8 +1676,10 @@ private fun PageBackground(
     canvas: CanvasArtwork?,
     artHeight: Dp,
     listState: LazyListState,
-    modifier: Modifier = Modifier,
     heroUrl: String? = null,
+    /** How far the list is pulled past its top right now, in px; the photo zooms by it. */
+    pull: () -> Float = { 0f },
+    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     // Not under a canvas: a still blurred over the foot of a moving clip would
@@ -1418,21 +1688,38 @@ private fun PageBackground(
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val art = heroUrl ?: page.thumbnailUrl.artworkAt(HEADER_ART_PX)
 
+
+
+    // The photo waits for the page colour instead of showing over a black page
+    // that then turns purple a moment later. A read that never finishes gives
+    // up after 1.2 s so the photo is never held back for good.
+    var gaveUp by remember(art) { mutableStateOf(false) }
+    LaunchedEffect(art) {
+        delay(1_200)
+        gaveUp = true
+    }
+    val reveal by animateFloatAsState(
+        targetValue = if (palette.ready || gaveUp) 1f else 0f,
+        animationSpec = tween(260),
+        label = "artistHeroReveal",
+    )
+
     Box(modifier.clipToBounds()) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .height(artHeight)
-                .offset { IntOffset(0, listState.headerTop(artHeight.toPx()).roundToInt()) },
+                .graphicsLayer { alpha = reveal }
+                .zoomBackgroundOnPull(pull)
+                .offset { IntOffset(0, listState.headerTop(artHeight.toPx()).roundToInt()) }
+                // After the offset, so the flight lands on where the photo really is.
+                .coverFlightTarget(page.browseId, 0.dp, palette.wash),
         ) {
-            AsyncImage(
-                model = art,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            SwapArt(
+                url = art,
                 modifier = Modifier
                     .matchParentSize()
-                    .background(palette.elevated)
-                    .then(sharedArtworkModifier(page.browseId)),
+                    .background(palette.elevated),
             )
 
             // Above the still art but below the scrim, so the scrim that
@@ -1440,10 +1727,27 @@ private fun PageBackground(
             // running: unlike the player's sleeve there is no transport here
             // to follow, and the page is only up while it's being read.
             canvas?.let { clip ->
+                val frameGrab = remember(clip) { CanvasFrameGrab() }
+                RegisterCoverFlightGrab(page.browseId, frameGrab)
+                // The clip eases in once it is actually drawing, instead of
+                // popping over the still the moment it is composed.
+                var clipShown by remember(clip) { mutableStateOf(false) }
+                val clipAlpha by animateFloatAsState(
+                    targetValue = if (clipShown) 1f else 0f,
+                    animationSpec = tween(400),
+                    label = "artistClipFade",
+                )
                 CanvasArtworkPlayer(
                     canvas = clip,
                     isPlaying = true,
-                    modifier = Modifier.matchParentSize(),
+                    modifier = Modifier
+                        .matchParentSize()
+                        .graphicsLayer { alpha = clipAlpha },
+                    onRenderedChanged = {
+                        clipShown = it
+                        if (it) coverFlightClipRendered(page.browseId)
+                    },
+                    frameGrab = frameGrab,
                 )
             }
 
@@ -1452,10 +1756,8 @@ private fun PageBackground(
             // rather than a fade to a flat tint. The same request as the sharp
             // copy, so it is a memory-cache hit and lands on the same frame.
             if (softenFoot) {
-                AsyncImage(
-                    model = art,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                SwapArt(
+                    url = art,
                     modifier = Modifier
                         .matchParentSize()
                         // Offscreen so the mask cuts the blurred result rather
@@ -1506,8 +1808,8 @@ private fun LazyListState.headerTop(artHeightPx: Float): Float =
 
 /** Where the blurred copy starts to show and where it has fully taken over. */
 private val SOFT_FOOT_MASK = Brush.verticalGradient(
-    0.35f to Color.Transparent,
-    0.75f to Color.Black,
+    0.55f to Color.Transparent,
+    0.85f to Color.Black,
 )
 
 /**
@@ -1516,6 +1818,45 @@ private val SOFT_FOOT_MASK = Brush.verticalGradient(
  * blurred photograph next to a flat colour is still two surfaces.
  */
 private val SOFT_FOOT_BLUR = 48.dp
+
+/**
+ * A photo that changes its picture without a cut. The new one is composed on
+ * top, invisible, through the same AsyncImage the old one uses; it fades in
+ * only once its pixels have actually arrived, then becomes the base. Loading
+ * it any other way misses the image cache and fades in an empty frame.
+ */
+@Composable
+private fun SwapArt(url: String?, modifier: Modifier = Modifier) {
+    var base by remember { mutableStateOf(url) }
+    var loaded by remember(url) { mutableStateOf(false) }
+    val fade = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(url, loaded) {
+        if (url != base && loaded) {
+            fade.animateTo(1f, tween(320))
+            base = url
+            fade.snapTo(0f)
+        }
+    }
+    Box(modifier) {
+        AsyncImage(
+            model = base,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (url != base) {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                onState = { if (it is AsyncImagePainter.State.Success) loaded = true },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = fade.value },
+            )
+        }
+    }
+}
 
 /**
  * Shuffle • Play • Star — the artist page's action row, as Apple Music lays
@@ -1537,6 +1878,7 @@ private fun ActionRow(
 ) {
     Row(
         modifier = Modifier
+            .enterReveal(540)
             .fillMaxWidth()
             .padding(horizontal = HEADER_GUTTER),
         horizontalArrangement = Arrangement.spacedBy(ARTIST_ACTION_GAP, Alignment.CenterHorizontally),
@@ -1566,6 +1908,7 @@ private fun ActionRow(
                 onClick = { onToggleSubscription?.invoke() },
                 haptic = if (subscription.subscribed) Haptic.ToggleOff else Haptic.ToggleOn,
                 size = ARTIST_SIDE_BUTTON,
+                iconScale = 0.56f,
             )
         } else {
             CircleIconButton(
@@ -1574,6 +1917,7 @@ private fun ActionRow(
                 onClick = {},
                 size = ARTIST_SIDE_BUTTON,
                 enabled = false,
+                iconScale = 0.56f,
             )
         }
     }
@@ -1707,6 +2051,8 @@ private fun CircleIconButton(
      * Dimmed rather than dropped, so the row keeps its shape.
      */
     enabled: Boolean = true,
+    /** Glyph size as a fraction of the button; the star needs more than shuffle. */
+    iconScale: Float = 0.44f,
 ) {
     val haptics = rememberHaptics()
     Box(
@@ -1729,7 +2075,7 @@ private fun CircleIconButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(size * 0.44f),
+            modifier = Modifier.size(size * iconScale),
         )
     }
 }
@@ -1878,12 +2224,63 @@ private fun AboutSignature(
     }
 }
 
+/**
+ * Kaki halaman album: "March 3, 1988 · 5 songs · 18 min", lalu baris ℗ bila
+ * Apple punya. Sebelum Apple menjawab, [year] dari subtitle yang dipakai.
+ */
+@Composable
+private fun AlbumInfoFooter(
+    releaseDate: String?,
+    year: String?,
+    copyright: String?,
+    songs: List<Song>,
+    palette: ArtworkPalette,
+) {
+    // Baris pertama tanggal rilis (atau tahun), baris kedua jumlah lagu dan durasi.
+    val dateLine = releaseDate ?: year
+    val countLine = listOfNotNull(
+        pluralStringResource(R.plurals.song_count_plural, songs.size, songs.size),
+        songs.playtime(),
+    ).joinToString(" · ")
+    Column(
+        modifier = Modifier.padding(
+            start = ABOUT_GUTTER,
+            end = ABOUT_GUTTER,
+            top = 16.dp,
+            bottom = 12.dp,
+        ),
+    ) {
+        if (dateLine != null) {
+            Text(
+                text = dateLine,
+                style = MaterialTheme.typography.bodyMedium,
+                color = palette.onBackgroundVariant,
+            )
+        }
+        Text(
+            text = countLine,
+            style = MaterialTheme.typography.bodyMedium,
+            color = palette.onBackgroundVariant,
+        )
+        if (copyright != null) {
+            Text(
+                text = copyright,
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.onBackgroundVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun AboutSection(
     title: String,
     text: String?,
     palette: ArtworkPalette,
     horizontalPadding: Dp = ABOUT_GUTTER,
+    /** Ala Apple Music: tanpa judul, dengan MORE di ujung baris kedua. */
+    compact: Boolean = false,
     /** Drawn under the text. */
     stats: (@Composable () -> Unit)? = null,
     /** Drawn last, under the stats. */
@@ -1892,7 +2289,7 @@ private fun AboutSection(
     var expanded by remember(text) { mutableStateOf(false) }
     var clipped by remember(text) { mutableStateOf(false) }
     Column {
-        Text(
+        if (!compact) Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             color = palette.onBackground,
@@ -1903,7 +2300,37 @@ private fun AboutSection(
                 bottom = 6.dp,
             ),
         )
-        if (text != null) Text(
+        if (text != null && compact) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize()
+                    .padding(horizontal = horizontalPadding, vertical = 4.dp)
+                    .let { m -> if (clipped || expanded) m.clickable { expanded = !expanded } else m },
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = palette.onBackgroundVariant,
+                    maxLines = if (expanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { result -> if (!expanded) clipped = result.hasVisualOverflow },
+                    modifier = Modifier.weight(1f),
+                )
+                if (clipped && !expanded) {
+                    Text(
+                        text = stringResource(R.string.more).uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = palette.onBackground,
+                    )
+                }
+            }
+        }
+        if (text != null && !compact) Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
@@ -1917,7 +2344,7 @@ private fun AboutSection(
                 .padding(horizontal = horizontalPadding)
                 .let { m -> if (clipped || expanded) m.clickable { expanded = !expanded } else m },
         )
-        if (clipped || expanded) {
+        if (!compact && (clipped || expanded)) {
             Text(
                 text = stringResource(if (expanded) R.string.less else R.string.more),
                 style = MaterialTheme.typography.labelLarge,
@@ -1993,14 +2420,15 @@ private fun CompactSongRow(
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(48.dp)) {
+        Box(Modifier.trackArtSize(48.dp, song.isVideo)) {
             AsyncImage(
                 model = song.artworkAt(ROW_ART_PX),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(48.dp)
+                    .matchParentSize()
                     .clip(RoundedCornerShape(7.dp))
+                    .thumbnailBorder(RoundedCornerShape(7.dp))
                     .background(palette.elevated),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
@@ -2048,18 +2476,23 @@ private fun SuggestedSongRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = onClick,
+                onLongClick = onLongPress,
+                liftPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            )
             .padding(horizontal = PAGE_GUTTER, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(52.dp)) {
+        Box(Modifier.trackArtSize(52.dp, song.isVideo)) {
             AsyncImage(
                 model = song.artworkAt(ROW_ART_PX),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(52.dp)
+                    .matchParentSize()
                     .clip(RoundedCornerShape(8.dp))
+                    .thumbnailBorder(RoundedCornerShape(8.dp))
                     .background(palette.elevated),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
@@ -2086,7 +2519,7 @@ private fun SuggestedSongRow(
         Spacer(Modifier.width(8.dp))
         Box(
             modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(palette.accent.copy(alpha = 0.16f))
                 .clickable(onClick = onAdd),
@@ -2139,7 +2572,12 @@ private fun ShelfItem.recentLabel(): Int {
 
 /**
  * The artist page's top-release card: sleeve, what it is and when, and its
- * title, in a rounded glass panel the width of the page.
+ * title, in a squircle panel the width of the page.
+ *
+ * Proportioned off Apple Music's: a 24pt continuous corner, a 96pt sleeve 12pt
+ * in from the edge, the text 12pt after it, and a 32pt add button 19pt in
+ * from the end. The panel and its button are a light veil with a light
+ * hairline, as Apple's containers read slightly white against the page.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -2153,11 +2591,16 @@ private fun TopReleaseCard(
     /** Null hides the button. */
     onToggleSaved: (() -> Unit)?,
 ) {
-    val shape = RoundedCornerShape(28.dp)
-    val coverShape = RoundedCornerShape(12.dp)
+    val shape = remember { RoundedCornerShape(TOP_RELEASE_CORNER).continuous() }
+    // Concentric with the panel: its corner less the inset the sleeve sits at.
+    val coverShape = remember { RoundedCornerShape(TOP_RELEASE_CORNER - TOP_RELEASE_INSET).continuous() }
     val haptics = rememberHaptics()
+    val hasButton = onToggleSaved != null && saved != null
+    val coverToken = remember { Any() }
+    val openWithCover = rememberCoverFlightTap(item.browseId, coverToken, onClick)
     Row(
         modifier = Modifier
+            .enterReveal(600)
             .fillMaxWidth()
             .padding(horizontal = ARTIST_CONTENT_GUTTER)
             .padding(bottom = 22.dp)
@@ -2167,45 +2610,57 @@ private fun TopReleaseCard(
             .background(Color.White.copy(alpha = LIGHT_FILL_ALPHA), shape)
             .border(1.dp, Color.White.copy(alpha = TOP_RELEASE_EDGE_ALPHA), shape)
             .clip(shape)
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
-            .padding(16.dp),
+            .longPressMenuClickable(onClick = openWithCover, onLongClick = onLongPress)
+            .padding(
+                start = TOP_RELEASE_INSET,
+                top = TOP_RELEASE_INSET,
+                bottom = TOP_RELEASE_INSET,
+                end = if (hasButton) 19.dp else TOP_RELEASE_INSET,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
             model = item.thumbnailUrl.artworkAt(CARD_ART_PX),
             contentDescription = null,
             modifier = Modifier
-                .size(88.dp)
+                .coverFlightSource(
+                    coverToken,
+                    item.thumbnailUrl.artworkAt(CARD_ART_PX),
+                    TOP_RELEASE_CORNER - TOP_RELEASE_INSET,
+                )
+                .size(96.dp)
                 .clip(coverShape)
                 .border(1.dp, Color.White.copy(alpha = TOP_RELEASE_COVER_EDGE_ALPHA), coverShape)
                 .background(palette.elevated),
         )
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
+            // The lines either side of the title in the player's secondary
+            // treatment, the artist line's: the page's own colour, partly
+            // transparent.
+            val secondary = palette.onBackground.copy(alpha = TOP_RELEASE_SECONDARY_ALPHA)
             Text(
                 text = item.subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = palette.onBackgroundVariant,
+                color = secondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.isExplicit == true) {
-                    ExplicitBadge(palette.onBackground)
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = palette.onBackground,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            // Faded out at the end of its last line, as the player's title is,
+            // and set a little tighter than the scale for when it takes two.
+            FadingText(
+                text = item.title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    lineHeight = TOP_RELEASE_TITLE_LINE_HEIGHT,
+                    lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
+                ),
+                color = palette.onBackground,
+                maxLines = 2,
+            )
             Text(
                 text = stringResource(item.recentLabel()),
                 style = MaterialTheme.typography.bodyMedium,
-                color = palette.onBackgroundVariant,
+                color = secondary,
                 maxLines = 1,
             )
         }
@@ -2213,7 +2668,7 @@ private fun TopReleaseCard(
             Spacer(Modifier.width(10.dp))
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = LIGHT_FILL_ALPHA), CircleShape)
                     .border(1.dp, Color.White.copy(alpha = TOP_RELEASE_EDGE_ALPHA), CircleShape)
@@ -2229,12 +2684,22 @@ private fun TopReleaseCard(
                         if (saved) R.string.remove_from_library else R.string.add_to_library,
                     ),
                     tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(17.dp),
                 )
             }
         }
     }
 }
+
+/** The top-release panel's continuous corner, and the inset its sleeve sits at. */
+private val TOP_RELEASE_CORNER = 24.dp
+private val TOP_RELEASE_INSET = 12.dp
+
+/** The panel's secondary lines, at the player's artist line's strength. */
+private const val TOP_RELEASE_SECONDARY_ALPHA = 0.55f
+
+/** The panel's title on two lines: a little under titleLarge's natural 24sp. */
+private val TOP_RELEASE_TITLE_LINE_HEIGHT = 22.sp
 
 /** The white veil under Apple-style containers and their buttons. */
 private const val LIGHT_FILL_ALPHA = 0.07f
@@ -2251,17 +2716,35 @@ private fun SectionCard(
     item: ShelfItem,
     palette: ArtworkPalette,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier.width(SHELF_CARD_WIDTH),
     onLongPress: (() -> Unit)? = null,
 ) {
+    // An artist's Videos shelf: widescreen, as on the web player.
+    if (item.isVideo) {
+        VideoShelfCard(
+            item = item,
+            onClick = onClick,
+            onLongPress = onLongPress,
+            modifier = modifier,
+            titleColor = palette.onBackground,
+            subtitleColor = palette.onBackgroundVariant,
+            placeholderColor = palette.elevated,
+        )
+        return
+    }
+    // Sama seperti kartu di Home: ketuk memulai penerbangan cover ke halaman
+    // album/single, lalu membuka halamannya.
+    val coverToken = remember { Any() }
+    val openWithCover = rememberCoverFlightTap(item.browseId, coverToken, onClick)
     Column(
         modifier = modifier
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress),
+            .longPressMenuClickable(onClick = openWithCover, onLongClick = onLongPress),
     ) {
         AsyncImage(
             model = item.thumbnailUrl.artworkAt(CARD_ART_PX),
             contentDescription = null,
             modifier = Modifier
+                .coverFlightSource(coverToken, item.thumbnailUrl.artworkAt(CARD_ART_PX), 10.dp)
                 .fillMaxWidth()
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(10.dp))
@@ -2269,19 +2752,13 @@ private fun SectionCard(
                 .background(palette.elevated),
         )
         Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (item.isExplicit == true) {
-                ExplicitBadge(palette.onBackground)
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = palette.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = palette.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Text(
             text = item.subtitle,
             style = MaterialTheme.typography.bodyMedium,
@@ -2301,7 +2778,6 @@ private fun ArtistShelfGridPage(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    val itemKeys = remember(shelf.items) { shelf.items.stableShelfComposeKeys() }
     val gridState = rememberLazyGridState()
     BoxWithConstraints(modifier.fillMaxSize().background(palette.background)) {
         val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
@@ -2318,7 +2794,7 @@ private fun ArtistShelfGridPage(
                 .fillMaxSize()
                 .padding(horizontal = PAGE_GUTTER),
         ) {
-            gridItemsIndexed(shelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
+            items(shelf.items, key = { it.browseId ?: it.videoId ?: it.title }) { item ->
                 SectionCard(
                     item = item,
                     palette = palette,
@@ -2350,9 +2826,14 @@ private fun DetailPage.headerLines(trackCount: Int, playtime: String? = null): P
     // playtime, whose "min" and "1h 25m" are units, not words.
     // An artist grouped out of a device folder is a plain track list, not an
     // artist page, but it is still billed as the artist it is.
-    val localKind = if (LocalGroups.isArtist(browseId)) stringResource(R.string.artist) else null
+    // A device directory plays like a playlist, but it is billed as a folder.
+    val localKind = when {
+        LocalGroups.isArtist(browseId) -> stringResource(R.string.artist)
+        LocalGroups.isDirectory(browseId) -> stringResource(R.string.folder)
+        else -> null
+    }
     val meta = listOfNotNull(
-        (kind ?: type.localizedLabel() ?: localKind)?.capitalizeWords(),
+        (kind ?: localKind ?: type.localizedLabel())?.capitalizeWords(),
         year,
         trackCount.takeIf { it > 0 }?.let {
             pluralStringResource(R.plurals.track_count_plural, it, it).capitalizeWords()
@@ -2362,9 +2843,1002 @@ private fun DetailPage.headerLines(trackCount: Int, playtime: String? = null): P
     return credit to meta
 }
 
+/** Baris info header album ala Apple Music: genre (atau jenis rilisan) • tahun. */
+@Composable
+private fun DetailPage.albumMeta(genre: String?): String {
+    val parts = subtitle.split("•", "·").map { it.trim() }.filter { it.isNotEmpty() }
+    val year = parts.lastOrNull { it.length == 4 && it.all(Char::isDigit) }
+    val kind = parts.firstOrNull { it.lowercase(Locale.ROOT) in KIND_WORDS }
+    return listOfNotNull(
+        genre ?: (kind ?: type.localizedLabel())?.capitalizeWords(),
+        year,
+    ).joinToString(" • ")
+}
+
+/**
+ * Header Most Played: mosaic yang sama dengan kartu Home, full-bleed selebar
+ * layar sampai di bawah bar (tanpa bingkai dan sudut membulat). Kakinya larut
+ * ke warna halaman dan judul naik menimpanya, seperti [LikedMusicHero].
+ */
+@Composable
+private fun MostPlayedHero(
+    page: DetailPage,
+    palette: ArtworkPalette,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    // Mosaic direkam sekali; salinan blur di kaki memakai rekaman yang sama.
+    val shared = rememberGraphicsLayer()
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val blurFoot = !reduceDynamicBlur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val footLayer = rememberGraphicsLayer()
+    val foot = remember { FootSnapshot() }
+    var onScreen by remember { mutableStateOf(true) }
+    Box(
+        modifier
+            .onGloballyPositioned { c ->
+                val v = c.isAttached && !c.boundsInWindow().isEmpty
+                if (v != onScreen) onScreen = v
+            }
+            // Paling luar: tinggi yang dilaporkan lebih pendek, sehingga
+            // judul di bawahnya tergambar di atas kaki hero.
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val overlap = LIKED_HERO_OVERLAP.roundToPx().coerceAtMost(placeable.height)
+                layout(placeable.width, placeable.height - overlap) { placeable.place(0, 0) }
+            }
+            .fillMaxWidth()
+            .height(height)
+            // Dipotong di sisi dan bawah, tapi tidak di atas: tarikan ke bawah
+            // (dibatasi LIKED_MAX_PULL) menggeser hero turun dan bagian atasnya
+            // tetap terisi seni, jadi tidak ada ruang kosong.
+            .drawWithContent {
+                val extra = LIKED_OVERSCROLL.toPx()
+                clipRect(left = 0f, top = -extra, right = size.width, bottom = size.height) {
+                    this@drawWithContent.drawContent()
+                }
+                // Tarikan menggeser hero ke posisi piksel pecahan; tepi bawah yang
+                // dipotong tepat di batas itu menyisakan satu baris setengah
+                // transparan (garis glitch). Strip warna halaman menutup jahitannya.
+                val seam = 2.dp.toPx()
+                drawRect(
+                    color = palette.background,
+                    topLeft = Offset(0f, size.height - seam),
+                    size = androidx.compose.ui.geometry.Size(size.width, seam * 2f),
+                )
+            }
+            .coverFlightTarget(page.browseId, 0.dp, palette.background),
+    ) {
+        // Perpanjangan di atas tepi hero untuk tarikan ke bawah: warna awal
+        // gradien mosaic, jadi tidak pernah ada ruang kosong.
+        Box(
+            Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val extra = LIKED_OVERSCROLL.toPx()
+                    drawRect(
+                        color = RECAP_SURFACE,
+                        topLeft = Offset(0f, -extra),
+                        size = androidx.compose.ui.geometry.Size(size.width, extra + 1f),
+                    )
+                },
+        )
+        // Mosaic digambar dalam kotak persegi seperti di kartu (sisi terpanjang
+        // hero), di tengah, lalu dipotong di tepi hero. Susunan tile-nya sama
+        // persis dengan cover yang terbang, hanya lebih besar.
+        Box(
+            Modifier.matchParentSize().layout { measurable, constraints ->
+                val w = constraints.maxWidth
+                val h = constraints.maxHeight
+                val side = maxOf(w, h)
+                val placeable = measurable.measure(Constraints.fixed(side, side))
+                layout(w, h) { placeable.place((w - side) / 2, (h - side) / 2) }
+            },
+        ) {
+            MostPlayedArt(
+                covers = page.covers,
+                motion = !HeroMotion.frozen && onScreen,
+                modifier = Modifier.fillMaxSize().drawWithContent {
+                    shared.record(
+                        size = IntSize(
+                            size.width.roundToInt().coerceAtLeast(1),
+                            size.height.roundToInt().coerceAtLeast(1),
+                        ),
+                    ) { this@drawWithContent.drawContent() }
+                    drawLayer(shared)
+                    if (blurFoot) {
+                        val stamp = SystemClock.uptimeMillis()
+                        if (stamp - foot.at >= FOOT_REFRESH_MS) {
+                            foot.at = stamp
+                            footLayer.record(
+                                size = IntSize(
+                                    size.width.roundToInt().coerceAtLeast(1),
+                                    size.height.roundToInt().coerceAtLeast(1),
+                                ),
+                            ) { drawLayer(shared) }
+                        }
+                    }
+                },
+            )
+        }
+        // Salinan mosaic yang di-blur, dimunculkan di kaki lewat mask, seperti
+        // blur cover #1 di kartu: kaki hero masuk dulu ke warna cover sebenarnya,
+        // baru larut ke warna halaman.
+        if (blurFoot) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    // Offscreen agar mask memotong hasil blur, bukan tiap gambar di bawahnya.
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0.00f to Color.Transparent,
+                                0.50f to Color.Transparent,
+                                0.66f to Color.Black.copy(alpha = 0.40f),
+                                0.82f to Color.Black.copy(alpha = 0.85f),
+                                1.00f to Color.Black,
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    }
+                    .blur(LIKED_FOOT_BLUR, BlurredEdgeTreatment.Rectangle),
+            ) {
+                Box(
+                    Modifier.matchParentSize().layout { measurable, constraints ->
+                        val w = constraints.maxWidth
+                        val h = constraints.maxHeight
+                        val side = maxOf(w, h)
+                        val placeable = measurable.measure(Constraints.fixed(side, side))
+                        layout(w, h) { placeable.place((w - side) / 2, (h - side) / 2) }
+                    },
+                ) {
+                    Box(Modifier.fillMaxSize().drawBehind { drawLayer(footLayer) })
+                }
+            }
+        }
+        // Berakhir di warna halaman penuh, jadi tidak ada tepi tempat seni berhenti.
+        val clear = palette.background.copy(alpha = 0f)
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        // Banyak titik di sepanjang kurva halus (ease), dekat dengan
+                        // wash cover terbang (CoverFlight) supaya pendaratan tetap mulus.
+                        0.00f to clear,
+                        0.45f to clear,
+                        0.55f to palette.background.copy(alpha = 0.08f),
+                        0.65f to palette.background.copy(alpha = 0.30f),
+                        0.73f to palette.background.copy(alpha = 0.52f),
+                        0.82f to palette.background.copy(alpha = 0.72f),
+                        0.88f to palette.background.copy(alpha = 0.84f),
+                        0.94f to palette.background.copy(alpha = 0.95f),
+                        1.00f to palette.background,
+                    ),
+                ),
+        )
+        // Sedikit gelap di atas supaya ikon bar kaca tetap terbaca.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.28f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.22f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+    }
+}
+
+/** Downloads, Local Music dan Cached songs: folder perangkat yang memakai cover lagu pertama. */
+private fun DetailPage.isFolderCover(): Boolean =
+    browseId == "local:downloads" || browseId == "local:all" || browseId == CACHE_FOLDER_BROWSE_ID
+
+/**
+ * Header halaman folder perangkat: cover lagu pertama full-bleed sampai di bawah
+ * bar, kakinya larut ke warna halaman. Judul menimpa kaki hero, seperti [LikedMusicHero].
+ */
+@Composable
+private fun FolderCoverHero(
+    page: DetailPage,
+    palette: ArtworkPalette,
+    songs: List<Song>,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val coverUrl = page.thumbnailUrl ?: songs.firstOrNull { it.thumbnailUrl != null }?.thumbnailUrl
+    var artFailed by remember(coverUrl) { mutableStateOf(false) }
+
+    Box(
+        modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val overlap = LIKED_HERO_OVERLAP.roundToPx().coerceAtMost(placeable.height)
+                layout(placeable.width, placeable.height - overlap) { placeable.place(0, 0) }
+            }
+            .fillMaxWidth()
+            .height(height)
+            .drawWithContent {
+                val extra = LIKED_OVERSCROLL.toPx()
+                clipRect(left = 0f, top = -extra, right = size.width, bottom = size.height) {
+                    this@drawWithContent.drawContent()
+                }
+                val seam = 2.dp.toPx()
+                drawRect(
+                    color = palette.background,
+                    topLeft = Offset(0f, size.height - seam),
+                    size = androidx.compose.ui.geometry.Size(size.width, seam * 2f),
+                )
+            }
+            .coverFlightTarget(page.browseId, 0.dp, palette.background),
+    ) {
+        // Seni lebih tinggi daripada hero: kelebihannya menjulur ke atas.
+        Box(
+            Modifier.layout { measurable, constraints ->
+                val extra = LIKED_OVERSCROLL.roundToPx()
+                val placeable = measurable.measure(
+                    Constraints.fixed(constraints.maxWidth, constraints.maxHeight + extra),
+                )
+                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, -extra) }
+            },
+        ) {
+            Box(Modifier.matchParentSize().background(palette.elevated))
+            if (coverUrl == null || artFailed) {
+                CoverPlaceholder(
+                    icon = page.placeholderIcon(),
+                    base = palette.elevated,
+                    tint = palette.onBackgroundVariant,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
+            AsyncImage(
+                model = coverUrl.artworkAt(CARD_ART_PX),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+            AsyncImage(
+                model = coverUrl.artworkAt(HEADER_ART_PX),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                onState = { artFailed = it is AsyncImagePainter.State.Error },
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+
+        // Berakhir di warna halaman penuh, jadi tidak ada tepi tempat seni berhenti.
+        val page0 = palette.background.copy(alpha = 0f)
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.00f to page0,
+                        0.50f to page0,
+                        0.62f to palette.background.copy(alpha = 0.25f),
+                        0.74f to palette.background.copy(alpha = 0.60f),
+                        0.86f to palette.background.copy(alpha = 0.88f),
+                        0.94f to palette.background.copy(alpha = 0.97f),
+                        1.00f to palette.background,
+                    ),
+                ),
+        )
+
+        // Sedikit gelap di atas supaya ikon bar kaca tetap terbaca.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height * 0.28f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.22f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+    }
+}
+
+/** Album: cover full-bleed sampai di bawah bar, seperti halaman folder perangkat. */
+private fun DetailPage.isAlbumHero(): Boolean =
+    type == BrowseType.ALBUM && mix == null && covers.isEmpty() &&
+        !isFolderCover() && !isLikedMusic()
+
+/** Hero album sedikit lebih tinggi dari hero folder, supaya cover persegi tidak banyak terpotong. */
+private const val ALBUM_HERO_HEIGHT_SCALE = 1.13f
+
+/**
+ * Header album: cover full-bleed sampai di bawah bar, kakinya larut ke warna
+ * halaman. Kerangkanya sama dengan [FolderCoverHero] (kotak target terbang yang
+ * sama, sudut 0, wash warna halaman), jadi cover terbang dari kartu mendarat di
+ * kotak ini dan pulang dari sini lagi. Klip cover animasi, kalau ada, berjalan
+ * di kotak yang persis sama dengan target terbang, bukan di seni yang menjulur
+ * ke atas, supaya frame yang ditahan selama terbang tidak bergeser.
+ */
+@Composable
+private fun AlbumHero(
+    page: DetailPage,
+    palette: ArtworkPalette,
+    canvas: CanvasArtwork?,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val coverUrl = page.thumbnailUrl
+    var artFailed by remember(coverUrl) { mutableStateOf(false) }
+
+    Box(
+        modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val overlap = LIKED_HERO_OVERLAP.roundToPx().coerceAtMost(placeable.height)
+                layout(placeable.width, placeable.height - overlap) { placeable.place(0, 0) }
+            }
+            .fillMaxWidth()
+            .height(height)
+            .drawWithContent {
+                val extra = LIKED_OVERSCROLL.toPx()
+                clipRect(left = 0f, top = -extra, right = size.width, bottom = size.height) {
+                    this@drawWithContent.drawContent()
+                }
+                val seam = 2.dp.toPx()
+                drawRect(
+                    color = palette.background,
+                    topLeft = Offset(0f, size.height - seam),
+                    size = androidx.compose.ui.geometry.Size(size.width, seam * 2f),
+                )
+            }
+            .coverFlightTarget(page.browseId, 0.dp, palette.background),
+    ) {
+        // Seni lebih tinggi daripada hero: kelebihannya menjulur ke atas.
+        Box(
+            Modifier.layout { measurable, constraints ->
+                val extra = LIKED_OVERSCROLL.roundToPx()
+                val placeable = measurable.measure(
+                    Constraints.fixed(constraints.maxWidth, constraints.maxHeight + extra),
+                )
+                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, -extra) }
+            },
+        ) {
+            Box(Modifier.matchParentSize().background(palette.elevated))
+            if (coverUrl == null || artFailed) {
+                CoverPlaceholder(
+                    icon = page.placeholderIcon(),
+                    base = palette.elevated,
+                    tint = palette.onBackgroundVariant,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
+            AsyncImage(
+                model = coverUrl.artworkAt(CARD_ART_PX),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+            AsyncImage(
+                model = coverUrl.artworkAt(HEADER_ART_PX),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                onState = { artFailed = it is AsyncImagePainter.State.Error },
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+
+        // Cover animasi di atas gambar diam dan di bawah gradien kaki, di kotak
+        // yang sama dengan target terbang. Selalu berjalan: halaman ini hanya
+        // hidup selagi dibaca.
+        canvas?.let { clip ->
+            val frameGrab = remember(clip) { CanvasFrameGrab() }
+            RegisterCoverFlightGrab(page.browseId, frameGrab)
+            var clipShown by remember(clip) { mutableStateOf(false) }
+            val clipAlpha by animateFloatAsState(
+                targetValue = if (clipShown) 1f else 0f,
+                animationSpec = tween(400),
+                label = "albumHeroClipFade",
+            )
+            CanvasArtworkPlayer(
+                canvas = clip,
+                isPlaying = true,
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer { alpha = clipAlpha },
+                onRenderedChanged = {
+                    clipShown = it
+                    if (it) coverFlightClipRendered(page.browseId)
+                },
+                frameGrab = frameGrab,
+            )
+        }
+
+        // Berakhir di warna halaman penuh, jadi tidak ada tepi tempat seni berhenti.
+        // Mulai agak lebih bawah daripada hero folder: sampul album lebih banyak
+        // yang perlu terbaca.
+        val page0 = palette.background.copy(alpha = 0f)
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.00f to page0,
+                        0.58f to page0,
+                        0.68f to palette.background.copy(alpha = 0.25f),
+                        0.78f to palette.background.copy(alpha = 0.60f),
+                        0.88f to palette.background.copy(alpha = 0.88f),
+                        0.95f to palette.background.copy(alpha = 0.97f),
+                        1.00f to palette.background,
+                    ),
+                ),
+        )
+
+        // Sedikit gelap di atas supaya ikon bar kaca tetap terbaca.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height * 0.28f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.22f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+    }
+}
+
+/** Made for You Mix: cairan warna mix full-bleed sampai di bawah bar, seperti [AlbumHero]. */
+private fun DetailPage.isMixHero(): Boolean = mix != null && covers.isEmpty()
+
+/**
+ * Header Made for You Mix: kerangka dan target terbang yang sama dengan
+ * [AlbumHero] (sudut 0, wash warna halaman), jadi cover kartu mendarat di kotak
+ * ini dan pulang dari sini lagi. Teks sampul muncul setelah cover mendarat dan
+ * ditata di area yang terlihat, di bawah bar dan di atas judul halaman.
+ */
+@Composable
+private fun MixHero(
+    page: DetailPage,
+    palette: ArtworkPalette,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val mixTitle = page.mix ?: return
+    Box(
+        modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val overlap = LIKED_HERO_OVERLAP.roundToPx().coerceAtMost(placeable.height)
+                layout(placeable.width, placeable.height - overlap) { placeable.place(0, 0) }
+            }
+            .fillMaxWidth()
+            .height(height)
+            .drawWithContent {
+                val extra = LIKED_OVERSCROLL.toPx()
+                clipRect(left = 0f, top = -extra, right = size.width, bottom = size.height) {
+                    this@drawWithContent.drawContent()
+                }
+                val seam = 2.dp.toPx()
+                drawRect(
+                    color = palette.background,
+                    topLeft = Offset(0f, size.height - seam),
+                    size = androidx.compose.ui.geometry.Size(size.width, seam * 2f),
+                )
+            }
+            .coverFlightTarget(page.browseId, 0.dp, palette.background),
+    ) {
+        // Cairan lebih tinggi daripada hero: kelebihannya menjulur ke atas.
+        Box(
+            Modifier.layout { measurable, constraints ->
+                val extra = LIKED_OVERSCROLL.roundToPx()
+                val placeable = measurable.measure(
+                    Constraints.fixed(constraints.maxWidth, constraints.maxHeight + extra),
+                )
+                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, -extra) }
+            },
+        ) {
+            MixFluidArt(title = mixTitle, modifier = Modifier.matchParentSize())
+        }
+
+        val page0 = palette.background.copy(alpha = 0f)
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.00f to page0,
+                        0.58f to page0,
+                        0.68f to palette.background.copy(alpha = 0.25f),
+                        0.78f to palette.background.copy(alpha = 0.60f),
+                        0.88f to palette.background.copy(alpha = 0.88f),
+                        0.95f to palette.background.copy(alpha = 0.97f),
+                        1.00f to palette.background,
+                    ),
+                ),
+        )
+
+        // Sedikit gelap di atas supaya ikon bar kaca tetap terbaca.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height * 0.28f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.22f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+    }
+}
+
+/** Liked Music di YouTube Music (VLLM) atau Liked milik perangkat. */
+private fun DetailPage.isLikedMusic(): Boolean =
+    browseId == YtMusicRepository.LIKED_MUSIC || OfflinePlaylists.isLikedPage(browseId)
+
+/** Seberapa jauh blok judul naik menimpa kaki hero. */
+private val LIKED_HERO_OVERLAP = 88.dp
+private const val LIKED_MAX_COVERS = 9
+
+/** Cover pilihan disimpan selama ini, lalu diundi ulang dari lagu yang ada. */
+private const val LIKED_COVER_TTL_MS = 24L * 60 * 60 * 1000
+
+/** Naikkan angka ini untuk membuang pilihan cover lama yang tersimpan di perangkat. */
+private const val LIKED_COVER_CACHE_VERSION = 3
+
+/** Salinan ter-blur di kaki hero direkam ulang tiap sekian ms, bukan tiap frame. */
+private const val FOOT_REFRESH_MS = 300L
+
+private class FootSnapshot {
+    var at = 0L
+}
+private val LIKED_FOOT_BLUR = 36.dp
+
+private val LIKED_COLORS = listOf(Color(0xFF7B5CF0), Color(0xFFB45FDB), Color(0xFFFF5FA8))
+/**
+ * Most Played: warna latar bawaan (royal-amethyst), dipakai selama warna dari
+ * cover belum terbaca. Setelah itu latar mengikuti [rememberMostPlayedTint].
+ */
+private val MOST_PLAYED_COLORS = listOf(Color(0xFF1B2FB0), Color(0xFF6A33CC), Color(0xFF1A6FD8))
+
+/**
+ * Seberapa jauh seni hero menjulur ke atas, melewati tepi atasnya. Nol: tarikan
+ * ke bawah kini memperbesar hero (lihat [zoomOnPull]) sehingga tidak ada lubang
+ * yang perlu ditutup. Seni yang lebih tinggi dari kotak hero justru di-crop
+ * lebih besar daripada cover terbang yang mendarat di kotak itu, dan terlihat
+ * sebagai loncatan zoom saat masuk halaman.
+ */
+private val LIKED_OVERSCROLL = 0.dp
+
+/**
+ * Batas tarikan ke bawah halaman dengan hero full-bleed. Tarikan itu tidak
+ * menyeret seni hero turun, melainkan memperbesarnya: lihat [zoomOnPull].
+ */
+private val LIKED_MAX_PULL = 140.dp
+
+/**
+ * Seperti [zoomOnPull], tetapi untuk seni yang digambar di belakang daftar
+ * (foto artis): lapisan ini tidak ikut bergeser saat daftar ditarik, jadi tidak
+ * perlu digeser balik. Cukup diskalakan dari tepi atasnya sejauh tarikan, sehingga
+ * kakinya tetap bertemu dengan konten daftar yang turun.
+ */
+private fun Modifier.zoomBackgroundOnPull(pull: () -> Float): Modifier = graphicsLayer {
+    val p = pull()
+    if (p > 0f && size.height > 0f) {
+        val scale = 1f + p / size.height
+        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+/**
+ * Menarik daftar melewati puncaknya memperbesar seni hero seperti Apple Music,
+ * bukan menyeretnya turun. Daftar tetap bergeser sejauh tarikan, jadi hero
+ * digeser balik ke puncak layar dan diskalakan dari tepi atasnya sehingga
+ * kakinya tetap menempel pada konten di bawahnya.
+ */
+private fun Modifier.zoomOnPull(pull: () -> Float): Modifier = graphicsLayer {
+    val p = pull()
+    if (p > 0f && size.height > 0f) {
+        val scale = 1f + p / size.height
+        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+        scaleX = scale
+        scaleY = scale
+        translationY = -p
+    }
+}
+
+/**
+ * Header Liked Music: full-bleed sampai di bawah bar, isinya mosaik abstrak
+ * dari beberapa cover lagu di playlist, di atas latar cairan yang mengalir
+ * pelan (berhenti saat player terbuka). Bagian bawahnya larut ke warna halaman.
+ * Judul dan meta di bawahnya naik menimpa kaki hero, lihat [LIKED_HERO_OVERLAP].
+ */
+@Composable
+private fun LikedMusicHero(
+    page: DetailPage,
+    palette: ArtworkPalette,
+    songs: List<Song>,
+    height: Dp,
+    modifier: Modifier = Modifier,
+) {
+    // Beberapa cover saja, diundi sekali lalu dipakai ulang selama 24 jam.
+    val covers = rememberLikedCovers(page.browseId, songs)
+
+    Box(
+        modifier
+            // Paling luar: tinggi yang dilaporkan lebih pendek, sehingga
+            // judul di bawahnya tergambar di atas kaki hero.
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val overlap = LIKED_HERO_OVERLAP.roundToPx().coerceAtMost(placeable.height)
+                layout(placeable.width, placeable.height - overlap) { placeable.place(0, 0) }
+            }
+            .fillMaxWidth()
+            .height(height)
+            // Dipotong di sisi dan bawah, tapi tidak di atas: tarikan ke bawah
+            // menggeser hero turun, dan bagian atasnya harus tetap terisi seni.
+            .drawWithContent {
+                val extra = LIKED_OVERSCROLL.toPx()
+                clipRect(left = 0f, top = -extra, right = size.width, bottom = size.height) {
+                    this@drawWithContent.drawContent()
+                }
+                // Jahitan piksel pecahan di tepi bawah saat ditarik: lihat MostPlayedHero.
+                val seam = 2.dp.toPx()
+                drawRect(
+                    color = palette.background,
+                    topLeft = Offset(0f, size.height - seam),
+                    size = androidx.compose.ui.geometry.Size(size.width, seam * 2f),
+                )
+            }
+            .coverFlightTarget(page.browseId, 0.dp, palette.background),
+    ) {
+        // Seni sengaja lebih tinggi daripada hero: kelebihannya menjulur ke atas.
+        Box(
+            Modifier.layout { measurable, constraints ->
+                val extra = LIKED_OVERSCROLL.roundToPx()
+                val placeable = measurable.measure(
+                    Constraints.fixed(constraints.maxWidth, constraints.maxHeight + extra),
+                )
+                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(0, -extra) }
+            },
+        ) {
+            LikedArt(
+                covers = covers,
+                topInset = LIKED_OVERSCROLL,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+
+        // Berakhir di warna halaman penuh, jadi tidak ada tepi tempat seni berhenti.
+        val page0 = palette.background.copy(alpha = 0f)
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.00f to page0,
+                        0.50f to page0,
+                        0.62f to palette.background.copy(alpha = 0.25f),
+                        0.74f to palette.background.copy(alpha = 0.60f),
+                        0.86f to palette.background.copy(alpha = 0.88f),
+                        0.94f to palette.background.copy(alpha = 0.97f),
+                        1.00f to palette.background,
+                    ),
+                ),
+        )
+
+        // Sedikit gelap di atas supaya ikon bar kaca tetap terbaca.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height * 0.28f)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.22f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+    }
+}
+
+/**
+ * Isi hero: latar cairan [LikedFluidBackground] yang warnanya mengikuti cover, dan
+ * [AnimatedAlbumCollage] (cover utama + cover dekoratif mengambang dalam satu Canvas),
+ * dengan satu fade-in saat halaman dibuka.
+ */
+@Composable
+private fun LikedArt(
+    covers: List<String>,
+    // Bagian seni yang menjulur di atas tepi hero; icon digeser turun setengahnya
+    // supaya tetap di tengah area yang terlihat.
+    topInset: Dp = 0.dp,
+    modifier: Modifier = Modifier,
+) {
+    // Mosaic yang sudah tampil di kartu lalu terbang tidak mengulang fade-in.
+    val settled = LocalSettledMosaic.current
+    var shown by remember { mutableStateOf(settled) }
+    LaunchedEffect(Unit) { shown = true }
+    val enter by animateFloatAsState(
+        targetValue = if (shown) 1f else 0f,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "likedArtEnter",
+    )
+
+    BoxWithConstraints(modifier) {
+        val width = maxWidth
+
+        // Latar cairan mengikuti warna dominan cover (cache + crossfade warna).
+        LikedFluidBackground(covers = covers, modifier = Modifier.matchParentSize())
+
+        if (covers.isEmpty()) {
+            // Belum ada cover (daftar belum datang, atau lagu tanpa gambar).
+            Icon(
+                imageVector = Icons.Rounded.Favorite,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.85f),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(width * 0.34f)
+                    .graphicsLayer { translationY = topInset.toPx() / 2f },
+            )
+            return@BoxWithConstraints
+        }
+
+        // Satu Canvas, satu clock: cover utama + cover dekoratif mengambang.
+        AnimatedAlbumCollage(
+            covers = covers,
+            topInset = topInset,
+            enter = { enter },
+            modifier = Modifier.matchParentSize(),
+        )
+    }
+}
+
+/**
+ * Latar Liked: shader fluid yang sama, tapi warnanya dari warna dominan cover
+ * (di-cache di [MostPlayedTints]) dan beralih halus lewat animateColorAsState.
+ * Recomposition akibat transisi warna terisolasi di composable ini.
+ */
+@Composable
+private fun LikedFluidBackground(covers: List<String>, modifier: Modifier = Modifier) {
+    val tint = rememberMostPlayedTint(covers, LIKED_COLORS)
+    val fade = tween<Color>(900)
+    val top by androidx.compose.animation.animateColorAsState(tint[0], fade, label = "likedTop")
+    val mid by androidx.compose.animation.animateColorAsState(tint[1], fade, label = "likedMid")
+    val bottom by androidx.compose.animation.animateColorAsState(tint[2], fade, label = "likedBottom")
+    // Gradasi statis dari warna cover: tanpa shader, tanpa clock, tanpa redraw per frame.
+    Box(
+        modifier = modifier.drawBehind {
+            drawRect(Brush.verticalGradient(listOf(top, mid, bottom)))
+        },
+    )
+}
+
+/**
+ * Diisi MainActivity: true selagi player ditarik atau terbuka di atas halaman.
+ * Hero Most Played berhenti beranimasi selama itu, supaya mosaic, mesh, dan blur
+ * kaki tidak digambar ulang tiap frame berebut GPU dengan canvas player.
+ */
+object HeroMotion {
+    var frozen by mutableStateOf(false)
+}
+
+/**
+ * Cover Most Played: komposisi berlapis, satu cover utama besar dengan dua cover
+ * pendukung yang lebih kecil dan sedikit miring di belakangnya, di atas permukaan
+ * gelap #171719 dengan satu cahaya merah tipis. Cover asli tidak diberi filter.
+ * Tanpa jam global dan tanpa animasi terus-menerus; pergantian cover memakai crossfade.
+ * Hanya tiga gambar dan satu latar yang digambar sekali.
+ *
+ * Satu composable ini dipakai kartu Home, cover terbang, sleeve, dan hero
+ * full-bleed, jadi semuanya ikut ringan dan animasi terbang (coverFlightSource /
+ * coverFlightTarget) tidak tersentuh. Isi diposisikan relatif terhadap sisi
+ * persegi terkecil dan dipusatkan, jadi aman saat hero memotong sisi kiri-kanan.
+ * [motion] dipertahankan demi kompatibilitas pemanggil.
+ */
+@Composable
+fun MostPlayedArt(covers: List<String>, motion: Boolean, modifier: Modifier = Modifier) {
+    BoxWithConstraints(
+        modifier.drawBehind {
+            drawRect(RECAP_SURFACE)
+            // Satu cahaya merah tipis dari kiri atas; gradien radial statis.
+            val radius = size.width * 0.75f
+            val center = Offset(size.width * 0.22f, size.height * 0.18f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(RECAP_ACCENT.copy(alpha = 0.20f), RECAP_ACCENT.copy(alpha = 0f)),
+                    center = center,
+                    radius = radius,
+                ),
+                radius = radius,
+                center = center,
+            )
+        },
+    ) {
+        if (covers.isEmpty()) return@BoxWithConstraints
+        val side = minOf(maxWidth, maxHeight)
+        val originX = (maxWidth - side) / 2
+        val originY = (maxHeight - side) / 2
+
+        // Dari belakang ke depan; cover utama (0) digambar terakhir.
+        for (slot in MOST_PLAYED_LAYERS) {
+            val url = covers.getOrNull(slot.cover) ?: continue
+            val tile = side * slot.size
+            val shape = RoundedCornerShape(maxOf(12.dp, minOf(16.dp, tile * 0.10f)))
+            Box(
+                Modifier
+                    .offset(originX + side * slot.x, originY + side * slot.y)
+                    .size(tile)
+                    .graphicsLayer { rotationZ = slot.rotation }
+                    .shadow(side * (if (slot.cover == 0) 0.045f else 0.02f), shape)
+                    .clip(shape)
+                    .border(0.75.dp, Color.White.copy(alpha = 0.14f), shape),
+            ) {
+                androidx.compose.animation.Crossfade(
+                    targetState = url,
+                    animationSpec = tween(600),
+                    label = "mostPlayedCover",
+                ) { shown ->
+                    AsyncImage(
+                        model = shown.artworkAt(CARD_ART_PX),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                if (slot.dim > 0f) {
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = slot.dim)))
+                }
+            }
+        }
+    }
+}
+
+private fun Color.lighter(f: Float): Color =
+    Color(red + (1f - red) * f, green + (1f - green) * f, blue + (1f - blue) * f)
+
+/** Warna latar per kombinasi tiga cover teratas, supaya kartu, cover terbang, sleeve, dan hero langsung sama. */
+private val MostPlayedTints = java.util.concurrent.ConcurrentHashMap<String, List<Color>>()
+
+/**
+ * Tiga warna latar (atas, tengah, bawah) dari warna dominan tiap cover teratas,
+ * digelapkan agar teks putih tetap terbaca. Memakai warna bawaan sampai terbaca.
+ */
+@Composable
+private fun rememberMostPlayedTint(
+    covers: List<String>,
+    fallback: List<Color> = MOST_PLAYED_COLORS,
+): List<Color> {
+    val context = LocalPlatformContext.current
+    val key = covers.take(3).joinToString("|")
+    var tint by remember(key) { mutableStateOf(MostPlayedTints[key] ?: fallback) }
+    LaunchedEffect(key) {
+        if (key.isEmpty() || MostPlayedTints.containsKey(key)) return@LaunchedEffect
+        val picked = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            covers.take(3).mapNotNull { url ->
+                val request = ImageRequest.Builder(context)
+                    .data(url.artworkAt(CARD_ART_PX))
+                    .size(96)
+                    .forPixelAccess()
+                    .build()
+                val result = coil3.SingletonImageLoader.get(context).execute(request)
+                val bitmap = (result as? coil3.request.SuccessResult)?.image?.toImageBitmap()
+                    ?: return@mapNotNull null
+                tintRgbOf(bitmap)
+            }
+        }
+        if (picked.isEmpty()) return@LaunchedEffect
+        val colors = spreadTint(picked).map { Color(it) }
+        MostPlayedTints[key] = colors
+        tint = colors
+    }
+    return tint
+}
+
+/** Warna paling "berwarna" dan dominan di cover, digelapkan dan dijenuhkan. */
+private fun tintRgbOf(bitmap: androidx.compose.ui.graphics.ImageBitmap): Int? {
+    val swatches = paletteSwatches(bitmap, 16, false).ifEmpty { paletteSwatches(bitmap, 16, true) }
+    val hsl = FloatArray(3)
+    val best = swatches.maxByOrNull { s ->
+        ColorUtils.colorToHSL(s.rgb, hsl)
+        s.population * (0.25f + hsl[1])
+    } ?: return null
+    ColorUtils.colorToHSL(best.rgb, hsl)
+    hsl[1] = hsl[1].coerceIn(0.45f, 0.90f)
+    hsl[2] = hsl[2].coerceIn(0.24f, 0.40f)
+    return ColorUtils.HSLToColor(hsl)
+}
+
+/** Selalu tiga warna; yang terlalu mirip dengan sebelumnya digeser hue-nya. */
+private fun spreadTint(picked: List<Int>): List<Int> {
+    val out = mutableListOf<Int>()
+    val hsl = FloatArray(3)
+    for (i in 0 until 3) {
+        var rgb = picked[i % picked.size]
+        if (out.any { rgbClose(it, rgb) }) {
+            ColorUtils.colorToHSL(rgb, hsl)
+            hsl[0] = (hsl[0] + 35f * i) % 360f
+            rgb = ColorUtils.HSLToColor(hsl)
+        }
+        out += rgb
+    }
+    return out
+}
+
+private fun rgbClose(a: Int, b: Int): Boolean {
+    val x = FloatArray(3)
+    val y = FloatArray(3)
+    ColorUtils.colorToHSL(a, x)
+    ColorUtils.colorToHSL(b, y)
+    val gap = kotlin.math.abs(x[0] - y[0]).let { kotlin.math.min(it, 360f - it) }
+    return gap < 20f && kotlin.math.abs(x[2] - y[2]) < 0.12f
+}
+
+/** Permukaan kartu Most Played dan aksennya (Z Music). */
+private val RECAP_SURFACE = Color(0xFF171719)
+private val RECAP_ACCENT = Color(0xFFFA243C)
+
+/** Satu cover dalam komposisi berlapis; nilai pecahan dari sisi persegi seni. */
+private class MostPlayedSlot(
+    val cover: Int,
+    val x: Float,
+    val y: Float,
+    val size: Float,
+    val rotation: Float,
+    val dim: Float,
+)
+
+// Urutan gambar: belakang ke depan. Cover utama (0) di depan, tegak, dan terbesar;
+// dua cover pendukung sedikit miring dan saling menumpuk di belakangnya.
+// Seluruh komposisi berakhir di y 0.73, di atas blok teks kartu.
+private val MOST_PLAYED_LAYERS = listOf(
+    MostPlayedSlot(cover = 2, x = 0.600f, y = 0.460f, size = 0.270f, rotation = -5f, dim = 0.18f),
+    MostPlayedSlot(cover = 1, x = 0.550f, y = 0.130f, size = 0.310f, rotation = 6f, dim = 0.06f),
+    MostPlayedSlot(cover = 0, x = 0.080f, y = 0.180f, size = 0.540f, rotation = 0f, dim = 0f),
+)
+
+/**
+ * Cover untuk hero Liked Music: paling banyak [LIKED_MAX_COVERS], diundi dari
+ * lagu di playlist lalu disimpan [LIKED_COVER_TTL_MS]. Selama masih segar, membuka
+ * halaman tidak mengundi ulang dan tidak memuat gambar lain. Kalau daftar lagu
+ * belum datang, pilihan lama (jika ada) dipakai dan jam undian tidak dimulai.
+ */
+@Composable
+private fun rememberLikedCovers(pageId: String, songs: List<Song>): List<String> {
+    val context = LocalContext.current.applicationContext
+    val hasSongs = songs.isNotEmpty()
+    return remember(pageId, hasSongs) {
+        val prefs = context.getSharedPreferences("liked_hero", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val saved = prefs.getString("covers_v${LIKED_COVER_CACHE_VERSION}_$pageId", null)
+            ?.split('\n')
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+        val age = now - prefs.getLong("at_v${LIKED_COVER_CACHE_VERSION}_$pageId", 0L)
+        val pool = songs.mapNotNull { it.thumbnailUrl }.distinct()
+        // Pilihan lama dipakai ulang hanya kalau masih segar dan jumlahnya sudah cukup.
+        val fresh = saved.isNotEmpty() && age in 0L until LIKED_COVER_TTL_MS &&
+            saved.size >= minOf(LIKED_MAX_COVERS, pool.size)
+        if (fresh) return@remember saved
+        if (pool.isEmpty()) return@remember saved
+        val picked = pool.shuffled().take(LIKED_MAX_COVERS)
+        prefs.edit()
+            .putString("covers_v${LIKED_COVER_CACHE_VERSION}_$pageId", picked.joinToString("\n"))
+            .putLong("at_v${LIKED_COVER_CACHE_VERSION}_$pageId", now)
+            .apply()
+        picked
+    }
+}
+
 /** The glyph on a release page's placeholder sleeve: what kind of thing has no cover. */
 private fun DetailPage.placeholderIcon(): ImageVector = deviceFolderIcon(browseId) ?: when {
     LocalGroups.isArtist(browseId) -> Icons.Rounded.Person
+    OfflinePlaylists.isLikedPage(browseId) -> Icons.Rounded.Favorite
+    LocalGroups.isDirectory(browseId) -> Icons.Rounded.Folder
     type == BrowseType.ALBUM -> Icons.Rounded.Album
     type == BrowseType.PLAYLIST -> Icons.AutoMirrored.Rounded.QueueMusic
     else -> AudifyIcons.MusicNote
@@ -2385,8 +3859,8 @@ private val KIND_WORDS = setOf(
 private fun BrowseType.localizedLabel(): String? = when (this) {
         BrowseType.ALBUM -> stringResource(R.string.album)
         BrowseType.PLAYLIST -> stringResource(R.string.playlist)
-        BrowseType.PODCAST -> "Podcast"
         BrowseType.ARTIST -> stringResource(R.string.artist)
+        BrowseType.PODCAST -> "Podcast"
         BrowseType.OTHER -> null
     }
 

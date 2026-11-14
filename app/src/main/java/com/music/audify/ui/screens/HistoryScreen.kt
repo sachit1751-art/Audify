@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
-
-import com.music.audify.data.model.stableSongComposeKeys
 
 import com.music.audify.R
 
@@ -21,7 +17,6 @@ import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
 import com.music.audify.data.model.playingRowMatcher
 import com.music.audify.ui.components.MessageState
-import com.music.audify.ui.components.PlayingAccent
 import com.music.audify.ui.components.ROW_DIVIDER_INSET
 import com.music.audify.ui.components.SongRow
 import com.music.audify.ui.components.songListSkeleton
@@ -46,9 +41,9 @@ fun HistoryScreen(
     onSongSwipe: (Song) -> Unit,
     onRetry: () -> Unit,
     contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     LazyColumn(
         state = listState,
@@ -68,33 +63,26 @@ fun HistoryScreen(
 
             is UiState.Success -> {
                 val songs = state.data
-                if (songs.isEmpty()) {
-                    item(key = "history:empty") {
-                        MessageState(stringResource(R.string.history_empty))
-                    }
-                } else {
-                    val songKeys = songs.stableSongComposeKeys()
-                    val isCurrentRow = playingRowMatcher(songs, currentSong)
-                    // Duplicate video IDs receive occurrence suffixes, so keys stay
-                    // unique without depending on a row's current position.
-                    itemsIndexed(songs, songKeys) { index, song ->
-                        SongRow(
-                            song = song,
-                            onClick = { onSongClick(songs, index) },
-                            onLongPress = { onSongLongPress(song) },
-                            onSwipeToQueue = { onSongSwipe(song) },
-                            isCurrent = isCurrentRow(song),
-                            isPlaying = isCurrentRow(song) && isPlaying,
-                            searchPlayingStyle = true,
-                            activeTint = PlayingAccent,
+                val isCurrentRow = playingRowMatcher(songs, currentSong)
+                // The videoId alone is not a key here: the feed is deduplicated
+                // on it, but a list keyed on something that could repeat is one
+                // bad response away from a crash. The index makes it total.
+                itemsIndexed(songs) { index, song ->
+                    SongRow(
+                        song = song,
+                        onClick = { onSongClick(songs, index) },
+                        onLongPress = { onSongLongPress(song) },
+                        onSwipeToQueue = { onSongSwipe(song) },
+                        isCurrent = isCurrentRow(song),
+                        isPlaying = isCurrentRow(song) && isPlaying,
+                        searchPlayingStyle = true,
+                    )
+                    if (index < songs.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                         )
-                        if (index < songs.lastIndex) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            )
-                        }
                     }
                 }
             }
@@ -105,9 +93,9 @@ fun HistoryScreen(
 /** Keyed on both, for the reason given at the call site. */
 private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexed(
     songs: List<Song>,
-    keys: List<String>,
     row: @Composable (Int, Song) -> Unit,
 ) = items(
     count = songs.size,
-    key = { keys[it] },
+    key = { "${songs[it].videoId}:$it" },
+    contentType = { "song-row" },
 ) { index -> row(index, songs[index]) }

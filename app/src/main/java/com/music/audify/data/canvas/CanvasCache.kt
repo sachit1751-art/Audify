@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.canvas
 
 import android.content.Context
@@ -7,9 +5,15 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.ContentMetadata
 import androidx.media3.datasource.cache.SimpleCache
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.playback.DynamicLruCacheEvictor
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Disk cache for canvas clips — the looping video some releases publish
@@ -36,21 +40,73 @@ import java.io.File
 object CanvasCache {
 
     /**
-     * Small on purpose — a clip is a few seconds of video, not a song, and
-     * this only needs to outlive one player screen's worth of looping, not
-     * a library. [SimpleCache]'s own evictor reclaims the rest.
+     * The disk budget comes from [AppSettings.canvasCacheLimitBytes] and can
+     * be changed at any time from Settings. Same evictor as the song cache so
+     * the ceiling can move without reopening the [SimpleCache]; the head
+     * protection is turned off (0 / 0) because a clip is only a few seconds
+     * long and has no analysis pass that needs its opening kept.
      */
-    private const val CACHE_LIMIT_BYTES = 150L * 1024 * 1024
+    private val evictor = DynamicLruCacheEvictor(
+        maxBytes = AppSettings.DEFAULT_CANVAS_CACHE_LIMIT_BYTES,
+        headBytes = 0L,
+        headBudgetBytes = 0L,
+    )
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var cache: SimpleCache
 
     /** Opened once per process, alongside [com.music.audify.playback.AudioCache.init]. */
     fun init(context: Context) {
+        CanvasIndex.init(context)
+        // Must run after AppSettings.init: opening the cache replays every
+        // stored span through the evictor, and a ceiling still at its
+        // default would evict clips the listener's larger limit allows.
+        evictor.maxBytes = AppSettings.canvasCacheLimitBytes.value
         cache = SimpleCache(
             File(context.cacheDir, "canvas"),
-            LeastRecentlyUsedCacheEvictor(CACHE_LIMIT_BYTES),
+            evictor,
             StandaloneDatabaseProvider(context),
         )
+        scope.launch {
+            AppSettings.canvasCacheLimitBytes.collect { maxBytes ->
+                evictor.maxBytes = maxBytes
+                evictor.applyNow(cache)
+            }
+        }
+    }
+
+    /** Bytes the canvas clips occupy on disk right now. */
+    fun usedBytes(): Long = if (::cache.isInitialized) cache.cacheSpace else 0L
+
+    /** How many clips are stored. */
+    fun clipCount(): Int = if (::cache.isInitialized) cache.keys.size else 0
+
+    /**
+     * Whether the clip at [url] is stored on disk in full, so playing it needs
+     * no network at all. Key = URL, same as the default CacheDataSource key.
+     * A partly downloaded clip counts as not cached: finishing it would spend
+     * data.
+     */
+    fun isClipCached(url: String): Boolean {
+        if (!::cache.isInitialized) return false
+        return runCatching {
+            val length = ContentMetadata.getContentLength(cache.getContentMetadata(url))
+            length > 0L && cache.isCached(url, 0L, length)
+        }.getOrDefault(false)
+    }
+
+    /** Whether any rendition of [artwork] is fully on disk. */
+    fun isCached(artwork: CanvasArtwork): Boolean =
+        isClipCached(artwork.url) ||
+            artwork.portraitUrl?.let(::isClipCached) == true ||
+            artwork.fallbackUrl?.let(::isClipCached) == true
+
+    /** Deletes every stored clip. Disk work: call off the main thread. */
+    fun clear() {
+        if (!::cache.isInitialized) return
+        cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
+        CanvasIndex.clear()
     }
 
     /**

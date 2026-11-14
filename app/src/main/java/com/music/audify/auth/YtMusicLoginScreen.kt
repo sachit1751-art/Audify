@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.auth
 
 import android.annotation.SuppressLint
@@ -59,10 +57,10 @@ private const val TAG = "Audify"
 @Composable
 fun YtMusicLoginScreen(
     mode: WebSessionMode,
-    modifier: Modifier = Modifier,
     /** Cookie snapshot to install before opening an existing account's channel picker. */
     initialCookie: String? = null,
     onCaptured: (CapturedSession) -> Unit,
+    modifier: Modifier = Modifier,
     /**
      * Raise to take the session from the page as it stands. Ignored at its
      * initial value, so arriving on the screen doesn't capture anything.

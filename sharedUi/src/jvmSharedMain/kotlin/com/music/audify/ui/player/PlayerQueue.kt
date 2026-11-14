@@ -1,7 +1,7 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
+import com.music.audify.ui.components.trackArtSize
+import androidx.compose.ui.layout.ContentScale
 import com.music.audify.sharedui.resources.*
 import com.music.audify.ui.components.ExplicitSongTitle
 
@@ -10,6 +10,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +24,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -76,7 +77,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import coil3.compose.AsyncImage
+import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.icons.AudifyIcons
+import androidx.compose.material.icons.rounded.Add
+import com.music.audify.ui.haptics.Haptic
+import com.music.audify.ui.haptics.rememberHaptics
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.semantics
 import com.music.audify.data.model.QueueTier
 import com.music.audify.data.model.Song
 import com.music.audify.playback.autoplaySectionStart
@@ -235,6 +242,12 @@ internal fun InlineQueue(
     collapsePlayerOnScroll: Boolean = false,
     onRevealPlayer: () -> Unit = {},
     onHidePlayer: () -> Unit = {},
+    /** Playback modes, shown as a row of buttons right under the current song. */
+    shuffleEnabled: Boolean = false,
+    repeatMode: Int = RepeatModes.OFF,
+    onToggleShuffle: () -> Unit = {},
+    onCycleRepeat: () -> Unit = {},
+    onToggleAutoplay: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -274,6 +287,18 @@ internal fun InlineQueue(
     }
 
     Column(modifier.fillMaxWidth()) {
+        // The current song is already shown by the player's collapsed header
+        // (the sleeve flies into it), so the playback modes sit directly under it.
+        Spacer(Modifier.height(10.dp))
+        QueueModeRow(
+            shuffleEnabled = shuffleEnabled,
+            repeatMode = repeatMode,
+            autoplayEnabled = autoplayEnabled,
+            onToggleShuffle = onToggleShuffle,
+            onCycleRepeat = onCycleRepeat,
+            onToggleAutoplay = onToggleAutoplay,
+        )
+        Spacer(Modifier.height(18.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -303,7 +328,9 @@ internal fun InlineQueue(
                     // drag on itself and slides the whole player away.
                     .nestedScroll(keepScroll)
                     .then(if (collapsePlayerOnScroll) Modifier.nestedScroll(controlsOnScroll) else Modifier),
-                contentPadding = PaddingValues(horizontal = PLAYER_GUTTER),
+                // Zona fade [fadingEdges] 28dp; padding atas sengaja lebih kecil
+                // supaya "Add Songs to Queue" naik dan hanya sedikit masuk fade.
+                contentPadding = PaddingValues(start = PLAYER_GUTTER, end = PLAYER_GUTTER, top = 4.dp),
             ) {
                 if (tracks.history.isNotEmpty()) {
                     item(key = "header-history") {
@@ -323,34 +350,16 @@ internal fun InlineQueue(
                         )
                     }
                 }
-                if (nowPlaying != null) {
-                    item(key = "header-now-playing") {
-                        QueueHeading(
-                            title = stringResource(Res.string.now_playing),
-                            modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
-                        )
-                    }
-                    item(key = nowPlaying.key) {
-                        InlineQueueRow(
-                            song = nowPlaying.song,
-                            isCurrent = true,
-                            onClick = { onJumpTo(nowPlaying.timelineIndex) },
-                            onRemove = { onRemove(nowPlaying.timelineIndex) },
-                            locked = controlsLocked,
-                            modifier = queueMotion(),
-                        )
-                    }
-                }
+
                 if (tracks.user.isNotEmpty()) {
-                    item(key = "header-user-queue") {
-                        QueueHeading(
-                            title = stringResource(Res.string.next_in_queue),
-                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp).then(queueMotion()),
-                        ) {
-                            QueueClearButton(MaterialTheme.typography.labelLarge, controlsLocked, onClear)
-                        }
-                    }
+                    // No heading of its own: the "Queue" title above already names
+                    // this list and carries the Clear button.
                     queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, onJumpTo, onRemove)
+                }
+                if (!controlsLocked) {
+                    item(key = "add-songs") {
+                        AddSongsRow(onClick = AddSongsRequest::show, modifier = queueMotion())
+                    }
                 }
                 if (tracks.context.isNotEmpty()) {
                     item(key = "header-context") {
@@ -428,6 +437,40 @@ private fun LazyListScope.queueSection(
     }
 }
 
+/** "Add Songs to Queue": opens the search sheet the host draws over the player. */
+@Composable
+private fun AddSongsRow(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.White.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Add,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(
+            text = stringResource(Res.string.add_songs_to_queue),
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color.White,
+        )
+    }
+}
+
 @Composable
 private fun QueueHeading(
     title: String,
@@ -456,6 +499,119 @@ private fun QueueClearButton(style: TextStyle, locked: Boolean, onClear: () -> U
             .clickable(enabled = !locked, onClick = onClear)
             .padding(horizontal = 8.dp, vertical = 4.dp),
     )
+}
+
+/** Shuffle, repeat and AutoPlay as one row of equal buttons. */
+@Composable
+private fun QueueModeRow(
+    shuffleEnabled: Boolean,
+    repeatMode: Int,
+    autoplayEnabled: Boolean,
+    onToggleShuffle: () -> Unit,
+    onCycleRepeat: () -> Unit,
+    onToggleAutoplay: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        QueueModeButton(
+            icon = AudifyIcons.Shuffle,
+            contentDescription = stringResource(
+                if (shuffleEnabled) Res.string.shuffle_on else Res.string.shuffle_off,
+            ),
+            highlighted = shuffleEnabled,
+            haptic = if (shuffleEnabled) Haptic.ToggleOff else Haptic.ToggleOn,
+            // Toggling replaces the upcoming stretch of the queue; a second tap
+            // before that lands would undo work that hasn't happened yet.
+            tapWindowMs = 400L,
+            onClick = onToggleShuffle,
+            modifier = Modifier.weight(1f),
+        )
+        QueueModeButton(
+            icon = if (repeatMode == RepeatModes.ONE) AudifyIcons.RepeatOne else AudifyIcons.Repeat,
+            contentDescription = when (repeatMode) {
+                RepeatModes.ONE -> stringResource(Res.string.repeat_one)
+                RepeatModes.ALL -> stringResource(Res.string.repeat_all)
+                else -> stringResource(Res.string.repeat_off)
+            },
+            highlighted = repeatMode != RepeatModes.OFF,
+            haptic = when (repeatMode) {
+                RepeatModes.OFF -> Haptic.ToggleOn
+                RepeatModes.ONE -> Haptic.ToggleOff
+                else -> Haptic.Select
+            },
+            onClick = onCycleRepeat,
+            modifier = Modifier.weight(1f),
+        )
+        QueueModeButton(
+            icon = AudifyIcons.Infinity,
+            contentDescription = stringResource(
+                if (autoplayEnabled) Res.string.autoplay_on else Res.string.autoplay_off,
+            ),
+            highlighted = autoplayEnabled,
+            haptic = if (autoplayEnabled) Haptic.ToggleOff else Haptic.ToggleOn,
+            // AutoPlay's toggle goes to the playback service and may hit the
+            // network, so it ignores taps for longer than shuffle does.
+            tapWindowMs = 700L,
+            onClick = onToggleAutoplay,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun QueueModeButton(
+    icon: ImageVector,
+    contentDescription: String,
+    highlighted: Boolean,
+    haptic: Haptic,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    tapWindowMs: Long = 0L,
+) {
+    val haptics = rememberHaptics()
+    val lastTap = remember { LongArray(1) }
+    val container by animateColorAsState(
+        targetValue = if (highlighted) Color.White.copy(alpha = 0.88f) else Color.White.copy(alpha = 0.14f),
+        label = "queueModeFill",
+    )
+    val tint = if (highlighted) Color.Black.copy(alpha = 0.82f) else Color.White.copy(alpha = 0.9f)
+    Box(
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(container)
+            .clickable {
+                val now = System.currentTimeMillis()
+                if (now - lastTap[0] >= tapWindowMs) {
+                    lastTap[0] = now
+                    haptics.play(haptic)
+                    onClick()
+                }
+            }
+            .semantics { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(20.dp),
+            )
+            if (label != null) {
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = tint,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -774,10 +930,11 @@ private fun InlineQueueRow(
         AsyncImage(
             model = rememberRemoteArtworkUrl(song),
             contentDescription = null,
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(44.dp)
+                .trackArtSize(44.dp, song.isVideo)
                 .clip(RoundedCornerShape(6.dp))
+                .thumbnailBorder(RoundedCornerShape(6.dp))
                 .background(Color.White.copy(alpha = 0.08f)),
         )
         Spacer(Modifier.width(12.dp))
@@ -807,7 +964,7 @@ private fun InlineQueueRow(
         if (!locked) {
             Box(
                 modifier = Modifier
-                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onRemove),
                 contentAlignment = Alignment.Center,

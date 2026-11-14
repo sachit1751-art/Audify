@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import androidx.compose.runtime.Composable
@@ -25,26 +23,4 @@ internal fun outputLabel(device: AudioOutputDevice, accountName: String?): Strin
         firstName != null -> stringResource(Res.string.personal_phone, firstName)
         else -> stringResource(Res.string.this_phone)
     }
-}
-
-/**
- * The name of whatever is playing the music, for the line under the transport.
- *
- * Derived from the same list the picker shows, so the two can never disagree —
- * which they did constantly when this read `android.media.MediaRouter`'s
- * selected route and the picker read the audio devices.
- */
-@Composable
-internal fun rememberAudioOutputName(accountName: String?): String {
-    val outputs = rememberAudioOutputs()
-    val active = outputs.firstOrNull { it.isActive }
-        ?: return if (accountName.isNullOrBlank()) {
-            stringResource(Res.string.this_phone)
-        } else {
-            stringResource(
-                Res.string.personal_phone,
-                accountName.trim().split(Regex("\\s+")).first(),
-            )
-        }
-    return outputLabel(active, accountName)
 }

@@ -1,8 +1,6 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.screens
 
-import android.content.ClipData
+import com.music.audify.ui.icons.SfIcons
 import android.content.Intent
 import android.text.format.DateFormat
 import android.widget.Toast
@@ -26,7 +24,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,26 +32,23 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.automirrored.rounded.Login
-import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.Login
+import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Share
-import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import com.music.audify.ui.components.GlassConfirmDialog
+import com.music.audify.ui.components.IosSwitch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -74,21 +68,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -135,7 +127,6 @@ internal fun ServerUrlError.toMessageRes(): Int = when (this) {
 @Composable
 fun ListenTogetherScreen(
     signedIn: Boolean,
-    modifier: Modifier = Modifier,
     inviteCode: String? = null,
     inviteServer: String? = null,
     onInviteHandled: () -> Unit = {},
@@ -147,11 +138,10 @@ fun ListenTogetherScreen(
      * @see PartyServerEditor for why it cannot live on this screen.
      */
     onEditServer: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val shareTextFormat = stringResource(R.string.listen_together_share_text)
-    val copyCodeMessage = stringResource(R.string.copy_code)
-    val clipboard = LocalClipboard.current
+    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
     val state by ListenTogether.state.collectAsStateWithLifecycle()
@@ -210,7 +200,7 @@ fun ListenTogetherScreen(
         state.code?.let { partyCode ->
             val message = inviteLinkFor(partyCode) +
                 System.lineSeparator() + System.lineSeparator() +
-                    String.format(java.util.Locale.getDefault(), shareTextFormat, partyCode)
+                context.getString(R.string.listen_together_share_text, partyCode)
             context.startActivity(
                 Intent.createChooser(
                     Intent(Intent.ACTION_SEND).apply {
@@ -285,68 +275,39 @@ fun ListenTogetherScreen(
 
     pendingServerSwitchInvite?.let { (codeToJoin, serverToSet) ->
         val isSwitchToOfficial = serverToSet.isBlank()
-        AlertDialog(
-            onDismissRequest = {
+        GlassConfirmDialog(
+            title = stringResource(
+                if (isSwitchToOfficial) {
+                    R.string.listen_together_official_server_dialog_title
+                } else {
+                    R.string.listen_together_custom_server_dialog_title
+                },
+            ),
+            message = if (isSwitchToOfficial) {
+                stringResource(R.string.listen_together_official_server_dialog_message, codeToJoin)
+            } else {
+                stringResource(
+                    R.string.listen_together_custom_server_dialog_message,
+                    serverToSet,
+                    codeToJoin,
+                )
+            },
+            confirmLabel = stringResource(R.string.listen_together_custom_server_switch_and_join),
+            dismissLabel = stringResource(R.string.cancel),
+            onConfirm = {
+                val toJoin = codeToJoin
+                val toSet = serverToSet
+                pendingServerSwitchInvite = null
+                // Same next step as any other invite: the confirm
+                // sheet, not an immediate join. This dialog is only
+                // consent to talk to a different server at all.
+                openPartyPreview(toJoin, toSet.ifBlank { null })
+                onInviteHandled()
+            },
+            onDismiss = {
                 pendingServerSwitchInvite = null
                 onInviteHandled()
             },
-            title = {
-                Text(
-                    stringResource(
-                        if (isSwitchToOfficial) {
-                            R.string.listen_together_official_server_dialog_title
-                        } else {
-                            R.string.listen_together_custom_server_dialog_title
-                        }
-                    ),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-            },
-            text = {
-                Text(
-                    if (isSwitchToOfficial) {
-                        stringResource(R.string.listen_together_official_server_dialog_message, codeToJoin)
-                    } else {
-                        stringResource(
-                            R.string.listen_together_custom_server_dialog_message,
-                            serverToSet,
-                            codeToJoin,
-                        )
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val toJoin = codeToJoin
-                        val toSet = serverToSet
-                        pendingServerSwitchInvite = null
-                        // Same next step as any other invite: the confirm
-                        // sheet, not an immediate join. This dialog is only
-                        // consent to talk to a different server at all.
-                        openPartyPreview(toJoin, toSet.ifBlank { null })
-                        onInviteHandled()
-                    },
-                ) {
-                    Text(
-                        stringResource(R.string.listen_together_custom_server_switch_and_join),
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        pendingServerSwitchInvite = null
-                        onInviteHandled()
-                    },
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
         )
     }
 
@@ -466,10 +427,10 @@ fun ListenTogetherScreen(
                         shareInvite()
                     },
                     onCopyCode = {
-                        scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(copyCodeMessage, state.code.orEmpty()))) }
+                        clipboard.setText(AnnotatedString(state.code.orEmpty()))
                         Toast.makeText(
                             context,
-                            copyCodeMessage,
+                            context.getString(R.string.copy_code),
                             Toast.LENGTH_SHORT,
                         ).show()
                     },
@@ -484,17 +445,12 @@ fun ListenTogetherScreen(
             .verticalScroll(rememberScrollState())
             .padding(contentPadding),
     ) {
-        Text(
-            text = stringResource(R.string.listen_together),
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 14.dp),
-        )
+        SettingsPageTitle(stringResource(R.string.listen_together))
 
         if (!signedIn) {
-            SettingsGroup(footer = stringResource(R.string.listen_together_sign_in_footer)) {
+            SettingsGroup(footer = stringResource(R.string.listen_together_sign_in_footer), topSpacing = 0.dp) {
                 SettingsRow(
-                    icon = Icons.AutoMirrored.Rounded.Login,
+                    icon = SfIcons.Login,
                     title = stringResource(R.string.sign_in),
                     subtitle = stringResource(R.string.not_signed_in),
                     onClick = onSignIn,
@@ -519,7 +475,7 @@ fun ListenTogetherScreen(
         } else {
             InAParty(
                 state = state,
-                onCopy = { scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(copyCodeMessage, state.code.orEmpty()))) } },
+                onCopy = { clipboard.setText(AnnotatedString(state.code.orEmpty())) },
                 onShare = { sheet = PartySheet.Invite },
                 onShareLink = shareInvite,
                 onLeave = { scope.launch { ListenTogether.leaveParty() } },
@@ -565,7 +521,7 @@ fun ListenTogetherScreen(
             footer = stringResource(R.string.listen_together_custom_server_footer),
         ) {
             SettingsRow(
-                icon = Icons.Rounded.Dns,
+                icon = SfIcons.Dns,
                 title = stringResource(R.string.listen_together_custom_server),
                 subtitleContent = {
                     Text(
@@ -597,51 +553,6 @@ fun ListenTogetherScreen(
 }
 
 /**
- * Whether the party server is answering, before anything else on the screen.
- *
- * Every other failure in this feature looks the same from the outside — a code
- * that will not create, a join that sits there — and most of the time the
- * answer is simply that the server is asleep or unreachable. Saying so up front
- * is the difference between a feature that looks broken and one that is waiting.
- *
- * Deliberately says nothing about *where* the server is. The address this build
- * uses is not shown here, on the row below, or in any log — see
- * [ListenTogether.customServerUrl].
- */
-@Composable
-private fun ServerHealthRow(
-    status: ListenTogether.ServerStatus,
-    onRecheck: () -> Unit,
-) {
-    SettingsGroup {
-        SettingsRow(
-            icon = when (status.health) {
-                ListenTogether.Health.ONLINE -> Icons.Rounded.CloudDone
-                ListenTogether.Health.OFFLINE -> Icons.Rounded.CloudOff
-                else -> Icons.Rounded.Cloud
-            },
-            title = stringResource(R.string.listen_together_server),
-            subtitle = when (status.health) {
-                ListenTogether.Health.ONLINE ->
-                    if (status.isFallback) {
-                        stringResource(R.string.listen_together_server_online_fallback, status.latencyMs)
-                    } else {
-                        stringResource(R.string.listen_together_server_online, status.latencyMs)
-                    }
-                ListenTogether.Health.OFFLINE ->
-                    stringResource(R.string.listen_together_server_offline)
-                ListenTogether.Health.CHECKING ->
-                    stringResource(R.string.listen_together_server_checking)
-                ListenTogether.Health.UNKNOWN ->
-                    stringResource(R.string.listen_together_server_unknown)
-            },
-            trailing = if (status.health == ListenTogether.Health.CHECKING) ({ Spinner() }) else null,
-            onClick = onRecheck,
-        )
-    }
-}
-
-/**
  * Whether the address that was typed is actually answering.
  *
  * Under the address rather than in a toast, because the interesting case is the
@@ -659,17 +570,17 @@ private fun ServerConnectionLine(connection: ServerConnectionState) {
             stringResource(R.string.listen_together_server_checking),
         )
         is ServerConnectionState.CustomOnline -> Triple(
-            Icons.Rounded.CloudDone,
+            SfIcons.CloudDone,
             MaterialTheme.colorScheme.primary,
             stringResource(R.string.listen_together_status_custom_online, connection.latencyMs),
         )
         is ServerConnectionState.CustomFallback -> Triple(
-            Icons.Rounded.CloudOff,
+            SfIcons.CloudOff,
             MaterialTheme.colorScheme.error,
             stringResource(R.string.listen_together_status_custom_fallback, connection.latencyMs),
         )
         ServerConnectionState.Offline -> Triple(
-            Icons.Rounded.CloudOff,
+            SfIcons.CloudOff,
             MaterialTheme.colorScheme.error,
             stringResource(R.string.listen_together_status_all_offline),
         )
@@ -727,11 +638,17 @@ internal fun PartyCodeField(
     onSubmit: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    // Rebuilt on every change so the selection is pinned back to the end. The
-    // field spans the whole row and shows nothing, so without this a tap
-    // anywhere along it would drop the caret into the middle of the code and
-    // the next character would appear in a cell that isn't the lit one.
-    val field = remember(code) { TextFieldValue(code, TextRange(code.length)) }
+    // The field's own value is kept, not rebuilt from [code] on every change.
+    // Rebuilding it threw away the keyboard's composing region on each key,
+    // and keyboards with word suggestions then lost track of what they had
+    // typed — the first character went in and the rest did not. It is only
+    // replaced when [code] changes from outside, or when a typed value needs
+    // cleaning; the caret is still pinned to the end, so a tap along the row
+    // can't drop it into the middle of the code.
+    var field by remember { mutableStateOf(TextFieldValue(code, TextRange(code.length))) }
+    LaunchedEffect(code) {
+        if (field.text != code) field = TextFieldValue(code, TextRange(code.length))
+    }
 
     Box(Modifier.fillMaxWidth()) {
         Row(
@@ -752,7 +669,18 @@ internal fun PartyCodeField(
         }
         BasicTextField(
             value = field,
-            onValueChange = { onCodeChange(it.text) },
+            onValueChange = { typed ->
+                val cleaned = typed.text
+                    .filter(Char::isLetterOrDigit)
+                    .uppercase()
+                    .take(ListenTogether.CODE_LENGTH)
+                field = if (cleaned == typed.text) {
+                    typed.copy(selection = TextRange(cleaned.length))
+                } else {
+                    TextFieldValue(cleaned, TextRange(cleaned.length))
+                }
+                onCodeChange(cleaned)
+            },
             enabled = enabled,
             singleLine = true,
             // Both invisible: the cells are where the typing shows up, and a
@@ -760,8 +688,13 @@ internal fun PartyCodeField(
             // that this is one field wearing a costume.
             textStyle = TextStyle(color = Color.Transparent),
             cursorBrush = SolidColor(Color.Transparent),
+            // Password: letters and digits on one keyboard, with word
+            // suggestions and autocorrect off. A code is not a word, and a
+            // keyboard that treats it as one composes it, "corrects" it, or
+            // swallows keystrokes on some phones.
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Characters,
+                keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done,
             ),
             keyboardActions = KeyboardActions(
@@ -872,13 +805,13 @@ private fun InAParty(
         )
         RowDivider()
         SettingsRow(
-            icon = Icons.Rounded.ContentCopy,
+            icon = SfIcons.ContentCopy,
             title = stringResource(R.string.copy_code),
             onClick = onCopy,
         )
         RowDivider()
         SettingsRow(
-            icon = Icons.Rounded.Share,
+            icon = SfIcons.Share,
             title = stringResource(R.string.share),
             onClick = onShare,
         )
@@ -892,11 +825,7 @@ private fun InAParty(
             state.members.size,
             state.maxMembers,
         ),
-        footer = pluralStringResource(
-            R.plurals.listen_together_members_footer,
-            state.maxMembers,
-            state.maxMembers,
-        ),
+        footer = stringResource(R.string.listen_together_members_footer, state.maxMembers),
     ) {
         if (state.you?.isHost == true) {
             Row(
@@ -917,17 +846,13 @@ private fun InAParty(
             }
             RowDivider()
             SettingsRow(
-                icon = Icons.Rounded.Lock,
+                icon = SfIcons.Lock,
                 title = stringResource(R.string.listen_together_host_only),
                 subtitle = stringResource(R.string.listen_together_host_only_subtitle),
                 trailing = {
-                    Switch(
+                    IosSwitch(
                         checked = state.hostOnlyControl,
                         onCheckedChange = onSetHostOnlyControl,
-                        colors = SwitchDefaults.colors(
-                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                            checkedBorderColor = MaterialTheme.colorScheme.primary,
-                        ),
                     )
                 },
                 onClick = { onSetHostOnlyControl(!state.hostOnlyControl) },
@@ -942,7 +867,7 @@ private fun InAParty(
 
     SettingsGroup {
         SettingsRow(
-            icon = Icons.AutoMirrored.Rounded.Logout,
+            icon = SfIcons.Logout,
             title = stringResource(R.string.listen_together_leave),
             subtitle = stringResource(R.string.listen_together_leave_subtitle),
             onClick = onLeave,
@@ -979,7 +904,7 @@ private fun NowPlayingInTheParty(state: ListenTogether.State) {
 
     SettingsGroup(header = stringResource(R.string.listen_together_now_playing)) {
         SettingsRow(
-            icon = Icons.Rounded.MusicNote,
+            icon = SfIcons.MusicNote,
             title = track?.title?.takeIf { it.isNotBlank() } ?: nothingPlaying,
             subtitle = if (track == null) {
                 connection
@@ -1014,30 +939,6 @@ private fun connectionLine(state: ListenTogether.State): String = when {
     else -> stringResource(R.string.listen_together_in_sync, state.roundTripMs)
 }
 
-/**
- * This device's own party picture, drawn in the slot the rows around it give
- * their glyphs — so the field beside it starts on the same line as every other
- * field on the screen.
- */
-@Composable
-private fun PartyAvatar(url: String?, size: Dp = ICON_SIZE) {
-    if (url != null) {
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(size).clip(CircleShape),
-        )
-    } else {
-        Icon(
-            Icons.Rounded.Person,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.size(size),
-        )
-    }
-}
-
 @Composable
 private fun MemberRow(member: PartyMember, isYou: Boolean, canKick: Boolean = false, onKick: () -> Unit = {}) {
     Row(
@@ -1049,14 +950,16 @@ private fun MemberRow(member: PartyMember, isYou: Boolean, canKick: Boolean = fa
     ) {
         Box(
             modifier = Modifier
-                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                .size(32.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surface),
             contentAlignment = Alignment.Center,
         ) {
-            if (member.avatarUrl != null) {
+            // Baris diri sendiri memakai foto buatan pengguna bila ada.
+            val avatar = if (isYou) ListenTogether.myAvatarUrl() ?: member.avatarUrl else member.avatarUrl
+            if (avatar != null) {
                 AsyncImage(
-                    model = member.avatarUrl,
+                    model = avatar,
                     contentDescription = null,
                     modifier = Modifier.size(32.dp).clip(CircleShape),
                 )
@@ -1134,7 +1037,7 @@ private fun PartyActivityList(entries: List<PartyActivity>) {
 }
 
 @Composable
-private fun Spinner(modifier: Modifier = Modifier) {
+private fun Spinner(modifier: Modifier = Modifier.size(18.dp)) {
     CircularProgressIndicator(
         strokeWidth = 2.dp,
         color = MaterialTheme.colorScheme.primary,

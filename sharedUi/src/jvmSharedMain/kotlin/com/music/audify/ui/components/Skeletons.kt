@@ -1,13 +1,10 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
-import com.music.audify.ui.motion.MotionTokens
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,8 +34,6 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.music.audify.ui.player.PlayerSettings
 
 /**
  * Grey stand-ins for content still on the wire, laid out to the same metrics as
@@ -66,18 +60,13 @@ private val SubtitleWidths = listOf(0.34f, 0.44f, 0.27f, 0.38f, 0.31f)
 @Composable
 fun ShimmerBox(modifier: Modifier = Modifier, shape: Shape = BlockShape) {
     val base = MaterialTheme.colorScheme.surfaceVariant
-    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
-    if (reduceAnimation) {
-        Box(modifier.clip(shape).background(base))
-        return
-    }
     val highlight = MaterialTheme.colorScheme.onSurfaceVariant
         .copy(alpha = 0.16f)
         .compositeOver(base)
     val sweep = rememberInfiniteTransition(label = "skeleton").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = MotionTokens.LINEAR_EASING)),
+        animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = LinearEasing)),
         label = "sweep",
     )
     Box(
@@ -113,9 +102,9 @@ private fun SkeletonLine(fraction: Float, height: Dp, modifier: Modifier = Modif
  * come back without a subtitle, and guessing wrong shifts everything under it.
  */
 @Composable
-private fun SectionHeaderSkeleton(index: Int = 0) {
+fun SectionHeaderSkeleton(index: Int = 0) {
     Column(Modifier.padding(horizontal = PAGE_GUTTER, vertical = 10.dp)) {
-        SkeletonLine(fraction = TitleWidths[index % TitleWidths.size] * 0.7f, height = 18.dp)
+        SkeletonLine(fraction = TitleWidths[index % TitleWidths.size] * 0.7f, height = 22.dp)
     }
 }
 
@@ -173,7 +162,7 @@ private fun HeroShelfSkeleton() {
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 userScrollEnabled = false,
             ) {
-                items(2, key = { "skeleton-slot:$it" }) {
+                items(2) {
                     ShimmerBox(
                         modifier = Modifier.width(cardWidth).aspectRatio(HERO_CARD_RATIO),
                         shape = RoundedCornerShape(18.dp),
@@ -184,39 +173,58 @@ private fun HeroShelfSkeleton() {
     }
 }
 
-/** Reserved at the top of Play while Recents loads, matching its saved layout. */
-fun LazyListScope.recentlyPlayedSkeleton(listLayout: Boolean) {
+/**
+ * The editorial shelf that leads Explore: a title and subtitle, then wide
+ * 1.5-ratio cards under a two-line caption, the next card peeking in at the
+ * edge. Mirrors the real shelf's metrics so the grid below does not jump.
+ */
+@Composable
+fun EditorialShelfSkeleton() {
+    Column(Modifier.padding(bottom = 26.dp)) {
+        Column(Modifier.padding(horizontal = PAGE_GUTTER, vertical = 10.dp)) {
+            SkeletonLine(fraction = 0.5f, height = 22.dp)
+            Spacer(Modifier.height(8.dp))
+            SkeletonLine(fraction = 0.66f, height = 14.dp)
+        }
+        BoxWithConstraints {
+            val cardWidth = maxWidth - PAGE_GUTTER - 36.dp
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                userScrollEnabled = false,
+            ) {
+                items(2) { card ->
+                    Column(Modifier.width(cardWidth)) {
+                        SkeletonLine(fraction = TitleWidths[card % TitleWidths.size], height = 16.dp)
+                        Spacer(Modifier.height(4.dp))
+                        SkeletonLine(fraction = SubtitleWidths[card % SubtitleWidths.size] + 0.3f, height = 14.dp)
+                        Spacer(Modifier.height(8.dp))
+                        ShimmerBox(
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1.5f),
+                            shape = RoundedCornerShape(16.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Reserved at the top of Play while Recents loads. */
+fun LazyListScope.recentlyPlayedSkeleton() {
     item(key = "skeleton:recently-played") {
         Column(Modifier.padding(bottom = 26.dp)) {
             RecentsHeaderSkeleton()
-            if (listLayout) {
-                BoxWithConstraints {
-                    val columnWidth = trackColumnWidth(maxWidth)
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        userScrollEnabled = false,
-                    ) {
-                        item(key = "skeleton:track-column") {
-                            Column(Modifier.width(columnWidth)) {
-                                repeat(4) { index -> CompactSongRowSkeleton(index) }
-                            }
-                        }
-                    }
-                }
-            } else {
-                BoxWithConstraints {
-                    val cardWidth = heroCardWidth(maxWidth)
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        userScrollEnabled = false,
-                    ) {
-                        items(2, key = { "skeleton-slot:$it" }) {
-                            ShimmerBox(
-                                modifier = Modifier.width(cardWidth).aspectRatio(HERO_CARD_RATIO),
-                                shape = RoundedCornerShape(18.dp),
-                            )
+            BoxWithConstraints {
+                val columnWidth = trackColumnWidth(maxWidth)
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    userScrollEnabled = false,
+                ) {
+                    item {
+                        Column(Modifier.width(columnWidth)) {
+                            repeat(4) { index -> CompactSongRowSkeleton(index) }
                         }
                     }
                 }
@@ -225,7 +233,7 @@ fun LazyListScope.recentlyPlayedSkeleton(listLayout: Boolean) {
     }
 }
 
-/** Recents heading plus the adjacent list/grid toggle placeholder. */
+/** Recents heading placeholder. */
 @Composable
 private fun RecentsHeaderSkeleton() {
     Row(
@@ -237,8 +245,6 @@ private fun RecentsHeaderSkeleton() {
         Box(Modifier.weight(1f)) {
             SkeletonLine(fraction = TitleWidths.first() * 0.7f, height = 18.dp)
         }
-        Spacer(Modifier.width(8.dp))
-        ShimmerBox(Modifier.size(32.dp), CircleShape)
     }
 }
 
@@ -252,7 +258,7 @@ fun ShelfSkeleton(index: Int = 0, cardWidth: Dp = SHELF_CARD_WIDTH, cardCorner: 
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             userScrollEnabled = false,
         ) {
-            items(3, key = { "skeleton-card:$it" }) { card ->
+            items(3) { card ->
                 Column(Modifier.width(cardWidth)) {
                     ShimmerBox(
                         modifier = Modifier.width(cardWidth).aspectRatio(1f),
@@ -294,36 +300,17 @@ fun LazyListScope.feedMoreSkeleton() {
  */
 @Composable
 fun ReplayCardRowSkeleton(modifier: Modifier = Modifier) {
-    BoxWithConstraints(modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        if (maxWidth >= 720.dp) {
-            Column(
-                modifier = Modifier.padding(horizontal = PAGE_GUTTER),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                repeat(2) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        repeat(2) {
-                            ShimmerBox(
-                                modifier = Modifier.weight(1f).height(144.dp),
-                                shape = RoundedCornerShape(20.dp),
-                            )
-                        }
-                    }
-                }
-            }
-        } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                userScrollEnabled = false,
-            ) {
-                items(2, key = { "skeleton-slot:$it" }) {
-                    ShimmerBox(
-                        modifier = Modifier.width(minOf(292.dp, maxWidth * 0.86f)).height(144.dp),
-                        shape = RoundedCornerShape(20.dp),
-                    )
-                }
-            }
+    LazyRow(
+        modifier = modifier.padding(vertical = 6.dp),
+        contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        userScrollEnabled = false,
+    ) {
+        items(2) {
+            ShimmerBox(
+                modifier = Modifier.width(190.dp).aspectRatio(1.35f),
+                shape = RoundedCornerShape(16.dp),
+            )
         }
     }
 }
@@ -358,16 +345,24 @@ private fun DetailActionsSkeleton(isArtist: Boolean) {
  * An album, playlist or artist page below its header — the header itself is
  * drawn from what the row that was tapped already knew, so it never waits.
  */
+/** The skeleton dissolves when the real rows land, rather than vanishing. */
+private fun androidx.compose.foundation.lazy.LazyItemScope.skeletonLeave(): Modifier =
+    Modifier.animateItem(
+        fadeInSpec = null,
+        placementSpec = null,
+        fadeOutSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+    )
+
 fun LazyListScope.detailSkeleton(isArtist: Boolean) {
     if (isArtist) {
         item(key = "skeleton:detail:actions") {
-            Column(Modifier.graphicsLayer { alpha = 0.4f }) {
+            Column(skeletonLeave().enterReveal(540).graphicsLayer { alpha = 0.4f }) {
                 DetailActionsSkeleton(isArtist = true)
                 Spacer(Modifier.height(22.dp))
             }
         }
         item(key = "skeleton:detail:top") {
-            Column(Modifier.graphicsLayer { alpha = 0.4f }) {
+            Column(skeletonLeave().enterReveal(600).graphicsLayer { alpha = 0.4f }) {
                 SectionHeaderSkeleton()
                 // Top songs page four at a time — see [trackColumnWidth] for how
                 // wide a page lands.
@@ -378,7 +373,7 @@ fun LazyListScope.detailSkeleton(isArtist: Boolean) {
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         userScrollEnabled = false,
                     ) {
-                        item(key = "skeleton:track-column") {
+                        item {
                             Column(Modifier.width(columnWidth)) {
                                 repeat(4) { index -> CompactSongRowSkeleton(index) }
                             }
@@ -388,7 +383,7 @@ fun LazyListScope.detailSkeleton(isArtist: Boolean) {
             }
         }
         item(key = "skeleton:detail:sections") {
-            Box(Modifier.graphicsLayer { alpha = 0.4f }) {
+            Box(skeletonLeave().enterReveal(660).graphicsLayer { alpha = 0.4f }) {
                 ShelfSkeleton(index = 2, cardCorner = 10.dp)
             }
         }

@@ -1,10 +1,7 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.core.content.edit
 import androidx.media3.common.Player
 import com.music.audify.data.model.Song
 import kotlinx.serialization.Serializable
@@ -40,9 +37,6 @@ object PartyPersonalQueueStash {
     /** Stash directly from a live player. */
     fun stashFromPlayer(player: Player): Boolean {
         if (!::prefs.isInitialized) return false
-        // Listen Together's personal queue stash is deliberately music-only.
-        // A mixed physical queue stays local rather than losing podcast rows.
-        if (player.hasPodcastInQueue()) return false
         if (player.mediaItemCount == 0) {
             // Player is empty; check if LastPlayed holds a restorable personal queue
             val fallback = LastPlayed.load()
@@ -58,7 +52,7 @@ object PartyPersonalQueueStash {
             return false
         }
         val songs = (0 until player.mediaItemCount).mapNotNull { idx ->
-            player.getMediaItemAt(idx).toSongOrNull()?.takeUnless { it.isDeviceFile() }
+            player.getMediaItemAt(idx).toSong().takeUnless { it.isDeviceFile() }
         }
         if (songs.isEmpty()) return false
         val safeIndex = player.currentMediaItemIndex.coerceIn(0, songs.size - 1)
@@ -83,7 +77,7 @@ object PartyPersonalQueueStash {
         val encoded = runCatching {
             json.encodeToString(StoredQueue.serializer(), stored)
         }.getOrNull() ?: return
-        prefs.edit(commit = true) {putString(KEY_STASH, encoded)}
+        prefs.edit().putString(KEY_STASH, encoded).commit()
     }
 
     fun hasStash(): Boolean {
@@ -108,7 +102,7 @@ object PartyPersonalQueueStash {
 
     fun clear() {
         if (!::prefs.isInitialized) return
-        prefs.edit(commit = true) {remove(KEY_STASH)}
+        prefs.edit().remove(KEY_STASH).commit()
     }
 
     @Serializable
@@ -190,6 +184,6 @@ object PartyPersonalQueueStash {
     private fun Song.isDeviceFile(): Boolean =
         videoId.startsWith("content://") || videoId.startsWith("file://")
 
-    private const val PREFS_NAME = "audify_party_queue_stash"
+    private const val PREFS_NAME = "bitchord_party_queue_stash"
     private const val KEY_STASH = "stashed_queue"
 }

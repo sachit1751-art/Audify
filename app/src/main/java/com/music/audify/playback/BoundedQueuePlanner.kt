@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import com.music.audify.data.model.QueueTier
@@ -34,6 +32,9 @@ data class BoundedContextPlan(
 }
 
 object BoundedQueuePlanner {
+    /** The most context rows a queue needs in the player: history, current, look-ahead. */
+    const val MAX_PHYSICAL_CONTEXT = MAX_QUEUE_HISTORY + 1 + WINDOW_AHEAD
+
     fun buildInitialPlan(
         contextSnapshot: ContextSnapshot,
         selectedIndex: Int,

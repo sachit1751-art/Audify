@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback.smart
 
 /** Loads the analyser's native library, however the platform keeps it. */

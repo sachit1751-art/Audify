@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.playback
 
 import android.util.Log
@@ -69,6 +67,13 @@ class TransitionFilterProcessor : BaseAudioProcessor() {
      */
     @Volatile
     var leadUs: Long = 0L
+
+    /**
+     * This sink's side of the Automix loop mix. Carried here, on the processor
+     * that already trades roles with its player at every handoff, so the
+     * controller reaches the right sink by the same route as the filters.
+     */
+    val loop = com.music.audify.playback.loopmix.LoopMixPort()
 
     // ---- Echo out ------------------------------------------------------------
     //
@@ -566,7 +571,6 @@ interface TransitionFilters {
     fun parkEchoes() = Unit
 
     /** Parks both. Called whenever a transition ends, however it ended. */
-    @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     fun open() {
         incoming(TransitionFilterProcessor.OPEN_HZ, TransitionFilterProcessor.OFF_HZ)
         outgoing(TransitionFilterProcessor.OPEN_HZ, TransitionFilterProcessor.OFF_HZ)

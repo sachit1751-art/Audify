@@ -1,9 +1,6 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.widget
 
 import android.content.Context
-import androidx.core.content.edit
 
 /**
  * Everything a home-screen widget needs to know about playback.
@@ -64,18 +61,18 @@ internal data class MediaWidgetSnapshot(
         )
 
         fun save(context: Context, snapshot: MediaWidgetSnapshot) {
-            prefs(context).edit {
-                    putString(KEY_MEDIA_ID, snapshot.mediaId)
-                    .putString(KEY_TITLE, snapshot.title)
-                    .putString(KEY_ARTIST, snapshot.artist)
-                    .putString(KEY_ARTWORK, snapshot.artworkUrl)
-                    .putBoolean(KEY_PLAYING, snapshot.isPlaying)
-                    .putBoolean(KEY_HAS_PREVIOUS, snapshot.hasPrevious)
-                    .putBoolean(KEY_HAS_NEXT, snapshot.hasNext)
-                    .putBoolean(KEY_LIKED, snapshot.isLiked)
-                    .putBoolean(KEY_CAN_LIKE, snapshot.canLike)
-                    .putBoolean(KEY_SHUFFLE, snapshot.shuffleEnabled)
-                }
+            prefs(context).edit()
+                .putString(KEY_MEDIA_ID, snapshot.mediaId)
+                .putString(KEY_TITLE, snapshot.title)
+                .putString(KEY_ARTIST, snapshot.artist)
+                .putString(KEY_ARTWORK, snapshot.artworkUrl)
+                .putBoolean(KEY_PLAYING, snapshot.isPlaying)
+                .putBoolean(KEY_HAS_PREVIOUS, snapshot.hasPrevious)
+                .putBoolean(KEY_HAS_NEXT, snapshot.hasNext)
+                .putBoolean(KEY_LIKED, snapshot.isLiked)
+                .putBoolean(KEY_CAN_LIKE, snapshot.canLike)
+                .putBoolean(KEY_SHUFFLE, snapshot.shuffleEnabled)
+                .apply()
         }
 
         /** The last state published by the live playback service. */
@@ -100,7 +97,7 @@ internal data class MediaWidgetSnapshot(
         }
 
         private fun prefs(context: Context) =
-            context.getSharedPreferences("audify_widget", Context.MODE_PRIVATE)
+            context.getSharedPreferences("bitchord_widget", Context.MODE_PRIVATE)
 
         private const val KEY_MEDIA_ID = "media_id"
         private const val KEY_TITLE = "title"

@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import com.music.audify.R
@@ -9,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -18,14 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -56,13 +54,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 
 /**
  * Same UIAlertController shape as [UpdateAvailableDialog] — frosted card,
  * hairline rules, full-width stacked actions — but with a text field for the
  * one bit of input this alert needs.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ListenBrainzTokenAlert(
     hazeState: HazeState,
@@ -106,6 +106,7 @@ fun ListenBrainzTokenAlert(
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun LastfmLoginAlert(
     hazeState: HazeState,
@@ -183,6 +184,7 @@ fun LastfmLoginAlert(
  * was mistyped or has expired is indistinguishable from one that works until
  * Discord is asked about it.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun DiscordTokenAlert(
     hazeState: HazeState,
@@ -246,6 +248,7 @@ fun DiscordTokenAlert(
  * [message] is where the caller explains the field, including which `{...}`
  * variables it accepts, since that is the only place a user would find out.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TextValueAlert(
     hazeState: HazeState,
@@ -325,6 +328,7 @@ data class EditorField(
  * Save above Cancel — plus an optional destructive row between Save and
  * Cancel for an entry that can also be removed.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ServerEditorAlert(
     hazeState: HazeState,
@@ -445,6 +449,7 @@ data class FieldConfig(
  * sound; the host leaves composition on dismiss, which is when the next
  * opening starts over from the saved values.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ServerEditorHost(
     hazeState: HazeState,
@@ -458,9 +463,6 @@ fun ServerEditorHost(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val connectedMessage = stringResource(R.string.connected)
-    val failedMessage = stringResource(R.string.failed)
-    val testFailedFormat = stringResource(testFailedRes)
     val scope = rememberCoroutineScope()
     val states = remember { fields.map { mutableStateOf(it.initial) } }
     var status by remember { mutableStateOf<String?>(null) }
@@ -490,14 +492,13 @@ fun ServerEditorHost(
             scope.launch {
                 onTest(values).fold(
                     onSuccess = {
-                        status = connectedMessage
+                        status = context.getString(R.string.connected)
                         statusIsGood = true
                     },
                     onFailure = {
-                        status = String.format(
-                            java.util.Locale.getDefault(),
-                            testFailedFormat,
-                            it.message ?: failedMessage,
+                        status = context.getString(
+                            testFailedRes,
+                            it.message ?: context.getString(R.string.failed),
                         )
                         statusIsGood = false
                     },
@@ -531,6 +532,7 @@ fun ServerEditorHost(
  * — so a result replaces the description in place, coloured by [statusIsGood],
  * the way [LastfmLoginAlert] surfaces a failed sign-in.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun AddonEditorAlert(
     hazeState: HazeState,
@@ -592,6 +594,7 @@ fun AddonEditorAlert(
  * [showApplyToAll] is only true mid-batch, where one answer can carry every
  * clash still queued behind this one.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun WebDavConflictAlert(
     hazeState: HazeState,
@@ -660,6 +663,7 @@ fun WebDavConflictAlert(
  * the addon editor. Kept here so warnings opened from settings do not fall back
  * to a visually unrelated Material dialog.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ConfirmationAlert(
     hazeState: HazeState,
@@ -698,6 +702,78 @@ fun ConfirmationAlert(
 }
 
 /**
+ * [ConfirmationAlert] with nothing to confirm: a title, an explanation and
+ * one OK. For telling the listener why something didn't happen, in the same
+ * frosted shell as the rest, rather than in a system dialog that looks like
+ * it belongs to another app.
+ */
+@OptIn(ExperimentalHazeMaterialsApi::class)
+@Composable
+fun InfoAlert(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    onDismiss: () -> Unit,
+    /**
+     * Opens the alert in a window of its own, above every other window.
+     *
+     * Needed whenever what prompted it can be on screen in another window: the
+     * full player and the track menu are both bottom-sheet dialogs, and an
+     * alert drawn in the activity's window opens *behind* them — found only
+     * once the player was closed, long after the tap it was answering.
+     */
+    inOwnWindow: Boolean = false,
+) {
+    if (inOwnWindow) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
+            val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+            // The scaffold draws its own flat scrim; the platform's would double it.
+            SideEffect { window?.setDimAmount(0f) }
+            InfoAlertFrame(hazeState, title, description, onDismiss, frosted = false)
+        }
+    } else {
+        InfoAlertFrame(hazeState, title, description, onDismiss, frosted = true)
+    }
+}
+
+@Composable
+private fun InfoAlertFrame(
+    hazeState: HazeState,
+    title: String,
+    description: String,
+    onDismiss: () -> Unit,
+    frosted: Boolean,
+) {
+    AlertScaffold(hazeState = hazeState, onDismiss = onDismiss, frosted = frosted) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = description,
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+        AlertRule()
+        AlertAction(label = stringResource(android.R.string.ok), emphasised = true, onClick = onDismiss)
+    }
+}
+
+/**
  * Single-select list, ticked like [LyricsSourcesDialog] rather than with radio
  * buttons — same reasoning: a column of Material radios would be the one
  * Material thing left on an otherwise Apple-shaped alert.
@@ -705,6 +781,7 @@ fun ConfirmationAlert(
  * Picking commits immediately and closes, so there is no Save action to reach
  * for; Cancel is the only one, and it's the dismiss.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun <T> ChoiceAlert(
     hazeState: HazeState,
@@ -797,8 +874,8 @@ private fun ChoiceRow(
         if (checked) {
             Icon(
                 imageVector = Icons.Rounded.Check,
-                contentDescription = stringResource(R.string.audify_selected),
-                tint = com.music.audify.ui.components.accessibleThemeIconTint(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface),
+                contentDescription = stringResource(R.string.selected),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(19.dp),
             )
         }
@@ -806,49 +883,173 @@ private fun ChoiceRow(
 }
 
 /** The scrim + frosted card frame shared by every UIAlertController-style dialog. */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 internal fun AlertScaffold(
-    hazeState: HazeState,
+    /** Null for an alert with no [HazeState] to hand; it is then always [alertGlass]. */
+    hazeState: HazeState?,
     onDismiss: () -> Unit,
+    /**
+     * False for an alert in a window of its own, where [hazeState] has nothing
+     * to blur — Haze reads only its own window. The card is then [alertGlass],
+     * which samples the app backdrop instead; see [InfoAlert]'s `inOwnWindow`.
+     */
+    frosted: Boolean = true,
+    /**
+     * The motion driving the card. By default it calls [onDismiss] once the
+     * exit has played; [GlassAlertDialog] passes its own so the window's Back
+     * and the scrim share one reverse animation.
+     */
+    motion: MacOSPopupState = rememberMacOSPopupState(onClosed = onDismiss),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
+    androidx.activity.compose.BackHandler { motion.requestClose() }
 
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SCRIM_COLOR)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .macOSPopupScrim(motion, SCRIM_COLOR)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
-                onClick = onDismiss,
+                onClick = motion::requestClose,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier = Modifier
-                .width(alertCardWidth(maxWidth))
-                .heightIn(max = maxHeight)
+                .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
+                .jellyPopIn(animateIn = false)
                 .clip(shape)
-                .then(
-                    if (reduceDynamicBlur) {
-                        Modifier.background(MaterialTheme.colorScheme.surface)
-                    } else {
-                        Modifier.optimizedHazeEffect(
-                            state = hazeState,
-                            style = HazeMaterials.regular(MaterialTheme.colorScheme.surface),
-                        )
-                    },
-                )
+                .alertSurface(hazeState, frosted, shape)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                     onClick = {},
-                )
-                .verticalScroll(rememberScrollState()),
-            content = content,
+                ),
+            content = {
+                // The rows fade in once the card has grown out of its trigger.
+                Column(Modifier.fillMaxWidth().macOSPopupContent(motion)) { content() }
+            },
         )
+    }
+}
+
+private const val ALERT_FROST_ALPHA_DARK = 0.80f
+private const val ALERT_FROST_ALPHA_LIGHT = 0.72f
+
+/**
+ * The card of an alert drawn in a window of its own: the same frost as the
+ * audio output popup and the iOS menu ([menuBackdropFrost]), sampling the menu
+ * or app backdrop. Haze cannot do this job — it reads only its own window.
+ * Solid fill where glass is unsupported or under "reduce dynamic blur".
+ */
+@Composable
+internal fun Modifier.alertGlass(shape: RoundedCornerShape): Modifier {
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val colors = iosMenuColors()
+    val backdrop = LocalMenuBackdrop.current ?: LocalAppBackdrop.current
+    return if (isGlassSupported() && !reduceDynamicBlur) {
+        menuBackdropFrost(
+            backdrop = backdrop,
+            shape = shape,
+            fill = colors.fill.copy(alpha = if (colors.dark) ALERT_FROST_ALPHA_DARK else ALERT_FROST_ALPHA_LIGHT),
+        )
+    } else {
+        background(colors.fill, shape)
+    }
+}
+
+/**
+ * The one surface every alert card is drawn on: the audio output popup's frost
+ * (backdrop frost in its own window, Haze frost in the activity window, solid
+ * under "reduce dynamic blur") plus the [touchGlow] that follows the finger.
+ * Call it after the card's clip.
+ */
+@Composable
+internal fun Modifier.alertSurface(
+    hazeState: HazeState?,
+    frosted: Boolean,
+    shape: RoundedCornerShape,
+): Modifier {
+    val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val colors = iosMenuColors()
+    val surface = when {
+        reduceDynamicBlur -> background(colors.fill)
+        !frosted || hazeState == null -> alertGlass(shape)
+        else -> optimizedHazeEffect(
+            state = hazeState,
+            style = menuFrost(
+                colors.fill,
+                alpha = if (colors.dark) ALERT_FROST_ALPHA_DARK else ALERT_FROST_ALPHA_LIGHT,
+            ),
+        )
+    }
+    return surface.touchGlow()
+}
+
+/**
+ * An alert in a window of its own, for a caller with no [HazeState] to blur
+ * against — a settings page, or a dialog that must sit above another window.
+ * Same scrim and card as every other alert here; [content] is the card's rows.
+ */
+@Composable
+internal fun GlassAlertDialog(
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
+    Dialog(
+        onDismissRequest = motion::requestClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        // The scaffold draws its own flat scrim; the platform's would double it.
+        SideEffect { window?.setDimAmount(0f) }
+        // Without this the keyboard sits over the actions of an alert with a field.
+        Box(Modifier.imePadding()) {
+            AlertScaffold(hazeState = null, onDismiss = onDismiss, frosted = false, motion = motion, content = content)
+        }
+    }
+}
+
+/** [ConfirmationAlert] in a window of its own: a title, a message, a confirm and a dismiss. */
+@Composable
+internal fun GlassConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    dismissLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    destructive: Boolean = false,
+) {
+    GlassAlertDialog(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 19.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.W600),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = message,
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+        }
+        AlertRule()
+        AlertAction(label = confirmLabel, emphasised = true, destructive = destructive, onClick = onConfirm)
+        AlertRule()
+        AlertAction(label = dismissLabel, emphasised = false, onClick = onDismiss)
     }
 }

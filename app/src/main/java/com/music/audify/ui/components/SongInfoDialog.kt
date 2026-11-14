@@ -1,8 +1,11 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,29 +24,58 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.music.audify.R
+import com.music.audify.data.CreditKind
 import com.music.audify.data.SongInfo
 import com.music.audify.data.SongInfoRepository
 import com.music.audify.data.compactCount
+import com.music.audify.data.innertube.Innertube
 import com.music.audify.data.model.Song
-import com.music.audify.ui.theme.ArtworkPalette
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Refresh
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 private val INFO_BODY_MAX_HEIGHT = 360.dp
+
+/** The release date in the app's language ("3 Mei 2021"), not the raw ISO form. */
+private fun localizedReleaseDate(raw: String): String = runCatching {
+    LocalDate.parse(raw).format(
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG)
+            .withLocale(Locale.forLanguageTag(Innertube.currentLocaleTag)),
+    )
+}.getOrDefault(raw)
 
 /**
  * Drawn as the same UIAlertController-style card as [AlertScaffold] — centred
  * title, hairline [AlertRule]s, full-width [AlertAction]s — rather than a
  * Material [AlertDialog], so it reads as one of the app's own alerts.
  *
- * Kept in a window [Dialog] because it opens from the song actions sheet, which
- * is itself a window; an in-tree overlay would be drawn underneath it. A
- * separate window can't sample the app's haze, so the card takes the plain
- * surface the other alerts fall back to under "reduce dynamic blur".
+ * Kept in a window [Dialog] because it opens from the song actions menu, which
+ * can sit inside the player's own window; an in-tree overlay would be drawn
+ * underneath it. A
+ * separate window can't sample the app's haze, so the card is [alertGlass]
+ * instead, which samples the app backdrop, and is the plain surface only under
+ * "reduce dynamic blur".
  */
 @Composable
-internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
+internal fun SongInfoDialog(
+    song: Song,
+    backdrop: com.music.audify.ui.components.backdrop.Backdrop? = null,
+    onDismiss: () -> Unit,
+) {
+    // Window Dialog tidak bisa melihat haze/halaman di belakangnya, dan
+    // LocalAppBackdrop merekam halaman utama (bukan player yang sedang terbuka).
+    // Pakai backdrop menu yang membukanya; di luar menu tetap backdrop app.
+    val menuBackdrop = backdrop ?: LocalMenuBackdrop.current ?: LocalAppBackdrop.current
+    CompositionLocalProvider(LocalAppBackdrop provides menuBackdrop) {
+        SongInfoDialogContent(song, onDismiss)
+    }
+}
+
+@Composable
+private fun SongInfoDialogContent(song: Song, onDismiss: () -> Unit) {
     var retry by remember(song.videoId) { mutableIntStateOf(0) }
     val info by produceState<SongInfo?>(null, song, retry) {
         value = null
@@ -51,21 +83,55 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
     }
     val onSurface = MaterialTheme.colorScheme.onSurface
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BoxWithConstraints(
-            modifier = Modifier
+    val motion = rememberMacOSPopupState(onClosed = onDismiss)
+    val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent
+        as? androidx.compose.ui.window.DialogWindowProvider)?.window
+
+    Dialog(
+        onDismissRequest = motion::requestClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        // The scrim below fades with the card; the platform's flat dim would snap in.
+        androidx.compose.runtime.SideEffect { dialogWindow?.setDimAmount(0f) }
+        // Window layar penuh, bukan seukuran kartu: kalau window menyusut
+        // mengikuti kartu, posisi kartu di window-nya 0,0 dan kaca mengambil
+        // gambar latar dari pojok kiri atas, bukan dari tempat kartu berada.
+        Box(
+            Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing),
+                .macOSPopupScrim(motion, SCRIM_COLOR)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = motion::requestClose,
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            Column(
-                Modifier
-                    .width(alertCardWidth(maxWidth))
-                    .heightIn(max = maxHeight)
-                    .clip(RoundedCornerShape(ALERT_CORNER))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .verticalScroll(rememberScrollState()),
-            ) {
+        Box(
+            Modifier.clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = {},
+            ),
+        ) {
+        Column(
+            Modifier
+                .width(ALERT_WIDTH)
+                .macOSPopupMotion(motion)
+                .jellyPopIn(animateIn = false)
+                .clip(RoundedCornerShape(ALERT_CORNER))
+                .alertGlass(RoundedCornerShape(ALERT_CORNER))
+                .touchGlow()
+                // Credits and values arrive after the card is up; it eases to its new
+                // height instead of jumping.
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ),
+        ) {
+            Column(Modifier.fillMaxWidth().macOSPopupContent(motion)) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -102,13 +168,13 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
             AlertRule()
             Column(
                 Modifier
-                    .heightIn(max = minOf(INFO_BODY_MAX_HEIGHT, (this@BoxWithConstraints.maxHeight - 180.dp).coerceAtLeast(0.dp)))
+                    .heightIn(max = INFO_BODY_MAX_HEIGHT)
                     .verticalScroll(rememberScrollState()),
             ) {
                 val unavailable = stringResource(R.string.song_info_unavailable)
                 val rows = listOf(
                     R.string.song_info_album to (info?.album ?: song.albumName),
-                    R.string.song_info_release_date to (info?.releaseDate ?: info?.releaseYear),
+                    R.string.song_info_release_date to (info?.releaseDate?.let(::localizedReleaseDate) ?: info?.releaseYear),
                     R.string.song_info_views to info?.views?.let(::compactCount),
                     R.string.song_info_likes to info?.likes,
                     R.string.song_info_comments to info?.comments,
@@ -119,6 +185,24 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
                         label = stringResource(label),
                         value = value ?: unavailable.takeIf { info != null },
                     )
+                }
+                val credits = info?.credits.orEmpty()
+                if (credits.isNotEmpty()) {
+                    AlertRule(Modifier.padding(start = 16.dp))
+                    Text(
+                        text = stringResource(R.string.song_info_credits),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.W700),
+                        color = onSurface,
+                    )
+                    credits.forEachIndexed { index, credit ->
+                        if (index > 0) AlertRule(Modifier.padding(horizontal = 16.dp))
+                        SongCreditBlock(
+                            label = stringResource(creditLabel(credit.kind)),
+                            text = credit.names.joinToString(if (credit.kind == CreditKind.SAMPLE) "; " else ", ") + ".",
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
                 }
                 if (info?.failed == true) {
                     Text(
@@ -135,9 +219,40 @@ internal fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
                 AlertAction(label = stringResource(R.string.song_info_retry), emphasised = false, onClick = { retry++ })
                 AlertRule()
             }
-            AlertAction(label = stringResource(R.string.done), emphasised = true, onClick = onDismiss)
+            AlertAction(label = stringResource(R.string.done), emphasised = true, onClick = motion::requestClose)
             }
         }
+        }
+        }
+    }
+}
+
+private fun creditLabel(kind: CreditKind): Int = when (kind) {
+    CreditKind.WRITERS -> R.string.song_info_writers
+    CreditKind.PRODUCERS -> R.string.song_info_producers
+    CreditKind.ADDITIONAL_VOCALS -> R.string.song_info_additional_vocals
+    CreditKind.SAMPLE -> R.string.song_info_sample
+}
+
+/** One group of credits: its role in small grey type, the names under it. */
+@Composable
+private fun SongCreditBlock(label: String, text: String) {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+            color = onSurface.copy(alpha = 0.6f),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 20.sp),
+            color = onSurface,
+        )
     }
 }
 
@@ -170,110 +285,6 @@ private fun SongInfoRow(label: String, value: String?) {
                     text = value,
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                     color = onSurface,
-                    textAlign = TextAlign.End,
-                )
-            }
-        }
-    }
-}
-
-/**
- * The sheet's own Song Info page, laid out like the sleep timer picker: a back
- * arrow and title over a hairline, then full-width rows on the artwork tint.
- * [SongInfoDialog] is kept for the held-row menu, which has no pages to swap.
- */
-@Composable
-internal fun SongInfoPage(song: Song, palette: ArtworkPalette, onBack: () -> Unit) {
-    var retry by remember(song.videoId) { mutableIntStateOf(0) }
-    val info by produceState<SongInfo?>(null, song, retry) {
-        value = null
-        value = SongInfoRepository.load(song)
-    }
-
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 8.dp, end = 22.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                    tint = MaterialTheme.colorScheme.onBackground,
-                )
-            }
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.song_info),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
-                    text = listOf(song.title, song.artist).filter { it.isNotBlank() }.joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        HorizontalDivider(thickness = 0.5.dp, color = palette.divider)
-
-        val unavailable = stringResource(R.string.song_info_unavailable)
-        listOf(
-            R.string.song_info_album to (info?.album ?: song.albumName),
-            R.string.song_info_release_date to (info?.releaseDate ?: info?.releaseYear),
-            R.string.song_info_views to info?.views?.let(::compactCount),
-            R.string.song_info_likes to info?.likes,
-            R.string.song_info_comments to info?.comments,
-        ).forEach { (label, value) ->
-            SongInfoPageRow(stringResource(label), value ?: unavailable.takeIf { info != null }, palette)
-        }
-
-        if (info?.failed == true) {
-            ActionRow(Icons.Rounded.Refresh, stringResource(R.string.song_info_retry), accent = palette.accent) {
-                retry++
-            }
-            Text(
-                text = stringResource(R.string.song_info_error),
-                modifier = Modifier.padding(horizontal = 22.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-        Spacer(Modifier.height(24.dp))
-    }
-}
-
-/** Same metrics as the sleep timer's options; the value takes the sheet's accent, spinner while loading. */
-@Composable
-private fun SongInfoPageRow(label: String, value: String?, palette: ArtworkPalette) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.width(16.dp))
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            if (value == null) {
-                CircularProgressIndicator(
-                    color = palette.onBackgroundVariant,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(16.dp),
-                )
-            } else {
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = palette.accent,
                     textAlign = TextAlign.End,
                 )
             }

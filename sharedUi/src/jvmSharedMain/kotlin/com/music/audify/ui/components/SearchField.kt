@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import com.music.audify.sharedui.resources.*
@@ -9,8 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,21 +25,33 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+
+/**
+ * True where a search field sits on a surface its host draws — the top bar's
+ * pill — so the field draws no fill of its own and takes that surface's height
+ * rather than its own 46dp.
+ */
+val LocalSearchFieldOnSurface = staticCompositionLocalOf { false }
 
 /**
  * The pill-shaped search field used at the top of the search page — a
@@ -58,9 +69,22 @@ fun SearchField(
     /** What the empty field says it is for — the one part that changes per screen. */
     placeholder: String = stringResource(Res.string.search_hint),
     modifier: Modifier = Modifier,
+    /**
+     * Replaces the field's own fill and height when set, for a host that dresses
+     * it its own way (the glass pill on Settings). It must set its own height.
+     */
+    chrome: Modifier? = null,
+    /** Reports whether the field has focus, for a host that shows something else while it has none. */
+    onFocusChange: ((Boolean) -> Unit)? = null,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    // Teks yang diganti dari luar (panah saran, riwayat) membawa kursor ke akhir;
+    // ketikan biasa tidak terpengaruh karena teksnya sudah sama dengan query.
+    var field by remember { mutableStateOf(TextFieldValue(query, TextRange(query.length))) }
+    LaunchedEffect(query) {
+        if (field.text != query) field = TextFieldValue(query, TextRange(query.length))
+    }
     // Both ways of saying "search this" do the same two things, so they're
     // written once here rather than twice.
     val submit = {
@@ -70,10 +94,16 @@ fun SearchField(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            // Keep a comfortable default target while allowing the field to
-            // grow when the system font scale makes its text taller.
-            .heightIn(min = 48.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(11.dp))
+            .then(
+                if (LocalSearchFieldOnSurface.current) {
+                    Modifier.fillMaxHeight()
+                } else {
+                    // Fixed height prevents the row from growing when text is entered
+                    chrome ?: Modifier
+                        .height(46.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(11.dp))
+                },
+            )
             // Asymmetric: the magnifier is a button now and wants a real touch
             // target, so it's given the room by pulling the field's own start
             // padding in rather than by pushing the glyph and the text along.
@@ -89,9 +119,9 @@ fun SearchField(
             contentDescription = stringResource(Res.string.search),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .size(48.dp)
+                .size(32.dp)
                 .clip(CircleShape)
-                .clickable(enabled = query.isNotBlank(), role = Role.Button, onClick = submit)
+                .clickable(enabled = query.isNotBlank(), onClick = submit)
                 .padding(6.dp),
         )
         Spacer(Modifier.width(4.dp))
@@ -108,8 +138,11 @@ fun SearchField(
                 )
             }
             BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
+                value = field,
+                onValueChange = {
+                    field = it
+                    if (it.text != query) onQueryChange(it.text)
+                },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onBackground,
@@ -120,7 +153,7 @@ fun SearchField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
-                    .semantics { contentDescription = placeholder },
+                    .onFocusChanged { onFocusChange?.invoke(it.isFocused) },
             )
         }
         // Emptying the field is also how the recent searches are got back to,
@@ -128,9 +161,9 @@ fun SearchField(
         if (query.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
-                    .clickable(role = Role.Button) {
+                    .clickable {
                         onQueryChange("")
                         // Clearing is an edit, not a dismissal: leave the user
                         // ready to immediately type their next search.

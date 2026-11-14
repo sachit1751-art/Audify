@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.components
 
 import android.media.AudioFormat
@@ -67,6 +65,7 @@ import com.music.audify.R
 import com.music.audify.data.NerdStats
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.playback.AudioOutputStatus
+import com.music.audify.playback.audio.bitperfect.BitPerfectOutput
 import com.music.audify.playback.dsd.DsdFilter
 import com.music.audify.playback.dsd.DsdFormat
 import dev.chrisbanes.haze.HazeState
@@ -75,8 +74,6 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-
-private val PIPELINE_ICON_TINT = Color.White.copy(alpha = 0.6f)
 
 /**
  * Whether decoded samples are reaching the output unaltered, and what is
@@ -94,18 +91,18 @@ private val PIPELINE_ICON_TINT = Color.White.copy(alpha = 0.6f)
  * 1. A DSP stage is running. Every one of these is a filter or a gain, and
  *    none of them can run and leave the output bit-exact.
  * 2. The output encoding cannot carry the source — a 24-bit stream on a route
- *    that will not open a float track, or 32-bit integer PCM, which no route
- *    can carry. [outputExact] is the sink's own verdict on that; see
- *    `PrecisionAudioSink.publishOutputExactness`.
+ *    that will not open a float track, or 32-bit integer PCM, which no
+ *    AudioTrack route can carry. [outputExact] is the sink's own verdict on
+ *    that; see `PrecisionAudioSink.publishOutputExactness`.
  *
- * This used to be gated behind a Bit-perfect mode that turned the DSP stages
- * off for you. The mode is gone — with every stage already idle the samples
- * were bit-exact without it, so the toggle mostly duplicated the Output
- * precision preference — but the readout is not, because "is it exact right
- * now" is worth answering whether or not there is a switch that forces it.
+ * Exactness here stops at the app: Android's mixer may still resample what
+ * leaves it. The exclusive output ([bitPerfect], set under Settings → Bit-perfect
+ * output) is the one path where it reaches the DAC unchanged, and every DSP
+ * stage is bypassed there, so only the source itself can make it inexact.
  */
 private fun bitExactVerdict(
     dsd: Boolean,
+    bitPerfect: BitPerfectOutput.Status,
     outputExact: Boolean,
     outputExactDetail: String?,
     loudnessActive: Boolean,
@@ -116,6 +113,13 @@ private fun bitExactVerdict(
     // here, so the PCM conversion is a deviation every DSD track carries,
     // whatever the stages after it do.
     dsd -> "No — DSD converted to PCM"
+    bitPerfect.active && bitPerfect.dacLimited ->
+        "No — ${bitPerfect.sourceBits}-bit / ${rateText(bitPerfect.sourceRateHz)} converted to " +
+            "${bitPerfect.deviceName}'s max"
+    // Every DSP stage is bypassed on the exclusive output, so the only
+    // question left is whether the source itself was integer PCM.
+    bitPerfect.active && bitPerfect.exact -> "Yes — bit-perfect to ${bitPerfect.deviceName}"
+    bitPerfect.active -> "No — source isn't lossless PCM"
     loudnessActive -> "No — loudness normalization"
     eqActive -> "No — equalizer"
     spatialActive -> "No — spatial audio"
@@ -145,6 +149,7 @@ fun AudioPipelineDialog(
 ) {
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
     val outputStatus by AudioOutputStatus.current.collectAsStateWithLifecycle()
+    val bitPerfect by BitPerfectOutput.status.collectAsStateWithLifecycle()
 
     val eqEnabled by AppSettings.equalizerEnabled.collectAsStateWithLifecycle()
     val eqPreset by AppSettings.equalizerPreset.collectAsStateWithLifecycle()
@@ -315,7 +320,11 @@ fun AudioPipelineDialog(
             // as what it is rather than as a resample, and its output
             // side is the PCM it produced, not the DSD rate.
             val inRate = dsdRateHz ?: nerdStats?.sampleRateHz
-            val outRate = if (dsdRateHz != null) DsdFormat.PCM_RATE else outputStatus.actualSampleRateHz
+            val outRate = when {
+                dsdRateHz != null -> DsdFormat.PCM_RATE
+                bitPerfect.active -> bitPerfect.sampleRateHz
+                else -> outputStatus.actualSampleRateHz
+            }
             val isPassthrough = inRate != null && outRate != null && inRate == outRate
             val ioRateText = if (inRate != null && outRate != null) {
                 "${rateText(inRate)} → ${rateText(outRate)}"
@@ -425,6 +434,7 @@ fun AudioPipelineDialog(
                     stringResource(R.string.pipeline_bit_exact),
                     bitExactVerdict(
                         dsd = dsdRateHz != null,
+                        bitPerfect = bitPerfect,
                         outputExact = outputStatus.outputExact,
                         outputExactDetail = outputStatus.outputExactDetail,
                         loudnessActive = loudnessNormalization && outputStatus.loudnessGainDb != null,
@@ -463,11 +473,11 @@ fun AudioPipelineDialog(
             ) {
                 PipelineRow(stringResource(R.string.pipeline_device_name), deviceName)
                 PipelineRow("Route", outputStatus.routeKind.name)
-                PipelineRow("Transport", outputStatus.transportType.label)
+                PipelineRow("Transport", bitPerfect.driver.takeIf { bitPerfect.active } ?: outputStatus.transportType.label)
 
                 val directStatusText = when {
-                    outputStatus.transportType == com.music.audify.playback.audio.TransportType.DIRECT_USB ->
-                        "Active (Direct Userspace USB)"
+                    bitPerfect.active ->
+                        "Active (${bitPerfect.driver}, bypasses mixer)"
                     outputStatus.directPlaybackActual ->
                         "Active (Direct AudioTrack, Bypasses Mixer)"
                     outputStatus.directPlaybackRejected ->
@@ -478,11 +488,14 @@ fun AudioPipelineDialog(
                         "Not Supported (Mixed Path)"
                 }
                 PipelineRow("Direct", directStatusText)
-                PipelineRow("AudioTrack", audioTrackText)
+                PipelineRow(
+                    if (bitPerfect.active) "Output" else "AudioTrack",
+                    if (bitPerfect.active) "PCM${bitPerfect.outputBits} / ${rateText(bitPerfect.sampleRateHz)}" else audioTrackText,
+                )
 
                 val mixerText = when {
-                    outputStatus.transportType == com.music.audify.playback.audio.TransportType.DIRECT_USB ->
-                        "Direct (Bypasses System Mixer)"
+                    bitPerfect.active ->
+                        if (bitPerfect.dacLimited) "Bypassed (DAC max)" else "Bypassed (bit-perfect)"
                     outputStatus.directPlaybackActual ->
                         "Direct path active; endpoint format not independently verified"
                     outputStatus.systemMixerRateHz != null -> {
@@ -876,7 +889,7 @@ private fun PipelineRow(label: String, value: String) {
 
 /** Hairline separator between stages, indented to align with the text column and clear the signal lane. */
 @Composable
-internal fun PipelineRule(modifier: Modifier = Modifier) {
+internal fun PipelineRule(modifier: Modifier = Modifier.padding(start = 52.dp, end = 16.dp)) {
     Box(
         modifier
             .fillMaxWidth()

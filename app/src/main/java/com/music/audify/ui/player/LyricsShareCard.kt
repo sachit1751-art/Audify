@@ -1,14 +1,12 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
-
-import androidx.core.graphics.createBitmap
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import com.music.audify.ui.replay.Fonts
 import com.music.audify.ui.replay.drawArtwork
 import com.music.audify.ui.replay.drawBackdrop
@@ -68,63 +66,91 @@ internal suspend fun renderLyricsShareCard(
     // barely taller than its own text instead of a 9:16 sheet with a paragraph
     // floating in the middle of it, and the size comes down only as far as the
     // ladder goes — past that the frame gives rather than the type does.
-    val headTop = HEADER_BOTTOM + GAP_ABOVE_BODY
-    val frameRoom = MAX_CARD_H - FOOTER_THUMB - FOOTER_PAD - GAP_BELOW_BODY - headTop
+    val chrome = OUTER_TOP + PANEL_PAD_V * 2 + FOOTER_H + BRAND_BAND
+    val frameRoom = MAX_CARD_H - chrome
     val plan = fittestPlan(type, card.lines, frameRoom)
-    // A story is always the whole frame, so the spare room is split above and
-    // below the passage; otherwise the card is only as tall as its words.
-    val spare = if (story) (frameRoom - plan.content).coerceAtLeast(0f) else 0f
-    val bodyTop = headTop + spare / 2
-    // The passage ends where its own rows end, and everything under it — the
-    // gap, the sleeve credit, the foot — hangs off that. Because the card is
-    // measured from the same sum the rows are drawn from, no line can ever
-    // land past the bottom by a rounding error and be replaced by a mark
-    // saying something was left out.
+    // Apple Music style: one translucent rounded panel holding the words, with
+    // the song strip fused to its foot. A story pads the frame to 9:16 and
+    // keeps the whole panel centred in it.
+    val naturalH = chrome + plan.content
+    val cardH = if (story) maxOf(MAX_CARD_H, naturalH) else naturalH
+    val spare = cardH - naturalH
+    val panelTop = OUTER_TOP + spare / 2
+    val bodyTop = panelTop + PANEL_PAD_V
     val bodyBottom = bodyTop + plan.content
-    val cardH = bodyBottom + spare / 2 + GAP_BELOW_BODY + FOOTER_THUMB + FOOTER_PAD
+    val footerTop = bodyBottom + PANEL_PAD_V
+    val panelBottom = footerTop + FOOTER_H
 
-    val bitmap = createBitmap(CARD_W, cardH.roundToInt())
+    val bitmap = Bitmap.createBitmap(CARD_W, cardH.roundToInt(), Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     drawBackdrop(canvas, cover, 0f, cardH)
 
-    // ── Header ──────────────────────────────────────────────────────────────
-    // The mark alone, at the top right — the same one the Replay carries, so
-    // two of these cards still read as one family. Nothing else goes above
-    // the passage: the picture is the verse, not a caption for it.
-    val brand = type.heading(46f, 0xE6FFFFFF.toInt()).apply {
-        textAlign = Paint.Align.RIGHT
+    // ── Panel ───────────────────────────────────────────────────────────────
+    val panel = RectF(CARD_MARGIN, panelTop, CARD_W - CARD_MARGIN, panelBottom)
+    val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    fill.color = 0x59000000
+    canvas.drawRoundRect(panel, PANEL_RADIUS, PANEL_RADIUS, fill)
+    fill.color = 0x0FFFFFFF
+    canvas.drawRoundRect(panel, PANEL_RADIUS, PANEL_RADIUS, fill)
+    // The song strip: a darker band whose bottom corners follow the panel.
+    val footerPath = Path().apply {
+        addRoundRect(
+            RectF(panel.left, footerTop, panel.right, panelBottom),
+            floatArrayOf(
+                0f, 0f, 0f, 0f,
+                PANEL_RADIUS, PANEL_RADIUS, PANEL_RADIUS, PANEL_RADIUS,
+            ),
+            Path.Direction.CW,
+        )
     }
-    canvas.drawText(BRAND, CARD_W - CARD_MARGIN, HEADER_BASELINE, brand)
-    drawLogo(
-        canvas,
-        context,
-        CARD_W - CARD_MARGIN - brand.measureText(BRAND) - LOGO_GAP,
-        HEADER_BASELINE,
+    fill.color = 0x33000000
+    canvas.drawPath(footerPath, fill)
+    val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = 0x26FFFFFF
+    }
+    canvas.drawRoundRect(
+        RectF(panel.left + 1f, panel.top + 1f, panel.right - 1f, panel.bottom - 1f),
+        PANEL_RADIUS,
+        PANEL_RADIUS,
+        edge,
     )
 
     // ── The passage ─────────────────────────────────────────────────────────
-    // Every row that exists is drawn: the frame below is measured from
-    // wherever these rows end, so there is never room to be short of and
-    // nothing that has to be cut to make it.
+    val textLeft = CARD_MARGIN + PANEL_PAD
     var y = bodyTop
     for (row in plan.rows) {
         val baseline = y + row.gapBefore - row.paint.ascent() +
             if (row.isGap) row.paint.textSize * GAP_MARKER_OFFSET else 0f
-        val x = if (row.centered) CARD_W / 2f else CARD_MARGIN
+        val x = if (row.centered) CARD_W / 2f else textLeft
         canvas.drawText(row.text, x, baseline, row.paint)
         y += row.gapBefore + row.height
     }
 
-    // ── Footer ──────────────────────────────────────────────────────────────
-    // Which song this is — which only the backdrop had been saying until now.
-    val thumbY = cardH - FOOTER_PAD - FOOTER_THUMB
-    drawArtwork(canvas, cover, card.song.title, CARD_MARGIN, thumbY, FOOTER_THUMB, false)
-    val textX = CARD_MARGIN + FOOTER_THUMB + 34f
-    val room = CARD_W - CARD_MARGIN - textX
-    val title = type.body(50f, Color.WHITE, bold = true)
-    canvas.drawText(ellipsised(card.song.title, title, room), textX, thumbY + 74f, title)
-    val artist = type.body(42f, 0x99FFFFFF.toInt())
-    canvas.drawText(ellipsised(card.song.artist, artist, room), textX, thumbY + 132f, artist)
+    // ── Song strip ──────────────────────────────────────────────────────────
+    val thumbY = footerTop + (FOOTER_H - FOOTER_THUMB) / 2f
+    drawArtwork(canvas, cover, card.song.title, textLeft, thumbY, FOOTER_THUMB, false, 0.12f)
+    val textX = textLeft + FOOTER_THUMB + 32f
+    val room = panel.right - PANEL_PAD - textX
+    val title = type.body(46f, Color.WHITE, bold = true)
+    canvas.drawText(ellipsised(card.song.title, title, room), textX, thumbY + 54f, title)
+    val artist = type.body(40f, 0x99FFFFFF.toInt())
+    canvas.drawText(ellipsised(card.song.artist, artist, room), textX, thumbY + 104f, artist)
+
+    // ── Brand ───────────────────────────────────────────────────────────────
+    // Under the panel, centred, where Apple Music puts its own mark.
+    val brand = type.heading(36f, 0xB3FFFFFF.toInt())
+    val brandBaseline = panelBottom + 88f
+    // The mark is drawn at the word's own cap height and sits on its baseline,
+    // so the Audify mark and "Music" read as one lockup.
+    val capBounds = android.graphics.Rect().also { brand.getTextBounds("Z", 0, 1, it) }
+    val logoH = capBounds.height().toFloat()
+    val logoW = logoH * LOGO_ASPECT
+    val brandWidth = logoW + LOGO_GAP + brand.measureText(BRAND)
+    val brandLeft = (CARD_W - brandWidth) / 2f
+    drawLogo(canvas, context, brandLeft + logoW, brandBaseline, logoW, logoH)
+    canvas.drawText(BRAND, brandLeft + logoW + LOGO_GAP, brandBaseline, brand)
 
     bitmap
 }
@@ -267,23 +293,24 @@ private const val CARD_W = 1080
  */
 private const val MAX_CARD_H = 1920f
 
-private const val CARD_MARGIN = 72f
-private const val CARD_CONTENT_W = CARD_W - CARD_MARGIN * 2
+/** Side margin around the panel, and the padding inside it. */
+private const val CARD_MARGIN = 56f
+private const val PANEL_PAD = 56f
+private const val PANEL_PAD_V = 64f
+private const val PANEL_RADIUS = 56f
+private const val CARD_CONTENT_W = CARD_W - (CARD_MARGIN + PANEL_PAD) * 2
 
 private const val LOGO_GAP = 20f
-private const val BRAND = "Audify"
+private const val BRAND = "Music"
+private const val LOGO_ASPECT = 730f / 484f
 
-/** Baseline of the mark at the top right, and just under it where the gap starts. */
-private const val HEADER_BASELINE = 132f
-private const val HEADER_BOTTOM = 170f
+/** Air above the panel, and the band under it that holds the brand. */
+private const val OUTER_TOP = 56f
+private const val BRAND_BAND = 132f
 
-/** Air kept between the fixed furniture and the passage, both ends alike. */
-private const val GAP_ABOVE_BODY = 20f
-private const val GAP_BELOW_BODY = 20f
-
-/** The sleeve square in the footer, and the air kept under it. */
-private const val FOOTER_THUMB = 160f
-private const val FOOTER_PAD = 96f
+/** The song strip at the foot of the panel, and the sleeve square in it. */
+private const val FOOTER_H = 216f
+private const val FOOTER_THUMB = 128f
 
 /** Smallest the translation line is allowed to get before it stops being legible. */
 private const val SUB_FLOOR = 24f
@@ -301,7 +328,7 @@ private const val GAP_MARKER_OFFSET = 0.18f
  * The last rung doubles as the floor — see [fittestPlan] for why the frame is
  * what gives way under it rather than the type.
  */
-private val FIT_LADDER = floatArrayOf(96f, 88f, 80f, 72f, 64f, 56f, 50f, 44f, 38f, 32f)
+private val FIT_LADDER = floatArrayOf(80f, 72f, 64f, 56f, 50f, 44f, 38f, 32f)
 
 // ── The panel's type, as ratios ────────────────────────────────────────────
 // Every number here is one the lyrics panel uses, divided by the size it uses

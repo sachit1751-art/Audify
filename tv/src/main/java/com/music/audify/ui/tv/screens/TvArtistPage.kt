@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.music.audify.data.canvas.AppleArtistArt
 import com.music.audify.data.canvas.AppleArtistArtRepository
+import com.music.audify.data.canvas.appleCatalogue
 import com.music.audify.data.model.BrowseType
 import com.music.audify.data.model.DetailPage
 import com.music.audify.data.model.HomeShelf
@@ -93,6 +94,7 @@ private const val SongsPerColumn = 4
 @Composable
 internal fun TvArtistContent(
     page: DetailPage?,
+    browseId: String,
     title: String,
     artworkUrl: String?,
     playingId: String?,
@@ -112,12 +114,12 @@ internal fun TvArtistContent(
 
     // Apple Music's photo and title logo for this artist, found by name, as the
     // phone does. YouTube's own picture stands in until — and unless — it lands.
-    var appleArt by remember(title) { mutableStateOf(AppleArtistArtRepository.cached(title)) }
-    LaunchedEffect(title, page?.songs is UiState.Loading) {
+    var appleArt by remember(browseId) { mutableStateOf(AppleArtistArtRepository.cached(browseId)) }
+    LaunchedEffect(browseId, title, page?.songs is UiState.Loading) {
         // A title that is still a whole credit ("A, B & C") finds nobody; wait
         // for the page to settle on the one name.
         if (page != null && page.songs !is UiState.Loading) {
-            appleArt = AppleArtistArtRepository.artFor(title) ?: appleArt
+            appleArt = AppleArtistArtRepository.artFor(browseId, page.title) { page.appleCatalogue() } ?: appleArt
         }
     }
 

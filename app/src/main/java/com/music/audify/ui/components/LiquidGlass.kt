@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * The glass rendering itself is Kyant0/backdrop (Apache-2.0), vendored at
  * [com.music.audify.ui.components.backdrop] — see that package for the
@@ -47,6 +45,14 @@ val LocalLiquidGlassEnabled = staticCompositionLocalOf { false }
 val LocalAppBackdrop = staticCompositionLocalOf<Backdrop> { error("No AppBackdrop provided") }
 
 /**
+ * Backdrop yang dipakai panel menu yang sedang terbuka (still player, atau still
+ * halaman). Null di luar menu. Dialog di window sendiri yang dibuka dari isi menu,
+ * seperti Song Info, memakainya supaya blur-nya mengambil latar yang sama dengan
+ * menu itu, bukan [LocalAppBackdrop] yang merekam halaman utama di bawah player.
+ */
+internal val LocalMenuBackdrop = compositionLocalOf<Backdrop?> { null }
+
+/**
  * Where a [liquidGlass] surface composed under it also records the glass it
  * draws — the sampled, blurred and tinted backdrop, without its rim or shadow —
  * so a lens above it can refract that surface rather than the page behind it.
@@ -63,11 +69,11 @@ fun isGlassSupported(sdkInt: Int = Build.VERSION.SDK_INT): Boolean = sdkInt >= B
 
 /** Apple-matched defaults (Echo's GlassEffectConfig()), fixed rather than user sliders. */
 private const val VIBRANCY = 1f
-private const val BLUR_RADIUS_DP = 8f
+private const val BLUR_RADIUS_DP = 10f
 private const val LENS_HEIGHT = 0.5f
 private const val LENS_AMOUNT = 0.5f
 private const val LENS_MAX_DP = 48f
-private const val SURFACE_OPACITY = 0.4f
+private const val SURFACE_OPACITY = 0.30f
 
 /**
  * Resolution fraction the glass surface records and processes its backdrop at.
@@ -109,35 +115,23 @@ fun glassContentColor(): Color =
  * Selected-tab indicator colour for a glass surface: white in both themes.
  *
  * In light theme that is the inverse of [glassContentColor], a bright lift
- * behind a dark glyph. In dark theme it is a lighter step of the bar's own
- * white-tinted glass (see [glassBarTint]) rather than a black scrim pressed
- * into it — the selected tab is raised out of the bar, as on iOS, not sunk.
+ * behind a dark glyph. In dark theme it is a faint white lift over the bar's
+ * dark glass rather than a black scrim pressed into it — the selected tab is
+ * raised out of the bar, as on iOS, not sunk.
  */
 @Composable
 fun glassIndicatorColor(): Color =
     if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
-        Color.White.copy(alpha = 0.5f)
+        Color.White.copy(alpha = LIGHT_INDICATOR_OPACITY)
     } else {
         Color.White.copy(alpha = DARK_INDICATOR_OPACITY)
     }
 
-/**
- * The surface tint the navigation bar's glass is drawn with.
- *
- * In dark theme the default near-black tint makes the bar a darker hole in a
- * dark page, with nothing to say where its edge is. A faint white instead
- * gives it the frosted grey of iOS's bar, which reads as glass over black.
- * Light theme keeps the default.
- */
-@Composable
-fun glassBarTint(): Color? =
-    if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) null else Color.White.copy(alpha = DARK_BAR_OPACITY)
-
-/** How white the nav bar's glass is in dark theme — see [glassBarTint]. */
-private const val DARK_BAR_OPACITY = 0.09f
-
 /** The selected tab's pill in dark theme, a step whiter than the bar. */
-private const val DARK_INDICATOR_OPACITY = 0.14f
+private const val DARK_INDICATOR_OPACITY = 0.30f
+
+/** The selected tab's pill in light theme. */
+private const val LIGHT_INDICATOR_OPACITY = 0.65f
 
 /**
  * A lightweight visual match for liquid glass over a stable background.
@@ -159,17 +153,23 @@ fun Modifier.lightweightLiquidGlass(
         Color(0xFF121212)
     }
     val shapeProvider = ShapeProvider { shape }
+    val custom by AppSettings.glassCustom.collectAsStateWithLifecycle()
+    val highlightSpec = remember(custom.rim) { Highlight.Default.copy(alpha = custom.rim) }
 
     return clip(shape)
         .background(
-            color = if (useGlass) glassTint.copy(alpha = SURFACE_OPACITY) else fallbackColor,
+            color = if (useGlass) {
+                glassTint.copy(alpha = (SURFACE_OPACITY * custom.tint).coerceIn(0f, 1f))
+            } else {
+                fallbackColor
+            },
             shape = shape,
         )
         .then(
             if (useGlass) {
                 HighlightElement(
                     shapeProvider = shapeProvider,
-                    highlight = { Highlight.Default },
+                    highlight = { highlightSpec },
                 )
             } else {
                 Modifier
@@ -191,10 +191,12 @@ fun Modifier.lightweightLiquidGlass(
 fun Modifier.liquidGlassRim(shape: CornerBasedShape): Modifier {
     if (!LocalLiquidGlassEnabled.current || !isGlassSupported()) return this
     val shapeProvider = remember(shape) { ShapeProvider { shape } }
+    val custom by AppSettings.glassCustom.collectAsStateWithLifecycle()
+    val highlightSpec = remember(custom.rim) { Highlight.Default.copy(alpha = custom.rim) }
     return then(
         HighlightElement(
             shapeProvider = shapeProvider,
-            highlight = { Highlight.Default },
+            highlight = { highlightSpec },
         ),
     )
 }
@@ -220,9 +222,14 @@ fun Modifier.liquidGlass(
     shape: CornerBasedShape,
     /** Drawn over the glass in place of the theme's default tint, when set. */
     surfaceTint: Color? = null,
+    /** False keeps the blur, tint and rim but skips the lens that bends what is behind. */
+    refract: Boolean = true,
 ): Modifier {
     if (!isGlassSupported()) return this
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val frosted by AppSettings.frostedGlass.collectAsStateWithLifecycle()
+    val clarity by AppSettings.glassClarity.collectAsStateWithLifecycle()
+    val custom by AppSettings.glassCustom.collectAsStateWithLifecycle()
     if (reduceDynamicBlur) {
         return background(MaterialTheme.colorScheme.surface, shape)
             .border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, shape)
@@ -230,37 +237,58 @@ fun Modifier.liquidGlass(
     val backdrop = LocalAppBackdrop.current
     val exportedBackdrop = LocalGlassExport.current
     val density = LocalDensity.current
-    val blurPx = with(density) { BLUR_RADIUS_DP.dp.toPx() } * GLASS_RESOLUTION_SCALE
-    val lensHeightPx = with(density) { (LENS_HEIGHT * LENS_MAX_DP).dp.toPx() } * GLASS_RESOLUTION_SCALE
-    val lensAmountPx = with(density) { (LENS_AMOUNT * LENS_MAX_DP).dp.toPx() } * GLASS_RESOLUTION_SCALE
-    val themeTint = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
-        Color(0xFFFAFAFA)
+    val resolution = (clarity.resolutionScale * custom.quality).coerceIn(0.2f, 1f)
+    val blurPx = with(density) { BLUR_RADIUS_DP.dp.toPx() } * resolution * clarity.blurScale * custom.blur
+    val lensHeightPx = with(density) { (LENS_HEIGHT * LENS_MAX_DP).dp.toPx() } * resolution * custom.refractionWidth
+    val lensAmountPx = with(density) { (LENS_AMOUNT * LENS_MAX_DP).dp.toPx() } * resolution *
+        clarity.lensScale * custom.refraction
+    val rainbowStrength = custom.rainbowStrength(clarity.chromatic)
+    val highlightSpec = remember(custom.rim) { Highlight.Default.copy(alpha = custom.rim) }
+    val isLightTheme = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+    val shadowSpec = remember(custom.shadow, isLightTheme) {
+        // A light page has nothing darker behind the bar, so the shadow sets it apart.
+        val base = if (isLightTheme) 0.18f else 0.1f
+        Shadow.Default.copy(color = Color.Black.copy(alpha = (base * custom.shadow).coerceIn(0f, 1f)))
+    }
+    val themeTint = if (isLightTheme) {
+        Color(0xFFF2F2F7)
     } else {
         Color(0xFF121212)
     }
-    val surfaceTintColor = surfaceTint ?: themeTint.copy(alpha = SURFACE_OPACITY)
+    val tintAlpha = (clarity.tintAlpha * custom.tint).coerceIn(0f, 1f)
+    // White glass over a white page is invisible, so light theme keeps a minimum fill.
+    val surfaceTintColor = surfaceTint
+        ?: themeTint.copy(alpha = if (isLightTheme) maxOf(tintAlpha, 0.6f) else tintAlpha)
+    // White 10% vanishes against a light page; use a dark hairline there.
+    val edgeColor = if (isLightTheme) {
+        Color.Black.copy(alpha = 0.12f)
+    } else {
+        GLASS_EDGE_COLOR
+    }
 
     return drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
         effects = {
-            colorControls(saturation = 1f + 0.5f * VIBRANCY)
-            blur(blurPx)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Frosted: hanya saturasi ringan + blur, tanpa lensa (bagian terberat di GPU).
+            colorControls(saturation = (if (frosted) 1.15f else clarity.saturation) * custom.saturation)
+            blur(if (frosted) blurPx * 1.4f else blurPx)
+            if (!frosted && refract && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 lens(
                     refractionHeight = lensHeightPx,
                     refractionAmount = lensAmountPx,
-                    depthEffect = true,
-                    chromaticAberration = true,
+                    depthEffect = custom.depth,
+                    chromaticAberration = rainbowStrength > 0f,
+                    chromaticStrength = rainbowStrength,
                 )
             }
         },
-        highlight = { Highlight.Default },
-        shadow = { Shadow.Default },
+        highlight = { highlightSpec },
+        shadow = { if (frosted && !isLightTheme) null else shadowSpec },
         onDrawSurface = {
             drawRect(color = surfaceTintColor, size = size)
         },
         exportedBackdrop = exportedBackdrop,
-        backdropScale = GLASS_RESOLUTION_SCALE,
-    )
+        backdropScale = resolution,
+    ).border(GLASS_EDGE_WIDTH, edgeColor, shape)
 }

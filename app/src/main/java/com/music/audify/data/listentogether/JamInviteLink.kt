@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.listentogether
 
 import android.content.Intent
@@ -15,7 +13,7 @@ data class ParsedJamInvite(
     val serverUrl: String? = null,
 )
 
-/** Relays a Audify web or scheme invite from [com.music.audify.MainActivity] to Compose. */
+/** Relays an Audify web or scheme invite from [com.music.audify.MainActivity] to Compose. */
 object JamInviteLink {
 
     const val ORIGIN = "https://bitchord.kushagrasingh.in"
@@ -62,7 +60,7 @@ object JamInviteLink {
         val server = extractQueryParam(query, "server")?.let { sanitizeServerUrl(it) }
 
         // 1. Custom scheme: audify://party/<CODE> or audify://party?code=<CODE>
-        if (scheme == CUSTOM_SCHEME && host == CUSTOM_HOST) {
+        if ((scheme == CUSTOM_SCHEME || scheme == "audify") && host == CUSTOM_HOST) {
             val pathPart = uri.path.orEmpty().trim('/').takeIf { it.isNotBlank() }
             val candidate = pathPart ?: extractQueryParam(query, "code") ?: return null
             val code = cleanCode(candidate) ?: return null

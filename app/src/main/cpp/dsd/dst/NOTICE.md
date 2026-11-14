@@ -1,7 +1,3 @@
-<!--
-Copyright (c) 2026 Sachit. All rights reserved.
-Project: AUDIFY
--->
 # DST decoder
 
 `decoder.c` derives from Peter Ross's FFmpeg DST decoder through DSD-Nexus,

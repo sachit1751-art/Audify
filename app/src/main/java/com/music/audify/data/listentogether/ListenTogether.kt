@@ -1,8 +1,4 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.listentogether
-
-import androidx.core.content.edit
 
 import android.content.Context
 import android.os.SystemClock
@@ -679,7 +675,7 @@ object ListenTogether {
 
         val code = prefs.getString(KEY_CODE, null)
         val saved = prefs.getString(KEY_TOKEN, null)
-        prefs.edit {remove(KEY_CODE).remove(KEY_TOKEN)}
+        prefs.edit().remove(KEY_CODE).remove(KEY_TOKEN).apply()
         if (!code.isNullOrBlank() && !saved.isNullOrBlank()) {
             releaseStaleSlot(code, saved)
         }
@@ -750,7 +746,7 @@ object ListenTogether {
             "setCustomServerUrl accepts only canonical URLs produced by parseAndNormalizeServerUrl"
         }
 
-        prefs.edit {putString(KEY_SERVER, normalizedUrl)}
+        prefs.edit().putString(KEY_SERVER, normalizedUrl).apply()
         _customServer.value = normalizedUrl
 
         val (job, _) = resolutionMutex.withLock {
@@ -772,7 +768,7 @@ object ListenTogether {
     fun nickname(): String = prefs.getString(KEY_NICKNAME, null).orEmpty()
 
     fun setNickname(value: String) {
-        prefs.edit {putString(KEY_NICKNAME, value.trim().take(80))}
+        prefs.edit().putString(KEY_NICKNAME, value.trim().take(80)).apply()
     }
 
     /**
@@ -831,10 +827,10 @@ object ListenTogether {
         withContext(NonCancellable) {
             activePartyServerBase = serverBase
             token = membership.token
-            prefs.edit {
-                    putString(KEY_CODE, membership.code)
-                    .putString(KEY_TOKEN, membership.token)
-                }
+            prefs.edit()
+                .putString(KEY_CODE, membership.code)
+                .putString(KEY_TOKEN, membership.token)
+                .apply()
             clock.reset()
             _state.value = State(
                 code = membership.code,
@@ -888,10 +884,10 @@ object ListenTogether {
         withContext(NonCancellable) {
             activePartyServerBase = serverBase
             token = membership.token
-            prefs.edit {
-                    putString(KEY_CODE, membership.code)
-                    .putString(KEY_TOKEN, membership.token)
-                }
+            prefs.edit()
+                .putString(KEY_CODE, membership.code)
+                .putString(KEY_TOKEN, membership.token)
+                .apply()
             clock.reset()
             _state.value = State(
                 code = membership.code,
@@ -1024,10 +1020,10 @@ object ListenTogether {
 
                 // Commit new party session
                 token = membership.token
-                prefs.edit {
-                        putString(KEY_CODE, membership.code)
-                        .putString(KEY_TOKEN, membership.token)
-                    }
+                prefs.edit()
+                    .putString(KEY_CODE, membership.code)
+                    .putString(KEY_TOKEN, membership.token)
+                    .apply()
                 clock.reset()
                 _state.value = State(
                     code = membership.code,
@@ -1059,7 +1055,7 @@ object ListenTogether {
             clock.reset()
             token = null
             activePartyServerBase = null
-            prefs.edit {remove(KEY_CODE).remove(KEY_TOKEN)}
+            prefs.edit().remove(KEY_CODE).remove(KEY_TOKEN).apply()
             _state.value = State()
             if (code != null && held != null) {
                 releaseStaleSlotOnServer(currentServer, code, held)
@@ -1127,9 +1123,6 @@ object ListenTogether {
         val frame = buildJsonObject {
             put("type", "control")
             put("action", action)
-            // Safe for older Go servers (unknown JSON field) and lets the
-            // Durable Object suppress a retransmitted control after reconnect.
-            put("eventId", UUID.randomUUID().toString())
             body()
         }
         send(frame)
@@ -1478,7 +1471,10 @@ object ListenTogether {
         val account = store.activeSession ?: return null
         val profile = account.profiles.firstOrNull { it.profileId == account.activeProfileId }
             ?: account.profiles.firstOrNull()
+        val override = AppSettings.profileOverride.value
+            .takeIf { it.owner == AppSettings.profileOwnerOf(account.email) }
         val name = nickname.trim().takeIf { it.isNotBlank() }
+            ?: override?.name?.takeIf { it.isNotBlank() }
             ?: profile?.name?.takeIf { it.isNotBlank() }
             ?: account.name.takeIf { it.isNotBlank() }
             ?: account.email.substringBefore('@').takeIf { it.isNotBlank() }
@@ -1518,14 +1514,14 @@ object ListenTogether {
 
     private fun writeKicks(entries: Map<String, Long>) {
         if (entries.isEmpty()) {
-            prefs.edit {remove(KEY_KICKED)}
+            prefs.edit().remove(KEY_KICKED).apply()
             return
         }
         val encoded = json.encodeToString(
             MapSerializer(String.serializer(), Long.serializer()),
             entries,
         )
-        prefs.edit {putString(KEY_KICKED, encoded)}
+        prefs.edit().putString(KEY_KICKED, encoded).apply()
     }
 
     /** @see recentKicks */
@@ -1558,7 +1554,19 @@ object ListenTogether {
      * screen shows what will actually be sent rather than a second guess at it
      * — including answering null in the cases a party cannot be joined at all.
      */
-    fun myAvatarUrl(): String? = identity()?.avatar
+    fun myAvatarUrl(): String? {
+        val id = identity() ?: return null
+        // Foto buatan pengguna hanya ada di perangkat ini, jadi hanya dipakai untuk
+        // tampilan lokal. Yang dikirim ke party tetap [Identity.avatar] (URL http).
+        val account = AudifyApplication.authStore.activeSession
+        val override = AppSettings.profileOverride.value
+        if (account != null && override.owner == AppSettings.profileOwnerOf(account.email)) {
+            override.photoPath
+                .takeIf { it.isNotEmpty() && java.io.File(it).exists() }
+                ?.let { return "file://$it" }
+        }
+        return id.avatar
+    }
 
     /**
      * This install's identity to the party, independent of who is signed in.
@@ -1570,7 +1578,7 @@ object ListenTogether {
     private fun deviceId(): String {
         prefs.getString(KEY_DEVICE, null)?.let { return it }
         return UUID.randomUUID().toString().also {
-            prefs.edit {putString(KEY_DEVICE, it)}
+            prefs.edit().putString(KEY_DEVICE, it).apply()
         }
     }
 
@@ -1700,7 +1708,7 @@ object ListenTogether {
     const val CODE_LENGTH = 6
 
     private const val TAG = "ListenTogether"
-    private const val PREFS = "audify_listen_together"
+    private const val PREFS = "bitchord_listen_together"
     private const val KEY_SERVER = "server_url"
 
     /** What a redacted address reads as. Not a hostname, so it cannot be resolved back. */

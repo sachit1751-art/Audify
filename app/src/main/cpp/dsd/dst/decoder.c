@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 /*
  * Direct Stream Transfer (DST) decoder
  * Copyright (c) 2014 Peter Ross <pross@xvid.org>

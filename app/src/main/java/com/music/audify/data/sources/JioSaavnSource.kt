@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.sources
 
 import com.music.audify.data.TrackLog
@@ -59,7 +57,7 @@ class JioSaavnSource(
                 durationText = raw.moreInfo.duration.toIntOrNull()?.let { seconds ->
                     val m = seconds / 60
                     val s = seconds % 60
-                    String.format(java.util.Locale.ROOT, "%d:%02d", m, s)
+                    String.format("%d:%02d", m, s)
                 },
                 sourceQuality = "HIGH",
                 isExplicit = raw.isExplicit,

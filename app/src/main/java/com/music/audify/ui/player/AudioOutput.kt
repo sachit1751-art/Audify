@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import android.content.BroadcastReceiver
@@ -77,7 +75,7 @@ internal fun rememberAndroidAudioOutputs(): List<AudioOutputDevice> {
 
     val pipelineActiveId by remember {
         AudioOutputStatus.current.map { it.activeDeviceId }.distinctUntilChanged()
-    }.collectAsStateWithLifecycle(initialValue = null)
+    }.collectAsStateWithLifecycle(initialValue = AudioOutputStatus.current.value.activeDeviceId)
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(manager, selectedId, lifecycle) {

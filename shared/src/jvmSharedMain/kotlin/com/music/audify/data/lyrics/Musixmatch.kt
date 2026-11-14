@@ -1,5 +1,3 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.data.lyrics
 
 import com.music.audify.data.Http
@@ -290,7 +288,7 @@ object Musixmatch {
             .apply { if (cookie != null) header("Cookie", cookie) }
             .build()
         client.newCall(request).execute().use { response ->
-            if (response.isSuccessful) response.body.string() else null
+            if (response.isSuccessful) response.body?.string() else null
         }
     }.getOrNull()
 

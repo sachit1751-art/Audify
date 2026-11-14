@@ -1,13 +1,11 @@
-// Copyright (c) 2026 Sachit. All rights reserved.
-// Project: AUDIFY
 package com.music.audify.ui.player
 
 import android.view.Window
+import android.view.WindowManager
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SheetState
+
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -31,7 +29,10 @@ import kotlin.math.abs
  * spends most of its time settling, slower and slower, into place, which is
  * where the eye is following the artwork home.
  */
-private const val SLIDE_STIFFNESS = 195f
+// Softer than before: 300 made the whole trip over in about a third of a
+// second, too fast to follow the cover. Still critically damped (no bounce),
+// just a longer, gentler settle.
+private const val SLIDE_STIFFNESS = 150f
 
 /** Close enough to stop, in pixels — rather than a spring's whole long tail. */
 private const val SLIDE_SETTLED_PX = 0.5f
@@ -65,7 +66,6 @@ private const val WINDOW_ENTER_MS = 600L
  * [close] — which the sheet itself is routed through too, for a drag released
  * low, a back press or a tap on the scrim (see the sheet's `confirmValueChange`).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Stable
 class PlayerSheetMotion(
     private val scope: CoroutineScope,
@@ -80,8 +80,7 @@ class PlayerSheetMotion(
     /** Whether the app, not the sheet, is placing the player. */
     val holding: Boolean get() = !held.isNaN()
 
-    /** The sheet, while it is up. Set by the host. */
-    var sheet: SheetState? = null
+
 
     /** The sheet's window, while it is up — see [attachWindow]. */
     private var window: Window? = null
@@ -124,13 +123,11 @@ class PlayerSheetMotion(
     private var closing = false
 
     private fun travel(): Float =
-        dock.sheetTravel.takeIf { it > 0f } ?: (windowInfo?.containerSize?.height ?: 0).toFloat()
+        dock.travel().takeIf { it > 0f } ?: (windowInfo?.containerSize?.height ?: 0).toFloat()
 
-    private fun sheetOffset(): Float = try {
-        sheet?.requireOffset() ?: Float.NaN
-    } catch (_: IllegalStateException) {
-        Float.NaN
-    }
+    // No sheet of M3's any more: the player is a panel in the page's own
+    // window, so while the app is not holding it, it is simply fully open.
+    private fun sheetOffset(): Float = if (shown() && laidOut) 0f else Float.NaN
 
     /** How far below fully open the player is: what [PlayerDock] is told. */
     fun position(): Float = if (holding) held else sheetOffset()
@@ -171,7 +168,19 @@ class PlayerSheetMotion(
 
     /** A tap on the mini player. */
     fun open() {
-        if (shown()) return
+        if (shown()) {
+            // Tapped while still on its way down: back up from where it is.
+            if (closing && holding) {
+                settle?.cancel()
+                reopening()
+                val from = held
+                settle = scope.launch {
+                    slide(from = from, to = 0f)
+                    held = Float.NaN
+                }
+            }
+            return
+        }
         settle?.cancel()
         closing = false
         val travel = travel()
@@ -219,11 +228,34 @@ class PlayerSheetMotion(
         window?.setWindowAnimations(0)
     }
 
+    /**
+     * The sheet's window covers the whole app until it is dismissed, and a close
+     * is slow enough to watch: left touchable, it swallowed every tap and scroll
+     * meant for the page the player was sliding off of. So from the moment a
+     * close starts it lets touches fall through to the app beneath.
+     */
+    private fun passTouchesThrough(pass: Boolean) {
+        val window = window ?: return
+        if (pass) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        }
+    }
+
+    /** A close caught before it finished: the player is staying up after all. */
+    private fun reopening() {
+        closing = false
+        passTouchesThrough(false)
+        window?.setWindowAnimations(windowAnimations)
+    }
+
     /** From the sheet: whatever asked for it to hide, this is how it goes. */
     fun close() {
         if (!shown() || closing) return
         closing = true
         quietWindow()
+        passTouchesThrough(true)
         settle?.cancel()
         val from = position().takeUnless { it.isNaN() } ?: run {
             dismissQuietly()
@@ -268,6 +300,10 @@ class PlayerSheetMotion(
         if (!open) {
             closing = true
             quietWindow()
+            passTouchesThrough(true)
+        } else if (closing) {
+            // Caught by the mini player on its way down and pulled back up.
+            reopening()
         }
         val from = held
         settle = scope.launch {
@@ -279,6 +315,38 @@ class PlayerSheetMotion(
         }
     }
 
+    private var dismissPull = false
+
+    /** Whether a finger is pulling the open player down. */
+    val pulling: Boolean get() = dismissPull
+
+    /**
+     * A finger pulling the open player down by [delta] pixels (negative: back
+     * up). Returns how much of it the player took, for a nested scroll that
+     * has to hand the rest on. Only a downward pull starts one.
+     */
+    fun pullBy(delta: Float): Float {
+        if (!shown() || closing) return 0f
+        if (!dismissPull) {
+            if (delta <= 0f) return 0f
+            settle?.cancel()
+            dismissPull = true
+            if (!holding) held = 0f
+            pullStartAt = held
+            pullStartNanos = System.nanoTime()
+        }
+        val before = held
+        held = (held + delta).coerceIn(0f, travel())
+        return held - before
+    }
+
+    /** The finger lifted off a pull down: it goes home or it goes, as any other pull does. */
+    fun releasePull(velocity: Float) {
+        if (!dismissPull) return
+        dismissPull = false
+        release(velocity)
+    }
+
     /** From the host, once the sheet has left composition. */
     fun onSheetGone() {
         closing = false
@@ -288,7 +356,7 @@ class PlayerSheetMotion(
         windowRestore?.cancel()
         held = Float.NaN
         laidOut = false
-        sheet = null
+        dismissPull = false
         window = null
     }
 
@@ -314,6 +382,8 @@ class PlayerSheetMotion(
     /** Gone — with the window's own exit animation already off (see [quietWindow]). */
     private fun dismissQuietly() {
         quietWindow()
+        // The pill comes back while the panel is still there to cover for it.
+        dock.releasePanel()
         setShown(false)
     }
 }
