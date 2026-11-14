@@ -94,6 +94,7 @@ import com.music.audify.ui.tv.theme.TvDimensions
 import com.music.audify.ui.tv.theme.TvGlass
 import com.music.audify.ui.tv.theme.TvType
 import com.music.audify.ui.tv.theme.LocalTvReduceMotion
+import com.music.audify.ui.tv.theme.LocalTvColors
 import kotlin.math.floor
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -789,6 +790,7 @@ fun TvSongRow(
     showArtwork: Boolean = number == null,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val themeAccent = LocalTvColors.current.accentRed
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val primary = if (focused) TvGlass.OnPlatter else TvGlass.TextPrimary
@@ -817,7 +819,7 @@ fun TvSongRow(
                 if (isCurrent) {
                     TvMiniEqualizer(
                         isPlaying = isPlaying,
-                        barColor = if (focused) TvGlass.OnPlatter else TvGlass.AppleRed,
+                        barColor = if (focused) TvGlass.OnPlatter else themeAccent,
                     )
                 } else if (number != null) {
                     Text(text = number.toString(), style = TvType.Callout, color = secondary)
@@ -828,7 +830,7 @@ fun TvSongRow(
             Text(
                 text = song.title,
                 style = TvType.Body.copy(fontSize = 13.sp),
-                color = if (isCurrent && !focused) TvGlass.AppleRed else primary,
+                color = if (isCurrent && !focused) themeAccent else primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

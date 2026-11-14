@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLocale
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -633,7 +634,7 @@ private fun NewPlaylistForm(
 
         // A playlist on the device is seen by whoever holds the device.
         if (!offline) {
-            SheetHeading(stringResource(R.string.who_can_see_it).uppercase(Locale.getDefault()))
+            SheetHeading(stringResource(R.string.who_can_see_it).uppercase(LocalLocale.current.platformLocale))
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

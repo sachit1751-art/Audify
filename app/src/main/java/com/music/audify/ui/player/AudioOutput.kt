@@ -73,9 +73,8 @@ internal fun rememberAndroidAudioOutputs(): List<AudioOutputDevice> {
     val selectedId by AudioRouting.selectedId.collectAsStateWithLifecycle()
     var outputs by remember(manager) { mutableStateOf(AudioRouting.outputs(manager)) }
 
-    val pipelineActiveId by remember {
-        AudioOutputStatus.current.map { it.activeDeviceId }.distinctUntilChanged()
-    }.collectAsStateWithLifecycle(initialValue = AudioOutputStatus.current.value.activeDeviceId)
+    val pipelineStatus by AudioOutputStatus.current.collectAsStateWithLifecycle()
+    val pipelineActiveId = pipelineStatus.activeDeviceId
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(manager, selectedId, lifecycle) {

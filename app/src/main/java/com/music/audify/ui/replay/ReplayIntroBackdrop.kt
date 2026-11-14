@@ -45,7 +45,9 @@ internal fun IntroAtmosphere(
 ) {
     var seconds by remember { mutableFloatStateOf(INTRO_START_SECONDS) }
     val shader = remember {
-        if (IntroShaderSupport.supported) runCatching { IntroAgsl() }.getOrNull() else null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && IntroShaderSupport.supported) {
+            runCatching { IntroAgsl() }.getOrNull()
+        } else null
     }
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
@@ -58,7 +60,7 @@ internal fun IntroAtmosphere(
     }
 
     Box(modifier) {
-        if (shader != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
             Spacer(Modifier.fillMaxSize().drawBehind { shader.draw(this, seconds) })
         } else {
             Spacer(

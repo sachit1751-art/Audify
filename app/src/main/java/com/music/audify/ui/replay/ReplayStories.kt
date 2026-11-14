@@ -95,6 +95,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -1934,7 +1935,7 @@ private fun ColumnScope.RecapStory(
         modifier = Modifier.fillMaxWidth().staged(reveal, 0.04f),
     )
     Text(
-        text = "${formatMinutes(summary.totalMs)} ${stringResource(R.string.minutes).lowercase(Locale.getDefault())}" +
+        text = "${formatMinutes(summary.totalMs)} ${stringResource(R.string.minutes).lowercase(LocalLocale.current.platformLocale)}" +
             " · ${context.replayCount(summary.totalPlays, R.plurals.replay_play_count)}",
         style = MaterialTheme.typography.titleMedium,
         color = Color.White.copy(alpha = 0.6f),

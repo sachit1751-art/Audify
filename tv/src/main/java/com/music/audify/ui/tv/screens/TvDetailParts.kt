@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -68,7 +69,7 @@ internal fun TvActionRow(
             contentDescription = "Play",
             size = 58.dp,
             iconScale = 0.5f,
-            resting = playColor ?: TvGlass.AppleRed,
+            resting = playColor ?: MaterialTheme.colorScheme.primary,
             enabled = canPlay,
             onClick = onPlay,
             modifier = Modifier.tvInitialFocus(canPlay),

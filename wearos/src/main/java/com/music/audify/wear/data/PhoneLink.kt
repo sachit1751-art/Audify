@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import com.google.android.gms.wearable.Asset
 import com.google.android.gms.wearable.CapabilityClient
@@ -61,6 +62,9 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     private val _nowPlaying = MutableStateFlow<NowPlaying?>(null)
     val nowPlaying: StateFlow<NowPlaying?> = _nowPlaying.asStateFlow()
+
+    private val _themeColors = MutableStateFlow(WearThemeColors())
+    val themeColors: StateFlow<WearThemeColors> = _themeColors.asStateFlow()
 
     /** Whether the phone has said anything at all yet, so "nothing playing" can be told from "not heard". */
     private val _heard = MutableStateFlow(false)
@@ -381,6 +385,10 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     private fun applyNowPlaying(map: DataMap) {
         _heard.value = true
         _watchSpeaker.value = map.getBoolean(P.KEY_WATCH_SPEAKER)
+        _themeColors.value = WearThemeColors(
+            primary = Color(map.getInt(P.KEY_THEME_PRIMARY, 0xFFFA2D48.toInt())),
+            secondary = Color(map.getInt(P.KEY_THEME_SECONDARY, 0xFFA1A1AA.toInt())),
+        )
         val now = System.currentTimeMillis()
         _nowPlaying.value = NowPlaying.from(map)?.let { merge(it, now) }
 

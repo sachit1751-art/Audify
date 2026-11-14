@@ -194,13 +194,14 @@ fun ListenTogetherScreen(
             JamInviteLink.url(partyCode, host)
         }
     }
+    val shareInviteText = stringResource(R.string.listen_together_share_text, state.code.orEmpty())
+    val copyCodeText = stringResource(R.string.copy_code)
 
     /** The system chooser, with the link and the spoken-aloud code together. */
     val shareInvite: () -> Unit = {
         state.code?.let { partyCode ->
             val message = inviteLinkFor(partyCode) +
-                System.lineSeparator() + System.lineSeparator() +
-                context.getString(R.string.listen_together_share_text, partyCode)
+                System.lineSeparator() + System.lineSeparator() + shareInviteText
             context.startActivity(
                 Intent.createChooser(
                     Intent(Intent.ACTION_SEND).apply {
@@ -430,7 +431,7 @@ fun ListenTogetherScreen(
                         clipboard.setText(AnnotatedString(state.code.orEmpty()))
                         Toast.makeText(
                             context,
-                            context.getString(R.string.copy_code),
+                            copyCodeText,
                             Toast.LENGTH_SHORT,
                         ).show()
                     },

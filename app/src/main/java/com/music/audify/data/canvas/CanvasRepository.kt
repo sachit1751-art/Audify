@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+
 package com.music.audify.data.canvas
 
 import androidx.media3.common.util.UnstableApi

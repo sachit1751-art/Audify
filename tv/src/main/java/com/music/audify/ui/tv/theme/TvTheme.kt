@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -27,6 +28,8 @@ import androidx.tv.material3.darkColorScheme
 import com.music.audify.R
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.TvSettings
+import com.music.audify.data.settings.ThemePacks
+import com.music.audify.data.settings.ThemeSurfaceStyle
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Immutable palette data class — one instance per theme variant
@@ -505,8 +508,6 @@ object TvGlass {
     val TextSecondary = Color.White.copy(alpha = 0.60f)
     val TextTertiary = Color.White.copy(alpha = 0.38f)
 
-    /** Apple Music red, kept for the few places that mean "music": playing, liked. */
-    val AppleRed = Color(0xFFFA2D48)
     val Destructive = Color(0xFFFF453A)
 }
 
@@ -538,20 +539,61 @@ fun AudifyTvTheme(
 ) {
     val tvThemeId by TvSettings.tvTheme.collectAsState()
     val tvUiScale by TvSettings.tvUiScale.collectAsState()
+    val themePackId by AppSettings.selectedThemePackId.collectAsState()
+    val customThemePacks by AppSettings.customThemePacks.collectAsState()
+    val themePack = remember(themePackId, customThemePacks) {
+        ThemePacks.resolve(themePackId, customThemePacks)
+    }
 
-    val palette = when (tvThemeId.lowercase()) {
+    val basePalette = when (tvThemeId.lowercase()) {
         "pure_black", "oled", "pure_black_oled" -> TvOledPalette
         "midnight" -> TvMidnightPalette
-        else -> TvDarkPalette // Dynamic Artwork (default) — light/white mode removed
+        else -> TvDarkPalette
+    }
+    val primaryHex = if (themePack.id == ThemePacks.CLASSIC_ID) themePack.tertiaryHex else themePack.primaryHex
+    val tertiaryHex = if (themePack.id == ThemePacks.CLASSIC_ID) themePack.primaryHex else themePack.tertiaryHex
+    fun parse(hex: String) = Color(android.graphics.Color.parseColor(hex))
+    val primary = parse(primaryHex)
+    val secondary = parse(themePack.secondaryHex)
+    val tertiary = parse(tertiaryHex)
+    val themedBackground = when (themePack.surfaceStyle) {
+        ThemeSurfaceStyle.AMOLED -> Color.Black
+        ThemeSurfaceStyle.MIDNIGHT -> Color(0xFF080F20)
+        ThemeSurfaceStyle.GRAPHITE -> Color(0xFF17191D)
+        ThemeSurfaceStyle.DEEP_PURPLE -> Color(0xFF170F24)
+        ThemeSurfaceStyle.WARM -> Color(0xFF211711)
+        ThemeSurfaceStyle.SLATE -> Color(0xFF111B25)
+        ThemeSurfaceStyle.DEFAULT -> basePalette.background
+    }
+    val palette = remember(basePalette, themePack) {
+        basePalette.copy(
+            accentRed = primary,
+            accentRedGlow = primary.copy(alpha = 0.40f),
+            accentPink = secondary,
+            accentPurple = tertiary,
+            accentBlue = tertiary,
+            background = themedBackground,
+            backgroundElevated = lerp(themedBackground, Color.White, 0.035f),
+            surface = lerp(themedBackground, Color.White, 0.065f),
+            surfaceVariant = lerp(themedBackground, Color.White, 0.11f),
+            surfaceFocused = lerp(themedBackground, Color.White, 0.18f),
+            surfaceSelected = lerp(themedBackground, primary, 0.24f),
+            borderFocused = primary,
+            backgroundGradient = Brush.verticalGradient(
+                listOf(lerp(themedBackground, primary, 0.12f), themedBackground, Color.Black),
+            ),
+            canvasTop = lerp(themedBackground, primary, 0.12f),
+            canvasBottom = themedBackground,
+        )
     }
 
     val colorScheme = darkColorScheme(
         primary = palette.accentRed,
-        onPrimary = Color.Black,
+        onPrimary = parse(ThemePacks.contentColorHex(primaryHex)),
         primaryContainer = palette.surfaceVariant,
         onPrimaryContainer = palette.textPrimary,
         secondary = palette.accentPink,
-        onSecondary = Color.Black,
+        onSecondary = parse(ThemePacks.contentColorHex(themePack.secondaryHex)),
         background = palette.background,
         onBackground = palette.textPrimary,
         surface = palette.surface,

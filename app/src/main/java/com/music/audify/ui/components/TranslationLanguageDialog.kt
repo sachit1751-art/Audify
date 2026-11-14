@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalLocale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.data.lyrics.TRANSLATION_LANGUAGES
@@ -89,7 +90,7 @@ fun TranslationLanguageDialog(
     val selected by AppSettings.translationLanguage.collectAsStateWithLifecycle()
     val shape = RoundedCornerShape(ALERT_CORNER)
     val motion = rememberMacOSPopupState(onClosed = onDismiss)
-    val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault()
+    val appLocale = AppCompatDelegate.getApplicationLocales().get(0) ?: LocalLocale.current.platformLocale
     var query by remember { mutableStateOf("") }
 
     // Names are resolved once per locale rather than per row per frame: the

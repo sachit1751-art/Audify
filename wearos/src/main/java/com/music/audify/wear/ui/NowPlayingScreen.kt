@@ -325,6 +325,7 @@ private fun PlayDisc(
 ) {
     val view = LocalView.current
     val density = LocalDensity.current
+    val themeAccent = AccentRed
     val progress = rememberProgress(np)
     val ambient = LocalAmbient.current.active
     val scrubbing = scrubMs != null
@@ -382,7 +383,7 @@ private fun PlayDisc(
                     )
                 } else if (fraction * 360f > 0.5f) {
                     drawArc(
-                        color = if (scrubMs != null) AccentRed else Color.White,
+                        color = if (scrubMs != null) themeAccent else Color.White,
                         startAngle = -90f,
                         sweepAngle = 360f * fraction.coerceIn(0f, 1f),
                         useCenter = false,

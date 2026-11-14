@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -45,7 +46,8 @@ fun ReplayFluidBackground(
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
     }
     val speed = rememberUpdatedState(if (motionAllowed) animationSpeed else 0f)
-    val palette = rememberUpdatedState(colors.ifEmpty { listOf(Color(0xFFFF2D55)) })
+    val themeAccent = MaterialTheme.colorScheme.primary
+    val palette = rememberUpdatedState(colors.ifEmpty { listOf(themeAccent) })
     var seconds by remember { mutableDoubleStateOf(ReplayFluidTimeline.phase) }
     val fluid = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ReplayFluidSupport.shaderSupported) {
@@ -68,7 +70,7 @@ fun ReplayFluidBackground(
         }
     }
 
-    if (fluid != null) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && fluid != null) {
         // Satu-satunya state yang dibaca saat draw: tiap frame hanya redraw.
         Spacer(modifier.drawBehind { fluid.draw(this, seconds.toFloat(), palette.value) })
     }

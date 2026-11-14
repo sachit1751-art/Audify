@@ -50,6 +50,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -92,6 +93,7 @@ fun EqualizerScreen(
     onOpenPresets: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val numberLocale = LocalConfiguration.current.locales[0]
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
     val enabled by AppSettings.equalizerEnabled.collectAsStateWithLifecycle()
     val mode by AppSettings.equalizerMode.collectAsStateWithLifecycle()
@@ -205,6 +207,7 @@ fun EqualizerScreen(
                     ) {
                         BandSliders(
                             bands = bands,
+                            numberLocale = numberLocale,
                             onChange = { AppSettings.setEqualizerBands(it) },
                             enabled = enabled,
                         )
@@ -226,6 +229,7 @@ fun EqualizerScreen(
             ) {
                 BalanceControl(
                     balance = balance,
+                    numberLocale = numberLocale,
                     onChange = { AppSettings.setEqualizerBalance(it) },
                     enabled = enabled,
                 )
@@ -510,6 +514,7 @@ private fun ChoiceRow(
 @Composable
 private fun BandSliders(
     bands: List<Float>,
+    numberLocale: Locale,
     enabled: Boolean,
     onChange: (List<Float>) -> Unit,
 ) {
@@ -526,7 +531,7 @@ private fun BandSliders(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = formatGain(value),
+                    text = formatGain(value, numberLocale),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (abs(value) < 0.05f) {
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -545,7 +550,7 @@ private fun BandSliders(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = formatFrequency(hz),
+                    text = formatFrequency(hz, numberLocale),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -663,25 +668,25 @@ private fun snapGain(raw: Float, range: Float): Float {
     return ((raw * 2f).roundToInt() / 2f).coerceIn(-range, range)
 }
 
-private fun formatGain(value: Float): String = when {
+private fun formatGain(value: Float, locale: Locale): String = when {
     abs(value) < 0.05f -> "0"
-    value > 0 -> "+" + trimGain(value)
-    else -> trimGain(value)
+    value > 0 -> "+" + trimGain(value, locale)
+    else -> trimGain(value, locale)
 }
 
 /** "+6" rather than "+6.0", but "+6.5" when the half matters. */
-private fun trimGain(value: Float): String =
+private fun trimGain(value: Float, locale: Locale): String =
     if (abs(value - value.roundToInt()) < 0.05f) {
         value.roundToInt().toString()
     } else {
-        String.format(Locale.getDefault(), "%.1f", value)
+        String.format(locale, "%.1f", value)
     }
 
 /** "60", "2.5k", "14k" — the labels a hardware equaliser prints. */
-private fun formatFrequency(hz: Float): String = when {
+private fun formatFrequency(hz: Float, locale: Locale): String = when {
     hz < 1_000f -> hz.roundToInt().toString()
     hz % 1_000f == 0f -> "${(hz / 1_000f).roundToInt()}k"
-    else -> String.format(Locale.getDefault(), "%.1fk", hz / 1_000f)
+    else -> String.format(locale, "%.1fk", hz / 1_000f)
 }
 
 // ---- Balance ---------------------------------------------------------------
@@ -694,6 +699,7 @@ private fun formatFrequency(hz: Float): String = when {
 @Composable
 private fun BalanceControl(
     balance: Float,
+    numberLocale: Locale,
     enabled: Boolean,
     onChange: (Float) -> Unit,
 ) {
@@ -713,7 +719,7 @@ private fun BalanceControl(
                 color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                text = String.format(Locale.getDefault(), "%.2f", balance),
+                text = String.format(numberLocale, "%.2f", balance),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

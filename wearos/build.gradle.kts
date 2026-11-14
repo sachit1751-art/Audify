@@ -32,6 +32,10 @@ val signing = Properties().apply {
 val betaSuffix = rootProject.extra["audifyBetaSuffix"] as String
 
 android {
+    lint {
+        // Android Lint's ExperimentalDetector crashes on the current Kotlin FIR model.
+        disable += setOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning")
+    }
     namespace = "com.music.audify.wear"
     compileSdk = 37
 

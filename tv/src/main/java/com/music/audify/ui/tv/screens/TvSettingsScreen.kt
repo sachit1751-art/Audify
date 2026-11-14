@@ -32,6 +32,7 @@ import com.music.audify.BuildConfig
 import com.music.audify.data.AppUpdateChecker
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.TvSettings
+import com.music.audify.data.settings.ThemePacks
 import com.music.audify.ui.MainViewModel
 import com.music.audify.ui.tv.TvAppMark
 import com.music.audify.ui.tv.audio.TvSpatialAudioEngine
@@ -87,7 +88,9 @@ fun TvSettingsScreen(
     val canvas by AppSettings.animatedCanvas.collectAsState()
     val lyricsCanvas by TvSettings.tvLyricsCanvasEnabled.collectAsState()
     val nerdStats by AppSettings.showNerdStats.collectAsState()
-    val themeId by TvSettings.tvTheme.collectAsState()
+    val themePackId by AppSettings.selectedThemePackId.collectAsState()
+    val customThemePacks by AppSettings.customThemePacks.collectAsState()
+    val selectedThemePack = remember(themePackId, customThemePacks) { ThemePacks.resolve(themePackId, customThemePacks) }
     val uiScale by TvSettings.tvUiScale.collectAsState()
     val refreshRate by TvRefreshRateController.preference.collectAsState()
     val reduceMotion by AppSettings.reduceAnimation.collectAsState()
@@ -274,7 +277,7 @@ fun TvSettingsScreen(
             item {
                 TvListRow(
                     title = "Appearance",
-                    value = AppThemeOption.fromId(themeId).title,
+                    value = selectedThemePack.name,
                     onFocused = { blurb = "The background behind Audify's pages." },
                     onClick = { sheet = SettingsSheet.Theme },
                 )

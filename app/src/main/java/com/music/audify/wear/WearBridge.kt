@@ -43,6 +43,7 @@ import com.music.audify.data.model.NOTIFICATION_ART_PX
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.artworkAt
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.settings.ThemePacks
 import com.music.audify.playback.ACTION_TOGGLE_FAVORITE
 import com.music.audify.playback.ACTION_TOGGLE_SHUFFLE
 import com.music.audify.playback.PlaybackService
@@ -176,6 +177,11 @@ object WearBridge {
     internal fun republish(context: Context, player: Player) {
         val previous = last ?: return
         publish(context, previous.snapshot, player, null)
+    }
+
+    /** Refreshes the watch's palette even when playback itself has not changed. */
+    internal fun themeChanged(context: Context) {
+        if (watchReachable == true) schedule(context.applicationContext)
     }
 
     // ---- Called from WearCommandService ----
@@ -569,6 +575,18 @@ object WearBridge {
         val now = last
         val request = PutDataMapRequest.create(P.PATH_NOW_PLAYING)
         val map = request.dataMap
+        val selectedTheme = ThemePacks.resolve(
+            AppSettings.selectedThemePackId.value,
+            AppSettings.customThemePacks.value,
+        )
+        val themePrimaryHex = if (selectedTheme.id == ThemePacks.CLASSIC_ID) {
+            selectedTheme.tertiaryHex
+        } else {
+            selectedTheme.primaryHex
+        }
+        val themeSecondaryHex = selectedTheme.secondaryHex
+        map.putInt(P.KEY_THEME_PRIMARY, android.graphics.Color.parseColor(themePrimaryHex))
+        map.putInt(P.KEY_THEME_SECONDARY, android.graphics.Color.parseColor(themeSecondaryHex))
         if (now == null || !now.snapshot.hasTrack) {
             map.putBoolean(P.KEY_HAS_TRACK, false)
         } else {

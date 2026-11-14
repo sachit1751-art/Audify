@@ -9,6 +9,7 @@
  */
 package com.music.audify.ui.components.backdrop.highlight
 
+import android.annotation.SuppressLint
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
@@ -74,6 +75,7 @@ internal class HighlightElement(
     }
 }
 
+@SuppressLint("NewApi")
 internal class HighlightNode(
     var shapeProvider: ShapeProvider,
     var highlight: () -> Highlight?

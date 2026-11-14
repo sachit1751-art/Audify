@@ -243,7 +243,9 @@ class BluetoothAudioTracker(private val context: Context) {
 
             val deviceName = try {
                 @SuppressLint("MissingPermission")
-                activeDevice.name ?: activeDevice.alias ?: "Bluetooth Device"
+                activeDevice.name
+                    ?: (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) activeDevice.alias else null)
+                    ?: "Bluetooth Device"
             } catch (_: Throwable) {
                 "Bluetooth Device"
             }
@@ -287,7 +289,10 @@ class BluetoothAudioTracker(private val context: Context) {
             }
             try {
                 @SuppressLint("MissingPermission")
-                device?.name ?: device?.alias ?: _telemetry.value.deviceName ?: "Bluetooth Device"
+                device?.name
+                    ?: (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) device?.alias else null)
+                    ?: _telemetry.value.deviceName
+                    ?: "Bluetooth Device"
             } catch (_: Throwable) {
                 _telemetry.value.deviceName ?: "Bluetooth Device"
             }

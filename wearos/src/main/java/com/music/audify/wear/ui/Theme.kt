@@ -3,7 +3,10 @@
 package com.music.audify.wear.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -26,14 +29,23 @@ val SFPro = FontFamily(
     Font(R.font.sf_pro_display_bold, FontWeight.W700),
 )
 
-/** The phone's AccentRed: Love, and nothing much else. */
-val AccentRed = Color(0xFFFA2D48)
+/** Theme-derived accent used by watch controls and selected states. */
+val AccentRed: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.primary
 
 /** Secondary text on the mesh and on black: the phone's onSurfaceVariant. */
-val Secondary = Color(0xFF8E8E93)
+val Secondary: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.onSurfaceVariant
 
 /** Grouped cells on black, iOS's secondarySystemBackground in dark. */
-val Cell = Color(0xFF1C1C1E)
+val Cell: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.surfaceContainer
 
 object WearType {
     val title = TextStyle(fontFamily = SFPro, fontWeight = FontWeight.W600, fontSize = 15.sp, letterSpacing = (-0.2).sp)
@@ -46,16 +58,20 @@ object WearType {
 }
 
 @Composable
-fun AudifyWearTheme(content: @Composable () -> Unit) {
+fun AudifyWearTheme(
+    primary: Color = Color(0xFFFA2D48),
+    secondary: Color = Color(0xFFA1A1AA),
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
         colorScheme = ColorScheme(
-            primary = Color.White,
-            onPrimary = Color.Black,
+            primary = primary,
+            onPrimary = if (primary.luminance() > 0.5f) Color.Black else Color.White,
             background = Color.Black,
             onBackground = Color.White,
             onSurface = Color.White,
-            onSurfaceVariant = Secondary,
-            surfaceContainer = Cell,
+            onSurfaceVariant = secondary,
+            surfaceContainer = lerp(Color(0xFF1C1C1E), primary, 0.10f),
         ),
         typography = Typography(defaultFontFamily = SFPro),
         content = content,

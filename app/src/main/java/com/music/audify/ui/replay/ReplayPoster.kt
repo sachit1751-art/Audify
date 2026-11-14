@@ -1581,7 +1581,12 @@ internal class Fonts(context: Context) {
         paint(
             Typeface.create(
                 Typeface.SERIF,
-                (if (bold) Typeface.BOLD else Typeface.NORMAL) or (if (italic) Typeface.ITALIC else Typeface.NORMAL),
+                when {
+                    bold && italic -> Typeface.BOLD_ITALIC
+                    bold -> Typeface.BOLD
+                    italic -> Typeface.ITALIC
+                    else -> Typeface.NORMAL
+                },
             ),
             size,
             color,

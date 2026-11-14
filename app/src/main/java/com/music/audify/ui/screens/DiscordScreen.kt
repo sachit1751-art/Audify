@@ -798,9 +798,10 @@ fun DiscordDialogHost(
 
         DiscordDialog.ACTIVITY_TYPE -> {
             val current by AppSettings.discordActivityType.collectAsStateWithLifecycle()
+            val activityName by AppSettings.discordActivityName.collectAsStateWithLifecycle()
             // Read out here: `detail` is a plain lambda, so the composable
             // lookup can't happen inside it.
-            val name = AppSettings.discordActivityName.value.ifEmpty { appName() }
+            val name = activityName.ifEmpty { appName() }
             val copy = localizedActivityCopy()
             ChoiceAlert(
                 hazeState = hazeState,
@@ -866,4 +867,4 @@ fun DiscordDialogHost(
 /** The app's own label, minus the dev flavor's suffix. Matches [DiscordRPC]. */
 @Composable
 private fun appName(): String =
-    LocalContext.current.getString(R.string.app_name).removeSuffix(" Dev")
+    stringResource(R.string.app_name).removeSuffix(" Dev")

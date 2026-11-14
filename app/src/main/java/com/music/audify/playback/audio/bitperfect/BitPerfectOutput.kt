@@ -197,6 +197,7 @@ internal object BitPerfectOutput {
      * unplugged) leaves normal output to Android.
      */
     fun normalOutputPending(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < 34) return false
         val releasedAt = directReleasedAtMs
         if (releasedAt == 0L) return false
         if (android.os.SystemClock.elapsedRealtime() - releasedAt > DIRECT_HANDBACK_MS) {
@@ -335,7 +336,11 @@ internal object BitPerfectOutput {
         val mode = AppSettings.bitPerfectMode.value
         val deviceId = when (mode) {
             BitPerfectMode.USB_ANDROID ->
-                context.getSystemService(AudioManager::class.java)?.let(MixerTransport::usbDevice)?.id ?: NO_DEVICE
+                if (Build.VERSION.SDK_INT >= 34) {
+                    context.getSystemService(AudioManager::class.java)?.let(MixerTransport::usbDevice)?.id ?: NO_DEVICE
+                } else {
+                    NO_DEVICE
+                }
             BitPerfectMode.USB_DIRECT ->
                 UsbDirectDevices.manager(context)?.let(UsbDirectDevices::audioDevice)?.deviceId ?: NO_DEVICE
             else -> NO_DEVICE

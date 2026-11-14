@@ -69,6 +69,13 @@ data class NowPlaying(
     }
 }
 
+/** The phone's selected theme, independent of whether a track is queued. */
+@Immutable
+data class WearThemeColors(
+    val primary: Color = Color(0xFFFA2D48),
+    val secondary: Color = Color(0xFFA1A1AA),
+)
+
 /** The phone's media volume, in its own steps. */
 @Immutable
 data class Volume(val level: Int, val max: Int) {

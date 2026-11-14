@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+
 package com.music.audify.ui.screens
 
 import com.music.audify.ui.icons.SfIcons
@@ -127,6 +129,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -183,7 +186,6 @@ import com.music.audify.data.settings.AudioQuality
 import com.music.audify.data.settings.DownloadQuality
 import com.music.audify.data.settings.ThemeMode
 import androidx.compose.ui.graphics.luminance
-import com.music.audify.data.settings.AccentColor
 import com.music.audify.data.settings.AppFont
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
@@ -255,6 +257,15 @@ fun SettingsScreen(
     onCustomizeHome: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val unknownErrorMessage = stringResource(R.string.unknown_error)
+    val exportSucceededTemplate = stringResource(R.string.export_succeeded)
+    val exportFailedTemplate = stringResource(R.string.export_failed)
+    val importSucceededTemplate = stringResource(R.string.import_succeeded)
+    val importFailedTemplate = stringResource(R.string.import_failed)
+    val canvasCacheClearedMessage = stringResource(R.string.canvas_cache_cleared)
+    val imageCacheClearedMessage = stringResource(R.string.image_cache_cleared)
+    val songCacheClearedMessage = stringResource(R.string.song_cache_cleared)
+    val loginFailedMessage = stringResource(R.string.login_failed)
 
     val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
     val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
@@ -296,7 +307,6 @@ fun SettingsScreen(
     val translationLanguage by AppSettings.translationLanguage.collectAsStateWithLifecycle()
     val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
     val appFont by AppSettings.appFont.collectAsStateWithLifecycle()
-    val accentColor by AppSettings.accentColor.collectAsStateWithLifecycle()
     val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
     val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
     val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
@@ -508,10 +518,10 @@ fun SettingsScreen(
         backupScope.launch {
             exportStatus = Backup.exportTo(context, target).fold(
                 onSuccess = { months ->
-                    context.getString(R.string.export_succeeded, context.countOfMonths(months))
+                    exportSucceededTemplate.replace("%1\$s", context.countOfMonths(months))
                 },
                 onFailure = {
-                    context.getString(R.string.export_failed, it.message ?: context.getString(R.string.unknown_error))
+                    exportFailedTemplate.replace("%1\$s", it.message ?: unknownErrorMessage)
                 },
             )
         }
@@ -527,7 +537,7 @@ fun SettingsScreen(
                     importPreview = preview
                 },
                 onFailure = {
-                    importStatus = context.getString(R.string.import_failed, it.message ?: context.getString(R.string.unknown_error))
+                    importStatus = importFailedTemplate.replace("%1\$s", it.message ?: unknownErrorMessage)
                 },
             )
         }
@@ -594,7 +604,8 @@ fun SettingsScreen(
     // rows that answer from all of them, as the single page Settings once was.
     val search = SettingsSearch(if (section == null) searchQuery else "", inPage = section != null)
     val searching = section == null && searchQuery.isNotBlank()
-    fun shows(category: SettingsCategory) = section == category || searching
+    fun shows(category: SettingsCategory) = section == category ||
+        (section == SettingsCategory.MISCELLANEOUS && category == SettingsCategory.CONTENT) || searching
 
     // What is left after a keystroke is a different list, and the offset the
     // last one was scrolled to means nothing in it.
@@ -635,14 +646,14 @@ fun SettingsScreen(
                 // the floating bars have, and a bright edge. Tinted from the
                 // theme's own text colour so it reads on a light page too.
                 chrome = Modifier
-                    .height(46.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f), CircleShape)
-                    .liquidGlassRim(CircleShape)
-                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f), CircleShape),
+                    .height(54.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f), RoundedCornerShape(14.dp))
+                    .liquidGlassRim(RoundedCornerShape(14.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f), RoundedCornerShape(14.dp)),
             )
 
-            SearchableSettingsGroup(search, header = stringResource(R.string.settings_header_account)) {
+            SearchableSettingsGroup(search, header = null) {
                 val accountTitle = stringResource(R.string.account_integrations)
                 // What the row opens is the scrobbling screen, so the services it
                 // signs into are worth typing at this field even though none of
@@ -650,6 +661,7 @@ fun SettingsScreen(
                 row(accountTitle, "scrobbling", "last.fm", "listenbrainz") {
                     SettingsRow(
                         icon = SfIcons.Person,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         title = accountTitle,
                         subtitle = account?.email?.takeIf { it.isNotBlank() }
                             ?: stringResource(if (signedIn) R.string.signed_in else R.string.not_signed_in),
@@ -663,6 +675,7 @@ fun SettingsScreen(
                 row(listenTogetherTitle, "jam", "party", "sync", "friends") {
                     SettingsRow(
                         icon = SfIcons.Groups,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         title = listenTogetherTitle,
                         subtitle = party.code?.let {
                             stringResource(R.string.listen_together_in_party, it)
@@ -685,6 +698,7 @@ fun SettingsScreen(
                 row(sourceTitle, sourceSubtitle, "addon", "lossless") {
                     SettingsRow(
                         icon = SfIcons.Extension,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         title = sourceTitle,
                         subtitle = sourceSubtitle,
                         onClick = onSources,
@@ -710,6 +724,7 @@ fun SettingsScreen(
                 row(onWifiTitle, "wi-fi", "streaming quality") {
                     SettingsRow(
                         icon = SfIcons.Wifi,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         title = onWifiTitle,
                         badge = stringResource(R.string.in_use).takeIf { metered == false },
                         value = wifiQuality.localizedLabel(),
@@ -720,6 +735,7 @@ fun SettingsScreen(
                 row(onMobileDataTitle, "cellular", "streaming quality") {
                     SettingsRow(
                         icon = SfIcons.SignalCellularAlt,
+                        iconTint = MaterialTheme.colorScheme.primary,
                         title = onMobileDataTitle,
                         badge = stringResource(R.string.in_use).takeIf { metered == true },
                         value = cellularQuality.localizedLabel(),
@@ -741,6 +757,7 @@ fun SettingsScreen(
                     BypassedByBitPerfect(bitPerfectReady) {
                         SettingsRow(
                             iconPainter = painterResource(R.drawable.ic_dolby_atmos),
+                            iconTint = MaterialTheme.colorScheme.primary,
                             title = dolbyAtmosTitle,
                             subtitle = stringResource(
                                 if (dolbyAtmosSupported) {
@@ -1270,49 +1287,63 @@ fun SettingsScreen(
             }
             val fontTitle = stringResource(R.string.font)
             row(fontTitle, "typeface", "sf pro", "legacy") {
-                SettingsRow(
-                    icon = SfIcons.Font,
-                    title = fontTitle,
-                    subtitle = appFont.description(),
-                    value = appFont.localizedLabel(),
-                    onClick = { onOpenChoice(SettingsChoiceKind.FONT) },
-                )
-            }
-            val accentTitle = stringResource(R.string.accent_color)
-            row(accentTitle, "accent", "color", "colour", "theme", "warna") {
-                SettingsRow(
-                    icon = SfIcons.BlurOn,
-                    title = accentTitle,
-                    value = accentColor.localizedLabel(),
-                    onClick = { onOpenChoice(SettingsChoiceKind.ACCENT) },
+                SettingsRow(icon = SfIcons.Font, title = fontTitle, subtitle = "Choose the typeface used throughout AUDIFY.")
+                SegmentedControl(
+                    options = listOf("Audify", "System", "Serif"),
+                    selectedIndex = when (appFont) {
+                        AppFont.DEFAULT, AppFont.LEGACY -> 0
+                        AppFont.SYSTEM -> 1
+                        AppFont.SERIF -> 2
+                    },
+                    onSelect = { index -> AppSettings.setAppFont(when (index) {
+                        1 -> AppFont.SYSTEM
+                        2 -> AppFont.SERIF
+                        else -> AppFont.DEFAULT
+                    }) },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
                 )
             }
             Text(
-                text = "Theme palettes",
+                text = "Colour themes",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 8.dp),
             )
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = ROW_INSET),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 (ThemePacks.builtIns + customThemePacks).forEach { pack ->
                     val selected = selectedThemePackId == pack.id
                     Column(
-                        modifier = Modifier.width(88.dp).clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+                        modifier = Modifier.width(112.dp).clip(RoundedCornerShape(18.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) else Color.Transparent)
                             .clickable { AppSettings.setThemePack(pack.id) }
-                            .padding(9.dp),
+                            .padding(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { hex ->
-                                Box(Modifier.size(17.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))))
+                        Box(
+                            Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
+                                .background(Color(android.graphics.Color.parseColor(pack.surfaceStyle.let {
+                                    when (it) {
+                                        ThemeSurfaceStyle.AMOLED -> "#090909"
+                                        ThemeSurfaceStyle.MIDNIGHT -> "#080F20"
+                                        ThemeSurfaceStyle.GRAPHITE -> "#17191D"
+                                        ThemeSurfaceStyle.DEEP_PURPLE -> "#170F24"
+                                        ThemeSurfaceStyle.WARM -> "#211711"
+                                        ThemeSurfaceStyle.SLATE -> "#111B25"
+                                        ThemeSurfaceStyle.DEFAULT -> "#17191D"
+                                    }
+                                })))
+                        ) {
+                            Box(Modifier.fillMaxWidth().height(10.dp).background(Color(android.graphics.Color.parseColor(pack.primaryHex))))
+                            Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { hex ->
+                                    Box(Modifier.size(18.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))))
+                                }
                             }
                         }
-                        Text(pack.name, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 7.dp))
+                        Text(pack.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
                         if (selected) Text("Selected", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                     }
                 }
@@ -1652,7 +1683,7 @@ fun SettingsScreen(
                         } else {
                             translationLanguageName(
                                 translationLanguage,
-                                AppCompatDelegate.getApplicationLocales().get(0) ?: Locale.getDefault(),
+                                AppCompatDelegate.getApplicationLocales().get(0) ?: LocalLocale.current.platformLocale,
                             )
                         },
                         trailing = { Chevron() },
@@ -1915,7 +1946,7 @@ fun SettingsScreen(
             }
         }
 
-        if (shows(SettingsCategory.YOUR_DATA)) SearchableSettingsGroup(search, header = stringResource(R.string.your_data)) {
+        if (shows(SettingsCategory.PRIVACY_AND_DATA)) SearchableSettingsGroup(search, header = stringResource(R.string.settings_privacy_data)) {
             val replayTitle = stringResource(R.string.replay)
             row(replayTitle, "stats", "history", "wrapped") {
                 SettingsRow(
@@ -1977,8 +2008,11 @@ fun SettingsScreen(
                     onClick = { AppSettings.setReplayGenres(!replayGenres) },
                 )
             }
+        }
+
+        if (shows(SettingsCategory.BACKUP)) SearchableSettingsGroup(search, header = stringResource(R.string.backup)) {
             val exportDataTitle = stringResource(R.string.export_data)
-            row(exportDataTitle, "backup") {
+            row(exportDataTitle, "backup", "export", "save") {
                 SettingsRow(
                     icon = SfIcons.FileUpload,
                     title = exportDataTitle,
@@ -1994,7 +2028,7 @@ fun SettingsScreen(
                 )
             }
             val importDataTitle = stringResource(R.string.import_data)
-            row(importDataTitle, "backup", "restore") {
+            row(importDataTitle, "backup", "restore", "import") {
                 SettingsRow(
                     icon = SfIcons.FileDownload,
                     title = importDataTitle,
@@ -2009,25 +2043,6 @@ fun SettingsScreen(
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
                 WearOsSettingsRow(onClick = onWearOs)
-            }
-            row("Check for updates", "update", "version", "release") {
-                SettingsRow(
-                    icon = SfIcons.Upgrade,
-                    title = "Check for updates",
-                    subtitle = "Check GitHub for the latest Audify release.",
-                    onClick = {
-                        backupScope.launch {
-                            val result = AppUpdateChecker.check()
-                            val latest = AppUpdateChecker.latestRelease.value
-                            val message = when (result) {
-                                true -> "Audify ${latest?.version ?: "update"} is available."
-                                false -> "Audify is up to date."
-                                null -> "Couldn't check for updates. Check your connection and try again."
-                            }
-                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                        }
-                    },
-                )
             }
             val playNextOnSwipeTitle = stringResource(R.string.play_next_on_swipe)
             row(playNextOnSwipeTitle, "swipe", "queue") {
@@ -2185,11 +2200,48 @@ fun SettingsScreen(
             }
         }
 
+        if (shows(SettingsCategory.UPDATES)) SearchableSettingsGroup(search, header = stringResource(R.string.updates)) {
+            row("Check for updates", "update", "version", "release", "github") {
+                SettingsRow(
+                    icon = SfIcons.Upgrade,
+                    title = "Check for updates",
+                    subtitle = "Check GitHub for the latest Audify release.",
+                    onClick = {
+                        backupScope.launch {
+                            val result = AppUpdateChecker.check()
+                            val latest = AppUpdateChecker.latestRelease.value
+                            val message = when (result) {
+                                true -> "Audify ${latest?.version ?: "update"} is available."
+                                false -> "Audify is up to date."
+                                null -> "Couldn't check for updates. Check your connection and try again."
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                )
+            }
+        }
+
+        if (shows(SettingsCategory.ABOUT)) SearchableSettingsGroup(search, header = stringResource(R.string.about)) {
+            row("Audify $version", "version", "app information") {
+                SettingsRow(icon = SfIcons.Info, title = "Audify $version", subtitle = "YouTube Music & Listen Together Backend")
+            }
+            row("GitHub", "source code", "repository") {
+                SettingsRow(icon = SfIcons.Info, title = "GitHub", subtitle = "View the Audify source code", onClick = { context.openLink("https://github.com/sachit1751-art/Audify") })
+            }
+            row("Developer", "maintainer") {
+                SettingsRow(icon = SfIcons.Person, title = "Developer", subtitle = "Sachit", onClick = { context.openLink("https://github.com/sachit1751-art") })
+            }
+            row("Website", "audify", "homepage") {
+                SettingsRow(icon = SfIcons.Language, title = "Website", subtitle = "Visit the Audify website", onClick = { context.openLink("https://audify-music.vercel.app") })
+            }
+        }
+
         if (shows(SettingsCategory.LANGUAGE)) SearchableSettingsGroup(search, header = stringResource(R.string.language)) {
             val appLanguageTitle = stringResource(R.string.app_language)
             row(appLanguageTitle, "locale", "translate") {
                 val selectedLanguage = AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
-                    ?: Locale.getDefault().toLanguageTag()
+                    ?: LocalLocale.current.platformLocale.toLanguageTag()
                 SettingsRow(
                     icon = SfIcons.Language,
                     title = appLanguageTitle,
@@ -2456,7 +2508,7 @@ fun SettingsScreen(
                     withContext(Dispatchers.IO) { CanvasCache.clear() }
                     Toast.makeText(
                         context,
-                        context.getString(R.string.canvas_cache_cleared),
+                        canvasCacheClearedMessage,
                         Toast.LENGTH_SHORT,
                     ).show()
                 }
@@ -2477,7 +2529,7 @@ fun SettingsScreen(
                 val loader = SingletonImageLoader.get(context)
                 loader.memoryCache?.clear()
                 loader.diskCache?.clear()
-                Toast.makeText(context, context.getString(R.string.image_cache_cleared), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, imageCacheClearedMessage, Toast.LENGTH_SHORT).show()
             },
         )
     }
@@ -2505,7 +2557,7 @@ fun SettingsScreen(
             onConfirm = {
                 confirmClearSongCache = false
                 AudioCache.clear {
-                    Toast.makeText(context, context.getString(R.string.song_cache_cleared), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, songCacheClearedMessage, Toast.LENGTH_SHORT).show()
                 }
             },
         )
@@ -2524,8 +2576,12 @@ fun SettingsScreen(
                 pendingImportUri = null
                 if (uri != null) backupScope.launch {
                     importStatus = Backup.importFrom(context, uri).fold(
-                        onSuccess = { context.getString(R.string.import_succeeded, context.countOfMonths(it.months), it.from) },
-                        onFailure = { context.getString(R.string.import_failed, it.message ?: context.getString(R.string.unknown_error)) },
+                        onSuccess = {
+                            importSucceededTemplate
+                                .replace("%1\$s", context.countOfMonths(it.months))
+                                .replace("%2\$s", it.from)
+                        },
+                        onFailure = { importFailedTemplate.replace("%1\$s", it.message ?: unknownErrorMessage) },
                     )
                 }
             },
@@ -2668,10 +2724,10 @@ fun SettingsScreen(
                                         showLastfmLoginDialog = false
                                     }
                                     .onFailure { e ->
-                                        lastfmError = e.message ?: context.getString(R.string.login_failed)
+                                        lastfmError = e.message ?: loginFailedMessage
                                     }
                             } catch (e: Exception) {
-                                lastfmError = e.message ?: context.getString(R.string.login_failed)
+                            lastfmError = e.message ?: loginFailedMessage
                             } finally {
                                 lastfmLoading = false
                             }
@@ -2786,34 +2842,19 @@ private fun ThemeMode.localizedLabel(): String = stringResource(
 )
 
 @Composable
-private fun AppFont.localizedLabel(): String = stringResource(
-    when (this) {
-        AppFont.DEFAULT -> R.string.font_default
-        AppFont.LEGACY -> R.string.font_legacy
-    },
-)
-
-@Composable
-private fun AccentColor.localizedLabel(): String = stringResource(
-    when (this) {
-        AccentColor.RED -> R.string.accent_red
-        AccentColor.ORANGE -> R.string.accent_orange
-        AccentColor.YELLOW -> R.string.accent_yellow
-        AccentColor.GREEN -> R.string.accent_green
-        AccentColor.TEAL -> R.string.accent_teal
-        AccentColor.BLUE -> R.string.accent_blue
-        AccentColor.INDIGO -> R.string.accent_indigo
-        AccentColor.PURPLE -> R.string.accent_purple
-        AccentColor.PINK -> R.string.accent_pink
-        AccentColor.GRAY -> R.string.accent_gray
-    },
-)
+private fun AppFont.localizedLabel(): String = when (this) {
+    AppFont.DEFAULT -> stringResource(R.string.font_default)
+    AppFont.SYSTEM -> stringResource(R.string.system)
+    AppFont.SERIF -> "Serif"
+    AppFont.LEGACY -> stringResource(R.string.font_legacy)
+}
 
 /** The typeface each [AppFont] sets, named under its label. */
 @Composable
 private fun AppFont.description(): String = stringResource(
     when (this) {
         AppFont.DEFAULT -> R.string.font_default_subtitle
+        AppFont.SYSTEM, AppFont.SERIF -> R.string.font_default_subtitle
         AppFont.LEGACY -> R.string.font_legacy_subtitle
     },
 )
@@ -3184,16 +3225,16 @@ private inline fun SearchableSettingsGroup(
     }
 }
 
-/**
- * The large heading a Settings page leads with, under the bar's own small one â€”
- * the main page's "Settings", and every page opened from it.
- */
-@Suppress("UNUSED_PARAMETER")
+/** The large page heading beneath the compact title in the floating top bar. */
 @Composable
 internal fun SettingsPageTitle(text: String) {
-    // Judul besar dipindah ke pil melayang di bar atas (FrostedTopBar.floatingTitle),
-    // jadi di sini hanya tersisa jarak kecil agar isi halaman tidak menempel.
-    Spacer(Modifier.height(4.dp))
+    Text(
+        text = text,
+        style = MaterialTheme.typography.headlineLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 14.dp),
+    )
 }
 
 /**
@@ -3267,6 +3308,7 @@ internal fun RowDivider() {
 @Composable
 internal fun SettingsRow(
     icon: ImageVector? = null,
+    iconTint: Color? = null,
     title: String,
     subtitle: String? = null,
     subtitleContent: (@Composable () -> Unit)? = null,
@@ -3290,14 +3332,14 @@ internal fun SettingsRow(
             Icon(
                 painter = iconPainter,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground,
+                tint = iconTint ?: MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(ICON_SIZE),
             )
         } else if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground,
+                tint = iconTint ?: MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(ICON_SIZE),
             )
         }
@@ -3533,30 +3575,36 @@ internal fun SegmentedControl(
 enum class SettingsCategory(@param:StringRes val title: Int) {
     DOWNLOADS(R.string.downloads),
     PLAYBACK(R.string.playback),
-    CONTENT(R.string.content_feed),
     APPEARANCE(R.string.appearance),
     PERFORMANCE(R.string.performance),
     LOCAL_MUSIC(R.string.local_music),
     STORAGE(R.string.storage),
-    YOUR_DATA(R.string.your_data),
+    PRIVACY_AND_DATA(R.string.settings_privacy_data),
+    BACKUP(R.string.backup),
+    UPDATES(R.string.updates),
     MISCELLANEOUS(R.string.miscellaneous),
     LANGUAGE(R.string.language),
     ADVANCED(R.string.advanced_options),
+    ABOUT(R.string.about),
+    CONTENT(R.string.content_feed),
     ;
 
     val icon: ImageVector
         get() = when (this) {
             DOWNLOADS -> SfIcons.Download
             PLAYBACK -> SfIcons.PlayCircle
-            CONTENT -> SfIcons.FilterAlt
             APPEARANCE -> SfIcons.Appearance
             PERFORMANCE -> SfIcons.Performance
             LOCAL_MUSIC -> SfIcons.LibraryMusic
             STORAGE -> SfIcons.Storage
-            YOUR_DATA -> SfIcons.YourData
+            PRIVACY_AND_DATA -> SfIcons.YourData
+            BACKUP -> SfIcons.FileUpload
+            UPDATES -> SfIcons.Upgrade
             MISCELLANEOUS -> SfIcons.Miscellaneous
             LANGUAGE -> SfIcons.Language
             ADVANCED -> SfIcons.Advanced
+            ABOUT -> SfIcons.Info
+            CONTENT -> SfIcons.FilterAlt
         }
 }
 
@@ -3568,7 +3616,6 @@ enum class SettingsChoiceKind(@param:StringRes val title: Int) {
     AUTOMIX_PERFORMANCE(R.string.automix_performance),
     BIT_PERFECT(R.string.bit_perfect_output),
     FONT(R.string.font),
-    ACCENT(R.string.accent_color),
     COVER_ANIMATION(R.string.cover_slide_animation),
     LIQUID_GLASS(R.string.glass_settings),
 }
@@ -4120,14 +4167,57 @@ private fun IosConfirmDialog(
 /** The original Settings category rows: native-size glyphs, labels and chevrons. */
 @Composable
 private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
-    SettingsGroup(header = stringResource(R.string.settings_header_general)) {
-        SettingsCategory.entries.forEachIndexed { index, category ->
-            if (index > 0) RowDivider()
-            SettingsRow(
-                icon = category.icon,
-                title = stringResource(category.title),
-                onClick = { onOpen(category) },
-            )
+    val categories = listOf(
+        SettingsCategory.DOWNLOADS,
+        SettingsCategory.PLAYBACK,
+        SettingsCategory.APPEARANCE,
+        SettingsCategory.PERFORMANCE,
+        SettingsCategory.LOCAL_MUSIC,
+        SettingsCategory.STORAGE,
+        SettingsCategory.PRIVACY_AND_DATA,
+        SettingsCategory.BACKUP,
+        SettingsCategory.UPDATES,
+        SettingsCategory.MISCELLANEOUS,
+        SettingsCategory.LANGUAGE,
+        SettingsCategory.ADVANCED,
+        SettingsCategory.ABOUT,
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        categories.forEach { category ->
+            SettingsGroup(topSpacing = 0.dp) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpen(category) }
+                        .padding(horizontal = 15.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = category.icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Text(
+                        text = stringResource(category.title),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 12.dp, end = 10.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Chevron()
+                }
+            }
         }
     }
 }
@@ -4169,7 +4259,7 @@ fun SettingsChoicePage(
                     detail = { stringResource(R.string.quality_hourly, it.detail, it.hourly) },
                     footer = stringResource(
                         R.string.audio_quality_connection,
-                        stringResource(if (wifi) R.string.wifi else R.string.mobile_data).lowercase(Locale.getDefault()),
+                        stringResource(if (wifi) R.string.wifi else R.string.mobile_data).lowercase(LocalLocale.current.platformLocale),
                     ),
                 ) { quality ->
                     // Writes the one ceiling being edited and nothing else â€”
@@ -4234,13 +4324,6 @@ fun SettingsChoicePage(
                     // volume to the DAC, at full scale.
                     if (mode == BitPerfectMode.OFF) AppSettings.setBitPerfectMode(mode) else onConfirmBitPerfect(mode)
                 }
-            }
-
-            SettingsChoiceKind.ACCENT -> {
-                // No onChosen: the page stays up so the new accent can be seen
-                // taking hold behind the swatches before going back.
-                val selected by AppSettings.accentColor.collectAsStateWithLifecycle()
-                AccentColorPicker(selected = selected, onSelect = AppSettings::setAccentColor)
             }
 
             // Semua animasi cover dalam satu halaman, dibagi tiga blok: transisi
@@ -4364,59 +4447,6 @@ fun SettingsChoicePage(
             }
         }
         Spacer(Modifier.height(32.dp))
-    }
-}
-
-/** The accent colours as a grid of swatches, the one in force haloed and ticked. */
-@Composable
-private fun AccentColorPicker(
-    selected: AccentColor,
-    onSelect: (AccentColor) -> Unit,
-) {
-    val haptics = LocalHapticFeedback.current
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    SettingsGroup(footer = stringResource(R.string.accent_color_footer), topSpacing = 0.dp) {
-        Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            AccentColor.entries.chunked(5).forEach { line ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = ROW_INSET, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    line.forEach { accent ->
-                        val tint = Color(if (isDark) accent.dark else accent.light)
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (accent == selected) tint.copy(alpha = 0.25f) else Color.Transparent,
-                                    CircleShape,
-                                )
-                                .clickable {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onSelect(accent)
-                                }
-                                .padding(6.dp)
-                                .background(tint, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (accent == selected) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = accent.localizedLabel(),
-                                    tint = Color(accent.onAccent),
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
-                        }
-                    }
-                    repeat(5 - line.size) { Spacer(Modifier.size(52.dp)) }
-                }
-            }
-        }
     }
 }
 

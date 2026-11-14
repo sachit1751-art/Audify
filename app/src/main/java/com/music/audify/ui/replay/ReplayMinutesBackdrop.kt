@@ -45,7 +45,9 @@ internal fun MinutesAtmosphere(
 ) {
     var seconds by remember { mutableFloatStateOf(MINUTES_START_SECONDS) }
     val shader = remember {
-        if (MinutesShaderSupport.supported) runCatching { MinutesAgsl() }.getOrNull() else null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && MinutesShaderSupport.supported) {
+            runCatching { MinutesAgsl() }.getOrNull()
+        } else null
     }
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
@@ -58,7 +60,7 @@ internal fun MinutesAtmosphere(
     }
 
     Box(modifier) {
-        if (shader != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && shader != null) {
             Spacer(Modifier.fillMaxSize().drawBehind { shader.draw(this, seconds) })
         } else {
             Spacer(

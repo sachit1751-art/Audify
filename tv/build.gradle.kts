@@ -71,6 +71,10 @@ val listenTogetherServer: String = (
 val betaSuffix = ""
 
 android {
+    lint {
+        // Android Lint's ExperimentalDetector crashes on the current Kotlin FIR model.
+        disable += setOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning")
+    }
     namespace = "com.music.audify"
     // InnerTubeX's AAR requires compiling against 37; targetSdk (runtime behaviour) stays 36.
     compileSdk = 37

@@ -19,8 +19,11 @@ import com.music.audify.ui.components.continuous
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.TextStyle
@@ -29,27 +32,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.music.audify.R
-import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
-import com.music.audify.data.settings.AccentColor
 import com.music.audify.data.settings.AppFont
+import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
 import com.music.audify.data.settings.ThemeSurfaceStyle
 
-// Apple Music's signature red. No longer the primary accent, but kept for the
-// spots (Replay's rank badge) that want that specific red regardless of theme.
-val AccentRed = Color(0xFFFA2D48)
-
-// Apple Music's accent: tab bar, active glyphs, sliders, links, selected states.
-val AppleRed = Color(0xFFFA243C)
-
 private val DarkColors = darkColorScheme(
-    primary = AppleRed,
+    primary = Color(0xFFFA243C),
     onPrimary = Color.White,
     primaryContainer = Color(0xFF3A1217),
     onPrimaryContainer = Color(0xFFFFD9DD),
@@ -80,7 +75,7 @@ private val DarkColors = darkColorScheme(
 )
 
 private val LightColors = lightColorScheme(
-    primary = AppleRed,
+    primary = Color(0xFFFA243C),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFFFE3E6),
     onPrimaryContainer = Color(0xFF5C0A14),
@@ -124,19 +119,11 @@ private val AppleShapes = Shapes(
 )
 
 /**
- * This scheme with the user's accent in the places the accent lives: the primary
- * and its container. Everything else keeps Apple's greys. For [AccentColor.RED]
- * the result is the scheme as it always was.
+ * Every interactive role is derived from the selected theme pack.
  */
-private fun ColorScheme.withAccent(accent: AccentColor, dark: Boolean): ColorScheme {
-    val tint = Color(if (dark) accent.dark else accent.light)
-    return copy(
-        primary = tint,
-        onPrimary = Color(accent.onAccent),
-        primaryContainer = if (dark) lerp(Color.Black, tint, 0.28f) else lerp(Color.White, tint, 0.16f),
-        onPrimaryContainer = if (dark) lerp(tint, Color.White, 0.8f) else lerp(tint, Color.Black, 0.65f),
-    )
-}
+private fun String.toThemeColor(): Color = Color(android.graphics.Color.parseColor(this))
+
+
 
 /**
  * SF Pro Display, the face Apple Music itself is set in, drawn one weight
@@ -234,17 +221,23 @@ private fun Typography.withFamily(family: FontFamily) = Typography(
 fun AudifyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     font: AppFont = AppFont.DEFAULT,
-    accent: AccentColor = AccentColor.RED,
-    themePack: ThemePack = ThemePacks.builtIns.first(),
+    themePack: ThemePack? = null,
     backgroundUri: String? = null,
     content: @Composable () -> Unit,
 ) {
-    val scheme = remember(darkTheme, accent, themePack) {
-        val base = (if (darkTheme) DarkColors else LightColors).withAccent(accent, darkTheme)
-        val primary = if (themePack.id == ThemePacks.CLASSIC_ID) base.primary else Color(android.graphics.Color.parseColor(themePack.primaryHex))
-        val secondary = if (themePack.id == ThemePacks.CLASSIC_ID) base.secondary else Color(android.graphics.Color.parseColor(themePack.secondaryHex))
-        val tertiary = if (themePack.id == ThemePacks.CLASSIC_ID) base.tertiary else Color(android.graphics.Color.parseColor(themePack.tertiaryHex))
-        val surface = when (themePack.surfaceStyle) {
+    val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
+    val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
+    val activeThemePack = remember(themePack, selectedThemePackId, customThemePacks) {
+        themePack ?: ThemePacks.resolve(selectedThemePackId, customThemePacks)
+    }
+    val scheme = remember(darkTheme, activeThemePack) {
+        val base = if (darkTheme) DarkColors else LightColors
+        val primaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.tertiaryHex else activeThemePack.primaryHex
+        val tertiaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.primaryHex else activeThemePack.tertiaryHex
+        val primary = primaryHex.toThemeColor()
+        val secondary = activeThemePack.secondaryHex.toThemeColor()
+        val tertiary = tertiaryHex.toThemeColor()
+        val surface = when (activeThemePack.surfaceStyle) {
             ThemeSurfaceStyle.AMOLED -> Color.Black
             ThemeSurfaceStyle.MIDNIGHT -> Color(0xFF080F20)
             ThemeSurfaceStyle.GRAPHITE -> Color(0xFF17191D)
@@ -253,14 +246,33 @@ fun AudifyTheme(
             ThemeSurfaceStyle.SLATE -> Color(0xFF111B25)
             ThemeSurfaceStyle.DEFAULT -> base.background
         }
+        val containerSurface = if (darkTheme) surface else base.surface
+        val primaryContainer = lerp(containerSurface, primary, if (darkTheme) 0.30f else 0.14f)
+        val secondaryContainer = lerp(containerSurface, secondary, if (darkTheme) 0.24f else 0.14f)
+        val tertiaryContainer = lerp(containerSurface, tertiary, if (darkTheme) 0.24f else 0.14f)
         base.copy(
             primary = primary,
-            onPrimary = if (themePack.id == ThemePacks.CLASSIC_ID) base.onPrimary else Color(android.graphics.Color.parseColor(ThemePacks.contentColorHex(themePack.primaryHex))),
+            onPrimary = ThemePacks.contentColorHex(primaryHex).toThemeColor(),
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = if (primaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             secondary = secondary,
+            onSecondary = ThemePacks.contentColorHex(activeThemePack.secondaryHex).toThemeColor(),
+            secondaryContainer = secondaryContainer,
+            onSecondaryContainer = if (secondaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             tertiary = tertiary,
+            onTertiary = ThemePacks.contentColorHex(tertiaryHex).toThemeColor(),
+            tertiaryContainer = tertiaryContainer,
+            onTertiaryContainer = if (tertiaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             background = if (darkTheme) surface else base.background,
             surface = if (darkTheme) surface else base.surface,
             surfaceContainerLowest = if (darkTheme) surface else base.surfaceContainerLowest,
+            surfaceContainerLow = if (darkTheme) lerp(surface, Color.White, 0.035f) else base.surfaceContainerLow,
+            surfaceContainer = if (darkTheme) lerp(surface, Color.White, 0.065f) else base.surfaceContainer,
+            surfaceContainerHigh = if (darkTheme) lerp(surface, Color.White, 0.10f) else base.surfaceContainerHigh,
+            surfaceContainerHighest = if (darkTheme) lerp(surface, Color.White, 0.15f) else base.surfaceContainerHighest,
+            outline = lerp(base.outline, primary, if (darkTheme) 0.20f else 0.12f),
+            outlineVariant = lerp(base.outlineVariant, primary, if (darkTheme) 0.14f else 0.08f),
+            onSurfaceVariant = lerp(base.onSurfaceVariant, primary, 0.08f),
         )
     }
     val selection = remember(scheme.primary) {
@@ -273,6 +285,8 @@ fun AudifyTheme(
         colorScheme = scheme,
         typography = when (font) {
             AppFont.DEFAULT -> AudifyTypography
+            AppFont.SYSTEM -> Typography()
+            AppFont.SERIF -> Typography().withFamily(FontFamily.Serif)
             AppFont.LEGACY -> LegacyTypography
         },
         shapes = AppleShapes,

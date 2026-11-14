@@ -174,6 +174,10 @@ object WearProtocol {
     /** The phone player's own mesh colours, ARGB, so the watch never runs Palette. */
     const val KEY_COLORS = "colors"
 
+    /** The selected Audify theme's active and supporting colours, ARGB. */
+    const val KEY_THEME_PRIMARY = "theme_primary"
+    const val KEY_THEME_SECONDARY = "theme_secondary"
+
     /** A small JPEG of the cover, as an Asset. */
     const val KEY_ART = "art"
 

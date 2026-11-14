@@ -123,7 +123,7 @@ fun OrganicFluidBackground(
                 // Satu-satunya state yang dibaca saat draw: tiap frame hanya redraw,
                 // tanpa recomposition.
                 val t = clock.seconds
-                if (agsl != null) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && agsl != null) {
                     agsl.draw(this, t.toFloat(), colorsState.value)
                 } else {
                     drawFluidFallback(t.toFloat(), colorsState.value)

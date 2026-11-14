@@ -61,6 +61,9 @@ android {
     namespace = "com.music.audify"
     lint {
         lintConfig = file("lint.xml")
+        // Android Lint's ExperimentalDetector crashes on the current Kotlin FIR model.
+        // Keep the rest of lint enabled; revisit when the detector is compatible.
+        disable += setOf("UnsafeOptInUsageError", "UnsafeOptInUsageWarning")
     }
     // InnerTubeX's AAR requires compiling against 37; targetSdk (runtime behaviour) stays 36.
     compileSdk = 37

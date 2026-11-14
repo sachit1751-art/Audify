@@ -7,6 +7,17 @@ import org.junit.Test
 
 class ThemePackTest {
     @Test
+    fun allEighteenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
+        assertEquals(18, ThemePacks.builtIns.size)
+        assertEquals(18, ThemePacks.builtIns.map { it.id }.distinct().size)
+        ThemePacks.builtIns.forEach { pack ->
+            listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { color ->
+                assertTrue(color.matches(Regex("^#[0-9A-Fa-f]{6}$")))
+            }
+        }
+    }
+
+    @Test
     fun exportedThemeCanBeImportedWithASeparateIdentity() {
         val original = ThemePacks.builtIns.first { it.id == "ocean" }
         val imported = ThemePacks.decode(ThemePacks.encode(original))

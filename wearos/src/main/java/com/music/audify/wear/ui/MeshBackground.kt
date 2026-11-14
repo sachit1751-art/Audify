@@ -16,9 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
-
-/** Audify's own colours, for when there is no cover to take them from. */
-val BrandMesh = listOf(Color(0xFFFA2D48), Color(0xFF7B2FF7), Color(0xFFFF7A45), Color(0xFF2E1A8A))
+import androidx.wear.compose.material3.MaterialTheme
 
 /**
  * The phone player's backdrop, sized for a watch.
@@ -32,8 +30,10 @@ val BrandMesh = listOf(Color(0xFFFA2D48), Color(0xFF7B2FF7), Color(0xFFFF7A45), 
  */
 @Composable
 fun MeshBackground(colors: List<Color>, modifier: Modifier = Modifier) {
-    val tuned = remember(colors) {
-        (colors.ifEmpty { BrandMesh } + BrandMesh).take(4).map { it.tuned() }
+    val theme = MaterialTheme.colorScheme
+    val themeMesh = listOf(theme.primary, theme.secondary, theme.tertiary, theme.surfaceContainer)
+    val tuned = remember(colors, themeMesh) {
+        (colors.ifEmpty { themeMesh } + themeMesh).take(4).map { it.tuned() }
     }
     val c0 by animateColorAsState(tuned[0], tween(FADE_MS), label = "mesh0")
     val c1 by animateColorAsState(tuned[1], tween(FADE_MS), label = "mesh1")

@@ -10,12 +10,15 @@
 package com.music.audify.ui.components.backdrop
 
 import org.intellij.lang.annotations.Language
+import androidx.annotation.RequiresApi
 
+@RequiresApi(33)
 sealed interface RuntimeShaderCache {
 
     fun obtainRuntimeShader(key: String, @Language("AGSL") string: String): RuntimeShader
 }
 
+@RequiresApi(33)
 internal class RuntimeShaderCacheImpl : RuntimeShaderCache {
 
     private val runtimeShaders = mutableMapOf<String, RuntimeShader>()

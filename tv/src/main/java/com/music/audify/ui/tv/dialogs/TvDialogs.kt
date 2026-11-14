@@ -91,6 +91,7 @@ import com.music.audify.data.lyrics.LyricsSource
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.TvPinThrottle
 import com.music.audify.data.settings.TvSettings
+import com.music.audify.data.settings.ThemePacks
 import kotlin.math.ceil
 import kotlinx.coroutines.delay
 import com.music.audify.ui.MainViewModel
@@ -1270,19 +1271,24 @@ fun TvRefreshRateDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun TvThemeDialog(onDismiss: () -> Unit) {
-    val currentId by TvSettings.tvTheme.collectAsState()
-    val current = AppThemeOption.fromId(currentId)
+    val selectedId by AppSettings.selectedThemePackId.collectAsState()
+    val custom by AppSettings.customThemePacks.collectAsState()
+    val themes = remember(custom) { ThemePacks.builtIns + custom }
 
     TvDialog(title = "Appearance", onDismissRequest = onDismiss) {
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            AppThemeOption.entries.forEach { theme ->
+        LazyColumn(
+            modifier = Modifier.heightIn(max = 520.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            itemsIndexed(themes, key = { _, theme -> theme.id }) { index, theme ->
+                val selected = theme.id == selectedId
                 TvListRow(
-                    title = theme.title,
-                    subtitle = theme.description,
-                    trailingIcon = if (theme == current) Icons.Rounded.Check else null,
-                    modifier = if (theme == current) Modifier.tvInitialFocus() else Modifier,
+                    title = theme.name,
+                    subtitle = if (selected) "Selected theme" else "Apply ${theme.name} throughout Audify",
+                    trailingIcon = if (selected) Icons.Rounded.Check else null,
+                    modifier = if (index == 0) Modifier.tvInitialFocus() else Modifier,
                     onClick = {
-                        TvSettings.setTvTheme(theme.id)
+                        AppSettings.setThemePack(theme.id)
                         onDismiss()
                     },
                 )

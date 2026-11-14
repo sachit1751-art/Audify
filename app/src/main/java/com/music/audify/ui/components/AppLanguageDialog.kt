@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -87,9 +88,9 @@ fun AppLanguageDialog(
     val shape = RoundedCornerShape(ALERT_CORNER)
     val motion = rememberMacOSPopupState(onClosed = onDismiss)
     // Full script tag (zh-Hant / zh-Hans preserved); legacy bare "zh" reads as Simplified.
+    val configuration = LocalConfiguration.current
     val currentLanguage = com.music.audify.data.LocaleTags.normalizeAppTag(
-        AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag()
-            ?: Locale.getDefault().toLanguageTag(),
+        configuration.locales[0].toLanguageTag(),
     )
 
     Box(

@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.listentogether.ServerConnectionState
+import com.music.audify.data.listentogether.ServerUrlError
 import com.music.audify.data.listentogether.ServerUrlValidationResult
 import com.music.audify.ui.components.AddonEditorAlert
 import dev.chrisbanes.haze.HazeState
@@ -40,6 +41,23 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     val customServer by ListenTogether.customServerUrl.collectAsStateWithLifecycle()
     val party by ListenTogether.state.collectAsStateWithLifecycle()
+    val invalidMessages = mapOf(
+        ServerUrlError.Whitespace to stringResource(R.string.listen_together_err_whitespace),
+        ServerUrlError.InvalidScheme to stringResource(R.string.listen_together_invalid_server_url),
+        ServerUrlError.InvalidHost to stringResource(R.string.listen_together_invalid_server_url),
+        ServerUrlError.InvalidPort to stringResource(R.string.listen_together_err_invalid_port),
+        ServerUrlError.InvalidPath to stringResource(R.string.listen_together_err_invalid_path),
+        ServerUrlError.HasPath to stringResource(R.string.listen_together_err_no_path),
+        ServerUrlError.HasQuery to stringResource(R.string.listen_together_err_no_query),
+        ServerUrlError.HasFragment to stringResource(R.string.listen_together_err_no_fragment),
+        ServerUrlError.Malformed to stringResource(R.string.listen_together_invalid_server_url),
+    )
+    val connectedMessage = stringResource(R.string.listen_together_custom_server_connected)
+    val fallbackMessage = stringResource(R.string.listen_together_custom_server_unreachable_fallback)
+    val defaultMessage = stringResource(R.string.listen_together_switched_to_default)
+    val offlineMessage = stringResource(R.string.listen_together_server_offline)
+    val allOfflineMessage = stringResource(R.string.listen_together_status_all_offline)
+    val onlineTemplate = stringResource(R.string.listen_together_server_online)
 
     // Seeded once, at the moment the card opens: this is a draft of the stored
     // address, and re-seeding it from the store while it is being typed into
@@ -55,7 +73,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
             // In the card, where the address being complained about still is. A
             // toast over a dialog is a sentence about a field it is covering.
             is ServerUrlValidationResult.Invalid ->
-                status = context.getString(validation.error.toMessageRes()) to false
+                status = (invalidMessages[validation.error] ?: offlineMessage) to false
 
             is ServerUrlValidationResult.Valid -> {
                 busy = true
@@ -63,23 +81,20 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
                 scope.launch {
                     val resolved = ListenTogether.setCustomServerUrl(validation.normalizedUrl)
                     busy = false
-                    val messageRes = when (resolved) {
-                        is ServerConnectionState.CustomOnline ->
-                            R.string.listen_together_custom_server_connected
-                        is ServerConnectionState.CustomFallback ->
-                            R.string.listen_together_custom_server_unreachable_fallback
-                        is ServerConnectionState.DefaultOnline ->
-                            R.string.listen_together_switched_to_default
+                    val message = when (resolved) {
+                        is ServerConnectionState.CustomOnline -> connectedMessage
+                        is ServerConnectionState.CustomFallback -> fallbackMessage
+                        is ServerConnectionState.DefaultOnline -> defaultMessage
                         is ServerConnectionState.Offline ->
                             if (ListenTogether.customServerUrl.value.isNotBlank()) {
-                                R.string.listen_together_status_all_offline
+                                allOfflineMessage
                             } else {
-                                R.string.listen_together_server_offline
+                                offlineMessage
                             }
                         ServerConnectionState.Checking -> null
                     }
-                    if (messageRes != null) {
-                        Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
+                    if (message != null) {
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                     }
                     onDismiss()
                 }
@@ -95,7 +110,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
             busy = false
             Toast.makeText(
                 context,
-                context.getString(R.string.listen_together_switched_to_default),
+                defaultMessage,
                 Toast.LENGTH_SHORT,
             ).show()
             onDismiss()
@@ -125,7 +140,7 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
         onTest = {
             when (val validation = ListenTogether.parseAndNormalizeServerUrl(input)) {
                 is ServerUrlValidationResult.Invalid ->
-                    status = context.getString(validation.error.toMessageRes()) to false
+                    status = (invalidMessages[validation.error] ?: offlineMessage) to false
 
                 is ServerUrlValidationResult.Valid -> {
                     busy = true
@@ -136,9 +151,9 @@ fun PartyServerEditor(hazeState: HazeState, onDismiss: () -> Unit) {
                             SERVER_PROBE_TIMEOUT_MS,
                         )
                         status = if (probe.isOnline) {
-                            context.getString(R.string.listen_together_server_online, probe.latencyMs) to true
+                            onlineTemplate.replace("%1\$d", probe.latencyMs.toString()) to true
                         } else {
-                            context.getString(R.string.listen_together_server_offline) to false
+                            offlineMessage to false
                         }
                         busy = false
                     }

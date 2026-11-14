@@ -2873,6 +2873,7 @@ private fun MostPlayedHero(
     val blurFoot = !reduceDynamicBlur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val footLayer = rememberGraphicsLayer()
     val foot = remember { FootSnapshot() }
+    val recapSurface = MaterialTheme.colorScheme.surface
     var onScreen by remember { mutableStateOf(true) }
     Box(
         modifier
@@ -2917,7 +2918,7 @@ private fun MostPlayedHero(
                 .drawBehind {
                     val extra = LIKED_OVERSCROLL.toPx()
                     drawRect(
-                        color = RECAP_SURFACE,
+                        color = recapSurface,
                         topLeft = Offset(0f, -extra),
                         size = androidx.compose.ui.geometry.Size(size.width, extra + 1f),
                     )
@@ -3642,15 +3643,17 @@ object HeroMotion {
  */
 @Composable
 fun MostPlayedArt(covers: List<String>, motion: Boolean, modifier: Modifier = Modifier) {
+    val recapSurface = MaterialTheme.colorScheme.surface
+    val recapAccent = MaterialTheme.colorScheme.primary
     BoxWithConstraints(
         modifier.drawBehind {
-            drawRect(RECAP_SURFACE)
+            drawRect(recapSurface)
             // Satu cahaya merah tipis dari kiri atas; gradien radial statis.
             val radius = size.width * 0.75f
             val center = Offset(size.width * 0.22f, size.height * 0.18f)
             drawCircle(
                 brush = Brush.radialGradient(
-                    listOf(RECAP_ACCENT.copy(alpha = 0.20f), RECAP_ACCENT.copy(alpha = 0f)),
+                    listOf(recapAccent.copy(alpha = 0.20f), recapAccent.copy(alpha = 0f)),
                     center = center,
                     radius = radius,
                 ),
@@ -3777,10 +3780,6 @@ private fun rgbClose(a: Int, b: Int): Boolean {
     val gap = kotlin.math.abs(x[0] - y[0]).let { kotlin.math.min(it, 360f - it) }
     return gap < 20f && kotlin.math.abs(x[2] - y[2]) < 0.12f
 }
-
-/** Permukaan kartu Most Played dan aksennya (Z Music). */
-private val RECAP_SURFACE = Color(0xFF171719)
-private val RECAP_ACCENT = Color(0xFFFA243C)
 
 /** Satu cover dalam komposisi berlapis; nilai pecahan dari sisi persegi seni. */
 private class MostPlayedSlot(

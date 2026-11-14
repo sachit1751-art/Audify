@@ -9,6 +9,7 @@
  */
 package com.music.audify.ui.components.backdrop
 
+import android.annotation.SuppressLint
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.Shape
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 
+@SuppressLint("NewApi")
 sealed interface BackdropEffectScope : Density, RuntimeShaderCache {
 
     val size: Size
@@ -29,6 +31,7 @@ sealed interface BackdropEffectScope : Density, RuntimeShaderCache {
     var renderEffect: RenderEffect?
 }
 
+@SuppressLint("NewApi")
 internal abstract class BackdropEffectScopeImpl : BackdropEffectScope, RuntimeShaderCache {
 
     override var density: Float = 1f

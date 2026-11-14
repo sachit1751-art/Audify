@@ -1,7 +1,9 @@
 package com.music.audify.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.data.model.Song
 import com.music.audify.data.settings.AppSettings
@@ -25,8 +27,11 @@ fun AddonBlockedAlert(hazeState: HazeState, song: Song, onDismiss: () -> Unit) {
     val addon = SourceRegistry.parseTrackKey(song.videoId)
         ?.let { (configId, _) -> SourceRegistry.config(configId)?.displayName }
         ?: stringResource(R.string.search_source_addons)
-    val metered = AppSettings.meteredConnection.value == true
-    val chosen = if (metered) AppSettings.audioQualityCellular.value else AppSettings.audioQualityWifi.value
+    val meteredConnection by AppSettings.meteredConnection.collectAsStateWithLifecycle()
+    val wifiQuality by AppSettings.audioQualityWifi.collectAsStateWithLifecycle()
+    val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
+    val metered = meteredConnection == true
+    val chosen = if (metered) cellularQuality else wifiQuality
     val message = if (chosen == AudioQuality.LOSSLESS) {
         stringResource(R.string.addon_blocked_watch, addon)
     } else {

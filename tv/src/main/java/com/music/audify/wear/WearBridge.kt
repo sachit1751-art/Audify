@@ -25,6 +25,7 @@ object WearBridge {
 
     @Suppress("UNUSED_PARAMETER")
     internal fun republish(context: Context, player: Player) = Unit
+    internal fun themeChanged(context: Context) = Unit
 
     val watchSession: StateFlow<Boolean> = MutableStateFlow(false)
 

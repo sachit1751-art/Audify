@@ -65,9 +65,8 @@ import com.music.audify.ui.components.backdrop.shadow.Shadow
  * times over on every scroll frame.
  *
  * It takes Material3's `Switch` call shape so a settings row adopts it by name
- * alone. [thumbContent] and [colors] are accepted and ignored: on is iOS green
- * whatever the theme's accent — the one place the platform keeps its own
- * colour, and the reason it reads as a switch.
+ * alone. [thumbContent] and [colors] are accepted and ignored: on follows the
+ * selected Audify theme, just like sliders and other selected states.
  *
  * A null [onCheckedChange] makes it a read-out, the way M3's does: the row
  * around it owns the tap.
@@ -98,7 +97,7 @@ fun IosSwitch(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val glassOk = isGlassSupported() && !reduceDynamicBlur && LocalLiquidGlassEnabled.current
 
-    val accent = if (dark) Color(0xFF30D158) else Color(0xFF34C759)
+    val accent = MaterialTheme.colorScheme.primary
     val trackOff = if (dark) Color(0xFF787880).copy(alpha = 0.36f) else Color(0xFF787878).copy(alpha = 0.2f)
     val dragWidthPx = with(density) { (TrackWidth - ThumbWidth - ThumbPadding * 2).toPx() }
 

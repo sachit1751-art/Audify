@@ -18,6 +18,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.content.edit
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -103,7 +105,11 @@ class WearActivity : ComponentActivity() {
             }
         }
         setContent {
-            AudifyWearTheme {
+            val themeColors by model.link.themeColors.collectAsState()
+            AudifyWearTheme(
+                primary = themeColors.primary,
+                secondary = themeColors.secondary,
+            ) {
                 CompositionLocalProvider(LocalAmbient provides ambient.value) {
                     WearApp(
                         link = model.link,

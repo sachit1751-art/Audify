@@ -375,7 +375,7 @@ enum class ThemeMode(val label: String) {
  * lighter and spaces it to Apple Music's own screens; [LEGACY] is the cut the
  * app shipped with before that, every weight its own and spaced tight.
  */
-enum class AppFont { DEFAULT, LEGACY }
+enum class AppFont { DEFAULT, SYSTEM, SERIF, LEGACY }
 
 /**
  * The accent the user picked for the app: tab bar, active glyphs, sliders,

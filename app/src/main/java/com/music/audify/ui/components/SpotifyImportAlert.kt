@@ -78,6 +78,11 @@ fun SpotifyImportAlert(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val invalidMessage = stringResource(R.string.spotify_import_invalid)
+    val fetchingMessage = stringResource(R.string.spotify_import_fetching)
+    val matchingTemplate = stringResource(R.string.spotify_import_matching)
+    val noneMessage = stringResource(R.string.spotify_import_none)
+    val failedTemplate = stringResource(R.string.spotify_import_failed)
     var link by remember { mutableStateOf("") }
     var privacy by remember { mutableStateOf(PlaylistPrivacy.PRIVATE) }
     var selectedLanguage by remember { mutableStateOf("No Preference") }
@@ -90,7 +95,7 @@ fun SpotifyImportAlert(
     fun start() {
         val id = SpotifyImporter.extractPlaylistId(link)
         if (id == null) {
-            status = context.getString(R.string.spotify_import_invalid)
+            status = invalidMessage
             failed = true
             return
         }
@@ -101,20 +106,22 @@ fun SpotifyImportAlert(
         }
         working = true
         failed = false
-        status = context.getString(R.string.spotify_import_fetching)
+        status = fetchingMessage
         scope.launch {
             try {
                 val (name, tracks) = SpotifyImporter.fetchPlaylistTracks(id)
                 val (songs, missed) = SpotifyImporter.resolveToSongs(tracks, effectiveLanguage) { done, total ->
-                    status = context.getString(R.string.spotify_import_matching, done, total)
+                    status = matchingTemplate
+                        .replace("%1\$d", done.toString())
+                        .replace("%2\$d", total.toString())
                 }
-                if (songs.isEmpty()) error(context.getString(R.string.spotify_import_none))
+                if (songs.isEmpty()) error(noneMessage)
                 onImported(name, privacy, songs)
                 if (missed.isEmpty()) onDismiss() else unmatched = missed
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                status = context.getString(R.string.spotify_import_failed, e.message.orEmpty())
+                status = failedTemplate.replace("%1\$s", e.message.orEmpty())
                 failed = true
             }
             working = false

@@ -754,10 +754,6 @@ private fun CardOverlay(
     }
 }
 
-private val RecapSurface = Color(0xFF171719)
-private val RecapAccent = Color(0xFFFA243C)
-private val RecapMuted = Color(0xFFA1A1A6)
-
 /** Kartu mengecil sedikit saat ditekan; tidak mengonsumsi sentuhan, jadi klik tetap jalan. */
 @Composable
 private fun Modifier.recapPressFeedback(): Modifier {
@@ -789,6 +785,8 @@ private fun Modifier.recapPressFeedback(): Modifier {
  */
 @Composable
 private fun MostPlayedRecapOverlay(text: CardText, modifier: Modifier) {
+    val recapAccent = MaterialTheme.colorScheme.primary
+    val recapMuted = MaterialTheme.colorScheme.onSurfaceVariant
     Box(modifier) {
         androidx.compose.foundation.layout.Row(
             modifier = Modifier
@@ -804,7 +802,7 @@ private fun MostPlayedRecapOverlay(text: CardText, modifier: Modifier) {
                 for (i in 0..2) {
                     val bh = size.height * heights[i]
                     drawRoundRect(
-                        color = RecapAccent,
+                        color = recapAccent,
                         topLeft = Offset(i * (bar + gap), size.height - bh),
                         size = androidx.compose.ui.geometry.Size(bar, bh),
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(bar / 2f),
@@ -820,7 +818,7 @@ private fun MostPlayedRecapOverlay(text: CardText, modifier: Modifier) {
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.4.sp,
                 ),
-                color = RecapAccent,
+                color = recapAccent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
@@ -853,7 +851,7 @@ private fun MostPlayedRecapOverlay(text: CardText, modifier: Modifier) {
             Text(
                 text = stringResource(Res.string.top_pick_most_played_tagline),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
-                color = RecapMuted,
+                color = recapMuted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1046,7 +1044,7 @@ private fun MostPlayedCardArt(
     coverModifier: Modifier,
     art: @Composable (Modifier) -> Unit,
 ) {
-    Box(modifier.background(RecapSurface)) {
+    Box(modifier.background(MaterialTheme.colorScheme.surface)) {
         art(
             coverModifier
                 .fillMaxWidth()
