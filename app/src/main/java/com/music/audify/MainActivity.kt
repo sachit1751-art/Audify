@@ -128,6 +128,7 @@ import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.listentogether.partyQueueIndexOf
 import com.music.audify.data.NerdStats
 import com.music.audify.data.model.HomeShelf
+import com.music.audify.data.model.MoodGenre
 import com.music.audify.data.stats.ListeningStats
 import com.music.audify.data.stats.ReplayPeriod
 import com.music.audify.data.stats.ListeningHourBlock
@@ -989,7 +990,6 @@ private fun AudifyApp(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     val exploreState by viewModel.explore.collectAsStateWithLifecycle()
-    val exploreCharts by viewModel.exploreCharts.collectAsStateWithLifecycle()
     val selectedMoodGenre by viewModel.selectedMoodGenre.collectAsStateWithLifecycle()
     val moodGenreShelves by viewModel.moodGenreShelves.collectAsStateWithLifecycle()
     val libraryState by viewModel.library.collectAsStateWithLifecycle()
@@ -1360,7 +1360,7 @@ private fun AudifyApp(
     val searchListState = rememberLazyListState()
     val currentListState = when (selectedTab) {
         TAB_HOME -> homeListState
-        TAB_EXPLORE -> exploreListState
+        TAB_EXPLORE -> if (selectedMoodGenre == null) exploreListState else moodGenreListState
         TAB_LIBRARY -> libraryListState
         else -> if (selectedMoodGenre == null) searchListState else moodGenreListState
     }
@@ -3815,6 +3815,25 @@ private fun AudifyApp(
                                 }.takeIf { weeklyRecap != null },
                                 onPlaySongs = { songs -> play(songs, 0) },
                                 artworkMotion = artworkMotion,
+                                onSearchClick = { selectedTab = TAB_SEARCH },
+                                onCustomizeClick = { showHomeLayout = true },
+                                account = account ?: googleAccounts
+                                    .firstOrNull { it.accountId == activeAccountId }
+                                    ?.let { saved ->
+                                        val profile = saved.profiles.firstOrNull { it.profileId == activeProfileId }
+                                            ?: saved.profiles.firstOrNull()
+                                        com.music.audify.data.model.Account(
+                                            name = profile?.name ?: saved.name,
+                                            email = saved.email,
+                                            thumbnailUrl = profile?.avatar,
+                                        )
+                                    },
+                                onAccountClick = {
+                                    if (signedIn) {
+                                        viewModel.loadChannels()
+                                        showAccountSelector = true
+                                    } else navigator.push(AppRoute.Settings)
+                                },
                                 onTopPickLongPress = { pick ->
                                     pick.browseId?.let { browseId ->
                                         onShelfLongPress(
@@ -3830,30 +3849,44 @@ private fun AudifyApp(
                                 },
                                 onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
                             )
-                            TAB_EXPLORE -> ExploreScreen(
-                                chartsState = exploreCharts,
+                            TAB_EXPLORE -> selectedMoodGenre?.let { category ->
+                                MoodGenrePlaylistsScreen(
+                                    title = category.title,
+                                    state = moodGenreShelves,
+                                    listState = moodGenreListState,
+                                    onItemClick = { item ->
+                                        item.videoId?.let { videoId ->
+                                            playRadio(
+                                                Song(
+                                                    videoId = videoId,
+                                                    title = item.title,
+                                                    artist = InnertubeParser.artistFromSubtitle(item.subtitle),
+                                                    thumbnailUrl = item.thumbnailUrl,
+                                                    isVideo = item.isVideo,
+                                                ),
+                                                QueueSource(
+                                                    category.title,
+                                                    PlaybackSourceType.EXPLORE,
+                                                    category.browseId,
+                                                ),
+                                            )
+                                        } ?: item.browseId?.let { browseId ->
+                                            viewModel.openDetail(
+                                                browseId = browseId,
+                                                title = item.title,
+                                                subtitle = item.subtitle,
+                                                thumbnailUrl = item.thumbnailUrl,
+                                            )
+                                        }
+                                    },
+                                    onRetry = { viewModel.openMoodGenre(category) },
+                                    contentPadding = listPadding,
+                                )
+                            } ?: ExploreScreen(
+                                moodState = exploreState,
+                                onCategoryClick = viewModel::openMoodGenre,
                                 listState = exploreListState,
                                 onRetry = viewModel::loadExplore,
-                                homeState = homeState,
-                                currentSong = player.song,
-                                isPlaying = player.isPlaying,
-                                onShelfItemClick = { item, shelfTitle ->
-                                    val song = shelfSong(item)
-                                    val browseId = item.browseId
-                                    when {
-                                        song != null -> playRadio(
-                                            song,
-                                            QueueSource(shelfTitle, PlaybackSourceType.HOME),
-                                        )
-                                        browseId != null -> viewModel.openDetail(
-                                            browseId = browseId,
-                                            title = item.title,
-                                            subtitle = item.subtitle,
-                                            thumbnailUrl = item.thumbnailUrl,
-                                        )
-                                    }
-                                },
-                                onShelfItemLongPress = onShelfLongPress,
                                 refreshing = MainViewModel.Feed.EXPLORE in refreshing,
                                 onRefresh = { viewModel.refresh(MainViewModel.Feed.EXPLORE) },
                                 pullState = explorePull,

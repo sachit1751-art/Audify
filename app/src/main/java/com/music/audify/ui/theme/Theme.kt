@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -279,7 +280,18 @@ fun AudifyTheme(
         // iOS draws no Material ripple. Null switches off the one the remaining
         // Material buttons and menu rows still carried; the app's own controls
         // already pass indication = null and keep their own press behaviour.
-        CompositionLocalProvider(LocalRippleConfiguration provides null, LocalTextSelectionColors provides selection) {
+        // MaterialTheme supplies a ColorScheme, but it does not set the default
+        // text/content colour for arbitrary screen roots. Screens such as
+        // Podcasts use LazyColumn directly (rather than a Surface), so Text
+        // without an explicit colour otherwise falls back to black in dark
+        // mode. Establish the correct foreground once at the app theme root;
+        // Material surfaces, buttons and menus still provide their own local
+        // content colours as usual.
+        CompositionLocalProvider(
+            LocalRippleConfiguration provides null,
+            LocalTextSelectionColors provides selection,
+            LocalContentColor provides scheme.onBackground,
+        ) {
             Box(Modifier.fillMaxSize()) {
                 if (!backgroundUri.isNullOrBlank()) {
                     AsyncImage(

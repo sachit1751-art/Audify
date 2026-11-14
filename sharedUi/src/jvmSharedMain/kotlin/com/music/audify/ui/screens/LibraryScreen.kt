@@ -201,6 +201,62 @@ fun LibraryScreen(
             }
             // Status muat/gagal selalu di akhir dan tidak ikut diatur.
             val status = ArrayList<LazyListScope.() -> Unit>()
+            section(LIBRARY_SLOT_REPLAY) {
+                item(key = "replay-heading") {
+                    Column(Modifier.padding(horizontal = PAGE_GUTTER).padding(top = 12.dp, bottom = 2.dp)) {
+                        Text(
+                            text = "Your Replay",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            text = "A look at what you have been listening to.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                item(key = "replay") { replay() }
+                if (onSmartPlaylists != null) {
+                    item(key = "smart-playlists") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onSmartPlaylists)
+                                .padding(horizontal = PAGE_GUTTER, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = AudifyIcons.StarFilled,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(28.dp),
+                            )
+                            Column(Modifier.padding(start = 16.dp).weight(1f)) {
+                                Text(
+                                    text = stringResource(Res.string.smart_playlists),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = stringResource(Res.string.smart_playlists_subtitle),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = PAGE_GUTTER),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                        )
+                    }
+                }
+            }
+            section(LIBRARY_SLOT_LINKS) {
+                if (links.isNotEmpty()) {
+                    item(key = "links") { LibraryLinkList(links = links, onClick = onShelfItemClick) }
+                }
+            }
             section(LIBRARY_SLOT_PINNED) {
                 if (pinnedItems.isNotEmpty()) {
                     item(key = "pinned") {
@@ -212,40 +268,21 @@ fun LibraryScreen(
                     }
                 }
             }
-            section(LIBRARY_SLOT_LINKS) {
-                if (links.isNotEmpty()) {
-                    item(key = "links") { LibraryLinkList(links = links, onClick = onShelfItemClick) }
-                }
-            }
-            section(LIBRARY_SLOT_REPLAY) {
-                item(key = "replay") { replay() }
-                if (onSmartPlaylists != null) {
-                    item(key = "smart-playlists") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onSmartPlaylists)
-                                .padding(horizontal = PAGE_GUTTER, vertical = 14.dp),
-                        ) {
-                            Text(
-                                text = stringResource(Res.string.smart_playlists),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = stringResource(Res.string.smart_playlists_subtitle),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = PAGE_GUTTER),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+            section(LIBRARY_SLOT_ON_DEVICE) {
+                item(key = "on-device-heading") {
+                    Column(Modifier.padding(horizontal = PAGE_GUTTER).padding(top = 20.dp, bottom = 12.dp)) {
+                        Text(
+                            text = onDevice,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            text = "Saved albums and playlists on this device will appear here.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-            }
-            section(LIBRARY_SLOT_ON_DEVICE) {
                 // What is pinned already sits in the grid above, so the shelf
                 // keeps only the rest; "Show all" still opens everything.
                 val unpinnedDevice = deviceItems.filterNot { it.browseId != null && it.browseId in pinnedPlaylists }
@@ -331,26 +368,6 @@ fun LibraryScreen(
                                             onImportSpotifyPlaylist = onImportSpotifyPlaylist,
                                             onShowAll = { onShowAll(pinnedFirst) },
                                             pinnedPlaylists = pinnedPlaylists,
-                                        )
-                                    } else if (shelf.title == ARTISTS_SHELF && artistsRow) {
-                                        LibraryGridShelf(
-                                            shelf = shelf,
-                                            onItemClick = onShelfItemClick,
-                                            onItemLongPress = onShelfItemLongPress,
-                                            onShowAll = { onShowAll(shelf) },
-                                            headerAction = {
-                                                ArtistsLayoutToggle(row = true, onChange = onArtistsRowChange)
-                                            },
-                                        )
-                                    } else if (shelf.title == ARTISTS_SHELF) {
-                                        LibraryTwoColumnShelf(
-                                            shelf = shelf,
-                                            onItemClick = onShelfItemClick,
-                                            onItemLongPress = onShelfItemLongPress,
-                                            onShowAll = { onShowAll(shelf) },
-                                            headerAction = {
-                                                ArtistsLayoutToggle(row = false, onChange = onArtistsRowChange)
-                                            },
                                         )
                                     } else {
                                         LibraryGridShelf(

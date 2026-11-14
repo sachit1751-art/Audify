@@ -12,8 +12,8 @@ class TabletLayoutColumnsTest {
     fun exploreGridKeepsTwoColumnsOnPhonesAndAddsColumnsOnWideWindows() {
         assertEquals(2, moodGenreColumns(360.dp))
         assertEquals(2, moodGenreColumns(400.dp))
-        assertEquals(2, moodGenreColumns(600.dp))
-        assertEquals(3, moodGenreColumns(800.dp))
+        assertEquals(3, moodGenreColumns(600.dp))
+        assertEquals(4, moodGenreColumns(800.dp))
     }
 
     @Test

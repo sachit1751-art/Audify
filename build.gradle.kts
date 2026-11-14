@@ -33,7 +33,7 @@ plugins {
  * release tag's alone.
  */
 extra["audifyVersionCode"] = 43
-extra["audifyVersionName"] = "1.9.4"
+extra["audifyVersionName"] = "1.9.3"
 
 /*
  * Bump this by hand before cutting each sideloaded test build ("beta2",

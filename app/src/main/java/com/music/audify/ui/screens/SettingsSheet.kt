@@ -2335,6 +2335,15 @@ fun SettingsScreen(
                             context.openLink("https://github.com/sachit1751-art")
                         },
                     )
+                    Text(
+                        text = "Website",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) Color.Black else Color.White,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.clickable {
+                            context.openLink("https://audify-music.vercel.app")
+                        },
+                    )
                 }
                 Text(
                     text = "Made by Sachit",
@@ -4108,7 +4117,7 @@ private fun IosConfirmDialog(
     )
 }
 
-/** The main page's list of categories: a glyph and a name each, and a chevron into it. */
+/** The original Settings category rows: native-size glyphs, labels and chevrons. */
 @Composable
 private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
     SettingsGroup(header = stringResource(R.string.settings_header_general)) {

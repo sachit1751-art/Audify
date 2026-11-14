@@ -62,18 +62,11 @@ import com.music.audify.ui.components.SongRowSkeleton
 import com.music.audify.ui.components.feedSkeleton
 import com.music.audify.ui.components.instantPressClickable
 
-/**
- * Shelf editorial terakhir yang pernah ditemukan. Feed Home bisa sesaat tidak
- * memuatnya (refresh Home hanya membawa feed inti, supplement belum kembali),
- * dan kartu lebar di puncak Explore tidak boleh ikut hilang karenanya.
- */
-private var lastEditorial: HomeShelf? = null
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
-    /** The charts page's shelves; the mood and genre cards now live on the Search tab. */
-    chartsState: UiState<List<HomeShelf>>,
+    moodState: UiState<List<MoodGenreSection>>,
+    onCategoryClick: (MoodGenre) -> Unit,
     listState: LazyListState,
     onRetry: () -> Unit,
     refreshing: Boolean,
@@ -83,31 +76,7 @@ fun ExploreScreen(
     modifier: Modifier = Modifier,
     /** The big "Explore" heading; the desktop's pages carry none. */
     showTitle: Boolean = true,
-    /**
-     * The home feed, read only for the release shelf (Apple's "New" style
-     * cards) that leads this page. Home leaves that shelf out.
-     */
-    homeState: UiState<List<HomeShelf>>? = null,
-    onShelfItemClick: ((ShelfItem, String) -> Unit)? = null,
-    onShelfItemLongPress: ((ShelfItem) -> Unit)? = null,
-    currentSong: Song? = null,
-    isPlaying: Boolean = false,
 ) {
-    val editorial = remember(homeState) {
-        val found = (homeState as? UiState.Success)?.data?.let { shelves ->
-            editorialShelfIndex(shelves)?.let { shelves[it] }
-        }
-        if (found != null) lastEditorial = found
-        found ?: lastEditorial
-    }
-    // Cards the Home tab already shows are left out here, so New is not Home again.
-    val homeShelves = (homeState as? UiState.Success)?.data
-    val chartShelves = remember(chartsState, homeShelves, editorial) {
-        (chartsState as? UiState.Success)?.data
-            ?.filter { it.title != editorial?.title }
-            ?.withoutItemsOn(homeShelves.orEmpty())
-            .orEmpty()
-    }
     PullToRefresh(
         refreshing = refreshing,
         onRefresh = onRefresh,
@@ -147,55 +116,15 @@ fun ExploreScreen(
                         )
                     }
                 }
-                if (editorial != null && onShelfItemClick != null) {
-                    editorialShelf(editorial, onShelfItemClick, onShelfItemLongPress)
-                } else if (onShelfItemClick != null && homeState is UiState.Loading) {
-                    // The release shelf is still on the wire: hold its place so
-                    // the mood grid doesn't jump down when it lands.
-                    item(key = "editorial-skeleton") { EditorialShelfSkeleton() }
-                }
-                when (chartsState) {
-                    UiState.Loading -> {
-                        if (editorial == null) item(key = "charts-skeleton") { EditorialShelfSkeleton() }
-                        // Bagian di bawah shelf editorial (Latest songs dan kartu chart)
-                        // belum datang: tahan tempatnya supaya halaman tidak kosong.
-                        item(key = "charts-skeleton-latest") {
-                            Column(Modifier.padding(bottom = 26.dp)) {
-                                SectionHeaderSkeleton()
-                                repeat(4) { index -> SongRowSkeleton(index = index) }
-                            }
-                        }
-                        item(key = "charts-skeleton-shelf") { ShelfSkeleton(index = 1) }
-                    }
-                    is UiState.Error -> {
-                        if (editorial == null) item(key = "charts-error") {
-                            MessageState(chartsState.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
-                        }
-                    }
-                    is UiState.Success -> {
-                        chartShelves.forEachIndexed { index, shelf ->
-                            item(key = "chart:$index:${shelf.title}") {
-                                if (shelf.layout == com.music.audify.data.model.ShelfLayout.LIST) {
-                                    RecentShelf(
-                                        shelf = shelf,
-                                        onItemClick = { onShelfItemClick?.invoke(it, shelf.title) },
-                                        onItemLongPress = onShelfItemLongPress,
-                                        currentSong = currentSong,
-                                        isPlaying = isPlaying,
-                                    )
-                                } else {
-                                    Shelf(
-                                        shelf = shelf,
-                                        onItemClick = { onShelfItemClick?.invoke(it, shelf.title) },
-                                        onItemLongPress = onShelfItemLongPress,
-                                        currentSong = currentSong,
-                                        isPlaying = isPlaying,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                // Explore is the original mood/genre catalogue only. The
+                // former chart/editorial shelves below this grid were a later
+                // addition and do not belong on this screen.
+                moodGenreGrid(
+                    state = moodState,
+                    columns = moodColumns(maxWidth),
+                    onCategoryClick = onCategoryClick,
+                    onRetry = onRetry,
+                )
             }
         }
     }
@@ -240,9 +169,8 @@ private fun MoodGenreCard(
 }
 
 /**
- * The category's cover filling the whole card, redrawn as a duotone of the
- * category's colour so every card reads as one tinted sleeve, with the title
- * at the bottom left. No solid stripe: the artwork runs edge to edge.
+ * Original Audify category sleeve: a solid colour panel carries the title at
+ * the top, while the category artwork fills the remaining right-hand area.
  *
  * Only the artwork: the caller sizes, clips and makes it clickable, which is
  * how the TV app wraps the same sleeve in its own focus treatment.
@@ -254,22 +182,35 @@ fun MoodGenreSleeve(
     titleStyle: TextStyle = MaterialTheme.typography.titleMedium,
 ) {
     val tone = remember(item.stripeColor, item.title) { moodTone(item) }
-    Box(modifier = modifier.background(tone.placeholder)) {
-        item.thumbnailUrl?.let { artwork ->
-            AsyncImage(
-                model = artwork,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                colorFilter = tone.duotone,
-                modifier = Modifier.fillMaxSize(),
-            )
+    Box(modifier = modifier.background(tone.stripe)) {
+        Box(
+            Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .fillMaxWidth(1f - MOOD_STRIPE_FRACTION)
+                .background(tone.placeholder),
+        ) {
+            item.thumbnailUrl?.let { artwork ->
+                AsyncImage(
+                    model = artwork,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    colorFilter = tone.duotone,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
-        // A soft shade rising from the bottom keeps white type legible on
-        // pale artwork.
+        // Subtle full-card shading preserves white-title contrast on pale tones.
         Box(
             Modifier
                 .matchParentSize()
-                .background(Brush.verticalGradient(.38f to Color.Transparent, 1f to Color.Black.copy(alpha = .45f))),
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = .30f),
+                        .48f to Color.Black.copy(alpha = .04f),
+                        1f to Color.Black.copy(alpha = .36f),
+                    ),
+                ),
         )
         Text(
             text = item.title,
@@ -281,7 +222,7 @@ fun MoodGenreSleeve(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .align(Alignment.BottomStart)
+                .align(Alignment.TopStart)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         )
     }
@@ -337,10 +278,13 @@ private fun fallbackMoodColor(title: String): Color = when ((title.hashCode() an
 /** Gap between mood cards, in both directions. */
 private val MOOD_SPACING = 12.dp
 
-private val MOOD_CARD_SHAPE = RoundedCornerShape(18.dp)
+private val MOOD_CARD_SHAPE = RoundedCornerShape(22.dp)
 
 /** Width over height; a two-column phone row lands at about 100dp tall. */
-const val MOOD_CARD_ASPECT = 1.72f
+const val MOOD_CARD_ASPECT = 1.42f
+
+/** The original solid title panel occupies the left third of each sleeve. */
+private const val MOOD_STRIPE_FRACTION = .34f
 
 
 
@@ -351,9 +295,9 @@ const val MOOD_CARD_ASPECT = 1.72f
  * 1.8 of these), while a tablet or a window lays out as many as fit rather
  * than two cards each half a screen wide.
  */
-private val MOOD_MIN_CARD_WIDTH = 220.dp
+private val MOOD_MIN_CARD_WIDTH = 176.dp
 
-private const val MOOD_MAX_COLUMNS = 6
+private const val MOOD_MAX_COLUMNS = 4
 
 private fun moodColumns(available: Dp): Int {
     val row = available - PAGE_GUTTER * 2

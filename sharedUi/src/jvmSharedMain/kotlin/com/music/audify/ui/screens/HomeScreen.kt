@@ -3,6 +3,7 @@ package com.music.audify.ui.screens
 import com.music.audify.data.model.HOME_SLOT_MOODS
 import com.music.audify.data.model.HOME_SLOT_TOP_PICKS
 import com.music.audify.data.model.HomeLayout
+import com.music.audify.data.model.Account
 import com.music.audify.data.model.homeShelfKey
 import com.music.audify.ui.components.VideoThumbnails
 import com.music.audify.ui.components.trackArtSize
@@ -95,6 +96,10 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.GraphicEq
 import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.data.YtMusicRepository
 import coil3.compose.AsyncImage
@@ -618,6 +623,11 @@ fun HomeScreen(
     onWeeklyRecapDismiss: (() -> Unit)? = null,
     /** Opens YouTube Music podcast discovery, optionally focused on a show. */
     onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
+    /** Header actions: search, arrange Home shelves, and open the account. */
+    onSearchClick: (() -> Unit)? = null,
+    onCustomizeClick: (() -> Unit)? = null,
+    account: Account? = null,
+    onAccountClick: (() -> Unit)? = null,
 ) {
     // Top Picks' pictures and motion wait for the feed — see LocalArtworkImages.
     val feedReady = state !is UiState.Loading
@@ -674,7 +684,15 @@ fun HomeScreen(
             },
         ) {
             if (title != null) {
-                item { HomeTitle(title, hideBranding) }
+                item {
+                    HomeHeader(
+                        title = title,
+                        account = account,
+                        onSearchClick = onSearchClick,
+                        onCustomizeClick = onCustomizeClick,
+                        onAccountClick = onAccountClick,
+                    )
+                }
             }
             if (!signedIn && onSignIn != null) {
                 item {
@@ -1313,6 +1331,92 @@ private fun HomeTitle(title: String, hideBranding: Boolean, modifier: Modifier =
         //     style = style,
         //     color = MaterialTheme.colorScheme.onBackground,
         // )
+    }
+}
+
+/** Compact Home header: brand mark, time-aware greeting, and working page actions. */
+@Composable
+private fun HomeHeader(
+    title: String,
+    account: Account?,
+    onSearchClick: (() -> Unit)?,
+    onCustomizeClick: (() -> Unit)?,
+    onAccountClick: (() -> Unit)?,
+) {
+    val hour = java.time.LocalTime.now().hour
+    val greeting = when (hour) {
+        in 5..11 -> "Good morning"
+        in 12..16 -> "Good afternoon"
+        else -> "Good evening"
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.ic_logo),
+            contentDescription = "Audify",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.width(36.dp).height(24.dp),
+        )
+        Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.Center) {
+            Text(
+                text = greeting,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = account?.name?.takeIf { it.isNotBlank() } ?: title,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (onSearchClick != null) {
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = "Search",
+                tint = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.size(36.dp).clip(CircleShape)
+                    .clickable(onClick = onSearchClick).padding(8.dp),
+            )
+        }
+        if (onCustomizeClick != null) {
+            Icon(
+                imageVector = Icons.Rounded.Tune,
+                contentDescription = "Arrange Home",
+                tint = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.size(36.dp).clip(CircleShape)
+                    .clickable(onClick = onCustomizeClick).padding(8.dp),
+            )
+        }
+        if (onAccountClick != null) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onAccountClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                val avatar = account?.thumbnailUrl
+                if (!avatar.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatar,
+                        contentDescription = "Account profile",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(32.dp).clip(CircleShape),
+                    )
+                } else {
+                    Icon(Icons.Rounded.Person, contentDescription = "Account profile", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+                }
+            }
+        }
     }
 }
 

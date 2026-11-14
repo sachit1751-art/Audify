@@ -477,8 +477,9 @@ data class ReplayHeroCard(
 )
 
 /**
- * The four headline facts, in their Library navigation order: overview, songs,
- * artists and albums.
+ * The Library's three headline facts, in their original visual order: minutes,
+ * top album and top artist. The detailed song chart remains available inside
+ * Replay; it does not displace the album card in the Library overview.
  *
  * Minutes leads because it is the one figure that needs no context to mean
  * something. A category with nothing in it is left out rather than shown empty:
@@ -496,14 +497,14 @@ fun ReplaySummary.cards(context: Context): List<ReplayHeroCard> = buildList {
             page = ReplayStoryPage.MINUTES,
         ),
     )
-    songs.firstOrNull()?.let {
+    albums.firstOrNull()?.let {
         add(
             ReplayHeroCard(
-                label = context.getString(R.string.top_song),
-                value = it.song.title,
-                detail = "${it.song.artist} · ${context.replayCount(it.plays, R.plurals.replay_play_count)}",
-                artworkUrl = it.song.thumbnailUrl,
-                page = ReplayStoryPage.SONGS,
+                label = context.getString(R.string.top_album),
+                value = it.title,
+                detail = listOfNotNull(it.subtitle, formatListening(context, it.ms)).joinToString(" · "),
+                artworkUrl = it.artworkUrl,
+                page = ReplayStoryPage.ALBUMS,
             ),
         )
     }
@@ -516,17 +517,6 @@ fun ReplaySummary.cards(context: Context): List<ReplayHeroCard> = buildList {
                     context.replayCount(it.plays, R.plurals.replay_play_count),
                 artworkUrl = it.artworkUrl,
                 page = ReplayStoryPage.ARTISTS,
-            ),
-        )
-    }
-    albums.firstOrNull()?.let {
-        add(
-            ReplayHeroCard(
-                label = context.getString(R.string.top_album),
-                value = it.title,
-                detail = listOfNotNull(it.subtitle, formatListening(context, it.ms)).joinToString(" · "),
-                artworkUrl = it.artworkUrl,
-                page = ReplayStoryPage.ALBUMS,
             ),
         )
     }
