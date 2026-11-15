@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -589,6 +590,7 @@ fun SettingsScreen(
     var feedbackCategory by rememberSaveable { mutableStateOf("Other") }
     var feedbackDiagnostics by rememberSaveable { mutableStateOf(false) }
     var feedbackSubmitting by remember { mutableStateOf(false) }
+    var feedbackSubmissionError by remember { mutableStateOf<String?>(null) }
     val feedbackScope = rememberCoroutineScope()
     val feedbackCategories = listOf("Playback", "Playlists", "Discovery", "Library", "Downloads", "Lyrics", "Appearance", "Accessibility", "Performance", "Android Auto", "Android TV", "Wear OS", "Other")
     var newThemeName by rememberSaveable { mutableStateOf("") }
@@ -603,6 +605,13 @@ fun SettingsScreen(
         runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull() ?: "1.0"
+    }
+    val latestRelease by AppUpdateChecker.latestRelease.collectAsStateWithLifecycle()
+    val updateChecking by AppUpdateChecker.checking.collectAsStateWithLifecycle()
+    LaunchedEffect(section) {
+        if (section == SettingsCategory.UPDATES && latestRelease == null) {
+            AppUpdateChecker.check()
+        }
     }
 
     // Made fresh on every pass rather than remembered: it tallies the rows
@@ -1011,7 +1020,7 @@ fun SettingsScreen(
                     SliderRow(
                         icon = SfIcons.Waves,
                         title = crossfadeTitle,
-                        subtitle = if (smartFade) "Fallback length" else null,
+                        subtitle = if (smartFade) "Fallback length when Automix cannot analyse a track." else stringResource(R.string.crossfade_subtitle),
                         value = if (crossfade == 0) stringResource(R.string.off) else "${crossfade}s",
                         sliderValue = crossfade.toFloat(),
                         onSliderValue = { AppSettings.setCrossfadeSeconds(it.roundToInt()) },
@@ -1314,6 +1323,11 @@ fun SettingsScreen(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 8.dp),
             )
+            val previewDarkTheme = when (theme) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+            }
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = ROW_INSET),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1329,17 +1343,10 @@ fun SettingsScreen(
                     ) {
                         Box(
                             Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
-                                .background(Color(android.graphics.Color.parseColor(pack.surfaceStyle.let {
-                                    when (it) {
-                                        ThemeSurfaceStyle.AMOLED -> "#090909"
-                                        ThemeSurfaceStyle.MIDNIGHT -> "#080F20"
-                                        ThemeSurfaceStyle.GRAPHITE -> "#17191D"
-                                        ThemeSurfaceStyle.DEEP_PURPLE -> "#170F24"
-                                        ThemeSurfaceStyle.WARM -> "#211711"
-                                        ThemeSurfaceStyle.SLATE -> "#111B25"
-                                        ThemeSurfaceStyle.DEFAULT -> "#17191D"
-                                    }
-                                })))
+                                .background(Color(android.graphics.Color.parseColor(
+                                    if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
+                                    else ThemePacks.lightBackgroundHex(pack),
+                                )))
                         ) {
                             Box(Modifier.fillMaxWidth().height(10.dp).background(Color(android.graphics.Color.parseColor(pack.primaryHex))))
                             Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -1420,6 +1427,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.MotionPhotosOff,
                     title = reduceAnimationTitle,
+                    subtitle = stringResource(R.string.reduce_animation_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = reduceAnimation,
@@ -1450,6 +1458,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.BlurOff,
                     title = reduceDynamicBlurTitle,
+                    subtitle = stringResource(R.string.reduce_dynamic_blur_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = reduceDynamicBlur,
@@ -1512,6 +1521,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.Fullscreen,
                         title = fullScreenCoverArtTitle,
+                        subtitle = stringResource(R.string.full_screen_cover_art_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = fullBleedArtwork,
@@ -1527,6 +1537,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Gradient,
                     title = legacyMeshGradientTitle,
+                    subtitle = stringResource(R.string.legacy_mesh_gradient_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = legacyMeshGradient,
@@ -1542,6 +1553,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Draw,
                     title = artistSignaturesTitle,
+                    subtitle = stringResource(R.string.artist_signatures_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = signatureApiEnabled,
@@ -1582,6 +1594,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Notes,
                     title = syncedLyricsTitle,
+                    subtitle = stringResource(R.string.synced_lyrics_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = syncedLyrics,
@@ -1600,6 +1613,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.Notes,
                         title = lyricStripTitle,
+                        subtitle = stringResource(R.string.lyric_strip_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = lyricStrip,
@@ -1614,6 +1628,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.BlurOn,
                         title = lyricsBlurTitle,
+                        subtitle = stringResource(R.string.blur_unfocused_lyrics_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = lyricsBlur,
@@ -1628,6 +1643,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = SfIcons.Waves,
                         title = liquidFlowTitle,
+                        subtitle = stringResource(R.string.liquid_flow_subtitle),
                         trailing = {
                             IosSwitch(
                                 checked = liquidFlow,
@@ -1645,6 +1661,7 @@ fun SettingsScreen(
                         SettingsRow(
                             icon = SfIcons.AutoAwesome,
                             title = lyricsSparkleTitle,
+                            subtitle = stringResource(R.string.lyrics_sparkle_subtitle),
                             trailing = {
                                 IosSwitch(
                                     checked = lyricsSparkle,
@@ -2037,13 +2054,13 @@ fun SettingsScreen(
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
             row("Report a bug", "feedback", "problem", "issue") {
-                SettingsRow(icon = SfIcons.Info, title = "Report a bug", onClick = {
-                    feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; showFeedbackDialog = true
+                SettingsRow(icon = SfIcons.Info, title = "Report a bug", subtitle = "Tell us what went wrong.", onClick = {
+                    feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
                 })
             }
             row("Suggest a feature", "feedback", "idea", "request") {
-                SettingsRow(icon = SfIcons.AutoAwesome, title = "Suggest a feature", onClick = {
-                    feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; showFeedbackDialog = true
+                SettingsRow(icon = SfIcons.AutoAwesome, title = "Suggest a feature", subtitle = "Share an idea for Audify.", onClick = {
+                    feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
                 })
             }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
@@ -2073,6 +2090,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.History,
                     title = dontRepeatSongsTitle,
+                    subtitle = stringResource(R.string.dont_repeat_songs_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = dontRepeatSuggestions,
@@ -2087,6 +2105,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.MusicOff,
                     title = stopMusicOnCloseTitle,
+                    subtitle = stringResource(R.string.stop_music_on_close_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = stopOnTaskRemoved,
@@ -2101,6 +2120,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.VolumeOff,
                     title = hideVolumeBarTitle,
+                    subtitle = stringResource(R.string.hide_volume_bar_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = hideVolumeBar,
@@ -2115,6 +2135,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Groups,
                     title = listenTogetherTabTitle,
+                    subtitle = stringResource(R.string.show_listen_together_tab_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = listenTogetherTab,
@@ -2129,6 +2150,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Apps,
                     title = searchTabSeparateTitle,
+                    subtitle = stringResource(R.string.search_tab_separate_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = searchTabSeparate,
@@ -2143,6 +2165,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.Groups,
                     title = listenTogetherButtonTitle,
+                    subtitle = stringResource(R.string.show_listen_together_button_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = listenTogetherButton,
@@ -2157,6 +2180,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.WebAssetOff,
                     title = hideStatusBarTitle,
+                    subtitle = stringResource(R.string.hide_status_bar_in_player_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = hideStatusBarInPlayer,
@@ -2171,6 +2195,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.History,
                     title = showQueueHistoryTitle,
+                    subtitle = stringResource(R.string.show_queue_history_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = showQueueHistory,
@@ -2185,6 +2210,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.VisibilityOff,
                     title = hideSongStatusTitle,
+                    subtitle = stringResource(R.string.hide_song_status_subtitle),
                     trailing = {
                         IosSwitch(
                             checked = hideSongStatus,
@@ -2196,40 +2222,115 @@ fun SettingsScreen(
             }
         }
 
-        if (shows(SettingsCategory.UPDATES)) SearchableSettingsGroup(search, header = stringResource(R.string.updates)) {
-            row("Check for updates", "update", "version", "release", "github") {
-                SettingsRow(
-                    icon = SfIcons.Upgrade,
-                    title = "Check for updates",
-                    subtitle = "Check GitHub for the latest Audify release.",
-                    onClick = {
-                        backupScope.launch {
-                            val result = AppUpdateChecker.check()
-                            val latest = AppUpdateChecker.latestRelease.value
-                            val message = when (result) {
-                                true -> "Audify ${latest?.version ?: "update"} is available."
-                                false -> "Audify is up to date."
-                                null -> "Couldn't check for updates. Check your connection and try again."
-                            }
-                            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        if (shows(SettingsCategory.UPDATES)) {
+            if (section == SettingsCategory.UPDATES && searchQuery.isBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("LATEST VERSION", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SettingsGroup {
+                        Text(
+                            text = when {
+                                updateChecking -> "Checking GitHub for updates…"
+                                latestRelease?.updateAvailable == true -> "Audify ${latestRelease?.version} is available."
+                                latestRelease != null -> "You’re on the latest version."
+                                else -> "Check for the latest Audify release."
+                            },
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                        TextButton(
+                            enabled = !updateChecking,
+                            onClick = {
+                                backupScope.launch {
+                                    val result = AppUpdateChecker.check()
+                                    if (result == null) Toast.makeText(context, "Couldn't check GitHub. Check your connection.", Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                        ) {
+                            Text(if (updateChecking) "Checking…" else "↓  Check for updates")
                         }
-                    },
-                )
+                        latestRelease?.let { release ->
+                            Text(
+                                "Latest release · v${release.version}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            Text("What’s new", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                            Text(
+                                text = release.notes?.takeIf(String::isNotBlank) ?: "No release notes were published for this version.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                            )
+                            TextButton(onClick = { context.openLink(release.releaseUrl) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                                Text("View release on GitHub")
+                            }
+                        }
+                    }
+                }
+            } else SearchableSettingsGroup(search, header = stringResource(R.string.updates)) {
+                row("Check for updates", "update", "version", "release", "github") {
+                    SettingsRow(
+                        icon = SfIcons.Upgrade,
+                        title = "Check for updates",
+                        subtitle = latestRelease?.let { "Latest release · v${it.version}" } ?: "Check GitHub for the latest Audify release.",
+                        onClick = { backupScope.launch { AppUpdateChecker.check() } },
+                    )
+                }
             }
         }
 
-        if (shows(SettingsCategory.ABOUT)) SearchableSettingsGroup(search, header = stringResource(R.string.about)) {
-            row("Audify $version", "version", "app information") {
-                SettingsRow(icon = SfIcons.Info, title = "Audify $version", subtitle = "YouTube Music & Listen Together Backend")
-            }
-            row("GitHub", "source code", "repository") {
-                SettingsRow(icon = SfIcons.Info, title = "GitHub", subtitle = "View the Audify source code", onClick = { context.openLink("https://github.com/sachit1751-art/Audify") })
-            }
-            row("Developer", "maintainer") {
-                SettingsRow(icon = SfIcons.Person, title = "Developer", subtitle = "Sachit", onClick = { context.openLink("https://github.com/sachit1751-art") })
-            }
-            row("Website", "audify", "homepage") {
-                SettingsRow(icon = SfIcons.Language, title = "Website", subtitle = "Visit the Audify website", onClick = { context.openLink("https://audify-music.vercel.app") })
+        if (shows(SettingsCategory.ABOUT)) {
+            if (section == SettingsCategory.ABOUT && searchQuery.isBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("ABOUT", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    SettingsGroup {
+                        SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
+                            feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
+                        })
+                        SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = {
+                            feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
+                        })
+                        SettingsRow(icon = SfIcons.Person, title = "Contact support", subtitle = "sachit1771@gmail.com", onClick = { context.openLink("mailto:sachit1771@gmail.com") })
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            Image(
+                                painter = painterResource(R.mipmap.ic_launcher),
+                                contentDescription = "Audify",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
+                            )
+                            Column {
+                                Text("Audify", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                Text("Version $version", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        SettingsRow(icon = SfIcons.Person, title = "sachit1751-art", subtitle = "Lead Maintainer", onClick = { context.openLink("https://github.com/sachit1751-art") })
+                        Text(
+                            "Copyright © 2026 Audify Contributors. Audify comes with absolutely no warranty. It is free software, and you are welcome to redistribute it under the terms of the GNU General Public License version 3 or later. Audify is unofficial and is not affiliated with Spotify AB.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        )
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                            TextButton(onClick = { context.openLink("https://www.gnu.org/licenses/gpl-3.0.html") }) { Text("License") }
+                            TextButton(onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }) { Text("Source code") }
+                            TextButton(onClick = { context.openLink("https://github.com/sachit1751-art") }) { Text("Developer") }
+                        }
+                    }
+                }
+            } else SearchableSettingsGroup(search, header = stringResource(R.string.about)) {
+                row("Report a problem", "bug", "feedback", "issue") { SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = { feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackSubmissionError = null; showFeedbackDialog = true }) }
+                row("Request a feature", "feature", "feedback", "idea") { SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = { feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackSubmissionError = null; showFeedbackDialog = true }) }
+                row("Audify $version", "version", "app information") { SettingsRow(icon = SfIcons.Info, title = "Audify $version", subtitle = "YouTube Music & Listen Together Backend") }
+                row("GitHub", "source code", "repository") { SettingsRow(icon = SfIcons.Info, title = "GitHub", subtitle = "View the Audify source code", onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }) }
             }
         }
 
@@ -2429,6 +2530,9 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Text("Do not include passwords or personal information.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    feedbackSubmissionError?.let { error ->
+                        Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Include device diagnostics", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         IosSwitch(checked = feedbackDiagnostics, onCheckedChange = { feedbackDiagnostics = it })
@@ -2454,7 +2558,7 @@ fun SettingsScreen(
                                 Toast.makeText(context, "Submitted · #${receipt.number}", Toast.LENGTH_LONG).show()
                                 if (receipt.url.startsWith("https://github.com/")) context.openLink(receipt.url)
                             }.onFailure { error ->
-                                Toast.makeText(context, error.message ?: "Could not submit feedback", Toast.LENGTH_LONG).show()
+                                feedbackSubmissionError = error.message ?: "Could not submit feedback. You can use the GitHub form instead."
                             }
                             feedbackSubmitting = false
                         }
@@ -2462,7 +2566,16 @@ fun SettingsScreen(
                 ) { Text(if (feedbackSubmitting) "Sending…" else "Submit") }
             },
             dismissButton = {
-                TextButton(enabled = !feedbackSubmitting, onClick = { showFeedbackDialog = false }) { Text("Cancel") }
+                Row {
+                    if (feedbackSubmissionError != null) {
+                        TextButton(enabled = !feedbackSubmitting, onClick = {
+                            val template = if (feedbackKind == "bug") "bug_report.yml" else "feature_request.yml"
+                            showFeedbackDialog = false
+                            context.openLink("https://github.com/sachit1751-art/Audify/issues/new?template=$template")
+                        }) { Text("Open GitHub form") }
+                    }
+                    TextButton(enabled = !feedbackSubmitting, onClick = { showFeedbackDialog = false }) { Text("Cancel") }
+                }
             },
         )
     }
@@ -3392,14 +3505,14 @@ internal fun SettingsRow(
             Icon(
                 painter = iconPainter,
                 contentDescription = null,
-                tint = iconTint ?: MaterialTheme.colorScheme.onBackground,
+                tint = iconTint ?: MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(ICON_SIZE),
             )
         } else if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = iconTint ?: MaterialTheme.colorScheme.onBackground,
+                tint = iconTint ?: MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(ICON_SIZE),
             )
         }
@@ -3427,7 +3540,7 @@ internal fun SettingsRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

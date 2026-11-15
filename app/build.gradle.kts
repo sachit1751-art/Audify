@@ -217,6 +217,12 @@ android {
             pickFirsts += setOf("META-INF/LICENSE.md", "META-INF/LICENSE.txt", "META-INF/NOTICE.md")
         }
     }
+    androidResources {
+        // Automix models are optional and downloaded only after the user opts in.
+        // Keep the originals in the repository at the existing download URL, but
+        // exclude their ~35 MB payload from every APK build variant.
+        ignoreAssetsPattern += ":!beat_this_final0_q8.onnx:!beat_this_int8.onnx:!vocals_umxhq_int8.onnx"
+    }
     buildFeatures {
         compose = true
         buildConfig = true

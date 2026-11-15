@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 const base = (process.env.WORKER_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
-let host, guest, other, hostSocket, guestSocket, otherSocket;
+let host, guest, other, isolated, hostSocket, guestSocket, otherSocket;
 
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
@@ -70,6 +70,9 @@ before(async () => {
   const third = await request(`/api/parties/${host.code}/join`, { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ userId: 'u-other', deviceId: 'd-other', displayName: 'Other' }) });
   assert.equal(third.status, 200); other = await json(third);
+  const separate = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ userId: 'u-isolated', deviceId: 'd-isolated', displayName: 'Isolated' }) });
+  assert.equal(separate.status, 201); isolated = await json(separate);
 });
 
 after(async () => { hostSocket?.close(); guestSocket?.close(); otherSocket?.close(); });
@@ -88,7 +91,7 @@ test('health, time, preview and authenticated snapshot REST contract', async () 
   assert.equal(snapshot.status, 200); assert.equal((await json(snapshot)).members.length, 3);
 });
 
-test('anonymous feedback validates submissions and fails closed until GitHub delivery is configured', async () => {
+test('anonymous feedback validates submissions and never reports honeypot submissions as real issues', async t => {
   assert.equal((await request('/api/feedback')).status, 405);
   const invalid = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
   assert.equal(invalid.status, 422);
@@ -99,9 +102,13 @@ test('anonymous feedback validates submissions and fails closed until GitHub del
     description: 'Playback stops after the current song finishes unexpectedly.',
     platform: 'Android', version: '1.9.2', website: '',
   };
-  const unconfigured = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validPayload) });
-  assert.equal(unconfigured.status, 503);
-  assert.equal((await json(unconfigured)).error, 'feedback_unavailable');
+  if (base.includes('127.0.0.1')) {
+    const unconfigured = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validPayload) });
+    assert.equal(unconfigured.status, 503);
+    assert.equal((await json(unconfigured)).error, 'feedback_unavailable');
+  } else {
+    t.diagnostic('Live GitHub issue creation is verified separately; avoid creating test issues in production.');
+  }
 
   const bot = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...validPayload, website: 'spam.example' }) });
   assert.equal(bot.status, 202);
@@ -267,20 +274,18 @@ test('a disconnected participant can reconnect with the same token and recover s
 });
 
 test('desktop reconnect can re-authenticate its stable device identity and rotate its token', async () => {
-  const created = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ userId: 'desktop:reconnect-device', deviceId: 'desktop-reconnect-device', displayName: 'Windows' }) });
-  assert.equal(created.status, 201);
-  const first = await json(created);
+  const first = isolated;
   const firstSocket = await socket(first.code, first.token);
   const memberId = firstSocket.welcome.you.memberId;
   firstSocket.ws.close();
   await new Promise(resolve => setTimeout(resolve, 150));
 
   const joined = await request(`/api/parties/${first.code}/join`, { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ userId: 'desktop:reconnect-device', deviceId: 'desktop-reconnect-device', displayName: 'Windows' }) });
+    body: JSON.stringify({ userId: 'u-isolated', deviceId: 'd-isolated', displayName: 'Isolated' }) });
   assert.equal(joined.status, 200);
   const renewed = await json(joined);
   assert.notEqual(renewed.token, first.token);
+  isolated.token = renewed.token;
   const secondSocket = await socket(first.code, renewed.token);
   assert.equal(secondSocket.welcome.you.memberId, memberId);
   secondSocket.ws.close();
@@ -290,10 +295,6 @@ test('invalid party codes and tokens issued for another party cannot join', asyn
   const invalid = await request('/api/parties/NOPE99/join', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ userId: 'valid-user', deviceId: 'valid-device', displayName: 'Valid' }) });
   assert.equal(invalid.status, 404);
-  const otherParty = await request('/api/parties', { method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ userId: 'isolated-user', deviceId: 'isolated-device', displayName: 'Isolated' }) });
-  assert.equal(otherParty.status, 201);
-  const isolated = await json(otherParty);
   assert.equal(await nativeHandshake(host.code, isolated.token), 401);
 });
 

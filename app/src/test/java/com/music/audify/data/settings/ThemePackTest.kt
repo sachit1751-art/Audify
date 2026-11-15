@@ -72,6 +72,20 @@ class ThemePackTest {
     }
 
     @Test
+    fun everyThemeProducesDistinctLightAndDarkBackgroundsTintedByItsPalette() {
+        ThemePacks.builtIns.forEach { pack ->
+            val light = ThemePacks.lightBackgroundHex(pack)
+            val dark = ThemePacks.darkBackgroundHex(pack)
+            assertTrue("${pack.name} light background must be valid", ThemePacks.isValidHex(light))
+            assertTrue("${pack.name} dark background must be valid", ThemePacks.isValidHex(dark))
+            assertNotEquals("${pack.name} light and dark backgrounds must differ", light, dark)
+        }
+        val rose = ThemePacks.builtIns.first { it.id == "rose" }
+        assertNotEquals("#FFFFFF", ThemePacks.lightBackgroundHex(rose))
+        assertTrue(ThemePacks.lightBackgroundHex(rose).startsWith("#F"))
+    }
+
+    @Test
     fun everyBuiltInAccentHasAtLeastWcagAaContrastWithItsChosenLabelColour() {
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { accent ->

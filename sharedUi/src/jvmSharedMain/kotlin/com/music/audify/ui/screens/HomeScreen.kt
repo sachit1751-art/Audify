@@ -618,8 +618,6 @@ fun HomeScreen(
     weeklyRecap: WeeklyRecapCardData? = null,
     onWeeklyRecapClick: (() -> Unit)? = null,
     onWeeklyRecapDismiss: (() -> Unit)? = null,
-    /** Opens YouTube Music podcast discovery, optionally focused on a show. */
-    onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
     /** Header actions: search, arrange Home shelves, and open the account. */
     onSearchClick: (() -> Unit)? = null,
     onCustomizeClick: (() -> Unit)? = null,
@@ -641,28 +639,6 @@ fun HomeScreen(
     }
     // Held from the first frame, so the row's slot never opens up after the feed is drawn.
     val topPicksWaiting = topPicks == null && (topPicksLoading || state is UiState.Loading)
-    var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
-    LaunchedEffect(Unit) {
-        if (onPodcastsClick != null) {
-            // Load both sources independently: a slow or failed library request
-            // must not prevent public discovery from populating the Home shelf.
-            kotlinx.coroutines.coroutineScope {
-                launch {
-                    YtMusicRepository.libraryPodcastShows().onSuccess { saved ->
-                        homePodcastShows = (homePodcastShows + saved)
-                            .distinctBy(PodcastProviderShow::browseId).take(12)
-                    }
-                }
-                launch {
-                    YtMusicRepository.podcastDiscoveryCategories().onSuccess { categories ->
-                        val discovered = categories.flatMap { it.shows }
-                        homePodcastShows = (homePodcastShows + discovered)
-                            .distinctBy(PodcastProviderShow::browseId).take(12)
-                    }
-                }
-            }
-        }
-    }
     CompositionLocalProvider(
         LocalArtworkMotion provides (artworkMotion && feedReady),
         LocalArtworkImages provides feedReady,
@@ -796,11 +772,6 @@ fun HomeScreen(
                         )
                     }
                     topPicksWaiting -> topPicksSkeleton()
-                }
-            }
-            if (onPodcastsClick != null) {
-                item(key = "home-podcasts") {
-                    HomePodcastsShelf(homePodcastShows, onPodcastsClick)
                 }
             }
             when (state) {

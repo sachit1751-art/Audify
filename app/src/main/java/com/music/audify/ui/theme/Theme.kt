@@ -41,7 +41,6 @@ import com.music.audify.data.settings.AppFont
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
-import com.music.audify.data.settings.ThemeSurfaceStyle
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFFA243C),
@@ -237,15 +236,12 @@ fun AudifyTheme(
         val primary = primaryHex.toThemeColor()
         val secondary = activeThemePack.secondaryHex.toThemeColor()
         val tertiary = tertiaryHex.toThemeColor()
-        val surface = when (activeThemePack.surfaceStyle) {
-            ThemeSurfaceStyle.AMOLED -> Color.Black
-            ThemeSurfaceStyle.MIDNIGHT -> Color(0xFF080F20)
-            ThemeSurfaceStyle.GRAPHITE -> Color(0xFF17191D)
-            ThemeSurfaceStyle.DEEP_PURPLE -> Color(0xFF170F24)
-            ThemeSurfaceStyle.WARM -> Color(0xFF211711)
-            ThemeSurfaceStyle.SLATE -> Color(0xFF111B25)
-            ThemeSurfaceStyle.DEFAULT -> base.background
+        val themedBackground = if (darkTheme) {
+            ThemePacks.darkBackgroundHex(activeThemePack).toThemeColor()
+        } else {
+            ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor()
         }
+        val surface = if (darkTheme) themedBackground else lerp(base.surface, primary, 0.045f)
         val containerSurface = if (darkTheme) surface else base.surface
         val primaryContainer = lerp(containerSurface, primary, if (darkTheme) 0.30f else 0.14f)
         val secondaryContainer = lerp(containerSurface, secondary, if (darkTheme) 0.24f else 0.14f)
@@ -263,13 +259,13 @@ fun AudifyTheme(
             onTertiary = ThemePacks.contentColorHex(tertiaryHex).toThemeColor(),
             tertiaryContainer = tertiaryContainer,
             onTertiaryContainer = if (tertiaryContainer.luminance() > 0.5f) Color.Black else Color.White,
-            background = if (darkTheme) surface else base.background,
-            surface = if (darkTheme) surface else base.surface,
-            surfaceContainerLowest = if (darkTheme) surface else base.surfaceContainerLowest,
-            surfaceContainerLow = if (darkTheme) lerp(surface, Color.White, 0.035f) else base.surfaceContainerLow,
-            surfaceContainer = if (darkTheme) lerp(surface, Color.White, 0.065f) else base.surfaceContainer,
-            surfaceContainerHigh = if (darkTheme) lerp(surface, Color.White, 0.10f) else base.surfaceContainerHigh,
-            surfaceContainerHighest = if (darkTheme) lerp(surface, Color.White, 0.15f) else base.surfaceContainerHighest,
+            background = themedBackground,
+            surface = surface,
+            surfaceContainerLowest = if (darkTheme) surface else lerp(themedBackground, Color.White, 0.30f),
+            surfaceContainerLow = if (darkTheme) lerp(surface, Color.White, 0.035f) else lerp(themedBackground, base.surfaceContainerLow, 0.42f),
+            surfaceContainer = if (darkTheme) lerp(surface, Color.White, 0.065f) else lerp(themedBackground, base.surfaceContainer, 0.48f),
+            surfaceContainerHigh = if (darkTheme) lerp(surface, Color.White, 0.10f) else lerp(themedBackground, base.surfaceContainerHigh, 0.54f),
+            surfaceContainerHighest = if (darkTheme) lerp(surface, Color.White, 0.15f) else lerp(themedBackground, base.surfaceContainerHighest, 0.60f),
             outline = lerp(base.outline, primary, if (darkTheme) 0.20f else 0.12f),
             outlineVariant = lerp(base.outlineVariant, primary, if (darkTheme) 0.14f else 0.08f),
             onSurfaceVariant = lerp(base.onSurfaceVariant, primary, 0.08f),

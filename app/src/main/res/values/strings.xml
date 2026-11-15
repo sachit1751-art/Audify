@@ -468,6 +468,10 @@ Project: AUDIFY
   <string name="show_listen_together_button_subtitle">Off, the player shows only the audio output button between lyrics and the queue</string>
   <string name="app_icon">App icon</string>
   <string name="app_icon_default">Default</string>
+  <string name="app_icon_ocean">Ocean</string>
+  <string name="app_icon_sunset">Sunset</string>
+  <string name="app_icon_violet">Violet</string>
+  <string name="app_icon_previous">Classic</string>
   <string name="app_icon_monochrome">Monochrome</string>
   <string name="app_icon_liquid_glass">Liquid Glass</string>
   <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>

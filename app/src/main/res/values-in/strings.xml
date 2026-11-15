@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_icon_ocean">Samudra</string>
+    <string name="app_icon_sunset">Senja</string>
+    <string name="app_icon_violet">Violet</string>
+    <string name="app_icon_previous">Klasik</string>
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">Sedang diputar</string>
     <string name="download_channel_name">Unduhan</string>

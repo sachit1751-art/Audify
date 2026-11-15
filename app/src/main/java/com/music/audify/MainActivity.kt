@@ -3875,7 +3875,6 @@ private fun AudifyApp(
                                         )
                                     }
                                 },
-                                onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
                             )
                             TAB_EXPLORE -> selectedMoodGenre?.let { category ->
                                 MoodGenrePlaylistsScreen(

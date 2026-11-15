@@ -1123,6 +1123,7 @@ object ListenTogether {
         val frame = buildJsonObject {
             put("type", "control")
             put("action", action)
+            put("eventId", UUID.randomUUID().toString())
             body()
         }
         send(frame)

@@ -53,6 +53,37 @@ object ThemePacks {
 
     fun isValidHex(value: String): Boolean = value.matches(Regex("^#[0-9A-Fa-f]{6}$"))
 
+    /** Subtle palette wash used behind light-mode content and in the theme picker. */
+    private fun backgroundAccentHex(pack: ThemePack): String =
+        if (pack.id == CLASSIC_ID) pack.tertiaryHex else pack.primaryHex
+
+    fun lightBackgroundHex(pack: ThemePack): String = blendHex("#FFFFFF", backgroundAccentHex(pack), 0.075)
+
+    /** A restrained accent tint keeps dark surfaces coordinated without losing their base style. */
+    fun darkBackgroundHex(pack: ThemePack): String {
+        val base = when (pack.surfaceStyle) {
+            ThemeSurfaceStyle.AMOLED -> "#000000"
+            ThemeSurfaceStyle.MIDNIGHT -> "#080F20"
+            ThemeSurfaceStyle.GRAPHITE -> "#17191D"
+            ThemeSurfaceStyle.DEEP_PURPLE -> "#170F24"
+            ThemeSurfaceStyle.WARM -> "#211711"
+            ThemeSurfaceStyle.SLATE -> "#111B25"
+            ThemeSurfaceStyle.DEFAULT -> "#0D0D0F"
+        }
+        return if (pack.surfaceStyle == ThemeSurfaceStyle.AMOLED) base
+        else blendHex(base, backgroundAccentHex(pack), 0.12)
+    }
+
+    private fun blendHex(base: String, tint: String, amount: Double): String {
+        require(isValidHex(base) && isValidHex(tint))
+        val channels = (0..2).map { index ->
+            val start = base.substring(1 + index * 2, 3 + index * 2).toInt(16)
+            val end = tint.substring(1 + index * 2, 3 + index * 2).toInt(16)
+            (start + (end - start) * amount).toInt().coerceIn(0, 255)
+        }
+        return channels.joinToString(prefix = "#", separator = "") { it.toString(16).padStart(2, '0') }.uppercase()
+    }
+
     /** Selects whichever neutral (black or white) gives the stronger WCAG contrast. */
     fun contentColorHex(backgroundHex: String): String {
         require(isValidHex(backgroundHex)) { "Expected a six-digit colour" }

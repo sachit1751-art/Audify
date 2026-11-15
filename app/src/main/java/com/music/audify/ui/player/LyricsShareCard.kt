@@ -87,35 +87,8 @@ internal suspend fun renderLyricsShareCard(
 
     // ── Panel ───────────────────────────────────────────────────────────────
     val panel = RectF(CARD_MARGIN, panelTop, CARD_W - CARD_MARGIN, panelBottom)
-    val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    fill.color = 0x59000000
-    canvas.drawRoundRect(panel, PANEL_RADIUS, PANEL_RADIUS, fill)
-    fill.color = 0x0FFFFFFF
-    canvas.drawRoundRect(panel, PANEL_RADIUS, PANEL_RADIUS, fill)
-    // The song strip: a darker band whose bottom corners follow the panel.
-    val footerPath = Path().apply {
-        addRoundRect(
-            RectF(panel.left, footerTop, panel.right, panelBottom),
-            floatArrayOf(
-                0f, 0f, 0f, 0f,
-                PANEL_RADIUS, PANEL_RADIUS, PANEL_RADIUS, PANEL_RADIUS,
-            ),
-            Path.Direction.CW,
-        )
-    }
-    fill.color = 0x33000000
-    canvas.drawPath(footerPath, fill)
-    val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        color = 0x26FFFFFF
-    }
-    canvas.drawRoundRect(
-        RectF(panel.left + 1f, panel.top + 1f, panel.right - 1f, panel.bottom - 1f),
-        PANEL_RADIUS,
-        PANEL_RADIUS,
-        edge,
-    )
+    // Keep the original open-card treatment: no enclosing panel, outline, or
+    // separate footer box around the shared lyrics.
 
     // ── The passage ─────────────────────────────────────────────────────────
     val textLeft = CARD_MARGIN + PANEL_PAD

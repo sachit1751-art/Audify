@@ -4,6 +4,10 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
+    <string name="app_icon_ocean">Đại dương</string>
+    <string name="app_icon_sunset">Hoàng hôn</string>
+    <string name="app_icon_violet">Tím</string>
+    <string name="app_icon_previous">Cổ điển</string>
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">Đang phát</string>
 <string name="download_notification_title">Đang tải xuống</string>

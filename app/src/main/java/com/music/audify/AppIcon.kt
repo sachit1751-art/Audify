@@ -16,10 +16,14 @@ import android.content.pm.PackageManager
  */
 enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val previewRes: Int? = null) {
     Default("LauncherDefault", R.mipmap.ic_launcher, R.string.app_icon_default),
-    LiquidGlass("LauncherGlassLight", R.mipmap.ic_liquid_glass, R.string.app_icon_liquid_glass);
+    LiquidGlass("LauncherGlassLight", R.mipmap.ic_liquid_glass, R.string.app_icon_liquid_glass),
+    Ocean("LauncherOcean", R.mipmap.ic_launcher_ocean, R.string.app_icon_ocean),
+    Sunset("LauncherSunset", R.mipmap.ic_launcher_sunset, R.string.app_icon_sunset),
+    Violet("LauncherViolet", R.mipmap.ic_launcher_violet, R.string.app_icon_violet),
+    Previous("LauncherPrevious", R.mipmap.ic_launcher_previous, R.string.app_icon_previous);
 
     private fun component(context: Context) =
-        ComponentName(context.packageName, "com.music.audify.$alias")
+        ComponentName(context.packageName, "${context.packageName}.$alias")
 
     companion object {
         /**

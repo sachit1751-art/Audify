@@ -263,7 +263,7 @@ fun RowScope.IosMenuQuickAction(
     val colors = iosMenuColors()
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val color = if (enabled) colors.label else colors.secondaryLabel
+    val color = if (enabled) MaterialTheme.colorScheme.primary else colors.secondaryLabel
     val touch = LocalIosMenuTouch.current
     Column(
         modifier = Modifier
@@ -352,7 +352,7 @@ fun IosMenuRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = (iconTint ?: foreground).copy(alpha = alpha),
+                    tint = (iconTint ?: MaterialTheme.colorScheme.primary).copy(alpha = alpha),
                     modifier = Modifier.size(21.dp),
                 )
             }

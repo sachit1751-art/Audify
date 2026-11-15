@@ -141,7 +141,7 @@
     <string name="pull_to_refresh">Pull to refresh</string>
     <string name="pull_release">Release to refresh</string>
     <string name="pull_refreshing">Refreshing…</string>
-    <string name="explore">New</string>
+    <string name="explore">Explore</string>
     <string name="library">Library</string>
     <string name="library_sign_in_description">Sign in to your Google account to see your liked songs, playlists, and YouTube Music history.</string>
     <string name="new_playlist">New playlist</string>
