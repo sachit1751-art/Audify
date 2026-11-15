@@ -1,6 +1,7 @@
 package com.music.audify.ui.theme
 
 import android.app.Activity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import com.music.audify.data.settings.AppFont
+import com.music.audify.data.settings.AppBackgroundStyle
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
@@ -121,6 +124,13 @@ private val AppleShapes = Shapes(
  * Every interactive role is derived from the selected theme pack.
  */
 private fun String.toThemeColor(): Color = Color(android.graphics.Color.parseColor(this))
+
+private fun Color.withAccent(accent: Color, amount: Float): Color = Color(
+    red = red * (1f - amount) + accent.red * amount,
+    green = green * (1f - amount) + accent.green * amount,
+    blue = blue * (1f - amount) + accent.blue * amount,
+    alpha = 1f,
+)
 
 
 
@@ -277,6 +287,29 @@ fun AudifyTheme(
             backgroundColor = scheme.primary.copy(alpha = 0.3f),
         )
     }
+    val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+    val appBackgroundBrush = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme) {
+        val base = scheme.background
+        when (backgroundStyle) {
+            AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
+            AppBackgroundStyle.AURORA -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), base)
+                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), base),
+            )
+            AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), base)
+                else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), base),
+            )
+            AppBackgroundStyle.SUNSET -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), base)
+                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), base),
+            )
+            AppBackgroundStyle.NEBULA -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), base)
+                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), base),
+            )
+        }
+    }
     MaterialTheme(
         colorScheme = scheme,
         typography = when (font) {
@@ -302,7 +335,7 @@ fun AudifyTheme(
             LocalTextSelectionColors provides selection,
             LocalContentColor provides scheme.onBackground,
         ) {
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().background(appBackgroundBrush)) {
                 if (!backgroundUri.isNullOrBlank()) {
                     AsyncImage(
                         model = backgroundUri,

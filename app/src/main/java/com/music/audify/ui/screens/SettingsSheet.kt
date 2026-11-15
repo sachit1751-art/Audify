@@ -101,7 +101,9 @@ import com.music.audify.ui.components.IosSwitch
 import com.music.audify.ui.components.IosSlider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -148,6 +150,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.halilibo.richtext.markdown.Markdown
+import com.halilibo.richtext.ui.RichTextStyle
+import com.halilibo.richtext.ui.material3.RichText
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
@@ -166,12 +171,12 @@ import com.music.audify.ui.performance.supportedPerformanceRefreshRates
 import com.music.audify.data.model.Account
 import com.music.audify.data.LocalMediaRepository
 import com.music.audify.data.AppUpdateChecker
-import com.music.audify.data.feedback.FeedbackRepository
 import com.music.audify.data.local.LocalFirstRepository
 import com.music.audify.data.NerdStats
 import com.music.audify.data.scrobbling.LastFM
 import com.music.audify.data.listentogether.ListenTogether
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.settings.AppBackgroundStyle
 import com.music.audify.data.settings.SearchHistory
 import com.music.audify.data.settings.OutputPcmMode
 import com.music.audify.data.settings.GlassClarity
@@ -312,6 +317,7 @@ fun SettingsScreen(
     val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
     val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
     val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
+    val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
     val outputPcmMode by AppSettings.outputPcmMode.collectAsStateWithLifecycle()
     val preferUsbDac by AppSettings.preferUsbDac.collectAsStateWithLifecycle()
@@ -378,7 +384,6 @@ fun SettingsScreen(
     val listenBrainzToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
 
     val replayGenres by AppSettings.replayGenres.collectAsStateWithLifecycle()
-    val showWeeklyRecapCard by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
     val showTimeAwareShelf by AppSettings.showTimeAwareShelf.collectAsStateWithLifecycle()
     val hideExplicitContent by AppSettings.hideExplicitContent.collectAsStateWithLifecycle()
 
@@ -585,14 +590,6 @@ fun SettingsScreen(
     var showCreateThemeDialog by rememberSaveable { mutableStateOf(false) }
     var feedbackKind by rememberSaveable { mutableStateOf("bug") }
     var showFeedbackDialog by rememberSaveable { mutableStateOf(false) }
-    var feedbackTitle by rememberSaveable { mutableStateOf("") }
-    var feedbackDescription by rememberSaveable { mutableStateOf("") }
-    var feedbackCategory by rememberSaveable { mutableStateOf("Other") }
-    var feedbackDiagnostics by rememberSaveable { mutableStateOf(false) }
-    var feedbackSubmitting by remember { mutableStateOf(false) }
-    var feedbackSubmissionError by remember { mutableStateOf<String?>(null) }
-    val feedbackScope = rememberCoroutineScope()
-    val feedbackCategories = listOf("Playback", "Playlists", "Discovery", "Library", "Downloads", "Lyrics", "Appearance", "Accessibility", "Performance", "Android Auto", "Android TV", "Wear OS", "Other")
     var newThemeName by rememberSaveable { mutableStateOf("") }
     var newThemePrimary by rememberSaveable { mutableStateOf("#55C7F2") }
     var newThemeSecondary by rememberSaveable { mutableStateOf("#80E0D0") }
@@ -1398,10 +1395,21 @@ fun SettingsScreen(
                     )
                 }
             }
-            row("Background image", "custom background", "wallpaper", "image") {
+            row("Background", "built-in background", "aurora", "ocean", "sunset", "nebula", "custom background", "wallpaper", "image") {
+                Text(
+                    "Built-in backgrounds",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, top = 8.dp, bottom = 8.dp),
+                )
+                SegmentedControl(
+                    options = AppBackgroundStyle.entries.map { it.label },
+                    selectedIndex = AppBackgroundStyle.entries.indexOf(backgroundStyle).coerceAtLeast(0),
+                    onSelect = { index -> AppSettings.setBackgroundStyle(AppBackgroundStyle.entries[index]) },
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 12.dp),
+                )
                 SettingsRow(
                     icon = SfIcons.Folder,
-                    title = "Background image",
+                    title = "Custom photo",
                     subtitle = if (themeBackgroundUri.isNullOrBlank()) "No custom background selected" else "Custom background active",
                     onClick = { themeBackgroundPicker.launch(arrayOf("image/*")) },
                 )
@@ -1968,16 +1976,6 @@ fun SettingsScreen(
                     onClick = onOpenReplay,
                 )
             }
-            val weeklyRecapTitle = "Weekly listening recap"
-            row(weeklyRecapTitle, "weekly", "recap", "listening stats") {
-                SettingsRow(
-                    icon = SfIcons.BarChart,
-                    title = weeklyRecapTitle,
-                    subtitle = "Show a private weekly summary of listening activity on Home.",
-                    trailing = { IosSwitch(checked = showWeeklyRecapCard, onCheckedChange = AppSettings::setShowWeeklyRecapCard) },
-                    onClick = { AppSettings.setShowWeeklyRecapCard(!showWeeklyRecapCard) },
-                )
-            }
             val clearSearchHistoryTitle = "Clear search history"
             row(clearSearchHistoryTitle, "search", "recent searches", "privacy") {
                 SettingsRow(
@@ -2055,12 +2053,12 @@ fun SettingsScreen(
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
             row("Report a bug", "feedback", "problem", "issue") {
                 SettingsRow(icon = SfIcons.Info, title = "Report a bug", subtitle = "Tell us what went wrong.", onClick = {
-                    feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
+                    feedbackKind = "bug"; showFeedbackDialog = true
                 })
             }
             row("Suggest a feature", "feedback", "idea", "request") {
                 SettingsRow(icon = SfIcons.AutoAwesome, title = "Suggest a feature", subtitle = "Share an idea for Audify.", onClick = {
-                    feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
+                    feedbackKind = "feature"; showFeedbackDialog = true
                 })
             }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
@@ -2223,50 +2221,154 @@ fun SettingsScreen(
         }
 
         if (shows(SettingsCategory.UPDATES)) {
-            if (section == SettingsCategory.UPDATES && searchQuery.isBlank()) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("LATEST VERSION", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    SettingsGroup {
+            if (section == SettingsCategory.UPDATES) {
+                var releaseNotesExpanded by rememberSaveable(latestRelease?.version) { mutableStateOf(true) }
+                val updateAvailable = latestRelease?.updateAvailable == true
+                val statusTitle = when {
+                    updateChecking -> "Checking for updates…"
+                    updateAvailable -> "An update is available"
+                    latestRelease != null -> "Your software is up to date"
+                    else -> "Check for updates"
+                }
+                val statusColor = if (updateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    // Hero status panel: intentionally separate from the changelog so
+                    // the primary action remains visible on short phone screens.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(28.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+                            .padding(horizontal = 20.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(76.dp)
+                                .clip(CircleShape)
+                                .background(statusColor.copy(alpha = 0.13f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = if (updateAvailable) SfIcons.Upgrade else SfIcons.Downloaded,
+                                contentDescription = null,
+                                tint = statusColor,
+                                modifier = Modifier.size(34.dp),
+                            )
+                        }
                         Text(
-                            text = when {
-                                updateChecking -> "Checking GitHub for updates…"
-                                latestRelease?.updateAvailable == true -> "Audify ${latestRelease?.version} is available."
-                                latestRelease != null -> "You’re on the latest version."
-                                else -> "Check for the latest Audify release."
-                            },
+                            text = if (updateChecking) "CHECKING" else if (updateAvailable) "UPDATE AVAILABLE" else "UP TO DATE",
+                            modifier = Modifier
+                                .padding(top = 14.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(statusColor.copy(alpha = 0.18f))
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = statusColor,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = statusTitle,
+                            modifier = Modifier.padding(top = 12.dp),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            textAlign = TextAlign.Center,
                         )
-                        TextButton(
-                            enabled = !updateChecking,
-                            onClick = {
-                                backupScope.launch {
-                                    val result = AppUpdateChecker.check()
-                                    if (result == null) Toast.makeText(context, "Couldn't check GitHub. Check your connection.", Toast.LENGTH_LONG).show()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                        ) {
-                            Text(if (updateChecking) "Checking…" else "↓  Check for updates")
-                        }
+                        Text(
+                            text = "Audify v$version  ·  Android ${Build.VERSION.RELEASE}",
+                            modifier = Modifier.padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
                         latestRelease?.let { release ->
                             Text(
-                                "Latest release · v${release.version}",
-                                style = MaterialTheme.typography.bodyLarge,
+                                text = "Latest release · v${release.version}",
+                                modifier = Modifier.padding(top = 4.dp),
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                textAlign = TextAlign.Center,
                             )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            Text("What’s new", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 18.dp)
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.primary)
+                                .clickable(enabled = !updateChecking) {
+                                    backupScope.launch {
+                                        val result = AppUpdateChecker.check()
+                                        if (result == null) Toast.makeText(context, "Couldn't check GitHub. Check your connection.", Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(
-                                text = release.notes?.takeIf(String::isNotBlank) ?: "No release notes were published for this version.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                                text = if (updateChecking) "Checking…" else "↻  Check for update",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
                             )
-                            TextButton(onClick = { context.openLink(release.releaseUrl) }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                                Text("View release on GitHub")
+                        }
+                    }
+
+                    latestRelease?.let { release ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f)),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { releaseNotesExpanded = !releaseNotesExpanded }
+                                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(SfIcons.Notes, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(17.dp))
+                                }
+                                Column(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
+                                    Text("What’s new in this version", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                    Text("v${release.version}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text(if (releaseNotesExpanded) "⌃" else "⌄", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
+                            }
+                            if (releaseNotesExpanded) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 360.dp)
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                                ) {
+                                    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                                        RichText(style = RichTextStyle.Default) {
+                                            Markdown(release.notes?.takeIf(String::isNotBlank)
+                                                ?: "No release notes were published for this version.")
+                                        }
+                                    }
+                                }
+                                TextButton(
+                                    onClick = { context.openLink(release.releaseUrl) },
+                                    modifier = Modifier.padding(start = 10.dp, bottom = 8.dp),
+                                ) {
+                                    Text("See full changelog on GitHub ↗")
+                                }
                             }
                         }
                     }
@@ -2284,15 +2386,15 @@ fun SettingsScreen(
         }
 
         if (shows(SettingsCategory.ABOUT)) {
-            if (section == SettingsCategory.ABOUT && searchQuery.isBlank()) {
+            if (section == SettingsCategory.ABOUT) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("ABOUT", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     SettingsGroup {
                         SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
-                            feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
+                            feedbackKind = "bug"; showFeedbackDialog = true
                         })
                         SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = {
-                            feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackCategory = "Other"; feedbackSubmissionError = null; showFeedbackDialog = true
+                            feedbackKind = "feature"; showFeedbackDialog = true
                         })
                         SettingsRow(icon = SfIcons.Person, title = "Contact support", subtitle = "sachit1771@gmail.com", onClick = { context.openLink("mailto:sachit1771@gmail.com") })
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -2302,7 +2404,10 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             Image(
-                                painter = painterResource(R.mipmap.ic_launcher),
+                                // ic_launcher is an adaptive-icon XML resource and
+                                // cannot be loaded by Compose's painterResource.
+                                // Use the regular vector brand mark here instead.
+                                painter = painterResource(R.drawable.ic_logo),
                                 contentDescription = "Audify",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
@@ -2327,8 +2432,8 @@ fun SettingsScreen(
                     }
                 }
             } else SearchableSettingsGroup(search, header = stringResource(R.string.about)) {
-                row("Report a problem", "bug", "feedback", "issue") { SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = { feedbackKind = "bug"; feedbackTitle = ""; feedbackDescription = ""; feedbackSubmissionError = null; showFeedbackDialog = true }) }
-                row("Request a feature", "feature", "feedback", "idea") { SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = { feedbackKind = "feature"; feedbackTitle = ""; feedbackDescription = ""; feedbackSubmissionError = null; showFeedbackDialog = true }) }
+                row("Report a problem", "bug", "feedback", "issue") { SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = { feedbackKind = "bug"; showFeedbackDialog = true }) }
+                row("Request a feature", "feature", "feedback", "idea") { SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = { feedbackKind = "feature"; showFeedbackDialog = true }) }
                 row("Audify $version", "version", "app information") { SettingsRow(icon = SfIcons.Info, title = "Audify $version", subtitle = "YouTube Music & Listen Together Backend") }
                 row("GitHub", "source code", "repository") { SettingsRow(icon = SfIcons.Info, title = "GitHub", subtitle = "View the Audify source code", onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }) }
             }
@@ -2504,81 +2609,7 @@ fun SettingsScreen(
         }
     }
 
-    if (showFeedbackDialog) {
-        AlertDialog(
-            onDismissRequest = { if (!feedbackSubmitting) showFeedbackDialog = false },
-            title = { Text(if (feedbackKind == "bug") "Report a bug" else "Suggest a feature") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TextButton(onClick = {
-                        val index = feedbackCategories.indexOf(feedbackCategory).coerceAtLeast(0)
-                        feedbackCategory = feedbackCategories[(index + 1) % feedbackCategories.size]
-                    }) { Text("Category: $feedbackCategory · Change") }
-                    OutlinedTextField(
-                        value = feedbackTitle,
-                        onValueChange = { feedbackTitle = it.take(120).replace(Regex("[\\r\\n]"), " ") },
-                        label = { Text("Title") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = feedbackDescription,
-                        onValueChange = { feedbackDescription = it.take(6000) },
-                        label = { Text("Describe it") },
-                        minLines = 3,
-                        maxLines = 5,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text("Do not include passwords or personal information.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    feedbackSubmissionError?.let { error ->
-                        Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Include device diagnostics", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                        IosSwitch(checked = feedbackDiagnostics, onCheckedChange = { feedbackDiagnostics = it })
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !feedbackSubmitting && feedbackTitle.trim().length in 4..120 && feedbackDescription.trim().length in 20..6000,
-                    onClick = {
-                        feedbackSubmitting = true
-                        feedbackScope.launch {
-                            runCatching {
-                                FeedbackRepository.submit(
-                                    kind = feedbackKind,
-                                    category = feedbackCategory,
-                                    title = feedbackTitle,
-                                    description = feedbackDescription,
-                                    includeDiagnostics = feedbackDiagnostics,
-                                )
-                            }.onSuccess { receipt ->
-                                showFeedbackDialog = false
-                                Toast.makeText(context, "Submitted · #${receipt.number}", Toast.LENGTH_LONG).show()
-                                if (receipt.url.startsWith("https://github.com/")) context.openLink(receipt.url)
-                            }.onFailure { error ->
-                                feedbackSubmissionError = error.message ?: "Could not submit feedback. You can use the GitHub form instead."
-                            }
-                            feedbackSubmitting = false
-                        }
-                    },
-                ) { Text(if (feedbackSubmitting) "Sending…" else "Submit") }
-            },
-            dismissButton = {
-                Row {
-                    if (feedbackSubmissionError != null) {
-                        TextButton(enabled = !feedbackSubmitting, onClick = {
-                            val template = if (feedbackKind == "bug") "bug_report.yml" else "feature_request.yml"
-                            showFeedbackDialog = false
-                            context.openLink("https://github.com/sachit1751-art/Audify/issues/new?template=$template")
-                        }) { Text("Open GitHub form") }
-                    }
-                    TextButton(enabled = !feedbackSubmitting, onClick = { showFeedbackDialog = false }) { Text("Cancel") }
-                }
-            },
-        )
-    }
+    if (showFeedbackDialog) FeedbackDialog(kind = feedbackKind, onDismiss = { showFeedbackDialog = false })
 
     if (showCreateThemeDialog) {
         AlertDialog(

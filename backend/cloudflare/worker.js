@@ -6,7 +6,7 @@ import { isRoomExpired, nextCleanupAt } from './lifecycle.js';
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const CODE_LENGTH = 6;
 const MAX_BODY = 16 * 1024;
-const MAX_FEEDBACK_BODY = 8 * 1024;
+const MAX_FEEDBACK_BODY = 32 * 1024;
 const MAX_UPCOMING = 25;
 const PLAY_LEAD_MS = 350;
 const DISCONNECT_GRACE_MS = 45_000;
@@ -26,7 +26,7 @@ const normalise = value => [...String(value ?? '').trim().toUpperCase()].filter(
 const makeCode = () => [...crypto.getRandomValues(new Uint8Array(CODE_LENGTH))].map(x => ALPHABET[x % ALPHABET.length]).join('');
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const clampText = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
-const FEEDBACK_CATEGORIES = new Set(['Playback', 'Playlists', 'Discovery', 'Library', 'Downloads', 'Lyrics', 'Appearance', 'Accessibility', 'Performance', 'Android Auto', 'Android TV', 'Wear OS', 'Other']);
+const FEEDBACK_CATEGORIES = new Set(['Playback', 'Playlists', 'Discovery', 'Library', 'Downloads', 'Lyrics', 'Appearance', 'Accessibility', 'Performance', 'Android Auto', 'Android TV', 'Wear OS', 'Playback glitch', 'Audio Output / DAC', 'UI / Display', 'Crash or Freeze', 'Other']);
 
 async function feedbackIpKey(ip) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip || 'unknown'));
@@ -59,9 +59,12 @@ function feedbackIssueBody(body) {
   ];
   if (Object.keys(diagnostics).length) {
     lines.push('', '## Optional diagnostics', '');
-    for (const [label, value] of [['OS', diagnostics.os], ['Device', diagnostics.device]]) {
+    for (const [label, value] of Object.entries(diagnostics).map(([key, value]) => [key.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()), value])) {
       if (typeof value === 'string' && value.trim()) lines.push(`- ${label}: ${oneLine(value, 120)}`);
     }
+  }
+  if (typeof body.attachmentNote === 'string' && body.attachmentNote.trim()) {
+    lines.push('', '## Attachment', '', oneLine(body.attachmentNote, 180));
   }
   lines.push('', '---', '*Submitted anonymously from Audify. Do not post passwords, tokens, account details, private listening history, or personal files.*');
   return { title: `[${kind}] ${clampText(body.title, 120).trim()}`, body: lines.join('\n'), labels: body.kind === 'bug' ? ['bug'] : ['enhancement'] };

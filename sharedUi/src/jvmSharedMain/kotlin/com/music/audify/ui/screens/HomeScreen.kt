@@ -547,12 +547,6 @@ private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Bool
     return { it == byName }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-data class WeeklyRecapCardData(
-    val headline: String,
-    val detail: String,
-)
-
 @Composable
 fun HomeScreen(
     state: UiState<List<HomeShelf>>,
@@ -615,9 +609,6 @@ fun HomeScreen(
     pinnedShelf: HomeShelf? = null,
     /** A discovery shelf selected for the listener's current local-time block. */
     timeAwareShelf: HomeShelf? = null,
-    weeklyRecap: WeeklyRecapCardData? = null,
-    onWeeklyRecapClick: (() -> Unit)? = null,
-    onWeeklyRecapDismiss: (() -> Unit)? = null,
     /** Header actions: search, arrange Home shelves, and open the account. */
     onSearchClick: (() -> Unit)? = null,
     onCustomizeClick: (() -> Unit)? = null,
@@ -688,54 +679,6 @@ fun HomeScreen(
                         modifier = Modifier.padding(bottom = 8.dp),
                         motion = LocalArtworkMotion.current && !listState.isScrollInProgress,
                     )
-                }
-            }
-            if (weeklyRecap != null && onWeeklyRecapClick != null) {
-                item(key = "weekly-listening-recap") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = PAGE_GUTTER, vertical = 8.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable(onClick = onWeeklyRecapClick)
-                            .padding(18.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    text = "YOUR WEEK IN MUSIC",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                                Text(
-                                    text = weeklyRecap.headline,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                            if (onWeeklyRecapDismiss != null) {
-                                Text(
-                                    text = "?",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.clickable(onClick = onWeeklyRecapDismiss).padding(6.dp),
-                                )
-                            }
-                        }
-                        Text(
-                            text = weeklyRecap.detail,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                        Text(
-                            text = "See your listening recap  ?",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 12.dp),
-                        )
-                    }
                 }
             }
             // Pinned playlists: one tap from Home instead of a trip to Library.
@@ -1338,12 +1281,12 @@ private fun HomeHeader(
             painter = painterResource(Res.drawable.ic_logo),
             contentDescription = "Audify",
             tint = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.width(36.dp).height(24.dp),
+            modifier = Modifier.width(44.dp).height(30.dp),
         )
         Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.Center) {
             Text(
                 text = greeting,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
@@ -1988,7 +1931,10 @@ private fun ServiceCard(
         MeshGradientBackground(
             palette = palette,
             trackKey = trackKey,
-            continuous = true,
+            // Home may show several of these tiles at once. Let each mesh
+            // settle after its entrance instead of keeping multiple blurred
+            // canvases animating at display refresh rate while the feed rests.
+            continuous = false,
             blurRadius = 24.dp,
         )
         // Light theme only: the mesh clamps every colour it is given into a
@@ -2045,7 +1991,7 @@ internal fun ShelfCard(
                     MeshGradientBackground(
                         palette = palette,
                         trackKey = "local:downloads",
-                        continuous = true,
+                        continuous = false,
                         blurRadius = 24.dp,
                     )
                     Icon(

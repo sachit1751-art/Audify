@@ -21,6 +21,8 @@ object FeedbackRepository {
         title: String,
         description: String,
         includeDiagnostics: Boolean,
+        diagnosticDetails: Map<String, String> = emptyMap(),
+        attachmentNote: String? = null,
     ): Receipt = withContext(Dispatchers.IO) {
         require(kind == "bug" || kind == "feature")
         val payload = JSONObject()
@@ -33,10 +35,17 @@ object FeedbackRepository {
             .put("website", "")
 
         if (includeDiagnostics) {
-            payload.put("diagnostics", JSONObject()
+            val diagnostics = JSONObject()
                 .put("os", "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
-                .put("device", "${Build.MANUFACTURER} ${Build.MODEL}".take(120)))
+                .put("device", "${Build.MANUFACTURER} ${Build.MODEL}".take(120))
+            diagnosticDetails.forEach { (key, value) ->
+                if (key.matches(Regex("[a-zA-Z0-9_]{1,40}")) && value.isNotBlank()) {
+                    diagnostics.put(key, value.take(240))
+                }
+            }
+            payload.put("diagnostics", diagnostics)
         }
+        attachmentNote?.takeIf(String::isNotBlank)?.let { payload.put("attachmentNote", it.take(180)) }
 
         val base = BuildConfig.LISTEN_TOGETHER_SERVER.trim().trimEnd('/')
         if (!base.startsWith("https://")) throw IOException("Secure feedback service is unavailable.")

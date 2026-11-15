@@ -197,7 +197,6 @@ import com.music.audify.ui.screens.ListenTogetherScreen
 import com.music.audify.ui.screens.PartyServerEditor
 import com.music.audify.ui.screens.SignatureApiEditor
 import com.music.audify.ui.screens.SettingsScreen
-import com.music.audify.ui.screens.WeeklyRecapCardData
 import com.music.audify.ui.screens.WearOsScreen
 import com.music.audify.ui.screens.SourceEditorAlert
 import com.music.audify.ui.screens.SourcesScreen
@@ -645,11 +644,6 @@ private fun AudifyApp(
         // The Search tab's categories come from the same feed Explore loads.
         if (selectedTab == TAB_EXPLORE || selectedTab == TAB_SEARCH) viewModel.onExploreShown()
     }
-    // Charts New dibaca di latar sesaat setelah Home, jadi tab terbuka sudah berisi.
-    LaunchedEffect(Unit) {
-        delay(3_000)
-        viewModel.prefetchExploreCharts()
-    }
     /**
      * Whether the player's sheet is up. The player is always a full-screen
      * take-over raised over the page, on every window size — the library
@@ -660,10 +654,11 @@ private fun AudifyApp(
     // The DAC's own volume while direct USB output owns it; the full player
     // has its own bar for that, so the HUD stays out of its way.
     androidx.compose.runtime.SideEffect { VolumeHud.suppressed = showNowPlaying }
-    // The Top Picks and mood artwork loop forever; nobody sees it with the
-    // app in the background or Now Playing pulled up over the page.
+    // Decorative Home artwork should not animate while another tab is active.
+    // The playback indicators have a separate foreground gate below.
     val appForeground = com.music.audify.ui.rememberIsForeground()
-    val artworkMotion = appForeground && !showNowPlaying
+    val appMotion = appForeground && !showNowPlaying
+    val homeArtworkMotion = appMotion && selectedTab == TAB_HOME
     // Top Picks turns over each hour; coming back to the app after a
     // turn-over is an open too.
     LaunchedEffect(appForeground) {
@@ -2750,39 +2745,6 @@ private fun AudifyApp(
         }
     }
 
-    val showWeeklyRecap by AppSettings.showWeeklyRecapCard.collectAsStateWithLifecycle()
-    val weeklyRecapSeenWeek by AppSettings.weeklyRecapSeenWeek.collectAsStateWithLifecycle()
-    val currentWeekKey = remember {
-        java.time.LocalDate.now()
-            .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-            .toEpochDay()
-    }
-    val weeklyRecap by produceState<WeeklyRecapCardData?>(
-        initialValue = null,
-        selectedTab,
-        route,
-        showWeeklyRecap,
-        weeklyRecapSeenWeek,
-        currentWeekKey,
-    ) {
-        value = null
-        if (!showWeeklyRecap || selectedTab != TAB_HOME || route != null) return@produceState
-        if (weeklyRecapSeenWeek == currentWeekKey) return@produceState
-        val summary = withContext(Dispatchers.IO) { ListeningStats.summary(ReplayPeriod.THIS_WEEK) }
-        if (!summary.isEmpty) {
-            val topSong = summary.songs.firstOrNull()?.song?.title
-            val topArtist = summary.artists.firstOrNull()?.title
-            value = WeeklyRecapCardData(
-                headline = "${formatListening(context, summary.totalMs)} listened",
-                detail = buildList {
-                    add("${summary.totalPlays} plays")
-                    topSong?.let { add("Top track: $it") }
-                    topArtist?.let { add("Top artist: $it") }
-                }.joinToString(" ? "),
-            )
-        }
-    }
-
     // ---- The track in the player ----
     // Whatever started this track knew its title and its artwork, but rarely
     // which album or artist page it belongs to. Fill that in while the player
@@ -3832,17 +3794,8 @@ private fun AudifyApp(
                                 onMoodsShowAll = { navigator.push(AppRoute.Moods) },
                                 homeLayout = homeLayout,
                                 timeAwareShelf = timeAwareShelf,
-                                weeklyRecap = weeklyRecap,
-                                onWeeklyRecapClick = {
-                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekKey)
-                                    replayLandingPage = ReplayStoryPage.INTRO
-                                    navigator.push(AppRoute.Replay)
-                                }.takeIf { weeklyRecap != null },
-                                onWeeklyRecapDismiss = {
-                                    AppSettings.setWeeklyRecapSeenWeek(currentWeekKey)
-                                }.takeIf { weeklyRecap != null },
                                 onPlaySongs = { songs -> play(songs, 0) },
-                                artworkMotion = artworkMotion,
+                                artworkMotion = homeArtworkMotion,
                                 onSearchClick = { selectedTab = TAB_SEARCH },
                                 onCustomizeClick = { showHomeLayout = true },
                                 account = account ?: googleAccounts
@@ -4202,7 +4155,7 @@ private fun AudifyApp(
                     // The playing bars hold still with the player up, the app in
                     // the background, or this page on its way out: each frame of
                     // them redraws the page under the glass, for nobody.
-                    val barsMotion = artworkMotion && transition.targetState == EnterExitState.Visible
+                    val barsMotion = appMotion && transition.targetState == EnterExitState.Visible
                     CompositionLocalProvider(
                         LocalPlayingBarsMotion provides barsMotion,
                         LocalCoverVisibilityScope provides this@AnimatedContent,

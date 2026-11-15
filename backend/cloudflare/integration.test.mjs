@@ -106,6 +106,20 @@ test('anonymous feedback validates submissions and never reports honeypot submis
     const unconfigured = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(validPayload) });
     assert.equal(unconfigured.status, 503);
     assert.equal((await json(unconfigured)).error, 'feedback_unavailable');
+    for (const category of ['Playback glitch', 'Audio Output / DAC', 'UI / Display', 'Crash or Freeze', 'Appearance']) {
+      const acceptedCategory = await request('/api/feedback', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...validPayload, category }),
+      });
+      assert.equal(acceptedCategory.status, 503, `${category} should pass validation before the unconfigured-service response`);
+      assert.equal((await json(acceptedCategory)).error, 'feedback_unavailable');
+    }
+    const unicodeDescription = await request('/api/feedback', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...validPayload, description: '🙂'.repeat(3000) }),
+    });
+    assert.equal(unicodeDescription.status, 503, 'valid Unicode descriptions should reach the feedback service');
+    assert.equal((await json(unicodeDescription)).error, 'feedback_unavailable');
   } else {
     t.diagnostic('Live GitHub issue creation is verified separately; avoid creating test issues in production.');
   }
