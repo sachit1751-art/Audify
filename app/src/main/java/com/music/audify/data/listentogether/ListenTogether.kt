@@ -713,10 +713,9 @@ object ListenTogether {
         }
 
         startHealthMonitor()
-        // One resolution per process so create/join targets the right server
-        // (custom vs default fallback) without opening the screen first. The
-        // periodic monitor above is what was draining in #788, not this.
-        refreshServerHealth(showChecking = true)
+        // Health is resolved when the screen becomes active. Probing here made
+        // every cold launch perform a network round-trip for a feature the
+        // listener may never open; setScreenActive(true) is the demand boundary.
     }
 
     /**

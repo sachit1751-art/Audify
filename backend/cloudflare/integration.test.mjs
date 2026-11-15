@@ -128,48 +128,6 @@ test('anonymous feedback validates submissions and never reports honeypot submis
     t.diagnostic('Live GitHub issue creation is verified separately; avoid creating test issues in production.');
   }
 
-  assert.equal((await request('/api/feedback/attachment')).status, 405);
-  const unsupportedUpload = await request('/api/feedback/attachment', {
-    method: 'POST', headers: { 'content-type': 'image/gif' }, body: Buffer.from([0x47, 0x49, 0x46, 0x38]),
-  });
-  assert.equal(unsupportedUpload.status, 415, 'unsupported image formats must be rejected before storage configuration is checked');
-  assert.equal((await json(unsupportedUpload)).error, 'unsupported_image');
-
-  const oversizedUpload = await request('/api/feedback/attachment', {
-    method: 'POST', headers: { 'content-type': 'image/png' }, body: Buffer.alloc(5 * 1024 * 1024 + 1),
-  });
-  assert.equal(oversizedUpload.status, 413);
-  assert.equal((await json(oversizedUpload)).error, 'image_too_large');
-
-  const unavailableUpload = await request('/api/feedback/attachment', {
-    method: 'POST', headers: { 'content-type': 'image/png' },
-    body: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-  });
-  assert.equal(unavailableUpload.status, 503, 'screenshot upload must fail clearly until the server-side GitHub token is configured');
-  assert.equal((await json(unavailableUpload)).error, 'feedback_unavailable');
-
-  const externalAttachment = await request('/api/feedback', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...validPayload, attachmentUrl: 'https://attacker.example/screenshot.png' }),
-  });
-  assert.equal(externalAttachment.status, 422, 'reports must not embed arbitrary external attachment URLs');
-  assert.equal((await json(externalAttachment)).error, 'invalid_attachment');
-
-  const wrongRepositoryAttachment = await request('/api/feedback', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...validPayload, attachmentUrl: 'https://raw.githubusercontent.com/attacker/repo/main/feedback-attachments/test.png' }),
-  });
-  assert.equal(wrongRepositoryAttachment.status, 422, 'reports must only embed screenshots stored in the Audify repository');
-
-  const validRepositoryAttachment = await request('/api/feedback', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ ...validPayload, attachmentUrl: 'https://raw.githubusercontent.com/sachit1751-art/Audify/main/feedback-attachments/00000000-0000-4000-8000-000000000000.png' }),
-  });
-  if (base.includes('127.0.0.1')) {
-    assert.equal(validRepositoryAttachment.status, 503, 'valid Audify screenshot URLs should pass validation and reach the unconfigured GitHub service');
-    assert.equal((await json(validRepositoryAttachment)).error, 'feedback_unavailable');
-  }
-
   const bot = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...validPayload, website: 'spam.example' }) });
   assert.equal(bot.status, 202);
   assert.deepEqual(await json(bot), { ok: true });

@@ -59,8 +59,20 @@ object LosslessOutput {
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    /** The answer every gate reads. False until [init] has looked. */
-    val capable: Boolean get() = _state.value.capable
+    @Volatile private var appContext: Context? = null
+    @Volatile private var initialized = false
+
+    /** Supplies application context without registering callbacks during startup. */
+    fun provideContext(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    /** The first capability gate performs initialization on demand, not at cold launch. */
+    val capable: Boolean
+        get() {
+            if (!initialized) appContext?.let(::init)
+            return _state.value.capable
+        }
 
     private var audioManager: AudioManager? = null
     // Process-scoped tracker is intentionally backed by applicationContext, never an Activity.
@@ -72,22 +84,31 @@ object LosslessOutput {
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) = refresh()
     }
 
+    @Synchronized
     fun init(context: Context) {
-        if (audioManager != null) return
+        if (initialized) return
         val app = context.applicationContext
-        val manager = app.getSystemService(AudioManager::class.java) ?: return
+        appContext = app
+        val manager = app.getSystemService(AudioManager::class.java)
+        if (manager == null) {
+            initialized = true
+            return
+        }
         audioManager = manager
         manager.registerAudioDeviceCallback(callback, Handler(Looper.getMainLooper()))
         // Its own tracker rather than the playback service's: the gate has to
         // be right on the sources screen with nothing playing, when that one
         // is not running.
-        val bluetooth = BluetoothAudioTracker(app).also { it.start() }
+        val bluetooth = runCatching { BluetoothAudioTracker(app).also { it.start() } }.getOrNull()
         tracker = bluetooth
         // Made here, not as a field: plain-JVM tests read [capable] through
         // the source registry, and have no main dispatcher to build one on.
-        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-            .launch { bluetooth.telemetry.collect { recompute() } }
+        bluetooth?.let { tracker ->
+            CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+                .launch { tracker.telemetry.collect { recompute() } }
+        }
         recompute()
+        initialized = true
     }
 
     /** Asks Bluetooth again — after the Nearby devices permission is granted, say. */

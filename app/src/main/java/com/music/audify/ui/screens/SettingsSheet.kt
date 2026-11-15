@@ -266,6 +266,18 @@ fun SettingsScreen(
     onCustomizeHome: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    // About has no dependency on playback, DAC, download or theme state. Keep
+    // it out of the large settings composition so opening this page does not
+    // subscribe to dozens of unrelated StateFlows and build every settings
+    // page's state on the way in.
+    if (section == SettingsCategory.ABOUT) {
+        val version = remember(context) {
+            runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+                .getOrNull() ?: "1.0"
+        }
+        AboutSettingsContent(version = version, modifier = modifier, contentPadding = contentPadding)
+        return
+    }
     val unknownErrorMessage = stringResource(R.string.unknown_error)
     val exportSucceededTemplate = stringResource(R.string.export_succeeded)
     val exportFailedTemplate = stringResource(R.string.export_failed)
@@ -2392,51 +2404,7 @@ fun SettingsScreen(
         }
 
         if (shows(SettingsCategory.ABOUT)) {
-            if (section == SettingsCategory.ABOUT) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SettingsGroup {
-                        SettingsRow(icon = SfIcons.Bug, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
-                            feedbackKind = "bug"; showFeedbackDialog = true
-                        })
-                        SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = {
-                            feedbackKind = "feature"; showFeedbackDialog = true
-                        })
-                        SettingsRow(icon = SfIcons.Person, title = "Contact support", subtitle = "sachit1771@gmail.com", onClick = { context.openLink("mailto:sachit1771@gmail.com") })
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            Image(
-                                // ic_launcher is an adaptive-icon XML resource and
-                                // cannot be loaded by Compose's painterResource.
-                                // Use the regular vector brand mark here instead.
-                                painter = painterResource(R.drawable.ic_logo),
-                                contentDescription = "Audify",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
-                            )
-                            Column {
-                                Text("Audify", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                Text("Version $version", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        SettingsRow(icon = SfIcons.Person, title = "sachit1751-art", subtitle = "Lead Maintainer", onClick = { context.openLink("https://github.com/sachit1751-art") })
-                        Text(
-                            "Copyright © 2026 Audify Contributors. Audify comes with absolutely no warranty. It is free software, and you are welcome to redistribute it under the terms of the GNU General Public License version 3 or later. Audify is unofficial and is not affiliated with Spotify AB.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        )
-                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                            TextButton(onClick = { context.openLink("https://www.gnu.org/licenses/gpl-3.0.html") }) { Text("License") }
-                            TextButton(onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }) { Text("Source code") }
-                            TextButton(onClick = { context.openLink("https://github.com/sachit1751-art") }) { Text("Developer") }
-                        }
-                    }
-                }
-            } else SearchableSettingsGroup(search, header = stringResource(R.string.about)) {
+            SearchableSettingsGroup(search, header = stringResource(R.string.about)) {
                 row("Report a problem", "bug", "feedback", "issue") { SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = { feedbackKind = "bug"; showFeedbackDialog = true }) }
                 row("Request a feature", "feature", "feedback", "idea") { SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = { feedbackKind = "feature"; showFeedbackDialog = true }) }
                 row("Audify $version", "version", "app information") { SettingsRow(icon = SfIcons.Info, title = "Audify $version", subtitle = "YouTube Music & Listen Together Backend") }
@@ -2966,6 +2934,68 @@ private fun Context.openLink(url: String) {
     }.onFailure {
         Toast.makeText(this, url, Toast.LENGTH_SHORT).show()
     }
+}
+
+@Composable
+private fun AboutSettingsContent(
+    version: String,
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+) {
+    val context = LocalContext.current
+    var feedbackKind by rememberSaveable { mutableStateOf("bug") }
+    var showFeedbackDialog by rememberSaveable { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
+    ) {
+        SettingsPageTitle(stringResource(SettingsCategory.ABOUT.title))
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SettingsGroup {
+                SettingsRow(icon = SfIcons.Bug, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
+                    feedbackKind = "bug"; showFeedbackDialog = true
+                })
+                SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = {
+                    feedbackKind = "feature"; showFeedbackDialog = true
+                })
+                SettingsRow(icon = SfIcons.Person, title = "Contact support", subtitle = "sachit1771@gmail.com", onClick = { context.openLink("mailto:sachit1771@gmail.com") })
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_logo),
+                        contentDescription = "Audify",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
+                    )
+                    Column {
+                        Text("Audify", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Version $version", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                SettingsRow(icon = SfIcons.Person, title = "sachit1751-art", subtitle = "Lead Maintainer", onClick = { context.openLink("https://github.com/sachit1751-art") })
+                Text(
+                    "Copyright © 2026 Audify Contributors. Audify comes with absolutely no warranty. Audify is free software under the GNU General Public License version 3 or later. Audify is unofficial and is not affiliated with Spotify AB.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                )
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                    TextButton(onClick = { context.openLink("https://www.gnu.org/licenses/gpl-3.0.html") }) { Text("License") }
+                    TextButton(onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }) { Text("Source code") }
+                    TextButton(onClick = { context.openLink("https://github.com/sachit1751-art") }) { Text("Developer") }
+                }
+            }
+        }
+    }
+
+    if (showFeedbackDialog) FeedbackDialog(kind = feedbackKind, onDismiss = { showFeedbackDialog = false })
 }
 
 /** One tappable link in the settings footer card. */

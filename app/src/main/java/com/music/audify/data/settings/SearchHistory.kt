@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.music.audify.data.model.SearchHistoryEntity
 import com.music.audify.data.model.withCorrectedType
 
@@ -40,6 +44,15 @@ object SearchHistory {
 
     private val _addonRecent = MutableStateFlow<List<String>>(emptyList())
 
+    // Hydration runs off the UI thread. Mutations made before it finishes are
+    // replayed over the disk snapshot so a fast first search cannot be lost.
+    private val lock = Any()
+    private val reloadLock = Any()
+    @Volatile private var hydrated = false
+    private val pendingRecent = mutableListOf<(List<SearchHistoryEntity>) -> List<SearchHistoryEntity>>()
+    private val pendingAddon = mutableListOf<(List<String>) -> List<String>>()
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
      * What was typed into the Addons search, most recent first. Text only: an
      * addon search has no entity worth remembering, and re-running the words
@@ -50,21 +63,19 @@ object SearchHistory {
     fun recordAddonQuery(query: String) {
         val text = query.trim()
         if (text.isEmpty()) return
-        saveAddon((listOf(text) + _addonRecent.value.filterNot { it.equals(text, ignoreCase = true) }).take(MAX_ENTRIES))
+        mutateAddon { current ->
+            (listOf(text) + current.filterNot { it.equals(text, ignoreCase = true) }).take(MAX_ENTRIES)
+        }
     }
 
-    fun removeAddonQuery(query: String) = saveAddon(_addonRecent.value.filterNot { it == query })
+    fun removeAddonQuery(query: String) = mutateAddon { current -> current.filterNot { it == query } }
 
-    fun clearAddonQueries() = saveAddon(emptyList())
-
-    private fun saveAddon(value: List<String>) {
-        _addonRecent.value = value
-        prefs.edit {putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, value))}
-    }
+    fun clearAddonQueries() = mutateAddon { emptyList() }
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
-        reload()
+        hydrated = false
+        ioScope.launch { reload() }
     }
 
     /**
@@ -76,13 +87,30 @@ object SearchHistory {
      */
     fun reload() {
         if (!this::prefs.isInitialized) return
-        _recent.value = runCatching {
-            json.decodeFromString(serializer, prefs.getString(KEY_HISTORY, null) ?: "[]")
-                .map { it.withCorrectedType() }
-        }.getOrDefault(emptyList())
-        _addonRecent.value = runCatching {
-            json.decodeFromString(addonSerializer, prefs.getString(KEY_ADDON_HISTORY, null) ?: "[]")
-        }.getOrDefault(emptyList())
+        synchronized(reloadLock) {
+            val diskRecent = runCatching {
+                json.decodeFromString(serializer, prefs.getString(KEY_HISTORY, null) ?: "[]")
+                    .map { it.withCorrectedType() }
+            }.getOrDefault(emptyList())
+            val diskAddon = runCatching {
+                json.decodeFromString(addonSerializer, prefs.getString(KEY_ADDON_HISTORY, null) ?: "[]")
+            }.getOrDefault(emptyList())
+            synchronized(lock) {
+                val recent = pendingRecent.fold(diskRecent) { current, mutation -> mutation(current) }
+                val addon = pendingAddon.fold(diskAddon) { current, mutation -> mutation(current) }
+                _recent.value = recent
+                _addonRecent.value = addon
+                if (pendingRecent.isNotEmpty()) {
+                    prefs.edit { putString(KEY_HISTORY, json.encodeToString(serializer, recent)) }
+                }
+                if (pendingAddon.isNotEmpty()) {
+                    prefs.edit { putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, addon)) }
+                }
+                pendingRecent.clear()
+                pendingAddon.clear()
+                hydrated = true
+            }
+        }
     }
 
     /**
@@ -90,24 +118,48 @@ object SearchHistory {
      * Matching is by id so re-tapping an existing entity updates its timestamp.
      */
     fun record(entity: SearchHistoryEntity) {
-        val deduped = _recent.value.filterNot { it.id.equals(entity.id, ignoreCase = true) }
-        save((listOf(entity) + deduped).take(MAX_ENTRIES))
+        mutateRecent { current ->
+            (listOf(entity) + current.filterNot { it.id.equals(entity.id, ignoreCase = true) }).take(MAX_ENTRIES)
+        }
     }
 
     fun remove(id: String) {
-        save(_recent.value.filterNot { it.id.equals(id, ignoreCase = true) })
+        mutateRecent { current -> current.filterNot { it.id.equals(id, ignoreCase = true) } }
     }
 
-    fun clear() = save(emptyList())
+    fun clear() = mutateRecent { emptyList() }
 
     fun clearAll() {
         clear()
         clearAddonQueries()
     }
 
-    private fun save(value: List<SearchHistoryEntity>) {
-        _recent.value = value
-        prefs.edit {putString(KEY_HISTORY, json.encodeToString(serializer, value))}
+    private fun mutateRecent(mutation: (List<SearchHistoryEntity>) -> List<SearchHistoryEntity>) {
+        synchronized(lock) {
+            val next = mutation(_recent.value)
+            _recent.value = next
+            if (hydrated) {
+                if (this::prefs.isInitialized) {
+                    prefs.edit { putString(KEY_HISTORY, json.encodeToString(serializer, next)) }
+                }
+            } else {
+                pendingRecent += mutation
+            }
+        }
+    }
+
+    private fun mutateAddon(mutation: (List<String>) -> List<String>) {
+        synchronized(lock) {
+            val next = mutation(_addonRecent.value)
+            _addonRecent.value = next
+            if (hydrated) {
+                if (this::prefs.isInitialized) {
+                    prefs.edit { putString(KEY_ADDON_HISTORY, json.encodeToString(addonSerializer, next)) }
+                }
+            } else {
+                pendingAddon += mutation
+            }
+        }
     }
 
     private const val KEY_HISTORY = "search_history"

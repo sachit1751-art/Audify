@@ -31,11 +31,10 @@ object LocalLibraryStore {
         val storedVersion = prefs.getInt(SCHEMA_VERSION_KEY, 0)
         require(storedVersion <= SCHEMA_VERSION) { "Local library data was created by a newer Audify build" }
         if (storedVersion < SCHEMA_VERSION) {
-            @Suppress("UseKtx")
-            val migrated = prefs.edit().putInt(SCHEMA_VERSION_KEY, SCHEMA_VERSION).commit()
-            check(migrated) {
-                "Could not finalize local library storage migration"
-            }
+            // The version marker is idempotent. apply() publishes it to the
+            // in-memory preference map immediately and persists asynchronously,
+            // avoiding a main-thread fsync during Application startup.
+            prefs.edit { putInt(SCHEMA_VERSION_KEY, SCHEMA_VERSION) }
         }
         _favorites.value = readSongs(FAVORITES)
         _history.value = readSongs(HISTORY)

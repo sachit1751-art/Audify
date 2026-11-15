@@ -125,6 +125,7 @@ enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
 
 private const val HOME_MAX_EMPTY_CONTINUATION_PAGES = 3
 
+@OptIn(FlowPreview::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val authStore = AuthStore(app)
@@ -157,11 +158,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val homeSeenContinuationTokens = mutableSetOf<String>()
 
     private val homePagingGeneration = AtomicLong(0L)
-    private val homeVariationSeed: Long = runCatching {
-        val seedFile = File(app.noBackupFilesDir, "home_feed_variation_seed")
-        seedFile.takeIf(File::isFile)?.readText()?.toLongOrNull()
-            ?: kotlin.random.Random.nextLong().also { seedFile.writeText(it.toString()) }
-    }.getOrElse { kotlin.random.Random.nextLong() }
+    // This only needs to vary the ordering between Home sessions. Reading and
+    // writing a seed file here ran disk I/O synchronously while the ViewModel
+    // was being constructed on the main thread; a process-local random seed is
+    // sufficient and keeps the first frame independent of storage latency.
+    private val homeVariationSeed: Long = kotlin.random.Random.nextLong()
 
     /** A fresh deterministic ordering seed for each Home load or refresh. */
     private var homeSessionSeed: Long = homeVariationSeed
@@ -1644,7 +1645,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // A leftover APK only means "Install Now" for the session that
             // downloaded it — see AppUpdateChecker.clearCache.
             AppUpdateChecker.clearCache(getApplication())
-            AppUpdateChecker.check()
         }
     }
 
@@ -2287,7 +2287,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         } else break
                     }
 
-                    val pageToken = nextToken ?: break
+                    val pageToken = nextToken
                     val isFallback = pageToken.startsWith(YtMusicRepository.HOME_FALLBACK_TOKEN_PREFIX)
                     val result = if (isFallback) YtMusicRepository.homeFallback(pageToken)
                     else YtMusicRepository.moreHome(pageToken)

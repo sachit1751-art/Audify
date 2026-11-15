@@ -2,7 +2,6 @@
 // The public REST and WebSocket wire contract intentionally matches backend/main.go.
 import { DurableObject } from 'cloudflare:workers';
 import { isRoomExpired, nextCleanupAt } from './lifecycle.js';
-import { readBoundedBody, uploadFeedbackAttachment } from './feedback.js';
 
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTUVWXYZ';
 const CODE_LENGTH = 6;
@@ -63,10 +62,6 @@ function feedbackIssueBody(body) {
     for (const [label, value] of Object.entries(diagnostics).map(([key, value]) => [key.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()), value])) {
       if (typeof value === 'string' && value.trim()) lines.push(`- ${label}: ${oneLine(value, 120)}`);
     }
-  }
-  if (typeof body.attachmentUrl === 'string' && /^https:\/\//.test(body.attachmentUrl)) {
-    const imageAlt = oneLine(body.attachmentName || 'Screenshot', 120).replace(/[\\[\]()]/g, '\\$&');
-    lines.push('', '## Screenshot', '', `![${imageAlt}](${body.attachmentUrl})`);
   }
   lines.push('', '---', '*Submitted anonymously from Audify. Do not post passwords, tokens, account details, private listening history, or personal files.*');
   return { title: `[${kind}] ${clampText(body.title, 120).trim()}`, body: lines.join('\n'), labels: body.kind === 'bug' ? ['bug'] : ['enhancement'] };
@@ -613,14 +608,6 @@ export default {
       try { body = JSON.parse(raw); } catch { return fail(422, 'invalid_json', 'Malformed JSON body.'); }
       const invalid = validateFeedback(body);
       if (invalid) return fail(422, 'validation_error', invalid);
-      if (body.attachmentUrl != null) {
-        let attachment;
-        try { attachment = new URL(body.attachmentUrl); } catch { return fail(422, 'invalid_attachment', 'Screenshot attachment URL is invalid.'); }
-        if (attachment.protocol !== 'https:' || attachment.hostname !== 'raw.githubusercontent.com' ||
-            !/^\/sachit1751-art\/Audify\/main\/feedback-attachments\/[a-f0-9-]+\.(jpg|png|webp)$/.test(attachment.pathname)) {
-          return fail(422, 'invalid_attachment', 'Screenshot attachment URL is invalid.');
-        }
-      }
       if (clampText(body.website, 200).trim()) return json({ ok: true }, 202, cors);
       if (!env.GITHUB_ISSUES_TOKEN) return fail(503, 'feedback_unavailable', 'Feedback submission is not configured yet.');
       const ipKey = await feedbackIpKey(request.headers.get('cf-connecting-ip') ?? 'unknown');
@@ -652,40 +639,6 @@ export default {
         return fail(502, 'feedback_upstream_invalid', 'The issue tracker returned an invalid response. Please try again later.');
       }
       return json({ ok: true, number: created.number, url: created.html_url }, 201, cors);
-    }
-    if (path === '/api/feedback/attachment') {
-      if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'POST' } });
-      const mime = (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-      const extensions = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-      if (!extensions[mime]) return fail(415, 'unsupported_image', 'Choose a JPEG, PNG or WebP screenshot.');
-      const bytes = await readBoundedBody(request, 5 * 1024 * 1024);
-      if (!bytes) return fail(413, 'image_too_large', 'Screenshot must be 5 MB or smaller.');
-      if (bytes.byteLength < 1) return fail(422, 'empty_image', 'Choose a non-empty screenshot.');
-      const header = bytes.subarray(0, 12);
-      const isJpeg = mime === 'image/jpeg' && header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
-      const isPng = mime === 'image/png' && header.length >= 8 && header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47 && header[4] === 0x0d && header[5] === 0x0a && header[6] === 0x1a && header[7] === 0x0a;
-      const isWebp = mime === 'image/webp' && String.fromCharCode(...header.slice(0, 4)) === 'RIFF' && String.fromCharCode(...header.slice(8, 12)) === 'WEBP';
-      if (!isJpeg && !isPng && !isWebp) return fail(415, 'invalid_image', 'The selected file is not a supported image.');
-      // Keep repository-content write access separate from issue creation where
-      // possible. A legacy combined token remains a supported fallback.
-      const attachmentToken = env.GITHUB_CONTENTS_TOKEN || env.GITHUB_ISSUES_TOKEN;
-      if (!attachmentToken) return fail(503, 'feedback_unavailable', 'Screenshot uploads are not configured yet.');
-      const ipKey = await feedbackIpKey(`upload:${request.headers.get('cf-connecting-ip') ?? 'unknown'}`);
-      const limited = await global.fetch('https://room.internal/internal/feedback-limit', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ipKey }),
-      });
-      if (!limited.ok) return new Response(limited.body, { status: limited.status, headers: { ...Object.fromEntries(limited.headers), ...cors } });
-      let uploaded;
-      try {
-        uploaded = await uploadFeedbackAttachment(bytes, mime, attachmentToken);
-      } catch {
-        return fail(502, 'attachment_upstream_unavailable', 'Could not reach screenshot storage. Your report was not submitted.');
-      }
-      if (!uploaded.ok) {
-        console.error('Feedback screenshot GitHub upload rejected', uploaded.status ?? 'unknown status');
-        return fail(502, 'attachment_upstream_rejected', 'Screenshot storage could not accept this image. Check the feedback service permissions.');
-      }
-      return json({ ok: true, url: uploaded.url }, 201, cors);
     }
     if (path === '/api/stats/live' || path === '/api/stats/live/badge.svg') {
       if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'GET' } });

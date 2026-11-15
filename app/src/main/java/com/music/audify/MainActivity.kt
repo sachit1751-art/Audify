@@ -268,7 +268,6 @@ import com.music.audify.ui.SearchSource
 import com.music.audify.ui.components.BottomFadeScrim
 import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
 import com.music.audify.ui.components.ScrollBlurEdge
-import com.music.audify.ui.components.TopFadeBlur
 import com.music.audify.ui.components.FloatingBarsTapGuard
 import com.music.audify.ui.components.BottomTab
 import com.music.audify.ui.components.FLOATING_BAR_MAX_WIDTH
@@ -524,6 +523,24 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        // Home's first frame is a usable, interactive shell with themed
+        // placeholders; remote shelves and artwork hydrate afterwards. Report
+        // that frame to Android so startup benchmarks measure the experience
+        // the listener can actually use, not a later network response.
+        val decorView = window.decorView
+        var firstFrameReported = false
+        decorView.viewTreeObserver.addOnDrawListener(object : android.view.ViewTreeObserver.OnDrawListener {
+            override fun onDraw() {
+                if (firstFrameReported) return
+                firstFrameReported = true
+                decorView.post {
+                    if (decorView.viewTreeObserver.isAlive) {
+                        decorView.viewTreeObserver.removeOnDrawListener(this)
+                    }
+                    reportFullyDrawn()
+                }
+            }
+        })
     }
 
     /**
@@ -885,8 +902,6 @@ private fun AudifyApp(
     // suggestions, and pressing the button appeared to do nothing, because it
     // turned the party's setting on while the label already said so.
     val autoplayEnabled = autoplayEnabledFor(partyState, autoplay)
-    val partyServerStatus by ListenTogether.serverConnectionState.collectAsStateWithLifecycle()
-    val listenBrainzToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
     // Set each time the search tab is tapped, which SearchScreen uses as a
     // signal to focus the input field.
     var searchFocusRequested by remember { mutableStateOf(false) }
@@ -4248,21 +4263,34 @@ private fun AudifyApp(
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
+                // Keep the original two-layer crossfade: the top blur ramps in
+                // as the heading clears the bar, while the inverted page-colour
+                // fade fills the gap at rest. The conditional replacement had
+                // removed the resting top treatment, leaving the edge one-sided.
                 if (reduceDynamicBlur || !progressiveBlur) {
                     BottomFadeScrim(
                         pageColor = chromePageColor,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .rotate(180f)
-                            .graphicsLayer { alpha = topFadeAlpha },
+                            .graphicsLayer { alpha = 1f },
                     )
                 } else {
-                    TopFadeBlur(
+                    ProgressiveScrollEdgeBlur(
                         hazeState = hazeState,
-                        pageColor = chromePageColor,
+                        edge = ScrollBlurEdge.Top,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .graphicsLayer { alpha = topFadeAlpha },
+                    )
+                }
+                if (!reduceDynamicBlur && progressiveBlur) {
+                    BottomFadeScrim(
+                        pageColor = chromePageColor,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .rotate(180f)
+                            .graphicsLayer { alpha = 1f - topFadeAlpha },
                     )
                 }
 
@@ -4421,65 +4449,9 @@ private fun AudifyApp(
                                 )
                             }
                         }
-                        // This is intentionally scoped to Listen together: the
-                        // round-trip time is meaningful while coordinating a
-                        // party, but would be noise in the rest of the app.
-                        if (route == AppRoute.ListenTogether) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            ) {
-                                when (val state = partyServerStatus) {
-                                    is ServerConnectionState.CustomFallback -> {
-                                        Icon(
-                                            Icons.Rounded.CloudOff,
-                                            contentDescription = stringResource(R.string.listen_together_top_bar_fallback, stringResource(R.string.listen_together_ping, state.latencyMs)),
-                                            tint = MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                        Spacer(Modifier.width(4.dp))
-                                        Text(
-                                            text = stringResource(R.string.listen_together_ping, state.latencyMs),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.error,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                    is ServerConnectionState.CustomOnline -> {
-                                        Text(
-                                            text = stringResource(R.string.listen_together_ping, state.latencyMs),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                    is ServerConnectionState.DefaultOnline -> {
-                                        Text(
-                                            text = stringResource(R.string.listen_together_ping, state.latencyMs),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                    ServerConnectionState.Checking -> {
-                                        Text(
-                                            text = stringResource(R.string.listen_together_server_checking),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                    ServerConnectionState.Offline -> {
-                                        Text(
-                                            text = stringResource(R.string.listen_together_server_offline_dash),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.error,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        // The indicator owns its own collector/restart scope; a
+                        // party ping update must not recompose the app shell.
+                        if (route == AppRoute.ListenTogether) ListenTogetherStatusIndicator()
                         // Only worth surfacing where there's room for it and it won't
                         // be mistaken for a per-page action — Home, at rest.
                         if (route == null && detail == null && selectedTab == TAB_HOME) {
@@ -5260,7 +5232,9 @@ private fun AudifyApp(
                 spatialAudioOn = spatialAudioOn,
             )
         }
-        // ---- Now Playing ----
+        @Composable
+        fun DrawNowPlayingOverlay() {
+            // ---- Now Playing ----
         // One panel, in this window: the mini player's pill and the full player
         // are the same glass container, which grows from the pill's rect to the
         // whole window under the finger. Not a ModalBottomSheet any more, so
@@ -5387,7 +5361,12 @@ private fun AudifyApp(
             }
         }
 
-        // ---- Replay stories ----
+        }
+        DrawNowPlayingOverlay()
+
+        @Composable
+        fun DrawReplayOverlay() {
+            // ---- Replay stories ----
         // Mounted out here rather than inside the pane above, because a story
         // covers the window: on a tablet the page is only the left half of the
         // row, and a story laid out inside it would run alongside the player
@@ -5431,7 +5410,12 @@ private fun AudifyApp(
             }
         }
 
-        // ---- Track menu ----
+        }
+        DrawReplayOverlay()
+
+        @Composable
+        fun DrawTrackMenuOverlay() {
+            // ---- Track menu ----
         // In a recompose scope of its own: whether a menu is up is read in
         // here, and read in the app's own body it recomposed all of the app
         // on the frame the menu starts to grow — the stutter at the start of
@@ -5501,7 +5485,12 @@ private fun AudifyApp(
             }
         }
 
-        // ---- Song Info ----
+        }
+        DrawTrackMenuOverlay()
+
+        @Composable
+        fun DrawRemainingDialogs() {
+            // ---- Song Info ----
         songInfoTarget?.let { info ->
             com.music.audify.ui.components.SongInfoDialog(info, backdrop = songInfoBackdrop) {
                 songInfoTarget = null
@@ -6308,13 +6297,10 @@ private fun AudifyApp(
         }
 
         if (showListenBrainzLogin) {
-            var tokenInput by remember { mutableStateOf(listenBrainzToken) }
-            ListenBrainzTokenAlert(
+            ListenBrainzLoginDialog(
                 hazeState = hazeState,
-                tokenInput = tokenInput,
-                onTokenInputChange = { tokenInput = it },
-                onSave = {
-                    AppSettings.setListenBrainzToken(tokenInput.trim())
+                onSave = { token ->
+                    AppSettings.setListenBrainzToken(token.trim())
                     showListenBrainzLogin = false
                 },
                 onDismiss = { showListenBrainzLogin = false },
@@ -6366,133 +6352,19 @@ private fun AudifyApp(
 
         if (showWebDavEditor) {
             BackHandler { showWebDavEditor = false }
-            val webdavUrl by AppSettings.webdavUrl.collectAsStateWithLifecycle()
-            val webdavUsername by AppSettings.webdavUsername.collectAsStateWithLifecycle()
-            val webdavPassword by AppSettings.webdavPassword.collectAsStateWithLifecycle()
-            ServerEditorHost(
-                hazeState = hazeState,
-                title = stringResource(R.string.webdav),
-                description = stringResource(R.string.webdav_description),
-                fields = listOf(
-                    FieldConfig(
-                        initial = webdavUrl,
-                        placeholder = stringResource(R.string.webdav_server_url_hint),
-                        keyboardType = KeyboardType.Uri,
-                    ),
-                    FieldConfig(
-                        initial = webdavUsername,
-                        placeholder = stringResource(R.string.username),
-                    ),
-                    FieldConfig(
-                        initial = webdavPassword,
-                        placeholder = stringResource(R.string.password),
-                        keyboardType = KeyboardType.Password,
-                        isPassword = true,
-                    ),
-                ),
-                canSubmit = { it[0].isNotBlank() },
-                testFailedRes = R.string.webdav_test_failed,
-                onTest = { (url, username, password) ->
-                    com.music.audify.data.webdav.WebDavRepository.testConnection(
-                        url.trim(),
-                        username.trim(),
-                        password,
-                    )
-                },
-                onSave = { (url, username, password) ->
-                    AppSettings.setWebDavUrl(url.trim())
-                    AppSettings.setWebDavUsername(username.trim())
-                    AppSettings.setWebDavPassword(password)
-                    showWebDavEditor = false
-                },
-                onDismiss = { showWebDavEditor = false },
-            )
+            WebDavEditorDialog(hazeState) { showWebDavEditor = false }
         }
 
         if (showSmbEditor) {
             BackHandler { showSmbEditor = false }
-            val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
-            val smbShare by AppSettings.smbShare.collectAsStateWithLifecycle()
-            val smbBasePath by AppSettings.smbBasePath.collectAsStateWithLifecycle()
-            val smbUsername by AppSettings.smbUsername.collectAsStateWithLifecycle()
-            val smbPassword by AppSettings.smbPassword.collectAsStateWithLifecycle()
-            ServerEditorHost(
-                hazeState = hazeState,
-                title = stringResource(R.string.smb),
-                description = stringResource(R.string.smb_description),
-                fields = listOf(
-                    FieldConfig(
-                        initial = smbHost,
-                        placeholder = stringResource(R.string.smb_server_hint),
-                        keyboardType = KeyboardType.Uri,
-                    ),
-                    FieldConfig(
-                        initial = smbShare,
-                        placeholder = stringResource(R.string.smb_share_hint),
-                    ),
-                    FieldConfig(
-                        initial = smbBasePath,
-                        placeholder = stringResource(R.string.smb_folder_hint),
-                    ),
-                    FieldConfig(
-                        initial = smbUsername,
-                        placeholder = stringResource(R.string.username),
-                    ),
-                    FieldConfig(
-                        initial = smbPassword,
-                        placeholder = stringResource(R.string.password),
-                        keyboardType = KeyboardType.Password,
-                        isPassword = true,
-                    ),
-                ),
-                canSubmit = { it[0].isNotBlank() && it[1].isNotBlank() },
-                testFailedRes = R.string.smb_test_failed,
-                onTest = { (host, share, folder, username, password) ->
-                    com.music.audify.data.smb.SmbRepository.testConnection(
-                        host.trim(),
-                        share.trim(),
-                        folder.trim(),
-                        username.trim(),
-                        password,
-                    )
-                },
-                onSave = { (host, share, folder, username, password) ->
-                    AppSettings.setSmbHost(host.trim())
-                    AppSettings.setSmbShare(share.trim())
-                    AppSettings.setSmbBasePath(folder.trim())
-                    AppSettings.setSmbUsername(username.trim())
-                    AppSettings.setSmbPassword(password)
-                    showSmbEditor = false
-                },
-                onDismiss = { showSmbEditor = false },
-            )
+            SmbEditorDialog(hazeState) { showSmbEditor = false }
         }
 
         // A clash mid-upload, answered here so the scrim covers the tab bar
         // and mini player like every other alert. Backing out is a skip —
         // leaving the batch suspended on a dismissed dialog would hang the
         // upload with no way to reach the question again.
-        val uploadConflict by com.music.audify.data.webdav.WebDavUploads.conflict.collectAsStateWithLifecycle()
-        uploadConflict?.let { req ->
-            var applyToAll by remember(req) { mutableStateOf(false) }
-            val answer: (com.music.audify.data.webdav.WebDavUploads.Choice) -> Unit = { choice ->
-                req.answer.complete(
-                    com.music.audify.data.webdav.WebDavUploads.Resolution(choice, applyToAll),
-                )
-            }
-            BackHandler { answer(com.music.audify.data.webdav.WebDavUploads.Choice.SKIP) }
-            WebDavConflictAlert(
-                hazeState = hazeState,
-                fileName = req.fileName,
-                showApplyToAll = req.remaining > 0,
-                applyToAll = applyToAll,
-                onApplyToAllChange = { applyToAll = it },
-                onOverwrite = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.OVERWRITE) },
-                onKeepBoth = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.KEEP_BOTH) },
-                onSkip = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.SKIP) },
-                onDismiss = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.SKIP) },
-            )
-        }
+        WebDavUploadConflictDialog(hazeState)
 
         // ---- Discord sign-in (full screen WebView) ----
         if (showDiscordLogin) {
@@ -6701,6 +6573,9 @@ private fun AudifyApp(
             }
         }
 
+        }
+        DrawRemainingDialogs()
+
     }
 }
 
@@ -6713,6 +6588,176 @@ private val explainedDownloadExclusions = java.util.Collections.synchronizedSet(
 
 /** UIKit's sheet curve: leaves at once, settles long — a sheet let go of, not pushed. */
 private val OnboardingDismissEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
+
+@Composable
+private fun WebDavUploadConflictDialog(hazeState: HazeState) {
+    val conflict by com.music.audify.data.webdav.WebDavUploads.conflict.collectAsStateWithLifecycle()
+    conflict?.let { request ->
+        var applyToAll by remember(request) { mutableStateOf(false) }
+        val answer: (com.music.audify.data.webdav.WebDavUploads.Choice) -> Unit = { choice ->
+            request.answer.complete(
+                com.music.audify.data.webdav.WebDavUploads.Resolution(choice, applyToAll),
+            )
+        }
+        BackHandler { answer(com.music.audify.data.webdav.WebDavUploads.Choice.SKIP) }
+        WebDavConflictAlert(
+            hazeState = hazeState,
+            fileName = request.fileName,
+            showApplyToAll = request.remaining > 0,
+            applyToAll = applyToAll,
+            onApplyToAllChange = { applyToAll = it },
+            onOverwrite = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.OVERWRITE) },
+            onKeepBoth = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.KEEP_BOTH) },
+            onSkip = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.SKIP) },
+            onDismiss = { answer(com.music.audify.data.webdav.WebDavUploads.Choice.SKIP) },
+        )
+    }
+}
+
+@Composable
+private fun WebDavEditorDialog(hazeState: HazeState, onDismiss: () -> Unit) {
+    val url by AppSettings.webdavUrl.collectAsStateWithLifecycle()
+    val username by AppSettings.webdavUsername.collectAsStateWithLifecycle()
+    val password by AppSettings.webdavPassword.collectAsStateWithLifecycle()
+    ServerEditorHost(
+        hazeState = hazeState,
+        title = stringResource(R.string.webdav),
+        description = stringResource(R.string.webdav_description),
+        fields = listOf(
+            FieldConfig(initial = url, placeholder = stringResource(R.string.webdav_server_url_hint), keyboardType = KeyboardType.Uri),
+            FieldConfig(initial = username, placeholder = stringResource(R.string.username)),
+            FieldConfig(initial = password, placeholder = stringResource(R.string.password), keyboardType = KeyboardType.Password, isPassword = true),
+        ),
+        canSubmit = { it[0].isNotBlank() },
+        testFailedRes = R.string.webdav_test_failed,
+        onTest = { (serverUrl, user, pass) ->
+            com.music.audify.data.webdav.WebDavRepository.testConnection(serverUrl.trim(), user.trim(), pass)
+        },
+        onSave = { (serverUrl, user, pass) ->
+            AppSettings.setWebDavUrl(serverUrl.trim())
+            AppSettings.setWebDavUsername(user.trim())
+            AppSettings.setWebDavPassword(pass)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+private fun SmbEditorDialog(hazeState: HazeState, onDismiss: () -> Unit) {
+    val host by AppSettings.smbHost.collectAsStateWithLifecycle()
+    val share by AppSettings.smbShare.collectAsStateWithLifecycle()
+    val basePath by AppSettings.smbBasePath.collectAsStateWithLifecycle()
+    val username by AppSettings.smbUsername.collectAsStateWithLifecycle()
+    val password by AppSettings.smbPassword.collectAsStateWithLifecycle()
+    ServerEditorHost(
+        hazeState = hazeState,
+        title = stringResource(R.string.smb),
+        description = stringResource(R.string.smb_description),
+        fields = listOf(
+            FieldConfig(initial = host, placeholder = stringResource(R.string.smb_server_hint), keyboardType = KeyboardType.Uri),
+            FieldConfig(initial = share, placeholder = stringResource(R.string.smb_share_hint)),
+            FieldConfig(initial = basePath, placeholder = stringResource(R.string.smb_folder_hint)),
+            FieldConfig(initial = username, placeholder = stringResource(R.string.username)),
+            FieldConfig(initial = password, placeholder = stringResource(R.string.password), keyboardType = KeyboardType.Password, isPassword = true),
+        ),
+        canSubmit = { it[0].isNotBlank() && it[1].isNotBlank() },
+        testFailedRes = R.string.smb_test_failed,
+        onTest = { (serverHost, serverShare, folder, user, pass) ->
+            com.music.audify.data.smb.SmbRepository.testConnection(
+                serverHost.trim(), serverShare.trim(), folder.trim(), user.trim(), pass,
+            )
+        },
+        onSave = { (serverHost, serverShare, folder, user, pass) ->
+            AppSettings.setSmbHost(serverHost.trim())
+            AppSettings.setSmbShare(serverShare.trim())
+            AppSettings.setSmbBasePath(folder.trim())
+            AppSettings.setSmbUsername(user.trim())
+            AppSettings.setSmbPassword(pass)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+private fun ListenBrainzLoginDialog(
+    hazeState: HazeState,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val savedToken by AppSettings.listenBrainzToken.collectAsStateWithLifecycle()
+    var tokenInput by remember { mutableStateOf(savedToken) }
+    ListenBrainzTokenAlert(
+        hazeState = hazeState,
+        tokenInput = tokenInput,
+        onTokenInputChange = { tokenInput = it },
+        onSave = { onSave(tokenInput) },
+        onDismiss = onDismiss,
+    )
+}
+
+@Composable
+private fun ListenTogetherStatusIndicator() {
+    val state by ListenTogether.serverConnectionState.collectAsStateWithLifecycle()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(horizontal = 8.dp),
+    ) {
+        when (val connection = state) {
+            is ServerConnectionState.CustomFallback -> {
+                Icon(
+                    Icons.Rounded.CloudOff,
+                    contentDescription = stringResource(
+                        R.string.listen_together_top_bar_fallback,
+                        stringResource(R.string.listen_together_ping, connection.latencyMs),
+                    ),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = stringResource(R.string.listen_together_ping, connection.latencyMs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                )
+            }
+            is ServerConnectionState.CustomOnline -> {
+                Text(
+                    text = stringResource(R.string.listen_together_ping, connection.latencyMs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+            }
+            is ServerConnectionState.DefaultOnline -> {
+                Text(
+                    text = stringResource(R.string.listen_together_ping, connection.latencyMs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+            }
+            ServerConnectionState.Checking -> {
+                Text(
+                    text = stringResource(R.string.listen_together_server_checking),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+            ServerConnectionState.Offline -> {
+                Text(
+                    text = stringResource(R.string.listen_together_server_offline_dash),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
 
 private fun tween(durationMillis: Int) =
     androidx.compose.animation.core.tween<Float>(durationMillis)

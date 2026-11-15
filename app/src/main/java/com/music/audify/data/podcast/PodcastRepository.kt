@@ -11,6 +11,10 @@ import com.music.audify.playback.PodcastEpisodeRef
 import com.music.audify.playback.PodcastPlaybackRepository
 import com.music.audify.playback.PodcastNetworkPolicy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -51,46 +55,65 @@ object PodcastRepository : PodcastPlaybackRepository {
     private val shows = linkedMapOf<String, PodcastShow>()
     private val episodes = linkedMapOf<String, List<PodcastEpisode>>()
     private val progress = linkedMapOf<String, Pair<Long, Boolean>>()
+    private val initialization = CompletableDeferred<Unit>()
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var initializationStarted = false
 
     @Synchronized fun initialize(context: Context) {
-        if (::appContext.isInitialized) return
+        if (initializationStarted) return
+        initializationStarted = true
         appContext = context.applicationContext
-        val raw = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(SHOWS, "[]") ?: "[]"
-        runCatching {
-            val array = JSONArray(raw)
-            for (i in 0 until array.length()) {
-                val item = array.getJSONObject(i)
-                val show = PodcastShow(
-                    id = item.getString("id"), feedUrl = item.getString("feedUrl"),
-                    title = item.optString("title", "Untitled podcast"),
-                    description = item.optString("description").takeIf(String::isNotBlank),
-                    artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
-                    siteUrl = item.optString("siteUrl").takeIf(String::isNotBlank),
-                    lastRefreshedMs = item.optLong("lastRefreshedMs"),
-                )
-                shows[show.id] = show
-            }
-            val cached = JSONArray(appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("episode_cache", "[]") ?: "[]")
-            for (i in 0 until cached.length()) {
-                val item = cached.getJSONObject(i)
-                val showId = item.getString("showId")
-                val enclosure = item.getString("enclosure").toUri()
-                val ref = PodcastEpisodeRef(
-                    feedId = showId, episodeId = item.getString("episodeId"), enclosureUri = enclosure,
-                    mimeType = item.optString("mimeType").takeIf(String::isNotBlank),
-                    showTitle = item.getString("showTitle"), episodeTitle = item.getString("episodeTitle"),
-                    description = item.optString("description").takeIf(String::isNotBlank),
-                    artworkUri = item.optString("artwork").takeIf(String::isNotBlank)?.toUri(),
-                    durationMs = item.optLong("durationMs", -1L).takeIf { it >= 0L },
-                )
-                val episode = PodcastEpisode(ref, item.optString("published").takeIf(String::isNotBlank))
-                episodes[showId] = episodes[showId].orEmpty() + episode
-            }
-            val p = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("progress", "{}")
-            val saved = JSONObject(p ?: "{}")
-            saved.keys().forEach { key -> saved.optJSONObject(key)?.let { progress[key] = it.optLong("position") to it.optBoolean("completed") } }
+        ioScope.launch {
+            runCatching { loadSavedState() }
+                .onFailure { android.util.Log.e("AudifyPodcast", "Could not hydrate podcast library", it) }
+            // Publish the playback repository only after its synchronous lookup
+            // contract can return a complete snapshot. Playback restoration
+            // observes repositoryFlow and therefore retries when this arrives.
+            com.music.audify.playback.PodcastPlaybackBridge.repository = this@PodcastRepository
+            initialization.complete(Unit)
         }
-        com.music.audify.playback.PodcastPlaybackBridge.repository = this
+    }
+
+    /** Waits for the saved RSS library to be hydrated from disk. */
+    suspend fun awaitInitialized() = initialization.await()
+
+    private fun loadSavedState() {
+        val preferences = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val raw = preferences.getString(SHOWS, "[]") ?: "[]"
+        val array = JSONArray(raw)
+        for (i in 0 until array.length()) {
+            val item = array.getJSONObject(i)
+            val show = PodcastShow(
+                id = item.getString("id"), feedUrl = item.getString("feedUrl"),
+                title = item.optString("title", "Untitled podcast"),
+                description = item.optString("description").takeIf(String::isNotBlank),
+                artworkUrl = item.optString("artworkUrl").takeIf(String::isNotBlank),
+                siteUrl = item.optString("siteUrl").takeIf(String::isNotBlank),
+                lastRefreshedMs = item.optLong("lastRefreshedMs"),
+            )
+            shows[show.id] = show
+        }
+        val cached = JSONArray(preferences.getString("episode_cache", "[]") ?: "[]")
+        for (i in 0 until cached.length()) {
+            val item = cached.getJSONObject(i)
+            val showId = item.getString("showId")
+            val ref = PodcastEpisodeRef(
+                feedId = showId, episodeId = item.getString("episodeId"),
+                enclosureUri = item.getString("enclosure").toUri(),
+                mimeType = item.optString("mimeType").takeIf(String::isNotBlank),
+                showTitle = item.getString("showTitle"), episodeTitle = item.getString("episodeTitle"),
+                description = item.optString("description").takeIf(String::isNotBlank),
+                artworkUri = item.optString("artwork").takeIf(String::isNotBlank)?.toUri(),
+                durationMs = item.optLong("durationMs", -1L).takeIf { it >= 0L },
+            )
+            episodes[showId] = episodes[showId].orEmpty() + PodcastEpisode(
+                ref, item.optString("published").takeIf(String::isNotBlank),
+            )
+        }
+        val saved = JSONObject(preferences.getString("progress", "{}") ?: "{}")
+        saved.keys().forEach { key ->
+            saved.optJSONObject(key)?.let { progress[key] = it.optLong("position") to it.optBoolean("completed") }
+        }
     }
 
     @Synchronized fun subscribedShows(): List<PodcastShow> = shows.values.toList()
@@ -100,7 +123,9 @@ object PodcastRepository : PodcastPlaybackRepository {
     }
     @Synchronized fun isSubscribed(feedUrl: String): Boolean = shows.values.any { it.feedUrl == feedUrl }
 
-    suspend fun subscribe(feedUrl: String): PodcastShow = withContext(Dispatchers.IO) {
+    suspend fun subscribe(feedUrl: String): PodcastShow {
+        awaitInitialized()
+        return withContext(Dispatchers.IO) {
         val parsed = fetchFeed(feedUrl)
         synchronized(this@PodcastRepository) {
             shows[parsed.first.id] = parsed.first
@@ -108,9 +133,12 @@ object PodcastRepository : PodcastPlaybackRepository {
             persistShows()
         }
         parsed.first
+        }
     }
 
-    suspend fun refresh(showId: String): PodcastShow = withContext(Dispatchers.IO) {
+    suspend fun refresh(showId: String): PodcastShow {
+        awaitInitialized()
+        return withContext(Dispatchers.IO) {
         val existing = synchronized(this@PodcastRepository) { shows[showId] } ?: error("Podcast is not subscribed")
         val (updated, items) = fetchFeed(existing.feedUrl)
         synchronized(this@PodcastRepository) {
@@ -118,6 +146,7 @@ object PodcastRepository : PodcastPlaybackRepository {
             episodes[showId] = items
             persistShows()
             shows.getValue(showId)
+        }
         }
     }
 

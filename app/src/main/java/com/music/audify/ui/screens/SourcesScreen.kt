@@ -155,6 +155,7 @@ fun SourcesScreen(
     /** Last known reachability per source, filled in as the probes come back. */
     val health = remember { mutableStateMapOf<String, SourceHealth>() }
     val losslessOutput by LosslessOutput.state.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { LosslessOutput.init(context) }
 
     // Every source that has a server to reach is probed, so an addon gets a
     // reachability line — which is the only feedback that a URL just pasted in

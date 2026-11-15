@@ -258,6 +258,7 @@ object WearBridge {
     internal fun publishPodcasts(context: Context) {
         val app = context.applicationContext
         scope.launch {
+            PodcastRepository.awaitInitialized()
             val request = PutDataMapRequest.create(P.PATH_PODCASTS)
             val rows = ArrayList<DataMap>()
             // Audify RSS/Atom subscriptions remain independent from the

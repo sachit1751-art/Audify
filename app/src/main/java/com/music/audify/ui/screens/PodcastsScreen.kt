@@ -85,7 +85,14 @@ fun PodcastsScreen(
     var rssLoading by remember { mutableStateOf(false) }
     var rssLoadError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(selected) { episodes = selected?.let(PodcastRepository::episodes).orEmpty() }
+    LaunchedEffect(Unit) {
+        PodcastRepository.awaitInitialized()
+        shows = PodcastRepository.subscribedShows()
+    }
+    LaunchedEffect(selected) {
+        PodcastRepository.awaitInitialized()
+        episodes = selected?.let(PodcastRepository::episodes).orEmpty()
+    }
 
     fun openProviderShow(show: PodcastProviderShow) {
         selectedProvider = show

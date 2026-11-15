@@ -110,6 +110,10 @@ class DownloadService : Service() {
      * race.
      */
     private suspend fun drainQueue() = coroutineScope {
+        // The queue may be started by a very fast first interaction while the
+        // persisted download index is still hydrating. Resolve it before any
+        // worker decides that a requested track needs downloading.
+        Downloads.awaitInitialized()
         repeat(WORKERS) { launch { work() } }
     }
 
@@ -127,6 +131,13 @@ class DownloadService : Service() {
                 continue
             }
             idleFor = 0L
+            if (Downloads.savedUri(this@DownloadService, song.videoId) != null) {
+                // The request arrived before the disk index finished loading;
+                // it was already downloaded. Do not fetch a duplicate copy.
+                Downloads.onIdle(song.videoId)
+                current = null
+                continue
+            }
             current = song
             postNotification()
 

@@ -59,6 +59,8 @@ object OfflinePlaylists {
     private lateinit var prefs: SharedPreferences
     private val lock = Any()
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var hydrating = false
+    private val pendingMutations = mutableListOf<(List<OfflinePlaylist>) -> List<OfflinePlaylist>>()
 
     /** Set by [init] to the app's own wording for the built-in playlist. */
     private var likedTitle = "Liked songs"
@@ -72,15 +74,28 @@ object OfflinePlaylists {
     val liked: StateFlow<Set<String>> = _liked.asStateFlow()
 
     fun init(context: Context, likedTitle: String) {
-        if (this::prefs.isInitialized) return
-        this.likedTitle = likedTitle
-        prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        publish(load())
-        // Everything after what was just read, however soon it comes: a like
-        // made before this collector is up is still the newest state when it is.
-        val loaded = _playlists.value
+        synchronized(lock) {
+            if (this::prefs.isInitialized) return
+            this.likedTitle = likedTitle
+            prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            hydrating = true
+        }
         io.launch {
-            playlists.filter { it !== loaded }.conflate().collect { persist(it) }
+            val disk = load()
+            synchronized(lock) {
+                val merged = pendingMutations.fold(disk) { current, mutation -> mutation(current) }
+                publish(merged)
+                val changedDuringHydration = pendingMutations.isNotEmpty()
+                pendingMutations.clear()
+                hydrating = false
+                if (changedDuringHydration) persist(merged)
+                // Start persistence only after the disk snapshot and every
+                // mutation made while it loaded have been reconciled.
+                val loaded = _playlists.value
+                io.launch {
+                    playlists.filter { it !== loaded }.conflate().collect { persist(it) }
+                }
+            }
         }
     }
 
@@ -100,7 +115,8 @@ object OfflinePlaylists {
         val key = song.localUri ?: return false
         var nowLiked = false
         mutate { list ->
-            nowLiked = key !in _liked.value
+            val currentlyLiked = list.firstOrNull { it.isLiked }?.songs?.any { it.localUri == key } == true
+            nowLiked = !currentlyLiked
             list.map { playlist ->
                 if (!playlist.isLiked) return@map playlist
                 val rest = playlist.songs.filterNot { it.localUri == key }
@@ -169,8 +185,12 @@ object OfflinePlaylists {
         mutate { list -> list.filterNot { it.id == id } }
     }
 
-    private inline fun mutate(change: (List<OfflinePlaylist>) -> List<OfflinePlaylist>) {
-        synchronized(lock) { publish(change(_playlists.value)) }
+    private fun mutate(change: (List<OfflinePlaylist>) -> List<OfflinePlaylist>) {
+        synchronized(lock) {
+            val next = change(_playlists.value)
+            publish(next)
+            if (hydrating) pendingMutations += change
+        }
     }
 
     /** Sets the list and the liked set together, Liked pinned first. */

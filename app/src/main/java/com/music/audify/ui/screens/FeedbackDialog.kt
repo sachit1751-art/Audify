@@ -2,8 +2,6 @@ package com.music.audify.ui.screens
 
 import androidx.core.net.toUri
 import android.content.Intent
-import android.net.Uri
-import android.provider.OpenableColumns
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,7 +32,6 @@ import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
-import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PersonSearch
 import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material3.AlertDialog
@@ -96,10 +93,9 @@ internal fun FeedbackDialog(
     var includeDiagnostics by rememberSaveable(kind) { mutableStateOf(isBug) }
     var showDiagnosticPreview by rememberSaveable(kind) { mutableStateOf(false) }
     var showPrivacyInfo by rememberSaveable(kind) { mutableStateOf(false) }
-    var screenshotName by rememberSaveable(kind) { mutableStateOf<String?>(null) }
-    var screenshotUri by rememberSaveable(kind) { mutableStateOf<Uri?>(null) }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var receipt by remember { mutableStateOf<FeedbackRepository.Receipt?>(null) }
 
     fun diagnosticLines(): Map<String, String> = mapOf(
         "app_version" to "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
@@ -111,14 +107,6 @@ internal fun FeedbackDialog(
         "audio_transport" to outputStatus.transportType.name,
     )
 
-    val screenshotPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        screenshotUri = uri
-        screenshotName = uri?.let { picked ->
-            context.contentResolver.query(picked, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-                ?: picked.lastPathSegment
-        }
-    }
     val exportDiagnostics = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
         if (uri != null) runCatching {
             val details = diagnosticLines()
@@ -217,21 +205,6 @@ internal fun FeedbackDialog(
                         Text(if (isBug) "Include what happened versus what you expected." else "Specific use cases are more useful than a one-line request.", modifier = Modifier.align(Alignment.CenterHorizontally), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable { screenshotPicker.launch("image/*") }.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(Icons.Rounded.Image, null, tint = MaterialTheme.colorScheme.primary)
-                            Column(Modifier.weight(1f)) {
-                                Text(if (screenshotName == null) "Attach screenshot" else screenshotName!!, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(if (screenshotName == null) "Optional · uploaded with your report" else "Selected · uploaded with your report", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Text("${if (screenshotName == null) "Choose" else "Change"}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-
                     if (isBug) {
                         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(14.dp)) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -262,7 +235,7 @@ internal fun FeedbackDialog(
                     }
 
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    Text("No account or email is required. Reports and attached screenshots are public. Remove personal information before submitting.", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No account or email is required. Submitted reports are public. Do not include personal or account information.", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
                 }
 
@@ -273,7 +246,6 @@ internal fun FeedbackDialog(
                             error = null
                             scope.launch {
                                 runCatching {
-                                    val attachment = screenshotUri?.let { FeedbackRepository.readAttachment(context, it) }
                                     FeedbackRepository.submit(
                                         kind = kind,
                                         category = category,
@@ -281,23 +253,25 @@ internal fun FeedbackDialog(
                                         description = description,
                                         includeDiagnostics = includeDiagnostics,
                                         diagnosticDetails = diagnosticLines(),
-                                        attachmentBytes = attachment?.bytes,
-                                        attachmentMimeType = attachment?.mimeType,
-                                        attachmentName = screenshotName,
                                     )
-                                }.onSuccess { receipt ->
-                                    onDismiss()
-                                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, receipt.url.toUri())) }
+                                }.onSuccess { result ->
+                                    error = null
+                                    receipt = result
                                 }.onFailure { error = it.message ?: "Could not submit feedback. Try again." }
                                 submitting = false
                             }
                         },
-                        enabled = !submitting && summary.trim().length in 4..80 && description.trim().length in 20..6000,
+                        enabled = !submitting && receipt == null && summary.trim().length in 4..80 && description.trim().length in 20..6000,
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = CircleShape,
                     ) {
                         Icon(Icons.AutoMirrored.Rounded.Send, null, Modifier.size(16.dp))
-                        Text(if (submitting) "Submitting…" else if (isBug) "Submit bug report" else "Submit suggestion", modifier = Modifier.padding(start = 8.dp))
+                        Text(if (submitting) "Submitting…" else if (receipt != null) "Submitted" else if (isBug) "Submit bug report" else "Submit suggestion", modifier = Modifier.padding(start = 8.dp))
+                    }
+                    receipt?.let { submitted ->
+                        Text("Submitted as #${submitted.number}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                        OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, submitted.url.toUri())) }, modifier = Modifier.fillMaxWidth()) { Text("View GitHub issue") }
+                        OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Done") }
                     }
                     if (isBug) {
                         OutlinedButton(
@@ -320,8 +294,8 @@ internal fun FeedbackDialog(
             title = { Text("About feedback data") },
             text = {
                 Text(
-                    if (isBug) "Bug reports are submitted without an Audify or GitHub account and without an email address. If enabled, diagnostics include your device, Android version and active audio-route details. Screenshots are uploaded to the public Audify repository and linked in the issue. Do not include personal or account information."
-                    else "Feature suggestions are submitted without an Audify or GitHub account and without an email address. Selected screenshots are uploaded to the public Audify repository and linked in the issue. Do not include personal or account information."
+                    if (isBug) "Bug reports are submitted without an Audify or GitHub account and without an email address. If enabled, diagnostics include your device, Android version and active audio-route details. Reports are public. Do not include personal or account information."
+                    else "Feature suggestions are submitted without an Audify or GitHub account and without an email address. Reports are public. Do not include personal or account information."
                 )
             },
             confirmButton = {

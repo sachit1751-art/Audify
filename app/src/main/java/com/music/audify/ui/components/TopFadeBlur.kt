@@ -1,4 +1,4 @@
-package com.music.audify.ui.components
+﻿package com.music.audify.ui.components
 
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.foundation.layout.Box

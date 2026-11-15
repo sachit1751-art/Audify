@@ -883,6 +883,10 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            // Do not open and scan the on-disk audio cache during app/service
+            // startup. The first track can stream upstream; warm the cache only
+            // once audio is already audible, away from the launch critical path.
+            if (isPlaying) AudioCache.initAsync(this@PlaybackService)
             // The only number that describes what a listener actually
             // waits through. Every other timing in this app measures one
             // leg of getting a track started — a resolve, a client walk, an

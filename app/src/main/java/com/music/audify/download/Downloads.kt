@@ -23,9 +23,12 @@ import com.music.audify.data.sources.TrackMatcher
 import com.music.audify.playback.AudioCache
 import com.music.audify.playback.smart.AutomixModels
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -86,6 +89,13 @@ object Downloads {
 
     private lateinit var prefs: SharedPreferences
     private val json = Json { ignoreUnknownKeys = true }
+    private val hydrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val initialized = CompletableDeferred<Unit>()
+    @Volatile private var initializationStarted = false
+    @Volatile private var hydrating = false
+    @Volatile private var collectionsHydrating = false
+    private val pendingRecords = mutableListOf<Pair<(Map<String, String>) -> Map<String, String>, (Map<String, SavedSongMetadata>) -> Map<String, SavedSongMetadata>>>()
+    private val pendingCollections = mutableListOf<(Map<String, SavedCollection>) -> Map<String, SavedCollection>>()
     private val serializer = MapSerializer(String.serializer(), String.serializer())
     private val metadataSerializer = MapSerializer(String.serializer(), SavedSongMetadata.serializer())
     private val collectionSerializer = MapSerializer(String.serializer(), SavedCollection.serializer())
@@ -184,16 +194,54 @@ object Downloads {
     private val running = LinkedHashMap<String, Job?>()
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
-        _saved.value = runCatching {
-            json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _savedMetadata.value = runCatching {
-            json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
-        }.getOrDefault(emptyMap())
-        _collections.value = runCatching {
-            json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
-        }.getOrDefault(emptyMap())
+        synchronized(recordLock) {
+            if (this::prefs.isInitialized) return
+            prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
+            initializationStarted = true
+            hydrating = true
+        }
+        synchronized(collectionLock) { collectionsHydrating = true }
+        hydrationScope.launch {
+            val saved = runCatching {
+                json.decodeFromString(serializer, prefs.getString(KEY_SAVED, null) ?: "{}")
+            }.getOrDefault(emptyMap())
+            val metadata = runCatching {
+                json.decodeFromString(metadataSerializer, prefs.getString(KEY_SAVED_METADATA, null) ?: "{}")
+            }.getOrDefault(emptyMap())
+            val collections = runCatching {
+                json.decodeFromString(collectionSerializer, prefs.getString(KEY_SAVED_COLLECTIONS, null) ?: "{}")
+            }.getOrDefault(emptyMap())
+
+            synchronized(recordLock) {
+                val mergedSaved = pendingRecords.fold(saved) { current, mutation -> mutation.first(current) }
+                val mergedMetadata = pendingRecords.fold(metadata) { current, mutation -> mutation.second(current) }
+                _saved.value = mergedSaved
+                _savedMetadata.value = mergedMetadata
+                if (pendingRecords.isNotEmpty()) {
+                    prefs.edit {
+                        putString(KEY_SAVED, json.encodeToString(serializer, mergedSaved))
+                            .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, mergedMetadata))
+                    }
+                }
+                pendingRecords.clear()
+                hydrating = false
+            }
+            synchronized(collectionLock) {
+                val merged = pendingCollections.fold(collections) { current, mutation -> mutation(current) }
+                _collections.value = merged
+                if (pendingCollections.isNotEmpty()) {
+                    prefs.edit { putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, merged)) }
+                }
+                pendingCollections.clear()
+                collectionsHydrating = false
+            }
+            initialized.complete(Unit)
+        }
+    }
+
+    /** Waits until the persisted download index is available to offline playback and library scans. */
+    suspend fun awaitInitialized() {
+        if (initializationStarted) initialized.await()
     }
 
     // ---- Asking -------------------------------------------------------------
@@ -385,13 +433,16 @@ object Downloads {
      *
      * Touches the filesystem, so call it off the main thread.
      */
-    suspend fun savedUri(context: Context, videoId: String): Uri? = withContext(Dispatchers.IO) {
-        val recorded = _saved.value[videoId] ?: return@withContext null
-        val uri = recorded.toUri()
-        if (DownloadStore.exists(context, uri)) return@withContext uri
-        Log.d(TAG, "$videoId was downloaded but the file is gone; forgetting it")
-        forget(videoId)
-        null
+    suspend fun savedUri(context: Context, videoId: String): Uri? {
+        awaitInitialized()
+        return withContext(Dispatchers.IO) {
+            val recorded = _saved.value[videoId] ?: return@withContext null
+            val uri = recorded.toUri()
+            if (DownloadStore.exists(context, uri)) return@withContext uri
+            Log.d(TAG, "$videoId was downloaded but the file is gone; forgetting it")
+            forget(videoId)
+            null
+        }
     }
 
     /**
@@ -443,11 +494,14 @@ object Downloads {
     }
 
     /** Delete the file saved for [videoId] and forget it. */
-    suspend fun delete(context: Context, videoId: String): Boolean = withContext(Dispatchers.IO) {
-        val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
-        val deleted = DownloadStore.delete(context, uri)
-        forget(videoId)
-        deleted
+    suspend fun delete(context: Context, videoId: String): Boolean {
+        awaitInitialized()
+        return withContext(Dispatchers.IO) {
+            val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
+            val deleted = DownloadStore.delete(context, uri)
+            forget(videoId)
+            deleted
+        }
     }
 
     private fun forget(videoId: String) {
@@ -555,6 +609,7 @@ object Downloads {
      * would take it out of that release as well.
      */
     suspend fun deleteCollection(context: Context, id: String): Boolean {
+        awaitInitialized()
         var any = false
         tracksOnlyIn(id, _collections.value, _saved.value)
             .forEach { videoId -> if (delete(context, videoId)) any = true }
@@ -678,7 +733,9 @@ object Downloads {
         synchronized(collectionLock) {
             val map = update(_collections.value)
             _collections.value = map
-            if (::prefs.isInitialized) {
+            if (collectionsHydrating) {
+                pendingCollections += update
+            } else if (::prefs.isInitialized) {
                 prefs.edit {
                         putString(KEY_SAVED_COLLECTIONS, json.encodeToString(collectionSerializer, map))
                     }
@@ -775,10 +832,14 @@ object Downloads {
         saved: (Map<String, String>) -> Map<String, String>,
         meta: (Map<String, SavedSongMetadata>) -> Map<String, SavedSongMetadata>,
     ) {
-        val savedMap = _saved.updateAndGet(saved)
-        val metaMap = _savedMetadata.updateAndGet(meta)
-        if (!::prefs.isInitialized) return
         synchronized(recordLock) {
+            val savedMap = _saved.updateAndGet(saved)
+            val metaMap = _savedMetadata.updateAndGet(meta)
+            if (hydrating) {
+                pendingRecords += saved to meta
+                return
+            }
+            if (!::prefs.isInitialized) return
             prefs.edit {
                     putString(KEY_SAVED, json.encodeToString(serializer, savedMap))
                     .putString(KEY_SAVED_METADATA, json.encodeToString(metadataSerializer, metaMap))
@@ -789,7 +850,9 @@ object Downloads {
     private val recordLock = Any()
 
     /** Returns all downloaded songs whose files still exist on disk. */
-    suspend fun getDownloadedSongs(context: Context): List<Song> = withContext(Dispatchers.IO) {
+    suspend fun getDownloadedSongs(context: Context): List<Song> {
+        awaitInitialized()
+        return withContext(Dispatchers.IO) {
         val metaMap = _savedMetadata.value
         val result = mutableListOf<Song>()
         val seenUris = mutableSetOf<String>()
@@ -855,7 +918,8 @@ object Downloads {
                 },
             )
         }
-        result
+            result
+        }
     }
 
     /**
@@ -869,8 +933,9 @@ object Downloads {
      * every recorded id.  The collection record already says exactly which
      * files can belong here, so only those files need to be verified.
      */
-    suspend fun getCollectionSongs(context: Context, collectionId: String): List<Song> =
-        withContext(Dispatchers.IO) {
+    suspend fun getCollectionSongs(context: Context, collectionId: String): List<Song> {
+        awaitInitialized()
+        return withContext(Dispatchers.IO) {
             val record = _collections.value[collectionId] ?: return@withContext emptyList()
             val metadata = _savedMetadata.value
             val saved = _saved.value
@@ -913,6 +978,7 @@ object Downloads {
                 )
             }
         }
+    }
 
     // ---- Driven by DownloadService -----------------------------------------
 

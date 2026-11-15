@@ -89,16 +89,27 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         // PlaybackService shares this process, so seeding the cookie here means
         // stream resolution is authenticated from the first play onwards.
         authStore = AuthStore(this)
+        // Cheap context registration only; device callbacks remain lazy.
+        com.music.audify.playback.audio.LosslessOutput.provideContext(this)
         // Opened off the main thread, alongside everything below: none of these
         // reads a setting or the session, and between them they are the slowest
         // opens at startup — SourceRegistry's encrypted store most of all.
         // Started only once [AuthStore] exists, because both encrypted stores
         // share one keystore master key and a first launch must not have two
-        // threads racing to create it. Joined before onCreate returns, so
-        // nothing that runs after startup can see any of them half open.
-        val backgroundInit = thread(name = "startup-init") {
-            SourceRegistry.init(this)
-            AndroidStreamHooks.initInnerTubeX(this)
+        // threads racing to create it. Home does not depend on either store;
+        // playback uses the default resolver until these are ready.
+        thread(name = "startup-init", priority = Thread.MIN_PRIORITY) {
+            // Keep optional source bootstrap below the UI scheduler. These
+            // stores are not required to draw Home, and encrypted preference
+            // reads can otherwise compete with first-frame work on slower CPUs.
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
+            // They are independent initializers: a corrupt/unavailable source
+            // store must not prevent InnerTubeX from being configured (or vice
+            // versa). Log each failure rather than silently killing this worker.
+            runCatching { SourceRegistry.init(this) }
+                .onFailure { android.util.Log.e("Audify", "Source registry initialization failed", it) }
+            runCatching { AndroidStreamHooks.initInnerTubeX(this) }
+                .onFailure { android.util.Log.e("Audify", "InnerTubeX initialization failed", it) }
         }
         // Migration-safe: an old single cookie becomes the first encrypted
         // session, while newer installs restore the profile the listener chose.
@@ -127,9 +138,6 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             runCatching { com.music.audify.data.local.LocalFirstRepository.initialize(this@AudifyApplication) }
                 .onFailure { android.util.Log.e("Audify", "Local Room database initialization failed", it) }
         }
-        // Before anything resolves a track: an addon with `checkValidLossless`
-        // is gated on this, and the gate reads "no" until it has looked.
-        com.music.audify.playback.audio.LosslessOutput.init(this)
         // Restores a party this device is still a member of, so a process death
         // mid-session is something the rest of the party never sees. The socket
         // and the clock offset are not restored — both are re-established on
@@ -152,9 +160,8 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         ListeningStats.init(this)
         // After AppSettings, whose switch decides whether half of it runs.
         ArtistFacts.init(this)
-        // One cache directory can only be opened once per process, and
-        // PlaybackService shares this one — so it's opened here, not there.
-        AudioCache.init(this)
+        // AudioCache is opened after Home's first frame (or on a service-only
+        // playback start), so its disk-index scan cannot compete with launch.
         // The offscreen WebView that mints a Spotify access token from the
         // listener's own session cookie needs a Context, and nothing in the
         // suspend call chain that reaches it (a track's canvas lookup) has
@@ -180,12 +187,12 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         initLastfm()
         // The public "apps open right now" count; see Presence.
         com.music.audify.data.presence.AndroidPresence.install(this)
-        backgroundInit.join()
-        // Opening Media3's SimpleCache can scan a large clip index. It is not
-        // needed to draw Home or play audio, so never hold the first frame of
-        // the app hostage while it opens. Canvas playback falls back to its
-        // upstream source until this cache is ready.
-        thread(name = "canvas-cache-init") {
+        // Source configuration and InnerTubeX are independent of drawing Home.
+        // Their initialisation started above and must not hold Activity startup.
+        // Canvas cache index replay is non-critical for first paint. Keep it on
+        // a background-priority thread so it cannot crowd the UI scheduler.
+        thread(name = "canvas-cache-init", priority = Thread.MIN_PRIORITY) {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             runCatching { CanvasCache.init(this) }
                 .onFailure { android.util.Log.w("Audify", "Canvas cache initialization failed", it) }
         }

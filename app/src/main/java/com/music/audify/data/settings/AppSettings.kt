@@ -26,6 +26,10 @@ import com.music.audify.playback.EqLayout
 import com.music.audify.playback.EqualizerPreset
 import com.music.audify.ui.components.VideoThumbnails
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 
 /**
@@ -451,6 +455,7 @@ enum class SongSort {
  * no restart, no rebinding.
  */
 object AppSettings {
+    private val startupIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var prefs: SharedPreferences
 
@@ -1336,15 +1341,21 @@ object AppSettings {
         prefs = currentPrefs
         seedFirstInstallDefaults(context)
         this.authStore = authStore
+        // Publish the complete settings snapshot before stores and schedulers
+        // consult their switches. Migration apply() has already updated the
+        // in-memory preference map atomically, so this read sees the full copy.
+        readAll()
         com.music.audify.data.spotify.LocalPlaylistStore.init(context)
         com.music.audify.data.playlist.SmartPlaylistStore.init(context)
         com.music.audify.data.stats.LocalLibraryStore.init(context)
-        com.music.audify.data.stats.AutomaticBackupScheduler.schedule(context)
+        startupIoScope.launch {
+            runCatching { com.music.audify.data.stats.AutomaticBackupScheduler.schedule(context) }
+                .onFailure { android.util.Log.e("Audify", "Automatic backup scheduling failed", it) }
+        }
         com.music.audify.data.OfflinePlaylists.init(
             context,
             likedTitle = context.getString(com.music.audify.R.string.auto_liked),
         )
-        readAll()
         watchConnection(context)
     }
 
@@ -1356,11 +1367,14 @@ object AppSettings {
      */
     private fun migrateAudifyPreferences(context: Context, target: SharedPreferences) {
         val legacy = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
-        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false) || legacy.all.isEmpty()) return
+        val legacyValues = legacy.all
+        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false) || legacyValues.isEmpty()) return
 
-        // Synchronous commit is intentional: readAll() must never observe a
-        // half-migrated settings file on the first launch after upgrading.
-        target.edit(commit = true) {
+        // SharedPreferences.apply() updates the in-memory map atomically before
+        // returning and persists it on the framework's disk writer. readAll()
+        // therefore sees the complete migration without waiting for an fsync on
+        // the main thread. The legacy file remains intact as a rollback copy.
+        target.edit {
             fun put(key: String, value: Any?) {
                 when (value) {
                     is String -> putString(key, value)
@@ -1375,7 +1389,7 @@ object AppSettings {
             // Keep every original key, including keys whose UI is being restored
             // in follow-up work. This prevents a migration from silently discarding
             // preferences that the current version does not yet read.
-            legacy.all.forEach { (key, value) ->
+            legacyValues.forEach { (key, value) ->
                 if (!target.contains(key)) put(key, value)
             }
 
@@ -1390,8 +1404,8 @@ object AppSettings {
                 "lightweight_liquid_glass" to "frosted_glass",
             )
             renamedKeys.forEach { (oldKey, newKey) ->
-                if (!target.contains(newKey) && legacy.contains(oldKey)) {
-                    put(newKey, legacy.all[oldKey])
+                if (!target.contains(newKey) && oldKey in legacyValues) {
+                    put(newKey, legacyValues[oldKey])
                 }
             }
 
