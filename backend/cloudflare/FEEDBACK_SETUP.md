@@ -4,15 +4,16 @@ The Android app posts bug reports and feature suggestions to `POST /api/feedback
 
 ## One-time setup
 
-1. Create a GitHub fine-grained personal access token limited to `sachit1751-art/Audify`.
-2. Grant **Issues: Read and write** and **Contents: Read and write**. Issues permission creates reports; Contents permission stores user-selected screenshots in `feedback-attachments/`. Do not grant Actions, Administration, or other permissions.
-3. Store it as a Cloudflare Worker secret (never in the app or repository):
+1. Create GitHub fine-grained personal access tokens limited to `sachit1751-art/Audify`.
+2. Give the issue token **Issues: Read and write**. Give the screenshot token **Contents: Read and write**. Do not grant Actions, Administration, or other permissions.
+3. Store them as separate Cloudflare Worker secrets (never in the app or repository):
 
    ```powershell
    npx wrangler secret put GITHUB_ISSUES_TOKEN
+   npx wrangler secret put GITHUB_CONTENTS_TOKEN
    ```
 
-4. Deploy the Worker. The endpoint intentionally returns `503` until the secret exists; it never falls back to email or silently discards a real submission.
+4. Deploy the Worker. Issue creation and screenshot upload each return `503` until their corresponding secret exists; neither falls back to email or silently discards a real submission. Existing combined `GITHUB_ISSUES_TOKEN` secrets remain supported for screenshots as a compatibility fallback.
 
 ## Screenshot attachments (no R2 subscription)
 

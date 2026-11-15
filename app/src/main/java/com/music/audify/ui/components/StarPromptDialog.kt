@@ -1,5 +1,7 @@
 package com.music.audify.ui.components
 
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -82,15 +84,15 @@ private object StarPrompt {
     fun registerOpen(context: Context) {
         val p = prefs(context)
         val now = System.currentTimeMillis()
-        val editor = p.edit()
-        if (p.getLong(KEY_FIRST_AT, 0L) == 0L) {
-            editor.putLong(KEY_FIRST_AT, now)
+        p.edit {
+            if (p.getLong(KEY_FIRST_AT, 0L) == 0L) {
+                putLong(KEY_FIRST_AT, now)
+            }
+            if (now - p.getLong(KEY_LAST_OPEN, 0L) >= MIN_OPEN_GAP_MS) {
+                putInt(KEY_LAUNCHES, p.getInt(KEY_LAUNCHES, 0) + 1)
+                putLong(KEY_LAST_OPEN, now)
+            }
         }
-        if (now - p.getLong(KEY_LAST_OPEN, 0L) >= MIN_OPEN_GAP_MS) {
-            editor.putInt(KEY_LAUNCHES, p.getInt(KEY_LAUNCHES, 0) + 1)
-            editor.putLong(KEY_LAST_OPEN, now)
-        }
-        editor.apply()
     }
 
     fun shouldShow(context: Context): Boolean {
@@ -105,15 +107,15 @@ private object StarPrompt {
     fun snooze(context: Context) {
         val p = prefs(context)
         val snoozes = p.getInt(KEY_SNOOZES, 0) + 1
-        p.edit()
-            .putInt(KEY_SNOOZES, snoozes)
-            .putLong(KEY_SNOOZE_UNTIL, System.currentTimeMillis() + SNOOZE_MS)
-            .putBoolean(KEY_DONE, snoozes >= MAX_SNOOZES)
-            .apply()
+        p.edit {
+                putInt(KEY_SNOOZES, snoozes)
+                .putLong(KEY_SNOOZE_UNTIL, System.currentTimeMillis() + SNOOZE_MS)
+                .putBoolean(KEY_DONE, snoozes >= MAX_SNOOZES)
+            }
     }
 
     fun finish(context: Context) {
-        prefs(context).edit().putBoolean(KEY_DONE, true).apply()
+        prefs(context).edit {putBoolean(KEY_DONE, true)}
     }
 }
 
@@ -151,7 +153,7 @@ internal fun StarPromptHost(isPlaying: Boolean) {
                 show = false
                 runCatching {
                     context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(STAR_REPO_URL))
+                        Intent(Intent.ACTION_VIEW, STAR_REPO_URL.toUri())
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
                 }.onFailure {

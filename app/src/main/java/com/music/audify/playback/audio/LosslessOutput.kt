@@ -63,6 +63,8 @@ object LosslessOutput {
     val capable: Boolean get() = _state.value.capable
 
     private var audioManager: AudioManager? = null
+    // Process-scoped tracker is intentionally backed by applicationContext, never an Activity.
+    @android.annotation.SuppressLint("StaticFieldLeak")
     private var tracker: BluetoothAudioTracker? = null
 
     private val callback = object : AudioDeviceCallback() {

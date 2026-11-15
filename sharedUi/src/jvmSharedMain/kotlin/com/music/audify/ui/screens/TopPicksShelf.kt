@@ -616,11 +616,9 @@ private fun CardOverlay(
 ) {
     Box(modifier) {
         if (branded) {
-            Wordmark(
+            BrandIcon(
                 logoHeight = 14.dp,
-                fontSize = 16.sp,
                 color = Color.White,
-                gap = 2.dp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 12.dp, end = 12.dp),
@@ -823,12 +821,7 @@ private fun MostPlayedRecapOverlay(text: CardText, modifier: Modifier) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Wordmark(
-                logoHeight = 12.dp,
-                fontSize = 13.sp,
-                color = Color.White,
-                gap = 2.dp,
-            )
+            BrandIcon(logoHeight = 12.dp, color = Color.White)
         }
         Column(
             Modifier
@@ -1682,13 +1675,8 @@ private fun MoodArt(
             val side = minOf(w * 0.66f, h * 0.46f)
             Frame(left = (w - side) / 2f, top = h * 0.545f - side / 2f, side = side)
         }
-        // A soft halo and two faint rings behind the emblem.
-        translate(left = f.center.x - b.haloRadius, top = f.center.y - b.haloRadius) {
-            drawCircle(b.halo, radius = b.haloRadius, center = Offset(b.haloRadius, b.haloRadius))
-        }
-        val ring = Stroke(width = 1.dp.toPx())
-        drawCircle(style.stroke.copy(alpha = 0.16f), radius = f.side * 0.66f, center = f.center, style = ring)
-        drawCircle(style.stroke.copy(alpha = 0.09f), radius = f.side * 0.86f, center = f.center, style = ring)
+        // Keep the emblem clean: no decorative halo or concentric rings around
+        // the main artwork on Find Your Mood tiles.
         val stroke = cache.stroke((if (square) 2.dp else 2.5.dp).toPx())
         drawEmblem(mood, f, loop?.value ?: mood.stillPhase(), style.stroke, stroke, cache)
     }
@@ -2306,35 +2294,16 @@ private fun MoodTile(mood: TopPickMood, onClick: (TopPickMood, String) -> Unit, 
             // it — for as long as the shelf was in view; the motion is Top
             // Picks' own, one card at a time.
             MoodArt(mood, mood.style(), Modifier.fillMaxSize(), square = true, still = true)
-            Wordmark(
-                logoHeight = 10.dp,
-                fontSize = 12.sp,
-                color = Color.White,
-                gap = 2.dp,
+            Icon(
+                painter = painterResource(Res.drawable.ic_logo),
+                contentDescription = "Audify",
+                tint = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 10.dp, end = 10.dp),
+                    .padding(top = 10.dp, end = 10.dp)
+                    .width(20.dp)
+                    .height(14.dp),
             )
-            // A glass play button, so the tile reads as a station to start.
-            Box(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(10.dp)
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.22f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.size(12.dp)) {
-                    val tri = Path().apply {
-                        moveTo(size.width * 0.12f, 0f)
-                        lineTo(size.width, size.height / 2f)
-                        lineTo(size.width * 0.12f, size.height)
-                        close()
-                    }
-                    drawPath(tri, Color.White)
-                }
-            }
         }
         Spacer(Modifier.height(12.dp))
         Text(

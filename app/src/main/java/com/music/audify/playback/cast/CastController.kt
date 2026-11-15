@@ -1,5 +1,6 @@
 package com.music.audify.playback.cast
 
+import java.lang.ref.WeakReference
 import android.content.Context
 import android.util.Log
 import androidx.mediarouter.media.MediaRouteSelector
@@ -53,14 +54,20 @@ object CastController {
     private val _volume = MutableStateFlow(1f)
     val volume: StateFlow<Float> = _volume.asStateFlow()
 
-    private var castContext: CastContext? = null
-    private var router: MediaRouter? = null
+    // Both are framework singletons created with applicationContext. Weak refs
+    // avoid making this process-wide controller another owner of their Context.
+    private var castContextRef: WeakReference<CastContext>? = null
+    private val castContext: CastContext? get() = castContextRef?.get()
+    private var routerRef: WeakReference<MediaRouter>? = null
+    private val router: MediaRouter? get() = routerRef?.get()
     private var selector: MediaRouteSelector? = null
     private var started = false
     private var playback: CastPlayback? = null
 
     /** The session whose volume is being followed, so it can be let go of. */
-    private var watched: CastSession? = null
+    // SessionManager owns the active session; this controller only observes it.
+    private var watchedRef: WeakReference<CastSession>? = null
+    private val watched: CastSession? get() = watchedRef?.get()
 
     private val volumeListener = object : Cast.Listener() {
         override fun onVolumeChanged() {
@@ -132,8 +139,8 @@ object CastController {
     }
 
     private fun onReady(app: Context, ctx: CastContext) {
-        castContext = ctx
-        router = MediaRouter.getInstance(app)
+        castContextRef = WeakReference(ctx)
+        routerRef = WeakReference(MediaRouter.getInstance(app))
         selector = ctx.mergedSelector
         ctx.sessionManager.addSessionManagerListener(sessionListener, CastSession::class.java)
         update { it.copy(supported = true) }
@@ -228,14 +235,14 @@ object CastController {
 
     private fun watch(session: CastSession) {
         stopWatching()
-        watched = session
+        watchedRef = WeakReference(session)
         session.addCastListener(volumeListener)
         _volume.value = session.volume.toFloat().coerceIn(0f, 1f)
     }
 
     private fun stopWatching() {
         watched?.removeCastListener(volumeListener)
-        watched = null
+        watchedRef = null
     }
 
     private fun publishDevices() {

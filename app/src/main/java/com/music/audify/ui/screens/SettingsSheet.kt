@@ -2,6 +2,8 @@
 
 package com.music.audify.ui.screens
 
+import androidx.core.graphics.toColorInt
+import androidx.core.net.toUri
 import com.music.audify.ui.icons.SfIcons
 import android.content.Context
 import androidx.annotation.StringRes
@@ -299,6 +301,7 @@ fun SettingsScreen(
     val coverSlideAnimation by AppSettings.coverSlideAnimation.collectAsStateWithLifecycle()
     val coverFluidAnimation by AppSettings.coverFluidAnimation.collectAsStateWithLifecycle()
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
     val liquidGlass by AppSettings.liquidGlass.collectAsStateWithLifecycle()
     val liquidGlassSupported = isGlassSupported()
     val lyricsBlur by AppSettings.lyricsBlur.collectAsStateWithLifecycle()
@@ -463,7 +466,7 @@ fun SettingsScreen(
         if (old.isBlank() || old == stillUsed) return
         runCatching {
             context.contentResolver.releasePersistableUriPermission(
-                Uri.parse(old),
+                old.toUri(),
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
         }
@@ -1340,15 +1343,13 @@ fun SettingsScreen(
                     ) {
                         Box(
                             Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
-                                .background(Color(android.graphics.Color.parseColor(
-                                    if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
-                                    else ThemePacks.lightBackgroundHex(pack),
-                                )))
+                                .background(Color((if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
+                                    else ThemePacks.lightBackgroundHex(pack)).toColorInt()))
                         ) {
-                            Box(Modifier.fillMaxWidth().height(10.dp).background(Color(android.graphics.Color.parseColor(pack.primaryHex))))
+                            Box(Modifier.fillMaxWidth().height(10.dp).background(Color(pack.primaryHex.toColorInt())))
                             Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { hex ->
-                                    Box(Modifier.size(18.dp).clip(CircleShape).background(Color(android.graphics.Color.parseColor(hex))))
+                                    Box(Modifier.size(18.dp).clip(CircleShape).background(Color(hex.toColorInt())))
                                 }
                             }
                         }
@@ -1474,6 +1475,21 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setReduceDynamicBlur(!reduceDynamicBlur) },
+                )
+            }
+            val progressiveBlurTitle = stringResource(R.string.progressive_blur)
+            row(progressiveBlurTitle, "scroll", "edge", "blur", "fade", "progressive") {
+                SettingsRow(
+                    icon = SfIcons.BlurOn,
+                    title = progressiveBlurTitle,
+                    subtitle = stringResource(R.string.glass_progressive_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = progressiveBlur,
+                            onCheckedChange = AppSettings::setProgressiveBlur,
+                        )
+                    },
+                    onClick = { AppSettings.setProgressiveBlur(!progressiveBlur) },
                 )
             }
             val liquidGlassTitle = stringResource(R.string.liquid_glass)
@@ -2051,16 +2067,6 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
-            row("Report a bug", "feedback", "problem", "issue") {
-                SettingsRow(icon = SfIcons.Info, title = "Report a bug", subtitle = "Tell us what went wrong.", onClick = {
-                    feedbackKind = "bug"; showFeedbackDialog = true
-                })
-            }
-            row("Suggest a feature", "feedback", "idea", "request") {
-                SettingsRow(icon = SfIcons.AutoAwesome, title = "Suggest a feature", subtitle = "Share an idea for Audify.", onClick = {
-                    feedbackKind = "feature"; showFeedbackDialog = true
-                })
-            }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
                 WearOsSettingsRow(onClick = onWearOs)
             }
@@ -2388,9 +2394,8 @@ fun SettingsScreen(
         if (shows(SettingsCategory.ABOUT)) {
             if (section == SettingsCategory.ABOUT) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("ABOUT", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     SettingsGroup {
-                        SettingsRow(icon = SfIcons.Info, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
+                        SettingsRow(icon = SfIcons.Bug, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
                             feedbackKind = "bug"; showFeedbackDialog = true
                         })
                         SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = {
@@ -2956,7 +2961,7 @@ fun SettingsScreen(
 private fun Context.openLink(url: String) {
     runCatching {
         startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(Intent.ACTION_VIEW, url.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }.onFailure {
         Toast.makeText(this, url, Toast.LENGTH_SHORT).show()
@@ -3835,7 +3840,6 @@ private fun LiquidGlassSettingsContent() {
     val liquidGlass by AppSettings.liquidGlass.collectAsStateWithLifecycle()
     val frosted by AppSettings.frostedGlass.collectAsStateWithLifecycle()
     val clarity by AppSettings.glassClarity.collectAsStateWithLifecycle()
-    val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
     val custom by AppSettings.glassCustom.collectAsStateWithLifecycle()
     val indicator by AppSettings.glassIndicator.collectAsStateWithLifecycle()
     val supported = isGlassSupported()
@@ -4243,20 +4247,6 @@ private fun LiquidGlassSettingsContent() {
                 )
             },
             onClick = { AppSettings.setFrostedGlass(!frosted) },
-        )
-        RowDivider()
-        SettingsRow(
-            title = stringResource(R.string.progressive_blur),
-            subtitle = stringResource(R.string.glass_progressive_subtitle),
-            enabled = active,
-            trailing = {
-                IosSwitch(
-                    checked = progressiveBlur,
-                    onCheckedChange = AppSettings::setProgressiveBlur,
-                    enabled = active,
-                )
-            },
-            onClick = { AppSettings.setProgressiveBlur(!progressiveBlur) },
         )
     }
 
@@ -4713,7 +4703,7 @@ internal fun <T> ChoiceGroup(
                     Spacer(Modifier.width(12.dp))
                     Icon(
                         SfIcons.Check,
-                        contentDescription = stringResource(R.string.selected),
+                        contentDescription = stringResource(R.string.audify_selected),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )

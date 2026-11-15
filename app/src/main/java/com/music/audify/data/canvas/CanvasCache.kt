@@ -55,6 +55,8 @@ object CanvasCache {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var cache: SimpleCache
+    @Volatile
+    private var cacheReady = false
 
     /** Opened once per process, alongside [com.music.audify.playback.AudioCache.init]. */
     fun init(context: Context) {
@@ -68,6 +70,7 @@ object CanvasCache {
             evictor,
             StandaloneDatabaseProvider(context),
         )
+        cacheReady = true
         scope.launch {
             AppSettings.canvasCacheLimitBytes.collect { maxBytes ->
                 evictor.maxBytes = maxBytes
@@ -77,10 +80,10 @@ object CanvasCache {
     }
 
     /** Bytes the canvas clips occupy on disk right now. */
-    fun usedBytes(): Long = if (::cache.isInitialized) cache.cacheSpace else 0L
+    fun usedBytes(): Long = if (cacheReady) cache.cacheSpace else 0L
 
     /** How many clips are stored. */
-    fun clipCount(): Int = if (::cache.isInitialized) cache.keys.size else 0
+    fun clipCount(): Int = if (cacheReady) cache.keys.size else 0
 
     /**
      * Whether the clip at [url] is stored on disk in full, so playing it needs
@@ -89,7 +92,7 @@ object CanvasCache {
      * data.
      */
     fun isClipCached(url: String): Boolean {
-        if (!::cache.isInitialized) return false
+        if (!cacheReady) return false
         return runCatching {
             val length = ContentMetadata.getContentLength(cache.getContentMetadata(url))
             length > 0L && cache.isCached(url, 0L, length)
@@ -104,7 +107,7 @@ object CanvasCache {
 
     /** Deletes every stored clip. Disk work: call off the main thread. */
     fun clear() {
-        if (!::cache.isInitialized) return
+        if (!cacheReady) return
         cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
         CanvasIndex.clear()
     }
@@ -117,8 +120,12 @@ object CanvasCache {
      * choice [com.music.audify.playback.AudioCache] makes for audio.
      */
     fun dataSourceFactory(upstream: DataSource.Factory): DataSource.Factory =
-        CacheDataSource.Factory()
-            .setCache(cache)
-            .setUpstreamDataSourceFactory(upstream)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        if (!cacheReady) {
+            upstream
+        } else {
+            CacheDataSource.Factory()
+                .setCache(cache)
+                .setUpstreamDataSourceFactory(upstream)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        }
 }

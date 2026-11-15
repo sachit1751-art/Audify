@@ -1,6 +1,7 @@
 package com.music.audify.data.sources.module
 
 import android.util.Log
+import android.util.Base64
 import com.music.audify.data.TrackLog
 import com.dokar.quickjs.QuickJs
 import com.dokar.quickjs.binding.AsyncFunctionBinding
@@ -389,13 +390,16 @@ internal object QuickJsExecutor {
                     val url = resolveUrl(rawUrl, fetchBase)
 
                     TrackLog.d(TAG, "  → fetch $method ${redactModuleUrl(url)}")
-                    val (statusCode, responseBody) = fetchUrlSync(url, method, headersJson, body)
-                    TrackLog.d(TAG, "    HTTP $statusCode (${responseBody.length} bytes)")
+                    val response = fetchUrlSync(url, method, headersJson, body)
+                    TrackLog.d(TAG, "    HTTP ${response.status} (${response.body.size} bytes)")
 
                     val respObj = JSONObject().apply {
-                        put("status", statusCode)
-                        put("ok", statusCode in 200..299)
-                        put("body", responseBody)
+                        put("status", response.status)
+                        put("ok", response.status in 200..299)
+                        put("statusText", response.statusText)
+                        put("body", response.bodyText)
+                        put("bodyBase64", Base64.encodeToString(response.body, Base64.NO_WRAP))
+                        put("headers", JSONObject(response.headers))
                     }
                     return respObj.toString()
                 }
@@ -415,6 +419,63 @@ internal object QuickJsExecutor {
         // Expose a web-compatible fetch() surface over the native binding.
         qjs.evaluate<Unit>(
             """
+            var __spine_make_response = function(raw) {
+                var headers = {};
+                Object.keys(raw.headers || {}).forEach(function(key) {
+                    headers[key.toLowerCase()] = String(raw.headers[key]);
+                });
+                var binary = atob(raw.bodyBase64 || '');
+                var bytes = new Uint8Array(binary.length);
+                for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i) & 255;
+                var bodyText = raw.body || '';
+                var bodyUsed = false;
+                var consume = function() {
+                    if (bodyUsed) throw new TypeError('Body has already been consumed');
+                    bodyUsed = true;
+                };
+                var response = {
+                    ok: raw.ok,
+                    status: raw.status,
+                    statusText: raw.statusText || (raw.ok ? 'OK' : 'Error'),
+                    url: raw.url || '',
+                    redirected: false,
+                    type: 'basic',
+                    get bodyUsed() { return bodyUsed; },
+                    json: function() {
+                        try { consume(); } catch(e) { return Promise.reject(e); }
+                        try { return Promise.resolve(JSON.parse(bodyText)); }
+                        catch(e) { return Promise.reject(new Error('Invalid JSON: ' + bodyText.substring(0, 200))); }
+                    },
+                    text: function() {
+                        try { consume(); return Promise.resolve(bodyText); }
+                        catch(e) { return Promise.reject(e); }
+                    },
+                    arrayBuffer: function() {
+                        try { consume(); } catch(e) { return Promise.reject(e); }
+                        var copy = new Uint8Array(bytes.length);
+                        copy.set(bytes);
+                        return Promise.resolve(copy.buffer);
+                    },
+                    clone: function() {
+                        if (bodyUsed) throw new TypeError('Body has already been consumed');
+                        return __spine_make_response(raw);
+                    },
+                    headers: {
+                        get: function(name) {
+                            if (name == null) return null;
+                            var key = String(name).toLowerCase();
+                            return Object.prototype.hasOwnProperty.call(headers, key) ? headers[key] : null;
+                        },
+                        has: function(name) { return this.get(name) !== null; },
+                        forEach: function(callback, thisArg) {
+                            Object.keys(headers).forEach(function(key) { callback.call(thisArg, headers[key], key, this); }, this);
+                        },
+                        entries: function() { return Object.keys(headers).map(function(key) { return [key, headers[key]]; }); }
+                    }
+                };
+                return response;
+            };
+
             var fetch = async function(url, options) {
                 var method = 'GET';
                 var headers = '{}';
@@ -436,17 +497,8 @@ internal object QuickJsExecutor {
                     }
                 }
                 var raw = JSON.parse(await __spine.fetch(url, method, headers, body));
-                var respBody = raw.body;
-                return {
-                    ok: raw.ok,
-                    status: raw.status,
-                    statusText: raw.ok ? 'OK' : 'Error',
-                    json: function() { try { return JSON.parse(respBody); } catch(e) { throw new Error('Invalid JSON: ' + respBody.substring(0, 200)); } },
-                    text: function() { return respBody; },
-                    arrayBuffer: function() { throw new Error('Not implemented'); },
-                    clone: function() { return this; },
-                    headers: { get: function(k) { return null; } }
-                };
+                raw.url = String(url);
+                return __spine_make_response(raw);
             };
 
             var setTimeout = async function(fn, ms) {
@@ -473,12 +525,12 @@ internal object QuickJsExecutor {
         }
     }
 
-    private fun fetchUrlSync(
+    internal fun fetchUrlSync(
         url: String,
         method: String,
         headersJson: String,
         body: String?,
-    ): Pair<Int, String> {
+    ): FetchResponse {
         val builder = Request.Builder().url(url)
 
         var hasUserAgent = false
@@ -509,10 +561,25 @@ internal object QuickJsExecutor {
         }
 
         syncHttpClient.newCall(builder.build()).execute().use { response ->
-            val responseBody = response.body?.string() ?: ""
-            return response.code to responseBody
+            val responseBodySource = response.body
+            val charset = responseBodySource.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8
+            val responseBytes = responseBodySource.bytes()
+            val responseBody = String(responseBytes, charset)
+            val responseHeaders = linkedMapOf<String, String>()
+            for (name in response.headers.names()) {
+                responseHeaders[name.lowercase(Locale.ROOT)] = response.headers.values(name).joinToString(", ")
+            }
+            return FetchResponse(response.code, response.message, responseBytes, responseBody, responseHeaders)
         }
     }
+
+    internal data class FetchResponse(
+        val status: Int,
+        val statusText: String,
+        val body: ByteArray,
+        val bodyText: String,
+        val headers: Map<String, String>,
+    )
 
     // ── Polyfills ────────────────────────────────────────────────────────
 

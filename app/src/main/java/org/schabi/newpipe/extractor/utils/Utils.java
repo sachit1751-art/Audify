@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -135,7 +136,7 @@ public final class Utils {
         }
         final double count = Double.parseDouble(
                 Parser.matchGroup1("([\\d]+([\\.,][\\d]+)?)", numberWord).replace(",", "."));
-        switch (multiplier.toUpperCase()) {
+        switch (multiplier.toUpperCase(Locale.ROOT)) {
             case "K":
                 return (long) (count * 1e3);
             case "M":
@@ -168,7 +169,7 @@ public final class Utils {
             throw new IllegalArgumentException("Url can't be null or empty");
         }
 
-        if (!Parser.isMatch(pattern, url.toLowerCase())) {
+        if (!Parser.isMatch(pattern, url.toLowerCase(Locale.ROOT))) {
             throw new ParsingException("Url doesn't match the pattern");
         }
     }

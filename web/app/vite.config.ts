@@ -16,22 +16,18 @@ function devExtensionId(): string {
   }
 }
 
-// The party server's address stays out of the repo: .env.local here, a
-// Cloudflare Pages variable in production. Without it Listen Together can't
-// make a party, so a production build stops instead of shipping that.
-function requirePartyServer(mode: string): void {
-  const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_');
-  if (!env.VITE_PARTY_SERVER_URL?.trim()) {
-    throw new Error('VITE_PARTY_SERVER_URL is not set (app/.env.local, or the Cloudflare Pages environment).');
-  }
-}
-
 export default defineConfig(({ command, mode }) => {
-  if (command === 'build') requirePartyServer(mode);
+  // The deployed Listen Together endpoint is public configuration, not a secret.
+  // Keep an environment override for staging/self-hosted deployments, but make
+  // clean production builds reproducible without an untracked local .env file.
+  const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), 'VITE_');
+  const partyServerUrl = env.VITE_PARTY_SERVER_URL?.trim()
+    || 'https://audify-listen-together.sachit1751.workers.dev';
   return {
     plugins: [react(), tailwindcss()],
     define: {
       DEV_EXTENSION_ID: JSON.stringify(devExtensionId()),
+      'import.meta.env.VITE_PARTY_SERVER_URL': JSON.stringify(partyServerUrl),
     },
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

@@ -2,6 +2,7 @@
 
 package com.music.audify
 
+import androidx.core.net.toUri
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -30,6 +31,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.scaleIn
@@ -178,6 +181,7 @@ import com.music.audify.ui.components.CoverFlightHost
 import com.music.audify.ui.components.CoverFlightLayer
 import com.music.audify.ui.components.LocalCoverVisibilityScope
 import com.music.audify.ui.navigation.AppRoute
+import com.music.audify.ui.motion.MotionTokens
 import com.music.audify.ui.screens.EqualizerPresetPage
 import com.music.audify.ui.screens.SettingsChoiceKind
 import com.music.audify.ui.screens.SettingsChoicePage
@@ -262,6 +266,8 @@ import com.music.audify.playback.setQueueDragActive
 import com.music.audify.ui.MainViewModel
 import com.music.audify.ui.SearchSource
 import com.music.audify.ui.components.BottomFadeScrim
+import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
+import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.TopFadeBlur
 import com.music.audify.ui.components.FloatingBarsTapGuard
 import com.music.audify.ui.components.BottomTab
@@ -3026,7 +3032,7 @@ private fun AudifyApp(
                         context.startActivity(
                             Intent(
                                 Intent.ACTION_VIEW,
-                                Uri.parse("https://music.youtube.com/watch?v=$id"),
+                                "https://music.youtube.com/watch?v=$id".toUri(),
                             ),
                         )
                     }
@@ -3129,6 +3135,11 @@ private fun AudifyApp(
                             },
                         ),
                 ) {
+                // Keep the large navigation transition out of AudifyApp's
+                // startup method. A single 16k+ instruction composable cannot
+                // be JIT-compiled efficiently on Android; isolating this page
+                // subtree gives ART a smaller method to compile and execute.
+                val pageTransitionContent: @Composable () -> Unit = {
                 AnimatedContent(
                     // Whatever is on top of the back stack — see [AppNavigator].
                     targetState = when {
@@ -3139,25 +3150,9 @@ private fun AudifyApp(
                     // A route's entry is copied when the release pages under it
                     // change, which is not a different page.
                     contentKey = { it.key },
-                    // Tabs swap outright; everything else crossfades.
-                    //
-                    // A tab is not a place you travel to — the bar is the whole
-                    // navigation and it carries its own movement — so a fade
-                    // between two of them only ever reads as a stutter. And it
-                    // cannot read as anything else: neither page paints a
-                    // background, so a crossfade dissolves both through to the
-                    // window and the switch dips through a dimmer frame in the
-                    // middle. Pushing a page or raising Settings is a real
-                    // change of context and keeps the fade.
-                    //
-                    // "Show all" swapping with the Library tab underneath it is
-                    // the same case as a tab swap, not a pushed page: it's still
-                    // that tab, just laid out as a grid instead of a row, sharing
-                    // its background rather than painting its own — so this one
-                    // pair gets the tab's no-fade swap too, in both directions, or
-                    // the dip through a dim frame shows up on every hold of a
-                    // card there. A card opened *from* the grid is a real page
-                    // and keeps the fade, same as one opened from the row.
+                    // Restore the original directional page movement. The
+                    // outgoing page moves against the incoming page, with a
+                    // restrained fade to avoid a hard cut or dark midpoint.
                     transitionSpec = {
                         val initial = initialState
                         val target = targetState
@@ -3169,15 +3164,34 @@ private fun AudifyApp(
                             (target.isShowAll() && initial == libraryTab)
                         val releaseMove = initial is AppDestination.Release || target is AppDestination.Release
                         if (tabSwap || libraryShowAllSwap) {
-                            EnterTransition.None togetherWith ExitTransition.None
+                            if (reducePlayerMotion) {
+                                EnterTransition.None togetherWith ExitTransition.None
+                            } else {
+                                val forward = when {
+                                    tabSwap -> (target as AppDestination.Tab).index >= (initial as AppDestination.Tab).index
+                                    else -> target.isShowAll()
+                                }
+                                val direction = if (forward) 1 else -1
+                                (fadeIn(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
+                                    slideInHorizontally(
+                                        animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
+                                    ) { direction * (it / 28) }) togetherWith
+                                    (fadeOut(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
+                                        slideOutHorizontally(
+                                            animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
+                                        ) { -direction * (it / 28) })
+                            }
                         } else if (releaseMove) {
                             // A release page brings its own colour: let it come in over
                             // the cover's flight instead of snapping, while the page it
                             // replaces clears a little faster so the two don't ghost.
                             fadeIn(tween(620, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) togetherWith
                                 fadeOut(tween(340))
+                        } else if (reducePlayerMotion) {
+                            EnterTransition.None togetherWith ExitTransition.None
                         } else {
-                            fadeIn(tween(180)) togetherWith fadeOut(tween(180))
+                            fadeIn(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING)) togetherWith
+                                fadeOut(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING))
                         }
                     },
                     modifier = Modifier
@@ -4168,6 +4182,8 @@ private fun AudifyApp(
                         }
                     }
                 }
+                }
+                pageTransitionContent()
 
                 // The flying cover goes over the page but under the bars, so it
                 // never rides above the tab bar or the mini player. Inside the
@@ -4232,7 +4248,7 @@ private fun AudifyApp(
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
-                if (reduceDynamicBlur || !glassActive || !progressiveBlur) {
+                if (reduceDynamicBlur || !progressiveBlur) {
                     BottomFadeScrim(
                         pageColor = chromePageColor,
                         modifier = Modifier
@@ -4688,6 +4704,12 @@ private fun AudifyApp(
                     // easing out of it and into this, so this is what is actually
                     // under the tab bar.
                     pageColor = chromePageColor,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+
+                ProgressiveScrollEdgeBlur(
+                    hazeState = hazeState,
+                    edge = ScrollBlurEdge.Bottom,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
@@ -6130,7 +6152,7 @@ private fun AudifyApp(
                         if (update.apkUrl != null) {
                             scope.launch { AppUpdateChecker.downloadApk(context) }
                         } else {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
+                            context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
                             showUpdateDialog = false
                         }
                     },
@@ -6143,7 +6165,7 @@ private fun AudifyApp(
                     },
                     onOpenReleasePage = {
                         AppUpdateChecker.resetDownload()
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl)))
+                        context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
                         showUpdateDialog = false
                     },
                 )

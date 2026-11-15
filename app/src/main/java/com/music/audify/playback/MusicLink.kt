@@ -1,5 +1,6 @@
 package com.music.audify.playback
 
+import androidx.core.net.toUri
 import android.app.SearchManager
 import android.content.Intent
 import android.net.Uri
@@ -79,7 +80,7 @@ object MusicLink {
             }
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
                 ?.let(::firstUrl)
-                ?.let { parse(Uri.parse(it)) }
+                ?.let { parse(it.toUri()) }
             // The assistant's "play <something>". An empty query is the whole
             // point of the Resume case: "play music" names nothing, and the
             // useful answer is to carry on with what was already on.

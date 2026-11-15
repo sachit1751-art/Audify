@@ -666,7 +666,10 @@ export default {
       const isPng = mime === 'image/png' && header.length >= 8 && header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4e && header[3] === 0x47 && header[4] === 0x0d && header[5] === 0x0a && header[6] === 0x1a && header[7] === 0x0a;
       const isWebp = mime === 'image/webp' && String.fromCharCode(...header.slice(0, 4)) === 'RIFF' && String.fromCharCode(...header.slice(8, 12)) === 'WEBP';
       if (!isJpeg && !isPng && !isWebp) return fail(415, 'invalid_image', 'The selected file is not a supported image.');
-      if (!env.GITHUB_ISSUES_TOKEN) return fail(503, 'feedback_unavailable', 'Screenshot uploads are not configured yet.');
+      // Keep repository-content write access separate from issue creation where
+      // possible. A legacy combined token remains a supported fallback.
+      const attachmentToken = env.GITHUB_CONTENTS_TOKEN || env.GITHUB_ISSUES_TOKEN;
+      if (!attachmentToken) return fail(503, 'feedback_unavailable', 'Screenshot uploads are not configured yet.');
       const ipKey = await feedbackIpKey(`upload:${request.headers.get('cf-connecting-ip') ?? 'unknown'}`);
       const limited = await global.fetch('https://room.internal/internal/feedback-limit', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ipKey }),
@@ -674,11 +677,14 @@ export default {
       if (!limited.ok) return new Response(limited.body, { status: limited.status, headers: { ...Object.fromEntries(limited.headers), ...cors } });
       let uploaded;
       try {
-        uploaded = await uploadFeedbackAttachment(bytes, mime, env.GITHUB_ISSUES_TOKEN);
+        uploaded = await uploadFeedbackAttachment(bytes, mime, attachmentToken);
       } catch {
         return fail(502, 'attachment_upstream_unavailable', 'Could not reach screenshot storage. Your report was not submitted.');
       }
-      if (!uploaded.ok) return fail(502, 'attachment_upstream_rejected', 'Screenshot storage could not accept this image. Check the feedback service permissions.');
+      if (!uploaded.ok) {
+        console.error('Feedback screenshot GitHub upload rejected', uploaded.status ?? 'unknown status');
+        return fail(502, 'attachment_upstream_rejected', 'Screenshot storage could not accept this image. Check the feedback service permissions.');
+      }
       return json({ ok: true, url: uploaded.url }, 201, cors);
     }
     if (path === '/api/stats/live' || path === '/api/stats/live/badge.svg') {

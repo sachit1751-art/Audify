@@ -27,9 +27,8 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -113,8 +112,9 @@ fun OrganicFluidBackground(
         }
     }
 
-    val screenW = LocalConfiguration.current.screenWidthDp * LocalDensity.current.density
-    val screenH = LocalConfiguration.current.screenHeightDp * LocalDensity.current.density
+    val windowSize = LocalWindowInfo.current.containerSize
+    val screenW = windowSize.width.toFloat()
+    val screenH = windowSize.height.toFloat()
 
     Spacer(
         modifier

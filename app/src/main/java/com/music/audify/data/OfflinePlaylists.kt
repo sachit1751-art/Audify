@@ -1,5 +1,6 @@
 package com.music.audify.data
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import com.music.audify.data.model.Song
@@ -233,7 +234,7 @@ object OfflinePlaylists {
                         .put("songs", songs),
                 )
             }
-            prefs.edit().putString(KEY_PLAYLISTS, array.toString()).apply()
+            prefs.edit {putString(KEY_PLAYLISTS, array.toString())}
         }.onFailure { DebugLog.w("Audify", "Offline playlists not saved: ${it.message}") }
     }
 

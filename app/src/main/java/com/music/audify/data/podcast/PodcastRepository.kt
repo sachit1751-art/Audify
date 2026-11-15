@@ -2,6 +2,7 @@
 // Project: AUDIFY
 package com.music.audify.data.podcast
 
+import androidx.core.content.edit
 import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
@@ -144,9 +145,9 @@ object PodcastRepository : PodcastPlaybackRepository {
         }
         val p = JSONObject()
         progress.forEach { (id, state) -> p.put(id, JSONObject().put("position", state.first).put("completed", state.second)) }
-        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putString(SHOWS, array.toString()).putString("episode_cache", cached.toString())
-            .putString("progress", p.toString()).apply()
+        appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+                putString(SHOWS, array.toString()).putString("episode_cache", cached.toString())
+            .putString("progress", p.toString())}
     }
 
     private fun fetchFeed(rawUrl: String): Pair<PodcastShow, List<PodcastEpisode>> {
@@ -243,7 +244,7 @@ object PodcastRepository : PodcastPlaybackRepository {
                         val episodeId = guid?.takeIf(String::isNotBlank) ?: enclosureUrl.toString()
                         val ref = PodcastEpisodeRef(
                             feedId = stableId(feedUrl), episodeId = episodeId,
-                            enclosureUri = Uri.parse(enclosureUrl.toString()), mimeType = mime,
+                            enclosureUri = enclosureUrl.toString().toUri(), mimeType = mime,
                             showTitle = channelTitle.ifBlank { "Podcast" }, episodeTitle = title,
                             description = description, artworkUri = (image ?: channelArt)?.let(Uri::parse), durationMs = duration,
                         )

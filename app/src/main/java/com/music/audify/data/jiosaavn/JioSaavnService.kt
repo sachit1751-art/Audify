@@ -149,6 +149,9 @@ object JioSaavnService {
         }
     }
 
+    // JioSaavn's published CDN payloads use this fixed legacy cipher mode; changing
+    // the transformation would make encrypted stream URLs unreadable.
+    @android.annotation.SuppressLint("GetInstance")
     private fun decryptUrl(encryptedUrl: String): String {
         if (encryptedUrl.isBlank()) return ""
         return try {

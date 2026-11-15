@@ -99,12 +99,6 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         val backgroundInit = thread(name = "startup-init") {
             SourceRegistry.init(this)
             AndroidStreamHooks.initInnerTubeX(this)
-            // Its own directory: canvas clips are looping video, not audio, and
-            // belong in a cache AudioCache's own limit and eviction policy were
-            // never sized for. See CanvasCache's doc for why this one exists at
-            // all — it is the fix for canvas clips re-fetching the same few
-            // seconds of video from the network on every loop.
-            CanvasCache.init(this)
         }
         // Migration-safe: an old single cookie becomes the first encrypted
         // session, while newer installs restore the profile the listener chose.
@@ -187,6 +181,14 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         // The public "apps open right now" count; see Presence.
         com.music.audify.data.presence.AndroidPresence.install(this)
         backgroundInit.join()
+        // Opening Media3's SimpleCache can scan a large clip index. It is not
+        // needed to draw Home or play audio, so never hold the first frame of
+        // the app hostage while it opens. Canvas playback falls back to its
+        // upstream source until this cache is ready.
+        thread(name = "canvas-cache-init") {
+            runCatching { CanvasCache.init(this) }
+                .onFailure { android.util.Log.w("Audify", "Canvas cache initialization failed", it) }
+        }
     }
 
     /**

@@ -224,6 +224,7 @@ object AudioRouting {
         when (info.type) {
             AudioDeviceInfo.TYPE_BLE_SPEAKER -> return Form.SPEAKER
             AudioDeviceInfo.TYPE_HEARING_AID -> return Form.BUDS
+            else -> Unit
         }
         return formFromName(name) ?: formFromClass(info) ?: Form.UNKNOWN
     }

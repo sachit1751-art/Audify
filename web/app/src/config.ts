@@ -10,6 +10,6 @@ export const config = {
   /** The version the zips above hold, for the "update available" notice. */
   extensionManifestUrl: import.meta.env.VITE_EXTENSION_MANIFEST_URL || '/downloads/extension.json',
   androidAppUrl: import.meta.env.VITE_ANDROID_APP_URL || 'https://github.com/kushagrasinghx/Audify/releases/latest',
-  /** Audify's Listen Together server. vite.config.ts refuses a production build without it. */
-  partyServerUrl: import.meta.env.VITE_PARTY_SERVER_URL ?? '',
+  /** Audify's Listen Together server; overridden at build time for staging/self-hosting. */
+  partyServerUrl: import.meta.env.VITE_PARTY_SERVER_URL || 'https://audify-listen-together.sachit1751.workers.dev',
 } as const;

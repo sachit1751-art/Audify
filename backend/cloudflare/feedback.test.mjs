@@ -42,5 +42,5 @@ test('screenshot upload uses the server token and stores image in the Audify rep
 
 test('screenshot upload reports GitHub permission or API rejection without exposing response details', async () => {
   const result = await uploadFeedbackAttachment(new Uint8Array([1]), 'image/jpeg', 'secret', async () => new Response('forbidden', { status: 403 }));
-  assert.deepEqual(result, { ok: false });
+  assert.deepEqual(result, { ok: false, status: 403 });
 });

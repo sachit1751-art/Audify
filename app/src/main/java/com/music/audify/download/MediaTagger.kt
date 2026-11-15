@@ -1,5 +1,6 @@
 package com.music.audify.download
 
+import androidx.core.graphics.scale
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -428,12 +429,7 @@ object MediaTagger {
         val longest = max(bitmap.width, bitmap.height)
         if (longest <= maxSide) return bitmap
         val scale = maxSide.toFloat() / longest
-        return Bitmap.createScaledBitmap(
-            bitmap,
-            (bitmap.width * scale).toInt().coerceAtLeast(1),
-            (bitmap.height * scale).toInt().coerceAtLeast(1),
-            true,
-        )
+        return bitmap.scale((bitmap.width * scale).toInt().coerceAtLeast(1), (bitmap.height * scale).toInt().coerceAtLeast(1), )
     }
 
     private fun readAll(context: Context, uri: Uri): ByteArray? = runCatching {

@@ -502,7 +502,7 @@ internal fun Modifier.macOSPopupScrim(state: MacOSPopupState, color: Color? = nu
 internal fun MacOSInspiredPopup(
     visible: Boolean,
     onDismissRequest: () -> Unit,
-    modifier: Modifier = Modifier.width(ALERT_WIDTH),
+    modifier: Modifier = Modifier,
     anchor: PopupAnchor? = null,
     spec: MacOSPopupSpec = MacOSPopupSpec(),
     cornerRadius: Dp = ALERT_CORNER,

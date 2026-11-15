@@ -49,6 +49,6 @@ export async function uploadFeedbackAttachment(bytes, mime, token, fetchImpl = f
     },
     body: JSON.stringify({ message: 'Add anonymous Audify feedback screenshot', content: bytesToBase64(bytes) }),
   });
-  if (!response.ok) return { ok: false };
+  if (!response.ok) return { ok: false, status: response.status };
   return { ok: true, url: `https://raw.githubusercontent.com/sachit1751-art/Audify/main/${path}` };
 }

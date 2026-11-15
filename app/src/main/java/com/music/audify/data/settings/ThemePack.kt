@@ -53,25 +53,26 @@ object ThemePacks {
 
     fun isValidHex(value: String): Boolean = value.matches(Regex("^#[0-9A-Fa-f]{6}$"))
 
-    /** Subtle palette wash used behind light-mode content and in the theme picker. */
+    /** The restrained light canvas used by the original theme implementation. */
     private fun backgroundAccentHex(pack: ThemePack): String =
         if (pack.id == CLASSIC_ID) pack.tertiaryHex else pack.primaryHex
 
-    fun lightBackgroundHex(pack: ThemePack): String = blendHex("#FFFFFF", backgroundAccentHex(pack), 0.075)
+    fun lightBackgroundHex(pack: ThemePack): String = blendHex("#FFFCFE", backgroundAccentHex(pack), 0.055)
 
-    /** A restrained accent tint keeps dark surfaces coordinated without losing their base style. */
+    /**
+     * Dark canvas tokens from the original theme implementation. Palette accents
+     * belong on controls and component surfaces, not across the app background.
+     */
     fun darkBackgroundHex(pack: ThemePack): String {
-        val base = when (pack.surfaceStyle) {
+        return when (pack.surfaceStyle) {
             ThemeSurfaceStyle.AMOLED -> "#000000"
-            ThemeSurfaceStyle.MIDNIGHT -> "#080F20"
-            ThemeSurfaceStyle.GRAPHITE -> "#17191D"
-            ThemeSurfaceStyle.DEEP_PURPLE -> "#170F24"
-            ThemeSurfaceStyle.WARM -> "#211711"
-            ThemeSurfaceStyle.SLATE -> "#111B25"
-            ThemeSurfaceStyle.DEFAULT -> "#0D0D0F"
+            ThemeSurfaceStyle.MIDNIGHT -> "#080D18"
+            ThemeSurfaceStyle.GRAPHITE -> "#15171B"
+            ThemeSurfaceStyle.DEEP_PURPLE -> "#120D1D"
+            ThemeSurfaceStyle.WARM -> "#19130F"
+            ThemeSurfaceStyle.SLATE -> "#101820"
+            ThemeSurfaceStyle.DEFAULT -> "#000000"
         }
-        return if (pack.surfaceStyle == ThemeSurfaceStyle.AMOLED) base
-        else blendHex(base, backgroundAccentHex(pack), 0.12)
     }
 
     private fun blendHex(base: String, tint: String, amount: Double): String {

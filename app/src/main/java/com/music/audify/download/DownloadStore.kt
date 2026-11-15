@@ -1,5 +1,6 @@
 package com.music.audify.download
 
+import androidx.core.net.toUri
 import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
@@ -373,7 +374,7 @@ object DownloadStore {
         if (!AppSettings.exportDownloads.value) return null
         val raw = AppSettings.downloadFolderUri.value
         if (raw.isBlank()) return null
-        val tree = Uri.parse(raw)
+        val tree = raw.toUri()
         val granted = runCatching {
             context.contentResolver.persistedUriPermissions.any {
                 it.uri == tree && it.isReadPermission && it.isWritePermission

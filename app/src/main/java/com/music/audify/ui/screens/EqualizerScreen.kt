@@ -488,7 +488,7 @@ private fun ChoiceRow(
         if (selected) {
             Icon(
                 imageVector = SfIcons.Check,
-                contentDescription = stringResource(R.string.selected),
+                contentDescription = stringResource(R.string.audify_selected),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp),
             )

@@ -1,5 +1,6 @@
 package com.music.audify.download
 
+import androidx.core.content.edit
 import android.Manifest
 import android.app.Application
 import android.app.Notification
@@ -181,7 +182,7 @@ object PlaylistSync {
                 update(context, record, listing, approved)
                 delay(PAUSE_MILLIS)
             }
-            if (whole) prefs(context).edit().putLong(KEY_LAST_CHECK, System.currentTimeMillis()).apply()
+            if (whole) prefs(context).edit {putLong(KEY_LAST_CHECK, System.currentTimeMillis())}
         } finally {
             running.unlock()
         }
@@ -340,6 +341,9 @@ object PlaylistSync {
             .build()
     }
 
+    // A notification content tap is an explicit user gesture and must open the
+    // app's launcher Activity; action buttons use the BroadcastReceiver above.
+    @android.annotation.SuppressLint("LaunchActivityFromNotification")
     private fun doneNotification(context: Context, playlist: String, count: Int): Notification {
         val open = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
             PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE)

@@ -81,3 +81,18 @@ internal fun Wordmark(
         }
     }
 }
+
+/** Icon-only brand mark for generated artwork; keeps the thumbnail free of a text watermark. */
+@Composable
+internal fun BrandIcon(
+    logoHeight: Dp,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Icon(
+        painter = painterResource(Res.drawable.ic_logo),
+        contentDescription = null,
+        tint = color,
+        modifier = modifier.height(logoHeight).aspectRatio(WORDMARK_ASPECT),
+    )
+}

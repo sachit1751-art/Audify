@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,7 +42,7 @@ import androidx.compose.ui.unit.dp
  */
 
 /** How long one highlight sweep takes to cross a placeholder. */
-private const val SHIMMER_PERIOD_MS = 1400
+private const val SHIMMER_PERIOD_MS = 1650
 
 private val BlockShape = RoundedCornerShape(6.dp)
 private val LineShape = RoundedCornerShape(4.dp)
@@ -59,9 +60,13 @@ private val SubtitleWidths = listOf(0.34f, 0.44f, 0.27f, 0.38f, 0.31f)
  */
 @Composable
 fun ShimmerBox(modifier: Modifier = Modifier, shape: Shape = BlockShape) {
-    val base = MaterialTheme.colorScheme.surfaceVariant
-    val highlight = MaterialTheme.colorScheme.onSurfaceVariant
-        .copy(alpha = 0.16f)
+    val scheme = MaterialTheme.colorScheme
+    // A low-strength wash carries the active theme without turning every
+    // loading state into a solid accent-coloured block. The moving highlight
+    // stays a little brighter and narrower, especially on saturated palettes.
+    val base = lerp(scheme.surfaceVariant, scheme.primary, 0.12f)
+    val highlight = lerp(base, scheme.primary, 0.24f)
+        .copy(alpha = 0.78f)
         .compositeOver(base)
     val sweep = rememberInfiniteTransition(label = "skeleton").animateFloat(
         initialValue = 0f,
@@ -76,7 +81,7 @@ fun ShimmerBox(modifier: Modifier = Modifier, shape: Shape = BlockShape) {
                 // The band travels from fully off one edge to fully off the
                 // other, which leaves a beat of flat grey between passes rather
                 // than a highlight permanently parked somewhere on the block.
-                val band = size.width * 0.5f
+                val band = (size.width * 0.34f).coerceAtLeast(28.dp.toPx())
                 val startX = -band + sweep.value * (size.width + band * 2)
                 val brush = Brush.horizontalGradient(
                     colors = listOf(base, highlight, base),

@@ -1,5 +1,6 @@
 package com.music.audify.data
 
+import androidx.core.graphics.scale
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -54,7 +55,7 @@ object PlaylistCovers {
             } ?: return@runCatching null
             val side = minOf(decoded.width, decoded.height)
             val square = Bitmap.createBitmap(decoded, (decoded.width - side) / 2, (decoded.height - side) / 2, side, side)
-            val scaled = if (side > SIZE) Bitmap.createScaledBitmap(square, SIZE, SIZE, true) else square
+            val scaled = if (side > SIZE) square.scale(SIZE, SIZE) else square
             val k = key(id)
             val folder = dir(context).apply { mkdirs() }
             folder.listFiles { f -> f.name.startsWith(k + SEP) }?.forEach { it.delete() }

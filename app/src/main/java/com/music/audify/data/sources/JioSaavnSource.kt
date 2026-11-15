@@ -4,6 +4,7 @@ import com.music.audify.data.TrackLog
 import com.music.audify.data.jiosaavn.JioSaavnService
 import com.music.audify.data.jiosaavn.prioritizeExplicit
 import com.music.audify.data.model.Song
+import java.util.Locale
 
 private const val TAG = "Audify"
 
@@ -57,7 +58,7 @@ class JioSaavnSource(
                 durationText = raw.moreInfo.duration.toIntOrNull()?.let { seconds ->
                     val m = seconds / 60
                     val s = seconds % 60
-                    String.format("%d:%02d", m, s)
+                    String.format(Locale.ROOT, "%d:%02d", m, s)
                 },
                 sourceQuality = "HIGH",
                 isExplicit = raw.isExplicit,

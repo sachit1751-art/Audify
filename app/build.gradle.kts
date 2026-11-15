@@ -264,6 +264,7 @@ val newPipeExtractorRaw = configurations.create("newPipeExtractorRaw") {
     isCanBeConsumed = false
 }
 dependencies {
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     newPipeExtractorRaw("com.github.TeamNewPipe:NewPipeExtractor:v0.26.3")
 }
 val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>(

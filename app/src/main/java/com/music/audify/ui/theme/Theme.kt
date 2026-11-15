@@ -1,5 +1,6 @@
 package com.music.audify.ui.theme
 
+import androidx.core.graphics.toColorInt
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -35,7 +36,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.music.audify.R
 import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
@@ -44,6 +44,7 @@ import com.music.audify.data.settings.AppBackgroundStyle
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
+import com.music.audify.data.settings.ThemeSurfaceStyle
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFFA243C),
@@ -123,7 +124,7 @@ private val AppleShapes = Shapes(
 /**
  * Every interactive role is derived from the selected theme pack.
  */
-private fun String.toThemeColor(): Color = Color(android.graphics.Color.parseColor(this))
+private fun String.toThemeColor(): Color = Color(this.toColorInt())
 
 private fun Color.withAccent(accent: Color, amount: Float): Color = Color(
     red = red * (1f - amount) + accent.red * amount,
@@ -240,23 +241,74 @@ fun AudifyTheme(
         themePack ?: ThemePacks.resolve(selectedThemePackId, customThemePacks)
     }
     val scheme = remember(darkTheme, activeThemePack) {
-        val base = if (darkTheme) DarkColors else LightColors
         val primaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.tertiaryHex else activeThemePack.primaryHex
         val tertiaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.primaryHex else activeThemePack.tertiaryHex
         val primary = primaryHex.toThemeColor()
         val secondary = activeThemePack.secondaryHex.toThemeColor()
         val tertiary = tertiaryHex.toThemeColor()
-        val themedBackground = if (darkTheme) {
-            ThemePacks.darkBackgroundHex(activeThemePack).toThemeColor()
+        // Restore the pre-1.9.3 separation: the palette colours controls and
+        // component accents; it does not recolour the entire app canvas.
+        // Keep the original neutral light surfaces and the theme pack's
+        // deliberately chosen dark surface family (AMOLED/Midnight/etc.).
+        val baseColors = if (!darkTheme) {
+            LightColors.copy(
+                background = ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor(),
+                surface = Color.White,
+                surfaceVariant = Color(0xFFF8F7FA).withAccent(primary, 0.075f),
+                outline = Color(0xFFE4E1E8).withAccent(secondary, 0.16f),
+                onSurfaceVariant = Color(0xFF55515C),
+            )
         } else {
-            ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor()
+            when (activeThemePack.surfaceStyle) {
+                ThemeSurfaceStyle.DEFAULT -> DarkColors
+                ThemeSurfaceStyle.AMOLED -> darkColorScheme(
+                    primary = Color.White,
+                    onPrimary = Color.Black,
+                    background = Color.Black,
+                    onBackground = Color.White,
+                    surface = Color.Black,
+                    onSurface = Color.White,
+                    surfaceVariant = Color(0xFF080808),
+                    onSurfaceVariant = Color(0xFFB0B0B5),
+                    outline = Color(0xFF252525),
+                )
+                ThemeSurfaceStyle.MIDNIGHT -> DarkColors.copy(
+                    background = Color(0xFF080D18),
+                    surface = Color(0xFF101827),
+                    surfaceVariant = Color(0xFF1B2940),
+                    outline = Color(0xFF30415D),
+                )
+                ThemeSurfaceStyle.GRAPHITE -> DarkColors.copy(
+                    background = Color(0xFF15171B),
+                    surface = Color(0xFF1D2026),
+                    surfaceVariant = Color(0xFF292D35),
+                    outline = Color(0xFF3B404A),
+                )
+                ThemeSurfaceStyle.DEEP_PURPLE -> DarkColors.copy(
+                    background = Color(0xFF120D1D),
+                    surface = Color(0xFF1B1428),
+                    surfaceVariant = Color(0xFF2B1E3B),
+                    outline = Color(0xFF49365F),
+                )
+                ThemeSurfaceStyle.WARM -> DarkColors.copy(
+                    background = Color(0xFF19130F),
+                    surface = Color(0xFF241B15),
+                    surfaceVariant = Color(0xFF35271F),
+                    outline = Color(0xFF514035),
+                )
+                ThemeSurfaceStyle.SLATE -> DarkColors.copy(
+                    background = Color(0xFF101820),
+                    surface = Color(0xFF18232D),
+                    surfaceVariant = Color(0xFF263541),
+                    outline = Color(0xFF3A4D5B),
+                )
+            }
         }
-        val surface = if (darkTheme) themedBackground else lerp(base.surface, primary, 0.045f)
-        val containerSurface = if (darkTheme) surface else base.surface
-        val primaryContainer = lerp(containerSurface, primary, if (darkTheme) 0.30f else 0.14f)
-        val secondaryContainer = lerp(containerSurface, secondary, if (darkTheme) 0.24f else 0.14f)
-        val tertiaryContainer = lerp(containerSurface, tertiary, if (darkTheme) 0.24f else 0.14f)
-        base.copy(
+        val primaryContainer = if (darkTheme) primary.copy(alpha = 0.24f)
+            else Color(0xFFF7F5FA).withAccent(primary, 0.22f)
+        val secondaryContainer = if (darkTheme) secondary.copy(alpha = 0.20f)
+            else Color(0xFFF7F5FA).withAccent(secondary, 0.22f)
+        baseColors.copy(
             primary = primary,
             onPrimary = ThemePacks.contentColorHex(primaryHex).toThemeColor(),
             primaryContainer = primaryContainer,
@@ -267,18 +319,8 @@ fun AudifyTheme(
             onSecondaryContainer = if (secondaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             tertiary = tertiary,
             onTertiary = ThemePacks.contentColorHex(tertiaryHex).toThemeColor(),
-            tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = if (tertiaryContainer.luminance() > 0.5f) Color.Black else Color.White,
-            background = themedBackground,
-            surface = surface,
-            surfaceContainerLowest = if (darkTheme) surface else lerp(themedBackground, Color.White, 0.30f),
-            surfaceContainerLow = if (darkTheme) lerp(surface, Color.White, 0.035f) else lerp(themedBackground, base.surfaceContainerLow, 0.42f),
-            surfaceContainer = if (darkTheme) lerp(surface, Color.White, 0.065f) else lerp(themedBackground, base.surfaceContainer, 0.48f),
-            surfaceContainerHigh = if (darkTheme) lerp(surface, Color.White, 0.10f) else lerp(themedBackground, base.surfaceContainerHigh, 0.54f),
-            surfaceContainerHighest = if (darkTheme) lerp(surface, Color.White, 0.15f) else lerp(themedBackground, base.surfaceContainerHighest, 0.60f),
-            outline = lerp(base.outline, primary, if (darkTheme) 0.20f else 0.12f),
-            outlineVariant = lerp(base.outlineVariant, primary, if (darkTheme) 0.14f else 0.08f),
-            onSurfaceVariant = lerp(base.onSurfaceVariant, primary, 0.08f),
+            surfaceTint = primary,
+            inversePrimary = secondary,
         )
     }
     val selection = remember(scheme.primary) {

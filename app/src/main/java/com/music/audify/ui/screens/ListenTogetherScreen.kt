@@ -1038,7 +1038,7 @@ private fun PartyActivityList(entries: List<PartyActivity>) {
 }
 
 @Composable
-private fun Spinner(modifier: Modifier = Modifier.size(18.dp)) {
+private fun Spinner(modifier: Modifier = Modifier) {
     CircularProgressIndicator(
         strokeWidth = 2.dp,
         color = MaterialTheme.colorScheme.primary,

@@ -1,5 +1,7 @@
 package com.music.audify.ui.replay
 
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withRotation
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -93,7 +95,7 @@ suspend fun renderReplayPoster(
     withContext(Dispatchers.Default) {
         val lit = page?.let { summary.storyArtwork(it) }
             ?: songs.firstOrNull()?.artworkUrl
-        val bitmap = Bitmap.createBitmap(POSTER_W, POSTER_H, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(POSTER_W, POSTER_H)
         val canvas = Canvas(bitmap)
         val type = Fonts(context)
 
@@ -563,16 +565,15 @@ private fun drawPolaroid(
     drawArtwork(canvas, bitmap, "", x + pad, y + pad, cover, false, 0.01f)
     if (tape) {
         val tapeW = cover * 0.34f
-        canvas.save()
-        canvas.rotate(-5f, frame.centerX(), y)
-        canvas.drawRect(
-            frame.centerX() - tapeW / 2f,
-            y - 30f,
-            frame.centerX() + tapeW / 2f,
-            y + 18f,
-            fillPaint(0x8CEBD9A8.toInt()),
-        )
-        canvas.restore()
+        canvas.withRotation(-5f, frame.centerX(), y) {
+            drawRect(
+                frame.centerX() - tapeW / 2f,
+                y - 30f,
+                frame.centerX() + tapeW / 2f,
+                y + 18f,
+                fillPaint(0x8CEBD9A8.toInt()),
+            )
+        }
     }
     canvas.restore()
 }
@@ -983,53 +984,52 @@ private fun drawHabitCards(
     tickets.forEachIndexed { index, (value, label) ->
         val y = top + 40f + index * (height + 84f)
         val rect = RectF(MARGIN, y, POSTER_W - MARGIN, y + height)
-        canvas.save()
-        canvas.rotate(if (index % 2 == 0) -1.6f else 1.3f, rect.centerX(), rect.centerY())
-        val paper = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = PAPER
-            setShadowLayer(40f, 0f, 14f, 0x66000000)
-        }
-        canvas.drawRoundRect(rect, 42f, 42f, paper)
-        val cut = rect.left + rect.width() * 0.78f
-        val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = ColorUtils.setAlphaComponent(INK, 90)
-            style = Paint.Style.STROKE
-            strokeWidth = 3.6f
-            pathEffect = DashPathEffect(floatArrayOf(18f, 15f), 0f)
-        }
-        canvas.drawLine(cut, rect.top + 30f, cut, rect.bottom - 30f, dash)
-        val punch = fillPaint(0x66000000)
-        canvas.drawCircle(cut, rect.top, 21f, punch)
-        canvas.drawCircle(cut, rect.bottom, 21f, punch)
+        canvas.withRotation(if (index % 2 == 0) -1.6f else 1.3f, rect.centerX(), rect.centerY()) {
+            val paper = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = PAPER
+                setShadowLayer(40f, 0f, 14f, 0x66000000)
+            }
+            drawRoundRect(rect, 42f, 42f, paper)
+            val cut = rect.left + rect.width() * 0.78f
+            val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = ColorUtils.setAlphaComponent(INK, 90)
+                style = Paint.Style.STROKE
+                strokeWidth = 3.6f
+                pathEffect = DashPathEffect(floatArrayOf(18f, 15f), 0f)
+            }
+            drawLine(cut, rect.top + 30f, cut, rect.bottom - 30f, dash)
+            val punch = fillPaint(0x66000000)
+            drawCircle(cut, rect.top, 21f, punch)
+            drawCircle(cut, rect.bottom, 21f, punch)
 
-        val valuePaint = type.serif(96f, INK)
-        canvas.drawText(
-            ellipsised(value, valuePaint, cut - rect.left - 108f),
-            rect.left + 54f,
-            rect.top + 130f,
-            valuePaint,
-        )
-        val labelPaint = type.body(40f, ColorUtils.setAlphaComponent(INK, 168))
-        canvas.drawText(
-            ellipsised(label, labelPaint, cut - rect.left - 108f),
-            rect.left + 54f,
-            rect.top + 200f,
-            labelPaint,
-        )
-        val stubX = cut + (rect.right - cut) / 2f
-        canvas.drawText(
-            "NO.",
-            stubX,
-            rect.centerY() - 8f,
-            type.mono(34f, ColorUtils.setAlphaComponent(INK, 128)).apply { textAlign = Paint.Align.CENTER },
-        )
-        canvas.drawText(
-            "%02d".format(index + 1),
-            stubX,
-            rect.centerY() + 56f,
-            type.mono(60f, ColorUtils.setAlphaComponent(INK, 178)).apply { textAlign = Paint.Align.CENTER },
-        )
-        canvas.restore()
+            val valuePaint = type.serif(96f, INK)
+            drawText(
+                ellipsised(value, valuePaint, cut - rect.left - 108f),
+                rect.left + 54f,
+                rect.top + 130f,
+                valuePaint,
+            )
+            val labelPaint = type.body(40f, ColorUtils.setAlphaComponent(INK, 168))
+            drawText(
+                ellipsised(label, labelPaint, cut - rect.left - 108f),
+                rect.left + 54f,
+                rect.top + 200f,
+                labelPaint,
+            )
+            val stubX = cut + (rect.right - cut) / 2f
+            drawText(
+                "NO.",
+                stubX,
+                rect.centerY() - 8f,
+                type.mono(34f, ColorUtils.setAlphaComponent(INK, 128)).apply { textAlign = Paint.Align.CENTER },
+            )
+            drawText(
+                "%02d".format(index + 1),
+                stubX,
+                rect.centerY() + 56f,
+                type.mono(60f, ColorUtils.setAlphaComponent(INK, 178)).apply { textAlign = Paint.Align.CENTER },
+            )
+        }
     }
 }
 

@@ -131,8 +131,10 @@ object Backup {
             context.contentResolver.openOutputStream(target, "wt")
                 ?.use { it.write(text.toByteArray()) }
                 ?: error("Couldn't open that file for writing")
-            check(context.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE).edit()
-                .putLong(LAST_EXTERNAL_BACKUP_AT, System.currentTimeMillis()).commit()) {
+            @Suppress("UseKtx")
+            val committed = context.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
+                .edit().putLong(LAST_EXTERNAL_BACKUP_AT, System.currentTimeMillis()).commit()
+            check(committed) {
                 "Backup was written, but its reminder timestamp could not be saved"
             }
             file.listening.size

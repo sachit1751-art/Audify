@@ -80,7 +80,9 @@ object SmartPlaylistStore {
                 })
             }
         }.toString()
-        check(prefs.edit().putString(KEY_DEFINITIONS, json).commit()) {
+        @Suppress("UseKtx")
+        val committed = prefs.edit().putString(KEY_DEFINITIONS, json).commit()
+        check(committed) {
             "Could not save smart playlist rules"
         }
     }

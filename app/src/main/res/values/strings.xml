@@ -229,7 +229,6 @@ Project: AUDIFY
   <string name="rich_presence">Rich presence</string>
   <string name="scrobbling">Scrobbling</string>
   <string name="now_playing">Now playing</string>
-  <string name="selected">Selected</string>
   <string name="select_all">Select all</string>
   <string name="password">Password</string>
   <string name="username">Username</string>
@@ -468,10 +467,10 @@ Project: AUDIFY
   <string name="show_listen_together_button_subtitle">Off, the player shows only the audio output button between lyrics and the queue</string>
   <string name="app_icon">App icon</string>
   <string name="app_icon_default">Default</string>
-  <string name="app_icon_ocean">Ocean</string>
-  <string name="app_icon_sunset">Sunset</string>
-  <string name="app_icon_violet">Violet</string>
-  <string name="app_icon_previous">Classic</string>
+  <string name="app_icon_ocean" translatable="false">Ocean</string>
+  <string name="app_icon_sunset" translatable="false">Sunset</string>
+  <string name="app_icon_violet" translatable="false">Violet</string>
+  <string name="app_icon_previous" translatable="false">Classic</string>
   <string name="app_icon_monochrome">Monochrome</string>
   <string name="app_icon_liquid_glass">Liquid Glass</string>
   <string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string>
@@ -1397,7 +1396,7 @@ Project: AUDIFY
   <string name="shelf_party">Party</string>
   <string name="shelf_romance">Romance</string>
   <string name="shelf_sad">Sad</string>
-  <string name="shelf_100_on_repeat">100% on repeat</string>
+  <string name="shelf_100_on_repeat" formatted="false">100% on repeat</string>
   <string name="shelf_new_albums_singles">New albums &amp; singles</string>
   <string name="shelf_hits_today">Hits today</string>
   <string name="shelf_artists_on_the_rise">Artists on the rise</string>

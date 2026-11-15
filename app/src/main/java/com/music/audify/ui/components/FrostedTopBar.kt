@@ -410,7 +410,7 @@ private fun ArtworkPageBackButton(
         onClick = onClick,
         modifier = modifier
             .size(TOP_CONTROL_SIZE)
-            .then(artworkPageSurface(shape = shape, hazeState = hazeState)),
+            .then(Modifier.artworkPageSurface(shape = shape, hazeState = hazeState)),
     ) {
         Icon(
             SfIcons.ArrowBack,
@@ -470,7 +470,7 @@ private fun ArtworkPageActions(
     val readExtraActions = remember { { extraActions.floatValue } }
     ActionsRow(
         modifier = modifier
-            .then(artworkPageSurface(shape = CircleShape, hazeState = hazeState))
+            .then(Modifier.artworkPageSurface(shape = CircleShape, hazeState = hazeState))
             // Keep the right edge fixed while a new action opens room to its
             // left. The surface itself therefore grows instead of jumping to
             // its new width in a single frame.
@@ -554,7 +554,7 @@ private fun AccessoryPill(
             .height(TOP_CONTROL_SIZE)
             .then(
                 if (floating) {
-                    artworkPageSurface(shape = shape, hazeState = hazeState, refract = false)
+                    Modifier.artworkPageSurface(shape = shape, hazeState = hazeState, refract = false)
                 } else {
                     Modifier
                         .clip(shape)
@@ -610,7 +610,7 @@ private fun Modifier.artworkActionEdgePadding(
 /** The navbar's exact material choice, reusable by every floating top control. */
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
-private fun artworkPageSurface(
+private fun Modifier.artworkPageSurface(
     shape: CornerBasedShape,
     hazeState: HazeState?,
     /** False for a control over page content, where bending what is behind it helps no one. */
@@ -620,7 +620,7 @@ private fun artworkPageSurface(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val useLiquidGlass = LocalLiquidGlassEnabled.current && isGlassSupported()
 
-    return Modifier
+    return this
         .clip(shape)
         .then(
             when {

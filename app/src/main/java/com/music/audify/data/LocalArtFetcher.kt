@@ -1,5 +1,6 @@
 package com.music.audify.data
 
+import androidx.core.net.toUri
 import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
@@ -87,7 +88,7 @@ class LocalArtFetcher private constructor(
 
     private fun read(): ByteArray? {
         art.albumId?.let { return fromAlbum(it) }
-        art.trackUri?.let { return fromTrack(Uri.parse(it)) }
+        art.trackUri?.let { return fromTrack(it.toUri()) }
         return null
     }
 
@@ -112,7 +113,7 @@ class LocalArtFetcher private constructor(
         }
         return runCatching {
             resolver.openInputStream(
-                ContentUris.withAppendedId(Uri.parse(LocalArt.ALBUM_ART_PREFIX.trimEnd('/')), albumId),
+                ContentUris.withAppendedId(LocalArt.ALBUM_ART_PREFIX.trimEnd('/').toUri(), albumId),
             )?.use { it.readBytes() }
         }.getOrNull()?.takeIf { it.isNotEmpty() }
     }

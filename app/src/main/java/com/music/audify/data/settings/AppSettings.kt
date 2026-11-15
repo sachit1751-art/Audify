@@ -7,10 +7,12 @@ import android.content.SharedPreferences
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Build
+import android.os.storage.StorageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import androidx.media3.common.Player
+import androidx.core.content.edit
 import com.music.audify.BuildConfig
 import com.music.audify.auth.AuthStore
 import com.music.audify.data.canvas.SpotifyToken
@@ -859,13 +861,8 @@ object AppSettings {
     /** Pengaturan indikator pilihan pada tab bar (lengkung saat diam, refraksi, tepi, bayangan, gerak). */
     val glassIndicator = MutableStateFlow(GlassPreset.DEFAULT.indicator)
 
-    /**
-     * Blurs what scrolls under the status bar and the top controls, easing out
-     * just below them, instead of fading it to the page colour. A Liquid Glass
-     * option, honoured only while [liquidGlass] is on. Off by default: it costs
-     * frames. Reduce dynamic blur overrides it.
-     */
-    val progressiveBlur = MutableStateFlow(false)
+    /** Progressive blur at the top and bottom scroll edges. Independent of Liquid Glass. */
+    val progressiveBlur = MutableStateFlow(true)
 
     /** Blurs unfocused lyric lines, keeping the active line sharp. */
     val lyricsBlur = MutableStateFlow(true)
@@ -1361,46 +1358,45 @@ object AppSettings {
         val legacy = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false) || legacy.all.isEmpty()) return
 
-        val editor = target.edit()
-        fun put(key: String, value: Any?) {
-            when (value) {
-                is String -> editor.putString(key, value)
-                is Boolean -> editor.putBoolean(key, value)
-                is Int -> editor.putInt(key, value)
-                is Long -> editor.putLong(key, value)
-                is Float -> editor.putFloat(key, value)
-                is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toSet())
-            }
-        }
-
-        // Keep every original key, including keys whose UI is being restored
-        // in follow-up work. This prevents a migration from silently discarding
-        // preferences that the current version does not yet read.
-        legacy.all.forEach { (key, value) ->
-            if (!target.contains(key)) put(key, value)
-        }
-
-        // Keys whose names changed during the copied-project integration.
-        val renamedKeys = mapOf(
-            "font_choice" to "app_font",
-            "prefer_music_only" to "auto_music_only",
-            "home_layout_v1" to "home_layout",
-            "lyrics_liquid_flow" to "liquid_flow_motion",
-            "lyrics_offset_ms" to "lyrics_offset_by_track",
-            "progressive_scroll_edge_blur" to "progressive_blur",
-            "lightweight_liquid_glass" to "frosted_glass",
-        )
-        renamedKeys.forEach { (oldKey, newKey) ->
-            if (!target.contains(newKey) && legacy.contains(oldKey)) {
-                put(newKey, legacy.all[oldKey])
-            }
-        }
-
-        editor.putBoolean(KEY_AUDIFY_PREFS_MIGRATED, true)
-
         // Synchronous commit is intentional: readAll() must never observe a
         // half-migrated settings file on the first launch after upgrading.
-        editor.commit()
+        target.edit(commit = true) {
+            fun put(key: String, value: Any?) {
+                when (value) {
+                    is String -> putString(key, value)
+                    is Boolean -> putBoolean(key, value)
+                    is Int -> putInt(key, value)
+                    is Long -> putLong(key, value)
+                    is Float -> putFloat(key, value)
+                    is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
+                }
+            }
+
+            // Keep every original key, including keys whose UI is being restored
+            // in follow-up work. This prevents a migration from silently discarding
+            // preferences that the current version does not yet read.
+            legacy.all.forEach { (key, value) ->
+                if (!target.contains(key)) put(key, value)
+            }
+
+            // Keys whose names changed during the copied-project integration.
+            val renamedKeys = mapOf(
+                "font_choice" to "app_font",
+                "prefer_music_only" to "auto_music_only",
+                "home_layout_v1" to "home_layout",
+                "lyrics_liquid_flow" to "liquid_flow_motion",
+                "lyrics_offset_ms" to "lyrics_offset_by_track",
+                "progressive_scroll_edge_blur" to "progressive_blur",
+                "lightweight_liquid_glass" to "frosted_glass",
+            )
+            renamedKeys.forEach { (oldKey, newKey) ->
+                if (!target.contains(newKey) && legacy.contains(oldKey)) {
+                    put(newKey, legacy.all[oldKey])
+                }
+            }
+
+            putBoolean(KEY_AUDIFY_PREFS_MIGRATED, true)
+        }
     }
 
     /**
@@ -1440,64 +1436,68 @@ object AppSettings {
             ) > 0
         }.getOrDefault(false)
         // Cache 1 GB hanya jika penyimpanan lega; selain itu pakai batas bawaan.
-        val roomy = runCatching { context.cacheDir.usableSpace >= 4L * 1024 * 1024 * 1024 }
-            .getOrDefault(false)
+        val roomy = runCatching {
+            context.getSystemService(StorageManager::class.java)
+                ?.getAllocatableBytes(StorageManager.UUID_DEFAULT)
+                ?.let { it >= 4L * 1024 * 1024 * 1024 }
+                ?: false
+        }.getOrDefault(false)
         val language = java.util.Locale.getDefault().language
             .let { if (it == "in") "id" else it }
             .takeIf { it.length in 2..3 }
             .orEmpty()
-        prefs.edit()
-            .putInt(KEY_CROSSFADE, 10)
-            // Selalu OFF di instalasi baru: model Automix belum ada dan baru diunduh saat saklar dinyalakan.
-            .putBoolean(KEY_SMART_FADE, false)
-            .putString(KEY_AUTOMIX_PERFORMANCE_MODE, if (capable) "PERFORMANCE" else "BALANCED")
-            .putBoolean(KEY_SKIP_SILENCE, true)
-            .putString(KEY_OUTPUT_PCM_MODE, if (floatOk) "FLOAT_32" else "PCM_16")
-            .putBoolean(KEY_DIRECT_SOURCE_STREAM, true)
-            .putBoolean(KEY_SPATIAL_AUDIO, true)
-            .putString(KEY_QUALITY_CELLULAR, "LOSSLESS")
-            .putBoolean(KEY_WIFI_ONLY_DOWNLOADS, false)
-            .putBoolean(KEY_EXPORT_DOWNLOADS, true)
-            .putBoolean(KEY_STOP_ON_TASK_REMOVED, false)
-            .putBoolean(KEY_HIDE_VOLUME_BAR, true)
-            .putBoolean(KEY_HIDE_SONG_STATUS, true)
-            .putBoolean(KEY_SHOW_QUEUE_HISTORY, true)
-            .putBoolean(KEY_SWIPE_TO_PLAY_NEXT, true)
-            .putBoolean(KEY_DONT_REPEAT_SUGGESTIONS, true)
-            .putBoolean(KEY_LIQUID_GLASS, Build.VERSION.SDK_INT >= 31 && !lowRam)
-            .putBoolean(KEY_FULL_BLEED_ARTWORK, false)
-            .putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, true)
-            .putBoolean(KEY_SHOW_CACHE_FOLDER, true)
-            .putString(KEY_LOCAL_MUSIC_SORT, "DATE_ADDED")
-            .putLong(KEY_CACHE_LIMIT, if (roomy) 1024L * 1024 * 1024 else DEFAULT_CACHE_LIMIT_BYTES)
-            .putLong(KEY_CANVAS_CACHE_LIMIT, if (roomy) 1024L * 1024 * 1024 else DEFAULT_CANVAS_CACHE_LIMIT_BYTES)
-            .putString(
-                KEY_LYRICS_SOURCE_ORDER,
-                "BETTER_LYRICS,BETTER_LYRICS_PORTATO,LRC_RED,BINI_LYRICS,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS",
-            )
-            .putString(
-                KEY_LYRICS_SOURCES,
-                "LRC_RED,BINI_LYRICS,BETTER_LYRICS,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS,BETTER_LYRICS_PORTATO",
-            )
-            .putString(
-                KEY_LYRICS_SOURCES_SEEN,
-                "LRC_RED,BINI_LYRICS,BETTER_LYRICS,BETTER_LYRICS_PORTATO,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS",
-            )
-            .putString(KEY_TRANSLATION_LANGUAGE, language)
-            .putString(KEY_THEME, "DARK")
-            .putString(KEY_ACCENT_COLOR, "RED")
-            .putString(KEY_APP_FONT, "DEFAULT")
-            .putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-            .putBoolean(KEY_REDUCE_ANIMATION, lowRam)
-            .putBoolean(KEY_REDUCE_BLUR, lowRam)
-            .putBoolean(KEY_PROGRESSIVE_BLUR, false)
-            .putBoolean(KEY_FROSTED_GLASS, lowRam)
-            .putBoolean(KEY_LEGACY_MESH_GRADIENT, false)
-            .putBoolean(KEY_LYRICS_BLUR, !lowRam)
-            .putBoolean(KEY_LIQUID_FLOW, !lowRam)
-            .putBoolean(KEY_LYRICS_SPARKLE, !lowRam)
-            .putBoolean(KEY_ANIMATED_CANVAS, !lowRam)
-            .apply()
+        prefs.edit {
+                putInt(KEY_CROSSFADE, 10)
+                // Selalu OFF di instalasi baru: model Automix belum ada dan baru diunduh saat saklar dinyalakan.
+                .putBoolean(KEY_SMART_FADE, false)
+                .putString(KEY_AUTOMIX_PERFORMANCE_MODE, if (capable) "PERFORMANCE" else "BALANCED")
+                .putBoolean(KEY_SKIP_SILENCE, true)
+                .putString(KEY_OUTPUT_PCM_MODE, if (floatOk) "FLOAT_32" else "PCM_16")
+                .putBoolean(KEY_DIRECT_SOURCE_STREAM, true)
+                .putBoolean(KEY_SPATIAL_AUDIO, true)
+                .putString(KEY_QUALITY_CELLULAR, "LOSSLESS")
+                .putBoolean(KEY_WIFI_ONLY_DOWNLOADS, false)
+                .putBoolean(KEY_EXPORT_DOWNLOADS, true)
+                .putBoolean(KEY_STOP_ON_TASK_REMOVED, false)
+                .putBoolean(KEY_HIDE_VOLUME_BAR, true)
+                .putBoolean(KEY_HIDE_SONG_STATUS, true)
+                .putBoolean(KEY_SHOW_QUEUE_HISTORY, true)
+                .putBoolean(KEY_SWIPE_TO_PLAY_NEXT, true)
+                .putBoolean(KEY_DONT_REPEAT_SUGGESTIONS, true)
+                .putBoolean(KEY_LIQUID_GLASS, false)
+                .putBoolean(KEY_FULL_BLEED_ARTWORK, false)
+                .putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, true)
+                .putBoolean(KEY_SHOW_CACHE_FOLDER, true)
+                .putString(KEY_LOCAL_MUSIC_SORT, "DATE_ADDED")
+                .putLong(KEY_CACHE_LIMIT, if (roomy) 1024L * 1024 * 1024 else DEFAULT_CACHE_LIMIT_BYTES)
+                .putLong(KEY_CANVAS_CACHE_LIMIT, if (roomy) 1024L * 1024 * 1024 else DEFAULT_CANVAS_CACHE_LIMIT_BYTES)
+                .putString(
+                    KEY_LYRICS_SOURCE_ORDER,
+                    "BETTER_LYRICS,BETTER_LYRICS_PORTATO,LRC_RED,BINI_LYRICS,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS",
+                )
+                .putString(
+                    KEY_LYRICS_SOURCES,
+                    "LRC_RED,BINI_LYRICS,BETTER_LYRICS,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS,BETTER_LYRICS_PORTATO",
+                )
+                .putString(
+                    KEY_LYRICS_SOURCES_SEEN,
+                    "LRC_RED,BINI_LYRICS,BETTER_LYRICS,BETTER_LYRICS_PORTATO,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS",
+                )
+                .putString(KEY_TRANSLATION_LANGUAGE, language)
+                .putString(KEY_THEME, "DARK")
+                .putString(KEY_ACCENT_COLOR, "RED")
+                .putString(KEY_APP_FONT, "DEFAULT")
+                .putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
+                .putBoolean(KEY_REDUCE_ANIMATION, lowRam)
+                .putBoolean(KEY_REDUCE_BLUR, lowRam)
+                .putBoolean(KEY_PROGRESSIVE_BLUR, true)
+                .putBoolean(KEY_FROSTED_GLASS, lowRam)
+                .putBoolean(KEY_LEGACY_MESH_GRADIENT, false)
+                .putBoolean(KEY_LYRICS_BLUR, !lowRam)
+                .putBoolean(KEY_LIQUID_FLOW, !lowRam)
+                .putBoolean(KEY_LYRICS_SPARKLE, !lowRam)
+                .putBoolean(KEY_ANIMATED_CANVAS, !lowRam)
+            }
     }
 
     private fun readAll() {
@@ -1663,7 +1663,7 @@ object AppSettings {
             iconLift = prefs.getFloat(KEY_GIND_ICON_LIFT, gi.iconLift),
             squash = prefs.getFloat(KEY_GIND_SQUASH, gi.squash),
         ).coerced()
-        progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, false)
+        progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, true)
         lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
         liquidFlow.value = prefs.getBoolean(KEY_LIQUID_FLOW, true)
         lyricsSparkle.value = prefs.getBoolean(KEY_LYRICS_SPARKLE, true)
@@ -1790,7 +1790,7 @@ object AppSettings {
     fun consumeVersionUpdate(currentVersionCode: Int): Boolean {
         val last = prefs.getInt(KEY_LAST_VERSION_CODE, currentVersionCode)
         if (last != currentVersionCode) {
-            prefs.edit().putInt(KEY_LAST_VERSION_CODE, currentVersionCode).apply()
+            prefs.edit {putInt(KEY_LAST_VERSION_CODE, currentVersionCode)}
         }
         return currentVersionCode > last
     }
@@ -1802,11 +1802,11 @@ object AppSettings {
      */
     private fun migrateSingleQuality() {
         val legacy = prefs.getString(KEY_QUALITY_LEGACY, null) ?: return
-        prefs.edit()
-            .putString(KEY_QUALITY_WIFI, legacy)
-            .putString(KEY_QUALITY_CELLULAR, legacy)
-            .remove(KEY_QUALITY_LEGACY)
-            .apply()
+        prefs.edit {
+                putString(KEY_QUALITY_WIFI, legacy)
+                .putString(KEY_QUALITY_CELLULAR, legacy)
+                .remove(KEY_QUALITY_LEGACY)
+            }
     }
 
     private fun readQuality(key: String): AudioQuality {
@@ -1834,7 +1834,7 @@ object AppSettings {
         // Was derived from the old `losslessAudio` switch, which defaulted to
         // on; LOSSLESS is what that produced for all but the few installs that
         // had turned it off, and is the default a fresh install gets anyway.
-        prefs.edit().putString(KEY_QUALITY_DOWNLOAD, DownloadQuality.LOSSLESS.name).apply()
+        prefs.edit {putString(KEY_QUALITY_DOWNLOAD, DownloadQuality.LOSSLESS.name)}
     }
 
     private fun readDownloadQuality(): DownloadQuality {
@@ -1872,27 +1872,27 @@ object AppSettings {
 
     fun setAutoplay(value: Boolean) {
         autoplay.value = value
-        prefs.edit().putBoolean(KEY_AUTOPLAY, value).apply()
+        prefs.edit {putBoolean(KEY_AUTOPLAY, value)}
     }
 
     fun setShuffleEnabled(value: Boolean) {
         shuffleEnabled.value = value
-        prefs.edit().putBoolean(KEY_SHUFFLE_ENABLED, value).apply()
+        prefs.edit {putBoolean(KEY_SHUFFLE_ENABLED, value)}
     }
 
     fun setRepeatMode(value: Int) {
         repeatMode.value = value
-        prefs.edit().putInt(KEY_REPEAT_MODE, value).apply()
+        prefs.edit {putInt(KEY_REPEAT_MODE, value)}
     }
 
     fun setAudioQualityWifi(value: AudioQuality) {
         audioQualityWifi.value = value
-        prefs.edit().putString(KEY_QUALITY_WIFI, value.name).apply()
+        prefs.edit {putString(KEY_QUALITY_WIFI, value.name)}
     }
 
     fun setAudioQualityCellular(value: AudioQuality) {
         audioQualityCellular.value = value
-        prefs.edit().putString(KEY_QUALITY_CELLULAR, value.name).apply()
+        prefs.edit {putString(KEY_QUALITY_CELLULAR, value.name)}
     }
 
     fun setUpgradeLengthSlackSeconds(value: Int) {
@@ -1901,67 +1901,67 @@ object AppSettings {
             MAX_UPGRADE_LENGTH_SLACK_SECONDS,
         )
         upgradeLengthSlackSeconds.value = normalized
-        prefs.edit().putInt(KEY_UPGRADE_LENGTH_SLACK_SECONDS, normalized).apply()
+        prefs.edit {putInt(KEY_UPGRADE_LENGTH_SLACK_SECONDS, normalized)}
     }
 
     fun setDownloadQuality(value: DownloadQuality) {
         downloadQuality.value = value
-        prefs.edit().putString(KEY_QUALITY_DOWNLOAD, value.name).apply()
+        prefs.edit {putString(KEY_QUALITY_DOWNLOAD, value.name)}
     }
 
     fun setWifiOnlyDownloads(value: Boolean) {
         wifiOnlyDownloads.value = value
-        prefs.edit().putBoolean(KEY_WIFI_ONLY_DOWNLOADS, value).apply()
+        prefs.edit {putBoolean(KEY_WIFI_ONLY_DOWNLOADS, value)}
     }
 
     fun setCrossfadeSeconds(value: Int) {
         crossfadeSeconds.value = value
-        prefs.edit().putInt(KEY_CROSSFADE, value).apply()
+        prefs.edit {putInt(KEY_CROSSFADE, value)}
     }
 
     fun setCrossfadeOnSkip(value: Boolean) {
         crossfadeOnSkip.value = value
-        prefs.edit().putBoolean(KEY_CROSSFADE_ON_SKIP, value).apply()
+        prefs.edit {putBoolean(KEY_CROSSFADE_ON_SKIP, value)}
     }
 
     fun setSmartFadeEnabled(value: Boolean) {
         smartFadeEnabled.value = value
-        prefs.edit().putBoolean(KEY_SMART_FADE, value).apply()
+        prefs.edit {putBoolean(KEY_SMART_FADE, value)}
     }
 
     fun setAutomixPerformanceMode(value: AutomixPerformanceMode) {
         automixPerformanceMode.value = value
-        prefs.edit().putString(KEY_AUTOMIX_PERFORMANCE_MODE, value.name).apply()
+        prefs.edit {putString(KEY_AUTOMIX_PERFORMANCE_MODE, value.name)}
     }
 
     fun setSkipSilence(value: Boolean) {
         skipSilence.value = value
-        prefs.edit().putBoolean(KEY_SKIP_SILENCE, value).apply()
+        prefs.edit {putBoolean(KEY_SKIP_SILENCE, value)}
     }
 
     fun setPauseOnMute(value: Boolean) {
         pauseOnMute.value = value
-        prefs.edit().putBoolean(KEY_PAUSE_ON_MUTE, value).apply()
+        prefs.edit {putBoolean(KEY_PAUSE_ON_MUTE, value)}
     }
 
     fun setResumeOnBluetooth(value: Boolean) {
         resumeOnBluetooth.value = value
-        prefs.edit().putBoolean(KEY_RESUME_ON_BLUETOOTH, value).apply()
+        prefs.edit {putBoolean(KEY_RESUME_ON_BLUETOOTH, value)}
     }
 
     fun setDolbyAtmos(value: Boolean) {
         dolbyAtmos.value = value
-        prefs.edit().putBoolean(KEY_DOLBY_ATMOS, value).apply()
+        prefs.edit {putBoolean(KEY_DOLBY_ATMOS, value)}
     }
 
     fun setDirectSourceStream(value: Boolean) {
         directSourceStream.value = value
-        prefs.edit().putBoolean(KEY_DIRECT_SOURCE_STREAM, value).apply()
+        prefs.edit {putBoolean(KEY_DIRECT_SOURCE_STREAM, value)}
     }
 
     fun setSpatialAudio(value: Boolean) {
         spatialAudio.value = value
-        prefs.edit().putBoolean(KEY_SPATIAL_AUDIO, value).apply()
+        prefs.edit {putBoolean(KEY_SPATIAL_AUDIO, value)}
     }
 
     /** Spatial audio for [trackId]: its own saved choice, else the global switch. */
@@ -1978,7 +1978,7 @@ object AppSettings {
         spatialAudioByTrack.value = next
         val json = org.json.JSONObject()
         next.forEach { (id, on) -> json.put(id, on) }
-        prefs.edit().putString(KEY_SPATIAL_AUDIO_BY_TRACK, json.toString()).apply()
+        prefs.edit {putString(KEY_SPATIAL_AUDIO_BY_TRACK, json.toString())}
     }
 
     private fun readSpatialAudioByTrack(): Map<String, Boolean> {
@@ -1993,12 +1993,12 @@ object AppSettings {
 
     fun setEqualizerEnabled(value: Boolean) {
         equalizerEnabled.value = value
-        prefs.edit().putBoolean(KEY_EQ_ENABLED, value).apply()
+        prefs.edit {putBoolean(KEY_EQ_ENABLED, value)}
     }
 
     fun setEqualizerMode(value: EqualizerMode) {
         equalizerMode.value = value
-        prefs.edit().putString(KEY_EQ_MODE, value.name).apply()
+        prefs.edit {putString(KEY_EQ_MODE, value.name)}
     }
 
     fun setEqualizerTone(x: Int, y: Int) {
@@ -2007,18 +2007,18 @@ object AppSettings {
         val clampedY = y.coerceIn(-steps, steps)
         equalizerToneX.value = clampedX
         equalizerToneY.value = clampedY
-        prefs.edit().putInt(KEY_EQ_TONE_X, clampedX).putInt(KEY_EQ_TONE_Y, clampedY).apply()
+        prefs.edit {putInt(KEY_EQ_TONE_X, clampedX).putInt(KEY_EQ_TONE_Y, clampedY)}
     }
 
     fun setEqualizerFocused(value: Boolean) {
         equalizerFocused.value = value
-        prefs.edit().putBoolean(KEY_EQ_FOCUSED, value).apply()
+        prefs.edit {putBoolean(KEY_EQ_FOCUSED, value)}
     }
 
     fun setEqualizerBalance(value: Float) {
         val clamped = value.coerceIn(-1f, 1f)
         equalizerBalance.value = clamped
-        prefs.edit().putFloat(KEY_EQ_BALANCE, clamped).apply()
+        prefs.edit {putFloat(KEY_EQ_BALANCE, clamped)}
     }
 
     /**
@@ -2034,7 +2034,7 @@ object AppSettings {
         }
         equalizerBands.value = clamped
         equalizerPreset.value = EqualizerPreset.matching(clamped)
-        prefs.edit().putString(KEY_EQ_BANDS, clamped.joinToString(",")).apply()
+        prefs.edit {putString(KEY_EQ_BANDS, clamped.joinToString(","))}
     }
 
     /** Applies a preset's curve. [EqualizerPreset.CUSTOM] carries none, so it does nothing. */
@@ -2057,7 +2057,7 @@ object AppSettings {
 
     fun setPlaybackSpeed(value: Float) {
         playbackSpeed.value = value
-        prefs.edit().putFloat(KEY_SPEED, value).apply()
+        prefs.edit {putFloat(KEY_SPEED, value)}
     }
 
     /** Dibulatkan agar 0.8 x 1.25 tepat 1.0 dan pengecekan "bukan 1x" tidak salah. */
@@ -2066,87 +2066,87 @@ object AppSettings {
 
     fun setPlaybackRate(value: Float) {
         playbackRate.value = value
-        prefs.edit().putFloat(KEY_PLAYBACK_RATE, value).apply()
+        prefs.edit {putFloat(KEY_PLAYBACK_RATE, value)}
         setPlaybackSpeed(effectivePlaybackSpeed())
     }
 
     fun setPlaybackTempo(value: Float) {
         playbackTempo.value = value
-        prefs.edit().putFloat(KEY_PLAYBACK_TEMPO, value).apply()
+        prefs.edit {putFloat(KEY_PLAYBACK_TEMPO, value)}
         setPlaybackSpeed(effectivePlaybackSpeed())
     }
 
     fun resetPlaybackSpeedAndTempo() {
         playbackRate.value = 1.0f
         playbackTempo.value = 1.0f
-        prefs.edit()
-            .putFloat(KEY_PLAYBACK_RATE, 1.0f)
-            .putFloat(KEY_PLAYBACK_TEMPO, 1.0f)
-            .apply()
+        prefs.edit {
+                putFloat(KEY_PLAYBACK_RATE, 1.0f)
+                .putFloat(KEY_PLAYBACK_TEMPO, 1.0f)
+            }
         setPlaybackSpeed(1.0f)
     }
 
     fun setShowNerdStats(value: Boolean) {
         showNerdStats.value = value
-        prefs.edit().putBoolean(KEY_NERD_STATS, value).apply()
+        prefs.edit {putBoolean(KEY_NERD_STATS, value)}
     }
 
     fun setShowListenTogetherTab(value: Boolean) {
         showListenTogetherTab.value = value
-        prefs.edit().putBoolean(KEY_LISTEN_TOGETHER_TAB, value).apply()
+        prefs.edit {putBoolean(KEY_LISTEN_TOGETHER_TAB, value)}
     }
 
     fun setSearchTabSeparate(value: Boolean) {
         searchTabSeparate.value = value
-        prefs.edit().putBoolean(KEY_SEARCH_TAB_SEPARATE, value).apply()
+        prefs.edit {putBoolean(KEY_SEARCH_TAB_SEPARATE, value)}
     }
 
     fun setShowListenTogetherButton(value: Boolean) {
         showListenTogetherButton.value = value
-        prefs.edit().putBoolean(KEY_LISTEN_TOGETHER_BUTTON, value).apply()
+        prefs.edit {putBoolean(KEY_LISTEN_TOGETHER_BUTTON, value)}
     }
 
     fun setThemeMode(value: ThemeMode) {
         themeMode.value = value
-        prefs.edit().putString(KEY_THEME, value.name).apply()
+        prefs.edit {putString(KEY_THEME, value.name)}
     }
 
     fun setAppFont(value: AppFont) {
         appFont.value = value
-        prefs.edit().putString(KEY_APP_FONT, value.name).apply()
+        prefs.edit {putString(KEY_APP_FONT, value.name)}
     }
 
     fun setCoverSlideAnimation(value: Boolean) {
         coverSlideAnimation.value = value
-        prefs.edit().putBoolean(KEY_COVER_SLIDE_ANIMATION, value).apply()
+        prefs.edit {putBoolean(KEY_COVER_SLIDE_ANIMATION, value)}
     }
 
     fun setCoverFluidAnimation(value: Boolean) {
         coverFluidAnimation.value = value
-        prefs.edit().putBoolean(KEY_COVER_FLUID_ANIMATION, value).apply()
+        prefs.edit {putBoolean(KEY_COVER_FLUID_ANIMATION, value)}
     }
 
     fun setCoverMixOnlyEffects(value: Boolean) {
         coverMixOnlyEffects.value = value
-        prefs.edit().putBoolean(KEY_COVER_MIX_ONLY_EFFECTS, value).apply()
+        prefs.edit {putBoolean(KEY_COVER_MIX_ONLY_EFFECTS, value)}
     }
 
     fun setAccentColor(value: AccentColor) {
         accentColor.value = value
-        prefs.edit().putString(KEY_ACCENT_COLOR, value.name).apply()
+        prefs.edit {putString(KEY_ACCENT_COLOR, value.name)}
     }
 
     fun setThemePack(id: String) {
         val pack = ThemePacks.resolve(id, customThemePacks.value)
         selectedThemePackId.value = pack.id
-        prefs.edit().putString(KEY_THEME_PALETTE, pack.id).apply()
+        prefs.edit {putString(KEY_THEME_PALETTE, pack.id)}
     }
 
     fun saveCustomThemePack(pack: ThemePack) {
         require(ThemePacks.isValidHex(pack.primaryHex) && ThemePacks.isValidHex(pack.secondaryHex) && ThemePacks.isValidHex(pack.tertiaryHex))
         val updated = (customThemePacks.value.filterNot { it.id == pack.id } + pack).takeLast(64)
         customThemePacks.value = updated
-        prefs.edit().putString(KEY_CUSTOM_THEME_PACKS, ThemePacks.encodeLibrary(updated)).apply()
+        prefs.edit {putString(KEY_CUSTOM_THEME_PACKS, ThemePacks.encodeLibrary(updated))}
         setThemePack(pack.id)
     }
 
@@ -2154,119 +2154,119 @@ object AppSettings {
         val updated = customThemePacks.value.filterNot { it.id == id }
         if (updated.size == customThemePacks.value.size) return
         customThemePacks.value = updated
-        prefs.edit().putString(KEY_CUSTOM_THEME_PACKS, ThemePacks.encodeLibrary(updated)).apply()
+        prefs.edit {putString(KEY_CUSTOM_THEME_PACKS, ThemePacks.encodeLibrary(updated))}
         if (selectedThemePackId.value == id) setThemePack(ThemePacks.CLASSIC_ID)
     }
 
     fun setThemeBackgroundUri(uri: String?) {
         themeBackgroundUri.value = uri
-        prefs.edit().putString(KEY_THEME_BACKGROUND_URI, uri).apply()
+        prefs.edit {putString(KEY_THEME_BACKGROUND_URI, uri)}
     }
 
     fun setBackgroundStyle(value: AppBackgroundStyle) {
         backgroundStyle.value = value
-        prefs.edit().putString(KEY_BACKGROUND_STYLE, value.name).apply()
+        prefs.edit {putString(KEY_BACKGROUND_STYLE, value.name)}
     }
 
     fun setReduceAnimation(value: Boolean) {
         reduceAnimation.value = value
         if (value) highPerformanceMode.value = false
-        val editor = prefs.edit().putBoolean(KEY_REDUCE_ANIMATION, value)
-        if (value) editor.putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-        editor.apply()
+        prefs.edit { putBoolean(KEY_REDUCE_ANIMATION, value)
+            if (value) putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
+        }
     }
 
     fun setOnboardingComplete() {
         onboardingComplete.value = true
-        prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+        prefs.edit {putBoolean(KEY_ONBOARDING_COMPLETE, true)}
     }
 
     fun setStopOnTaskRemoved(value: Boolean) {
         stopOnTaskRemoved.value = value
-        prefs.edit().putBoolean(KEY_STOP_ON_TASK_REMOVED, value).apply()
+        prefs.edit {putBoolean(KEY_STOP_ON_TASK_REMOVED, value)}
     }
 
     fun setHideVolumeBar(value: Boolean) {
         hideVolumeBar.value = value
-        prefs.edit().putBoolean(KEY_HIDE_VOLUME_BAR, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_VOLUME_BAR, value)}
     }
 
     fun setHideStatusBarInPlayer(value: Boolean) {
         hideStatusBarInPlayer.value = value
-        prefs.edit().putBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, value)}
     }
 
     fun setHideSongStatus(value: Boolean) {
         hideSongStatus.value = value
-        prefs.edit().putBoolean(KEY_HIDE_SONG_STATUS, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_SONG_STATUS, value)}
     }
 
     fun setShowQueueHistory(value: Boolean) {
         showQueueHistory.value = value
-        prefs.edit().putBoolean(KEY_SHOW_QUEUE_HISTORY, value).apply()
+        prefs.edit {putBoolean(KEY_SHOW_QUEUE_HISTORY, value)}
     }
 
     fun setSwipeToPlayNext(value: Boolean) {
         swipeToPlayNext.value = value
-        prefs.edit().putBoolean(KEY_SWIPE_TO_PLAY_NEXT, value).apply()
+        prefs.edit {putBoolean(KEY_SWIPE_TO_PLAY_NEXT, value)}
     }
 
     fun setDontRepeatSuggestions(value: Boolean) {
         dontRepeatSuggestions.value = value
-        prefs.edit().putBoolean(KEY_DONT_REPEAT_SUGGESTIONS, value).apply()
+        prefs.edit {putBoolean(KEY_DONT_REPEAT_SUGGESTIONS, value)}
     }
 
     fun setSmartVersionAlignment(value: Boolean) {
         smartVersionAlignment.value = value
-        prefs.edit().putBoolean(KEY_SMART_VERSION_ALIGNMENT, value).apply()
+        prefs.edit {putBoolean(KEY_SMART_VERSION_ALIGNMENT, value)}
     }
 
     fun setAutoMusicOnly(value: Boolean) {
         autoMusicOnly.value = value
-        prefs.edit().putBoolean(KEY_AUTO_MUSIC_ONLY, value).apply()
+        prefs.edit {putBoolean(KEY_AUTO_MUSIC_ONLY, value)}
         // Music-only shows covers, not video frames, so squares go with it.
         if (value) setSquareVideoCovers(true)
     }
 
     fun setHideHomeRecents(value: Boolean) {
         hideHomeRecents.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_RECENTS, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_HOME_RECENTS, value)}
     }
 
     fun setHideHomeBranding(value: Boolean) {
         hideHomeBranding.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_BRANDING, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_HOME_BRANDING, value)}
     }
 
     fun setHideHomeVideos(value: Boolean) {
         hideHomeVideos.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_VIDEOS, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_HOME_VIDEOS, value)}
     }
 
     fun setHideHomeTopPicks(value: Boolean) {
         hideHomeTopPicks.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_TOP_PICKS, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_HOME_TOP_PICKS, value)}
     }
 
     fun setHideHomeMoods(value: Boolean) {
         hideHomeMoods.value = value
-        prefs.edit().putBoolean(KEY_HIDE_HOME_MOODS, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_HOME_MOODS, value)}
     }
 
     fun setSquareVideoCovers(value: Boolean) {
         squareVideoCovers.value = value
         VideoThumbnails.square = value
-        prefs.edit().putBoolean(KEY_SQUARE_VIDEO_COVERS, value).apply()
+        prefs.edit {putBoolean(KEY_SQUARE_VIDEO_COVERS, value)}
     }
 
     fun setStillVideoCovers(value: Boolean) {
         stillVideoCovers.value = value
-        prefs.edit().putBoolean(KEY_STILL_VIDEO_COVERS, value).apply()
+        prefs.edit {putBoolean(KEY_STILL_VIDEO_COVERS, value)}
     }
 
     fun setHomeLayout(value: HomeLayout) {
         homeLayout.value = value
-        prefs.edit().putString(KEY_HOME_LAYOUT, value.encode()).apply()
+        prefs.edit {putString(KEY_HOME_LAYOUT, value.encode())}
         // Top Picks and Find Your Mood are hidden from the layout now: keep their
         // flags in step, since the feed and Home still read them. Resetting the
         // layout shows both again.
@@ -2290,78 +2290,78 @@ object AppSettings {
 
     fun setLibraryLayout(value: HomeLayout) {
         libraryLayout.value = value
-        prefs.edit().putString(KEY_LIBRARY_LAYOUT, value.encode()).apply()
+        prefs.edit {putString(KEY_LIBRARY_LAYOUT, value.encode())}
     }
 
     fun setLibraryArtistsRow(value: Boolean) {
         libraryArtistsRow.value = value
-        prefs.edit().putBoolean(KEY_LIBRARY_ARTISTS_ROW, value).apply()
+        prefs.edit {putBoolean(KEY_LIBRARY_ARTISTS_ROW, value)}
     }
 
     fun setReduceDynamicBlur(value: Boolean) {
         reduceDynamicBlur.value = value
         if (value) highPerformanceMode.value = false
-        val editor = prefs.edit().putBoolean(KEY_REDUCE_BLUR, value)
-        if (value) editor.putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-        editor.apply()
+        prefs.edit { putBoolean(KEY_REDUCE_BLUR, value)
+            if (value) putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
+        }
     }
 
     fun setLiquidGlass(value: Boolean) {
         liquidGlass.value = value
-        prefs.edit().putBoolean(KEY_LIQUID_GLASS, value).apply()
+        prefs.edit {putBoolean(KEY_LIQUID_GLASS, value)}
     }
 
     fun setFrostedGlass(value: Boolean) {
         frostedGlass.value = value
-        prefs.edit().putBoolean(KEY_FROSTED_GLASS, value).apply()
+        prefs.edit {putBoolean(KEY_FROSTED_GLASS, value)}
     }
 
     fun setGlassClarity(level: Float) {
         val clamped = level.coerceIn(0f, 1f)
         glassClarity.value = GlassClarity(clamped)
-        prefs.edit().putFloat(KEY_GLASS_CLARITY_LEVEL, clamped).apply()
+        prefs.edit {putFloat(KEY_GLASS_CLARITY_LEVEL, clamped)}
     }
 
     fun setGlassCustom(value: GlassCustom) {
         val v = value.coerced()
         glassCustom.value = v
-        prefs.edit()
-            .putFloat(KEY_GLASS_BLUR, v.blur)
-            .putFloat(KEY_GLASS_SATURATION, v.saturation)
-            .putFloat(KEY_GLASS_TINT, v.tint)
-            .putFloat(KEY_GLASS_REFRACTION, v.refraction)
-            .putFloat(KEY_GLASS_REFRACTION_WIDTH, v.refractionWidth)
-            .putBoolean(KEY_GLASS_DEPTH, v.depth)
-            .putFloat(KEY_GLASS_RAINBOW, v.rainbow)
-            .putFloat(KEY_GLASS_RIM, v.rim)
-            .putFloat(KEY_GLASS_SHADOW, v.shadow)
-            .putFloat(KEY_GLASS_QUALITY, v.quality)
-            .apply()
+        prefs.edit {
+                putFloat(KEY_GLASS_BLUR, v.blur)
+                .putFloat(KEY_GLASS_SATURATION, v.saturation)
+                .putFloat(KEY_GLASS_TINT, v.tint)
+                .putFloat(KEY_GLASS_REFRACTION, v.refraction)
+                .putFloat(KEY_GLASS_REFRACTION_WIDTH, v.refractionWidth)
+                .putBoolean(KEY_GLASS_DEPTH, v.depth)
+                .putFloat(KEY_GLASS_RAINBOW, v.rainbow)
+                .putFloat(KEY_GLASS_RIM, v.rim)
+                .putFloat(KEY_GLASS_SHADOW, v.shadow)
+                .putFloat(KEY_GLASS_QUALITY, v.quality)
+            }
     }
 
     fun setGlassIndicator(value: GlassIndicator) {
         val v = value.coerced()
         glassIndicator.value = v
-        prefs.edit()
-            .putBoolean(KEY_GIND_REST_LENS, v.restLens)
-            .putFloat(KEY_GIND_REST_REFRACTION, v.restRefraction)
-            .putFloat(KEY_GIND_REST_WIDTH, v.restRefractionWidth)
-            .putFloat(KEY_GIND_LIFT_REFRACTION, v.liftRefraction)
-            .putFloat(KEY_GIND_LIFT_WIDTH, v.liftRefractionWidth)
-            .putFloat(KEY_GIND_RAINBOW, v.rainbow)
-            .putBoolean(KEY_GIND_DEPTH, v.depth)
-            .putFloat(KEY_GIND_BLUR, v.blur)
-            .putFloat(KEY_GIND_SATURATION, v.saturation)
-            .putFloat(KEY_GIND_BRIGHTNESS, v.brightness)
-            .putFloat(KEY_GIND_FILL, v.fill)
-            .putFloat(KEY_GIND_RIM, v.rim)
-            .putFloat(KEY_GIND_INNER_SHADOW, v.innerShadow)
-            .putFloat(KEY_GIND_INNER_RADIUS, v.innerRadius)
-            .putFloat(KEY_GIND_SHADOW, v.shadow)
-            .putFloat(KEY_GIND_LIFT, v.lift)
-            .putFloat(KEY_GIND_ICON_LIFT, v.iconLift)
-            .putFloat(KEY_GIND_SQUASH, v.squash)
-            .apply()
+        prefs.edit {
+                putBoolean(KEY_GIND_REST_LENS, v.restLens)
+                .putFloat(KEY_GIND_REST_REFRACTION, v.restRefraction)
+                .putFloat(KEY_GIND_REST_WIDTH, v.restRefractionWidth)
+                .putFloat(KEY_GIND_LIFT_REFRACTION, v.liftRefraction)
+                .putFloat(KEY_GIND_LIFT_WIDTH, v.liftRefractionWidth)
+                .putFloat(KEY_GIND_RAINBOW, v.rainbow)
+                .putBoolean(KEY_GIND_DEPTH, v.depth)
+                .putFloat(KEY_GIND_BLUR, v.blur)
+                .putFloat(KEY_GIND_SATURATION, v.saturation)
+                .putFloat(KEY_GIND_BRIGHTNESS, v.brightness)
+                .putFloat(KEY_GIND_FILL, v.fill)
+                .putFloat(KEY_GIND_RIM, v.rim)
+                .putFloat(KEY_GIND_INNER_SHADOW, v.innerShadow)
+                .putFloat(KEY_GIND_INNER_RADIUS, v.innerRadius)
+                .putFloat(KEY_GIND_SHADOW, v.shadow)
+                .putFloat(KEY_GIND_LIFT, v.lift)
+                .putFloat(KEY_GIND_ICON_LIFT, v.iconLift)
+                .putFloat(KEY_GIND_SQUASH, v.squash)
+            }
     }
 
     /** Tema gelap yang sedang aktif, dipakai preset yang punya nilai terang dan gelap. */
@@ -2385,7 +2385,7 @@ object AppSettings {
 
     fun setProgressiveBlur(value: Boolean) {
         progressiveBlur.value = value
-        prefs.edit().putBoolean(KEY_PROGRESSIVE_BLUR, value).apply()
+        prefs.edit {putBoolean(KEY_PROGRESSIVE_BLUR, value)}
     }
 
     fun setHighPerformanceMode(value: Boolean) {
@@ -2394,33 +2394,33 @@ object AppSettings {
             reduceAnimation.value = false
             reduceDynamicBlur.value = false
         }
-        val editor = prefs.edit().putBoolean(KEY_HIGH_PERFORMANCE_MODE, value)
-        if (value) {
-            editor.putBoolean(KEY_REDUCE_ANIMATION, false)
-            editor.putBoolean(KEY_REDUCE_BLUR, false)
+        prefs.edit { putBoolean(KEY_HIGH_PERFORMANCE_MODE, value)
+            if (value) {
+                putBoolean(KEY_REDUCE_ANIMATION, false)
+                putBoolean(KEY_REDUCE_BLUR, false)
+            }
         }
-        editor.apply()
     }
 
     fun setPerformanceRefreshRate(value: Int) {
         val normalized = normalizePerformanceRefreshRate(value)
         performanceRefreshRate.value = normalized
-        prefs.edit().putInt(KEY_PERFORMANCE_REFRESH_RATE, normalized).apply()
+        prefs.edit {putInt(KEY_PERFORMANCE_REFRESH_RATE, normalized)}
     }
 
     fun setLyricsBlur(value: Boolean) {
         lyricsBlur.value = value
-        prefs.edit().putBoolean(KEY_LYRICS_BLUR, value).apply()
+        prefs.edit {putBoolean(KEY_LYRICS_BLUR, value)}
     }
 
     fun setLiquidFlow(value: Boolean) {
         liquidFlow.value = value
-        prefs.edit().putBoolean(KEY_LIQUID_FLOW, value).apply()
+        prefs.edit {putBoolean(KEY_LIQUID_FLOW, value)}
     }
 
     fun setLyricsSparkle(value: Boolean) {
         lyricsSparkle.value = value
-        prefs.edit().putBoolean(KEY_LYRICS_SPARKLE, value).apply()
+        prefs.edit {putBoolean(KEY_LYRICS_SPARKLE, value)}
     }
 
     /** Saves the offset for the track now playing right away; 0 clears its entry. */
@@ -2436,7 +2436,7 @@ object AppSettings {
         lyricsOffsetByTrack = next
         val json = org.json.JSONObject()
         next.forEach { (id, ms) -> json.put(id, ms) }
-        prefs.edit().putString(KEY_LYRICS_OFFSET_BY_TRACK, json.toString()).apply()
+        prefs.edit {putString(KEY_LYRICS_OFFSET_BY_TRACK, json.toString())}
     }
 
     /** Points [lyricsOffsetMs] at [trackId]'s own saved offset, or 0 when it has none. */
@@ -2460,28 +2460,28 @@ object AppSettings {
     /** Blank restores "follow the app language"; see [translationLanguage]. */
     fun setTranslationLanguage(value: String) {
         translationLanguage.value = value
-        prefs.edit().putString(KEY_TRANSLATION_LANGUAGE, value).apply()
+        prefs.edit {putString(KEY_TRANSLATION_LANGUAGE, value)}
     }
 
     fun setSyncedLyrics(value: Boolean) {
         syncedLyrics.value = value
-        prefs.edit().putBoolean(KEY_SYNCED_LYRICS, value).apply()
+        prefs.edit {putBoolean(KEY_SYNCED_LYRICS, value)}
     }
 
     fun setLyricStrip(value: Boolean) {
         lyricStrip.value = value
-        prefs.edit().putBoolean(KEY_LYRIC_STRIP, value).apply()
+        prefs.edit {putBoolean(KEY_LYRIC_STRIP, value)}
     }
 
     fun setLyricsSources(value: Set<LyricsSource>) {
         lyricsSources.value = value
-        prefs.edit()
-            .putString(KEY_LYRICS_SOURCES, value.joinToString(",") { it.name })
-            // Everything that was on the list this choice was made from, so a
-            // later build can tell a source the user turned off from one they
-            // have never been shown. See [readLyricsSources].
-            .putString(KEY_LYRICS_SOURCES_SEEN, LyricsSource.offered.joinToString(",") { it.name })
-            .apply()
+        prefs.edit {
+                putString(KEY_LYRICS_SOURCES, value.joinToString(",") { it.name })
+                // Everything that was on the list this choice was made from, so a
+                // later build can tell a source the user turned off from one they
+                // have never been shown. See [readLyricsSources].
+                .putString(KEY_LYRICS_SOURCES_SEEN, LyricsSource.offered.joinToString(",") { it.name })
+            }
     }
 
     /**
@@ -2530,7 +2530,7 @@ object AppSettings {
 
     fun setLyricsSourceOrder(value: List<LyricsSource>) {
         lyricsSourceOrder.value = value
-        prefs.edit().putString(KEY_LYRICS_SOURCE_ORDER, value.joinToString(",") { it.name }).apply()
+        prefs.edit {putString(KEY_LYRICS_SOURCE_ORDER, value.joinToString(",") { it.name })}
     }
 
     /**
@@ -2550,13 +2550,13 @@ object AppSettings {
 
     fun setPrioritizeSyllableSync(value: Boolean) {
         prioritizeSyllableSync.value = value
-        prefs.edit().putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, value).apply()
+        prefs.edit {putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, value)}
     }
 
     fun setPaxSenixApiKey(value: String) {
         val normalized = com.music.audify.data.lyrics.normalizePaxSenixApiKey(value)
         paxSenixApiKey.value = normalized
-        prefs.edit().putString(KEY_PAXSENIX_API_KEY, normalized).apply()
+        prefs.edit {putString(KEY_PAXSENIX_API_KEY, normalized)}
         com.music.audify.data.lyrics.PaxSenix.setApiKey(normalized)
     }
 
@@ -2573,50 +2573,50 @@ object AppSettings {
 
     fun setAnimatedCanvas(value: Boolean) {
         animatedCanvas.value = value
-        prefs.edit().putBoolean(KEY_ANIMATED_CANVAS, value).apply()
+        prefs.edit {putBoolean(KEY_ANIMATED_CANVAS, value)}
     }
 
     fun setCanvasOverCellular(value: Boolean) {
         canvasOverCellular.value = value
-        prefs.edit().putBoolean(KEY_CANVAS_OVER_CELLULAR, value).apply()
+        prefs.edit {putBoolean(KEY_CANVAS_OVER_CELLULAR, value)}
     }
 
     fun setSpotifyCanvasAutoHide(value: Boolean) {
         spotifyCanvasAutoHide.value = value
-        prefs.edit().putBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, value).apply()
+        prefs.edit {putBoolean(KEY_SPOTIFY_CANVAS_AUTO_HIDE, value)}
     }
 
     fun setPrioritizeSpotifyCanvas(value: Boolean) {
         prioritizeSpotifyCanvas.value = value
-        prefs.edit().putBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, value).apply()
+        prefs.edit {putBoolean(KEY_PRIORITIZE_SPOTIFY_CANVAS, value)}
     }
 
     fun setSignatureApiEnabled(value: Boolean) {
         signatureApiEnabled.value = value
-        prefs.edit().putBoolean(KEY_SIGNATURE_API_ENABLED, value).apply()
+        prefs.edit {putBoolean(KEY_SIGNATURE_API_ENABLED, value)}
     }
 
     /** Normalizes (trim + strip trailing slash); blank forgets the provider. */
     fun setSignatureApiUrl(value: String) {
         val normalized = normalizeSignatureApiUrl(value)
         signatureApiUrl.value = normalized
-        prefs.edit().putString(KEY_SIGNATURE_API_URL, normalized).apply()
+        prefs.edit {putString(KEY_SIGNATURE_API_URL, normalized)}
     }
 
     fun setFullBleedArtwork(value: Boolean) {
         fullBleedArtwork.value = value
-        prefs.edit().putBoolean(KEY_FULL_BLEED_ARTWORK, value).apply()
+        prefs.edit {putBoolean(KEY_FULL_BLEED_ARTWORK, value)}
     }
 
     fun setLegacyMeshGradient(value: Boolean) {
         legacyMeshGradient.value = value
-        prefs.edit().putBoolean(KEY_LEGACY_MESH_GRADIENT, value).apply()
+        prefs.edit {putBoolean(KEY_LEGACY_MESH_GRADIENT, value)}
     }
 
     fun setLastPlayerScreen(value: LastPlayerScreen) {
         if (lastPlayerScreen.value == value) return
         lastPlayerScreen.value = value
-        prefs.edit().putString(KEY_LAST_PLAYER_SCREEN, value.name).apply()
+        prefs.edit {putString(KEY_LAST_PLAYER_SCREEN, value.name)}
     }
 
     /**
@@ -2626,7 +2626,7 @@ object AppSettings {
     fun setAudioCacheLimitBytes(value: Long) {
         val clamped = clampCacheLimit(value)
         audioCacheLimitBytes.value = clamped
-        prefs.edit().putLong(KEY_CACHE_LIMIT, clamped).apply()
+        prefs.edit {putLong(KEY_CACHE_LIMIT, clamped)}
     }
 
     private fun clampCacheLimit(value: Long): Long =
@@ -2637,143 +2637,143 @@ object AppSettings {
     fun setCanvasCacheLimitBytes(value: Long) {
         val clamped = value.coerceIn(MIN_CANVAS_CACHE_LIMIT_BYTES, MAX_CANVAS_CACHE_LIMIT_BYTES)
         canvasCacheLimitBytes.value = clamped
-        prefs.edit().putLong(KEY_CANVAS_CACHE_LIMIT, clamped).apply()
+        prefs.edit {putLong(KEY_CANVAS_CACHE_LIMIT, clamped)}
     }
 
     fun setShowCacheFolder(value: Boolean) {
         showCacheFolder.value = value
-        prefs.edit().putBoolean(KEY_SHOW_CACHE_FOLDER, value).apply()
+        prefs.edit {putBoolean(KEY_SHOW_CACHE_FOLDER, value)}
     }
 
     fun setLastfmEnabled(value: Boolean) {
         lastfmEnabled.value = value
-        prefs.edit().putBoolean(KEY_LASTFM_ENABLED, value).apply()
+        prefs.edit {putBoolean(KEY_LASTFM_ENABLED, value)}
     }
 
     fun setLastfmUsername(value: String) {
         lastfmUsername.value = value
-        prefs.edit().putString(KEY_LASTFM_USERNAME, value).apply()
+        prefs.edit {putString(KEY_LASTFM_USERNAME, value)}
     }
 
     fun setLastfmSessionKey(value: String) {
         lastfmSessionKey.value = value
-        prefs.edit().putString(KEY_LASTFM_SESSION_KEY, value).apply()
+        prefs.edit {putString(KEY_LASTFM_SESSION_KEY, value)}
     }
 
     fun setLastfmApiKey(value: String) {
         lastfmApiKey.value = value
-        prefs.edit().putString(KEY_LASTFM_API_KEY, value).apply()
+        prefs.edit {putString(KEY_LASTFM_API_KEY, value)}
     }
 
     fun setLastfmSecret(value: String) {
         lastfmSecret.value = value
-        prefs.edit().putString(KEY_LASTFM_SECRET, value).apply()
+        prefs.edit {putString(KEY_LASTFM_SECRET, value)}
     }
 
     fun setLastfmEndpoint(value: String) {
         lastfmEndpoint.value = value
-        prefs.edit().putString(KEY_LASTFM_ENDPOINT, value).apply()
+        prefs.edit {putString(KEY_LASTFM_ENDPOINT, value)}
     }
 
     fun setSpotifySpdcToken(value: String) {
         spotifySpdcToken.value = value
-        prefs.edit().putString(KEY_SPOTIFY_SPDC_TOKEN, value).apply()
+        prefs.edit {putString(KEY_SPOTIFY_SPDC_TOKEN, value)}
         SpotifyToken.invalidate()
     }
 
     fun setLastfmScrobbleEnabled(value: Boolean) {
         lastfmScrobbleEnabled.value = value
         if (!value) lastfmNowPlaying.value = false
-        prefs.edit()
-            .putBoolean(KEY_LASTFM_SCROBBLE_ENABLED, value)
-            .putBoolean(KEY_LASTFM_NOW_PLAYING, if (value) lastfmNowPlaying.value else false)
-            .apply()
+        prefs.edit {
+                putBoolean(KEY_LASTFM_SCROBBLE_ENABLED, value)
+                .putBoolean(KEY_LASTFM_NOW_PLAYING, if (value) lastfmNowPlaying.value else false)
+            }
     }
 
     fun setLastfmNowPlaying(value: Boolean) {
         if (!lastfmScrobbleEnabled.value && value) return
         lastfmNowPlaying.value = value
-        prefs.edit().putBoolean(KEY_LASTFM_NOW_PLAYING, value).apply()
+        prefs.edit {putBoolean(KEY_LASTFM_NOW_PLAYING, value)}
     }
 
     fun setOutputPcmMode(value: OutputPcmMode) {
         outputPcmMode.value = value
-        prefs.edit().putString(KEY_OUTPUT_PCM_MODE, value.name).apply()
+        prefs.edit {putString(KEY_OUTPUT_PCM_MODE, value.name)}
     }
 
     fun setPreferUsbDac(value: Boolean) {
         preferUsbDac.value = value
-        prefs.edit().putBoolean(KEY_PREFER_USB_DAC, value).apply()
+        prefs.edit {putBoolean(KEY_PREFER_USB_DAC, value)}
     }
 
     fun setBitPerfectMode(value: BitPerfectMode) {
         bitPerfectMode.value = value
-        prefs.edit().putString(KEY_BIT_PERFECT_MODE, value.name).apply()
+        prefs.edit {putString(KEY_BIT_PERFECT_MODE, value.name)}
     }
 
     fun setUsbAllowFixedVolume(value: Boolean) {
         usbAllowFixedVolume.value = value
-        prefs.edit().putBoolean(KEY_USB_ALLOW_FIXED_VOLUME, value).apply()
+        prefs.edit {putBoolean(KEY_USB_ALLOW_FIXED_VOLUME, value)}
     }
 
     fun setConvertForLimitedDac(value: Boolean) {
         convertForLimitedDac.value = value
-        prefs.edit().putBoolean(KEY_CONVERT_FOR_LIMITED_DAC, value).apply()
+        prefs.edit {putBoolean(KEY_CONVERT_FOR_LIMITED_DAC, value)}
     }
 
     fun setLoudnessOffOnSpeaker(value: Boolean) {
         loudnessOffOnSpeaker.value = value
-        prefs.edit().putBoolean(KEY_LOUDNESS_OFF_ON_SPEAKER, value).apply()
+        prefs.edit {putBoolean(KEY_LOUDNESS_OFF_ON_SPEAKER, value)}
     }
 
     fun setLoudnessNormalization(value: Boolean) {
         loudnessNormalization.value = value
-        prefs.edit().putBoolean(KEY_LOUDNESS_NORMALIZATION, value).apply()
+        prefs.edit {putBoolean(KEY_LOUDNESS_NORMALIZATION, value)}
     }
 
     fun setExportDownloads(value: Boolean) {
         exportDownloads.value = value
-        prefs.edit().putBoolean(KEY_EXPORT_DOWNLOADS, value).apply()
+        prefs.edit {putBoolean(KEY_EXPORT_DOWNLOADS, value)}
     }
 
     fun setSyncDownloadedPlaylists(value: Boolean) {
         syncDownloadedPlaylists.value = value
-        prefs.edit().putBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, value).apply()
+        prefs.edit {putBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, value)}
     }
 
     fun setLastfmPrimaryArtistOnly(value: Boolean) {
         lastfmPrimaryArtistOnly.value = value
-        prefs.edit().putBoolean(KEY_LASTFM_PRIMARY_ARTIST_ONLY, value).apply()
+        prefs.edit {putBoolean(KEY_LASTFM_PRIMARY_ARTIST_ONLY, value)}
     }
 
     fun setScrobbleMinDuration(value: Int) {
         scrobbleMinDuration.value = value
-        prefs.edit().putInt(KEY_SCROBBLE_MIN_DURATION, value).apply()
+        prefs.edit {putInt(KEY_SCROBBLE_MIN_DURATION, value)}
     }
 
     fun setScrobbleDelayPercent(value: Float) {
         scrobbleDelayPercent.value = value
-        prefs.edit().putFloat(KEY_SCROBBLE_DELAY_PERCENT, value).apply()
+        prefs.edit {putFloat(KEY_SCROBBLE_DELAY_PERCENT, value)}
     }
 
     fun setScrobbleDelaySeconds(value: Int) {
         scrobbleDelaySeconds.value = value
-        prefs.edit().putInt(KEY_SCROBBLE_DELAY_SECONDS, value).apply()
+        prefs.edit {putInt(KEY_SCROBBLE_DELAY_SECONDS, value)}
     }
 
     fun setListenBrainzEnabled(value: Boolean) {
         listenBrainzEnabled.value = value
-        prefs.edit().putBoolean(KEY_LISTENBRAINZ_ENABLED, value).apply()
+        prefs.edit {putBoolean(KEY_LISTENBRAINZ_ENABLED, value)}
     }
 
     fun setListenBrainzToken(value: String) {
         listenBrainzToken.value = value
-        prefs.edit().putString(KEY_LISTENBRAINZ_TOKEN, value).apply()
+        prefs.edit {putString(KEY_LISTENBRAINZ_TOKEN, value)}
     }
 
     fun setListenBrainzPrimaryArtistOnly(value: Boolean) {
         listenBrainzPrimaryArtistOnly.value = value
-        prefs.edit().putBoolean(KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY, value).apply()
+        prefs.edit {putBoolean(KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY, value)}
     }
 
     /** Writes through to the encrypted store; pass "" to disconnect. */
@@ -2786,11 +2786,11 @@ object AppSettings {
     fun setProfileOverride(owner: String, name: String, photoPath: String) {
         val oldPhoto = profileOverride.value.photoPath
         profileOverride.value = ProfileOverride(owner, name, photoPath)
-        prefs.edit()
-            .putString(KEY_PROFILE_OWNER, owner)
-            .putString(KEY_PROFILE_NAME, name)
-            .putString(KEY_PROFILE_PHOTO, photoPath)
-            .apply()
+        prefs.edit {
+                putString(KEY_PROFILE_OWNER, owner)
+                .putString(KEY_PROFILE_NAME, name)
+                .putString(KEY_PROFILE_PHOTO, photoPath)
+            }
         if (oldPhoto.isNotEmpty() && oldPhoto != photoPath) runCatching { java.io.File(oldPhoto).delete() }
     }
 
@@ -2800,157 +2800,157 @@ object AppSettings {
         discordUsername.value = username
         discordName.value = name
         discordAvatar.value = avatar.orEmpty()
-        prefs.edit()
-            .putString(KEY_DISCORD_USERNAME, username)
-            .putString(KEY_DISCORD_NAME, name)
-            .putString(KEY_DISCORD_AVATAR, avatar.orEmpty())
-            .apply()
+        prefs.edit {
+                putString(KEY_DISCORD_USERNAME, username)
+                .putString(KEY_DISCORD_NAME, name)
+                .putString(KEY_DISCORD_AVATAR, avatar.orEmpty())
+            }
     }
 
     fun setDiscordRpcEnabled(value: Boolean) {
         discordRpcEnabled.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_RPC_ENABLED, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_RPC_ENABLED, value)}
     }
 
     fun setDiscordUseDetails(value: Boolean) {
         discordUseDetails.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_USE_DETAILS, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_USE_DETAILS, value)}
     }
 
     fun setDiscordShowAudioQuality(value: Boolean) {
         discordShowAudioQuality.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, value)}
     }
 
     fun setDiscordAdvancedMode(value: Boolean) {
         discordAdvancedMode.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_ADVANCED_MODE, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_ADVANCED_MODE, value)}
     }
 
     fun setDiscordStatus(value: String) {
         discordStatus.value = value
-        prefs.edit().putString(KEY_DISCORD_STATUS, value).apply()
+        prefs.edit {putString(KEY_DISCORD_STATUS, value)}
     }
 
     fun setDiscordActivityType(value: String) {
         discordActivityType.value = value
-        prefs.edit().putString(KEY_DISCORD_ACTIVITY_TYPE, value).apply()
+        prefs.edit {putString(KEY_DISCORD_ACTIVITY_TYPE, value)}
     }
 
     fun setDiscordActivityName(value: String) {
         discordActivityName.value = value
-        prefs.edit().putString(KEY_DISCORD_ACTIVITY_NAME, value).apply()
+        prefs.edit {putString(KEY_DISCORD_ACTIVITY_NAME, value)}
     }
 
     fun setDiscordButton1Text(value: String) {
         discordButton1Text.value = value
-        prefs.edit().putString(KEY_DISCORD_BUTTON_1_TEXT, value).apply()
+        prefs.edit {putString(KEY_DISCORD_BUTTON_1_TEXT, value)}
     }
 
     fun setDiscordButton1Visible(value: Boolean) {
         discordButton1Visible.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_BUTTON_1_VISIBLE, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_BUTTON_1_VISIBLE, value)}
     }
 
     fun setDiscordButton2Text(value: String) {
         discordButton2Text.value = value
-        prefs.edit().putString(KEY_DISCORD_BUTTON_2_TEXT, value).apply()
+        prefs.edit {putString(KEY_DISCORD_BUTTON_2_TEXT, value)}
     }
 
     fun setDiscordButton2Visible(value: Boolean) {
         discordButton2Visible.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_BUTTON_2_VISIBLE, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_BUTTON_2_VISIBLE, value)}
     }
 
     fun setDiscordInfoDismissed(value: Boolean) {
         discordInfoDismissed.value = value
-        prefs.edit().putBoolean(KEY_DISCORD_INFO_DISMISSED, value).apply()
+        prefs.edit {putBoolean(KEY_DISCORD_INFO_DISMISSED, value)}
     }
 
     fun setReplayGenres(value: Boolean) {
         replayGenres.value = value
-        prefs.edit().putBoolean(KEY_REPLAY_GENRES, value).apply()
+        prefs.edit {putBoolean(KEY_REPLAY_GENRES, value)}
     }
 
     fun setShowWeeklyRecapCard(value: Boolean) {
         showWeeklyRecapCard.value = value
-        prefs.edit().putBoolean(KEY_SHOW_WEEKLY_RECAP_CARD, value).apply()
+        prefs.edit {putBoolean(KEY_SHOW_WEEKLY_RECAP_CARD, value)}
     }
 
     fun setShowTimeAwareShelf(value: Boolean) {
         showTimeAwareShelf.value = value
-        prefs.edit().putBoolean(KEY_SHOW_TIME_AWARE_SHELF, value).apply()
+        prefs.edit {putBoolean(KEY_SHOW_TIME_AWARE_SHELF, value)}
     }
 
     fun setWeeklyRecapSeenWeek(value: Long) {
         weeklyRecapSeenWeek.value = value
-        prefs.edit().putLong(KEY_WEEKLY_RECAP_SEEN_WEEK, value).apply()
+        prefs.edit {putLong(KEY_WEEKLY_RECAP_SEEN_WEEK, value)}
     }
 
     fun setFilterNonMusicAudio(value: Boolean) {
         filterNonMusicAudio.value = value
-        prefs.edit().putBoolean(KEY_FILTER_NON_MUSIC_AUDIO, value).apply()
+        prefs.edit {putBoolean(KEY_FILTER_NON_MUSIC_AUDIO, value)}
     }
 
     fun setHideExplicitContent(value: Boolean) {
         hideExplicitContent.value = value
-        prefs.edit().putBoolean(KEY_HIDE_EXPLICIT_CONTENT, value).apply()
+        prefs.edit {putBoolean(KEY_HIDE_EXPLICIT_CONTENT, value)}
     }
 
     fun setLocalMusicSort(value: LocalMusicSort) {
         localMusicSort.value = value
-        prefs.edit().putString(KEY_LOCAL_MUSIC_SORT, value.name).apply()
+        prefs.edit {putString(KEY_LOCAL_MUSIC_SORT, value.name)}
     }
 
     fun setDownloadedMusicSort(value: LocalMusicSort) {
         downloadedMusicSort.value = value
-        prefs.edit().putString(KEY_DOWNLOADED_MUSIC_SORT, value.name).apply()
+        prefs.edit {putString(KEY_DOWNLOADED_MUSIC_SORT, value.name)}
     }
 
     fun setLibrarySort(value: LibrarySort) {
         librarySort.value = value
-        prefs.edit().putString(KEY_LIBRARY_SORT, value.name).apply()
+        prefs.edit {putString(KEY_LIBRARY_SORT, value.name)}
     }
 
     fun setDetailSongSort(browseId: String, value: SongSort) {
         detailSongSorts.value = detailSongSorts.value + (browseId to value)
-        prefs.edit().putString(
-            KEY_DETAIL_SONG_SORTS,
-            detailSongSorts.value.entries.joinToString(",") { (id, sort) -> "$id=${sort.name}" },
-        ).apply()
+        prefs.edit {putString(
+                KEY_DETAIL_SONG_SORTS,
+                detailSongSorts.value.entries.joinToString(",") { (id, sort) -> "$id=${sort.name}" },
+        )}
     }
 
     fun setLocalMusicViewType(value: LibraryViewType) {
         localMusicViewType.value = value
-        prefs.edit().putString(KEY_LOCAL_MUSIC_VIEW_TYPE, value.name).apply()
+        prefs.edit {putString(KEY_LOCAL_MUSIC_VIEW_TYPE, value.name)}
     }
 
     fun setDownloadedMusicViewType(value: LibraryViewType) {
         downloadedMusicViewType.value = value
-        prefs.edit().putString(KEY_DOWNLOADED_MUSIC_VIEW_TYPE, value.name).apply()
+        prefs.edit {putString(KEY_DOWNLOADED_MUSIC_VIEW_TYPE, value.name)}
     }
 
     fun setLocalMusicFolderUri(value: String) {
         localMusicFolderUri.value = value
-        prefs.edit().putString(KEY_LOCAL_MUSIC_FOLDER_URI, value).apply()
+        prefs.edit {putString(KEY_LOCAL_MUSIC_FOLDER_URI, value)}
     }
 
     fun setDownloadFolderUri(value: String) {
         downloadFolderUri.value = value
-        prefs.edit().putString(KEY_DOWNLOAD_FOLDER_URI, value).apply()
+        prefs.edit {putString(KEY_DOWNLOAD_FOLDER_URI, value)}
     }
 
     fun setWebDavUrl(value: String) {
         val normalized = value.trim().trimEnd('/')
         webdavUrl.value = normalized
-        prefs.edit().putString(KEY_WEBDAV_URL, normalized).apply()
+        prefs.edit {putString(KEY_WEBDAV_URL, normalized)}
         publishWebDavAuth()
     }
 
     fun setWebDavUsername(value: String) {
         val normalized = value.trim()
         webdavUsername.value = normalized
-        prefs.edit().putString(KEY_WEBDAV_USERNAME, normalized).apply()
+        prefs.edit {putString(KEY_WEBDAV_USERNAME, normalized)}
         publishWebDavAuth()
     }
 
@@ -2970,28 +2970,28 @@ object AppSettings {
     fun setSmbHost(value: String) {
         val normalized = value.trim()
         smbHost.value = normalized
-        prefs.edit().putString(KEY_SMB_HOST, normalized).apply()
+        prefs.edit {putString(KEY_SMB_HOST, normalized)}
         publishSmbAuth()
     }
 
     fun setSmbShare(value: String) {
         val normalized = value.trim().trim('/')
         smbShare.value = normalized
-        prefs.edit().putString(KEY_SMB_SHARE, normalized).apply()
+        prefs.edit {putString(KEY_SMB_SHARE, normalized)}
         publishSmbAuth()
     }
 
     fun setSmbBasePath(value: String) {
         val normalized = value.trim().trim('/')
         smbBasePath.value = normalized
-        prefs.edit().putString(KEY_SMB_BASE_PATH, normalized).apply()
+        prefs.edit {putString(KEY_SMB_BASE_PATH, normalized)}
         publishSmbAuth()
     }
 
     fun setSmbUsername(value: String) {
         val normalized = value.trim()
         smbUsername.value = normalized
-        prefs.edit().putString(KEY_SMB_USERNAME, normalized).apply()
+        prefs.edit {putString(KEY_SMB_USERNAME, normalized)}
         publishSmbAuth()
     }
 
@@ -3066,7 +3066,7 @@ object AppSettings {
         }
         if (nextCards != cards) {
             pinnedCards.value = nextCards
-            prefs.edit().putString(KEY_PINNED_CARDS, encodePinnedCards(nextCards)).apply()
+            prefs.edit {putString(KEY_PINNED_CARDS, encodePinnedCards(nextCards))}
         }
         return pinned
     }
@@ -3162,7 +3162,7 @@ object AppSettings {
     fun importPrefs(values: Map<String, Any?>) {
         if (!this::prefs.isInitialized) return
         val kept = prefs.all.filterKeys { it in SECRETS || it in DEVICE_LOCAL }
-        prefs.edit().apply {
+        prefs.edit {
             clear()
             val incoming = values.filterKeys { it !in SECRETS && it !in DEVICE_LOCAL }
             (kept + incoming).forEach { (key, value) ->
@@ -3176,7 +3176,7 @@ object AppSettings {
                     else -> Unit
                 }
             }
-        }.apply()
+        }
         reload()
     }
 

@@ -1270,44 +1270,49 @@ private fun HomeHeader(
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(
-            painter = painterResource(Res.drawable.ic_logo),
-            contentDescription = "Audify",
-            tint = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.width(44.dp).height(30.dp),
-        )
-        Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.Center) {
-            Text(
-                text = greeting,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = account?.name?.takeIf { it.isNotBlank() } ?: title,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (onCustomizeClick != null) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Scale the brand mark with the available content width, but keep it
+        // within a legible range on compact phones and wide layouts.
+        val logoWidth = (maxWidth * 0.11f).coerceIn(34.dp, 50.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Icon(
-                imageVector = Icons.Rounded.Tune,
-                contentDescription = "Arrange Home",
-                tint = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.size(36.dp).clip(CircleShape)
-                    .clickable(onClick = onCustomizeClick).padding(8.dp),
+                painter = painterResource(Res.drawable.ic_logo),
+                contentDescription = "Audify",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.width(logoWidth).height(logoWidth / LOGO_ASPECT),
             )
+            Column(Modifier.weight(1f).padding(start = 4.dp), verticalArrangement = Arrangement.Center) {
+                Text(
+                    text = greeting,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = account?.name?.takeIf { it.isNotBlank() } ?: title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (onCustomizeClick != null) {
+                Icon(
+                    imageVector = Icons.Rounded.Tune,
+                    contentDescription = "Arrange Home",
+                    tint = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.size(36.dp).clip(CircleShape)
+                        .clickable(onClick = onCustomizeClick).padding(8.dp),
+                )
+            }
         }
     }
 }

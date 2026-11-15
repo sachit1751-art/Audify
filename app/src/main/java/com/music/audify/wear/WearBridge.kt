@@ -2,6 +2,7 @@
 // Project: AUDIFY
 package com.music.audify.wear
 
+import androidx.core.graphics.toColorInt
 import android.annotation.SuppressLint
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
@@ -585,8 +586,8 @@ object WearBridge {
             selectedTheme.primaryHex
         }
         val themeSecondaryHex = selectedTheme.secondaryHex
-        map.putInt(P.KEY_THEME_PRIMARY, android.graphics.Color.parseColor(themePrimaryHex))
-        map.putInt(P.KEY_THEME_SECONDARY, android.graphics.Color.parseColor(themeSecondaryHex))
+        map.putInt(P.KEY_THEME_PRIMARY, themePrimaryHex.toColorInt())
+        map.putInt(P.KEY_THEME_SECONDARY, themeSecondaryHex.toColorInt())
         if (now == null || !now.snapshot.hasTrack) {
             map.putBoolean(P.KEY_HAS_TRACK, false)
         } else {

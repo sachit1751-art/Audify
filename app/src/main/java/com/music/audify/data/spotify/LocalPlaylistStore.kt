@@ -1,5 +1,6 @@
 package com.music.audify.data.spotify
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import com.music.audify.data.model.Song
@@ -232,7 +233,7 @@ object LocalPlaylistStore {
                 pObj.put("songs", songsArray)
                 jsonArray.put(pObj)
             }
-            prefs.edit().putString(KEY_PLAYLISTS, jsonArray.toString()).apply()
+            prefs.edit {putString(KEY_PLAYLISTS, jsonArray.toString())}
         }
     }
 }

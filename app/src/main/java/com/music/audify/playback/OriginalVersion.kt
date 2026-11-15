@@ -1,5 +1,6 @@
 package com.music.audify.playback
 
+import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,7 +78,7 @@ object OriginalVersion {
         // The flow is updated either way: a unit test or a not-yet-initialised
         // process should still behave correctly for as long as it lasts.
         if (!::prefs.isInitialized) return
-        prefs.edit().putString(KEY_PINNED, ids.joinToString("\n")).apply()
+        prefs.edit {putString(KEY_PINNED, ids.joinToString("\n"))}
     }
 
     private const val MAX_PINNED = 500

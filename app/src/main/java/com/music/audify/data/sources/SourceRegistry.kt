@@ -1,5 +1,7 @@
 package com.music.audify.data.sources
 
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
@@ -80,7 +82,7 @@ data class SourceConfig(
     val displayName: String
         get() = label.ifBlank {
             baseUrl.takeIf { it.isNotBlank() }
-                ?.let { runCatching { Uri.parse(it).host }.getOrNull() }
+                ?.let { runCatching { it.toUri().host }.getOrNull() }
                 ?: kind.label
         }
 
@@ -134,10 +136,10 @@ object SourceRegistry {
         // opt-out had already happened and silently restore the old on state.
         publish(after, persist = false)
         if (after != stored || !jioOptInMigrationDone) {
-            prefs.edit()
-                .putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), after))
-                .putBoolean(KEY_JIOSAAVN_OPT_IN_V1, true)
-                .apply()
+            prefs.edit {
+                    putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), after))
+                    .putBoolean(KEY_JIOSAAVN_OPT_IN_V1, true)
+                }
         }
     }
 
@@ -437,9 +439,9 @@ object SourceRegistry {
             .filterIsInstance<AddonSource>()
             .forEach { it.release() }
         if (persist && ::prefs.isInitialized) {
-            prefs.edit()
-                .putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), next))
-                .apply()
+            prefs.edit {
+                    putString(KEY_SOURCES, json.encodeToString(ListSerializer(SourceConfig.serializer()), next))
+                }
         }
     }
 

@@ -31,7 +31,9 @@ object LocalLibraryStore {
         val storedVersion = prefs.getInt(SCHEMA_VERSION_KEY, 0)
         require(storedVersion <= SCHEMA_VERSION) { "Local library data was created by a newer Audify build" }
         if (storedVersion < SCHEMA_VERSION) {
-            check(prefs.edit().putInt(SCHEMA_VERSION_KEY, SCHEMA_VERSION).commit()) {
+            @Suppress("UseKtx")
+            val migrated = prefs.edit().putInt(SCHEMA_VERSION_KEY, SCHEMA_VERSION).commit()
+            check(migrated) {
                 "Could not finalize local library storage migration"
             }
         }
@@ -102,7 +104,9 @@ object LocalLibraryStore {
     }.getOrDefault(emptyList())
 
     private fun persist(key: String, songs: List<Song>) {
-        check(prefs.edit().putString(key, encodeSongs(songs)).commit()) {
+        @Suppress("UseKtx")
+        val committed = prefs.edit().putString(key, encodeSongs(songs)).commit()
+        check(committed) {
             "Could not persist local library data"
         }
     }

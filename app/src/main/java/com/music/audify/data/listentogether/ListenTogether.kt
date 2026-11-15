@@ -1,5 +1,6 @@
 package com.music.audify.data.listentogether
 
+import androidx.core.content.edit
 import android.content.Context
 import android.os.SystemClock
 import android.content.SharedPreferences
@@ -675,7 +676,7 @@ object ListenTogether {
 
         val code = prefs.getString(KEY_CODE, null)
         val saved = prefs.getString(KEY_TOKEN, null)
-        prefs.edit().remove(KEY_CODE).remove(KEY_TOKEN).apply()
+        prefs.edit {remove(KEY_CODE).remove(KEY_TOKEN)}
         if (!code.isNullOrBlank() && !saved.isNullOrBlank()) {
             releaseStaleSlot(code, saved)
         }
@@ -746,7 +747,7 @@ object ListenTogether {
             "setCustomServerUrl accepts only canonical URLs produced by parseAndNormalizeServerUrl"
         }
 
-        prefs.edit().putString(KEY_SERVER, normalizedUrl).apply()
+        prefs.edit {putString(KEY_SERVER, normalizedUrl)}
         _customServer.value = normalizedUrl
 
         val (job, _) = resolutionMutex.withLock {
@@ -768,7 +769,7 @@ object ListenTogether {
     fun nickname(): String = prefs.getString(KEY_NICKNAME, null).orEmpty()
 
     fun setNickname(value: String) {
-        prefs.edit().putString(KEY_NICKNAME, value.trim().take(80)).apply()
+        prefs.edit {putString(KEY_NICKNAME, value.trim().take(80))}
     }
 
     /**
@@ -827,10 +828,10 @@ object ListenTogether {
         withContext(NonCancellable) {
             activePartyServerBase = serverBase
             token = membership.token
-            prefs.edit()
-                .putString(KEY_CODE, membership.code)
-                .putString(KEY_TOKEN, membership.token)
-                .apply()
+            prefs.edit {
+                    putString(KEY_CODE, membership.code)
+                    .putString(KEY_TOKEN, membership.token)
+                }
             clock.reset()
             _state.value = State(
                 code = membership.code,
@@ -884,10 +885,10 @@ object ListenTogether {
         withContext(NonCancellable) {
             activePartyServerBase = serverBase
             token = membership.token
-            prefs.edit()
-                .putString(KEY_CODE, membership.code)
-                .putString(KEY_TOKEN, membership.token)
-                .apply()
+            prefs.edit {
+                    putString(KEY_CODE, membership.code)
+                    .putString(KEY_TOKEN, membership.token)
+                }
             clock.reset()
             _state.value = State(
                 code = membership.code,
@@ -1020,10 +1021,10 @@ object ListenTogether {
 
                 // Commit new party session
                 token = membership.token
-                prefs.edit()
-                    .putString(KEY_CODE, membership.code)
-                    .putString(KEY_TOKEN, membership.token)
-                    .apply()
+                prefs.edit {
+                        putString(KEY_CODE, membership.code)
+                        .putString(KEY_TOKEN, membership.token)
+                    }
                 clock.reset()
                 _state.value = State(
                     code = membership.code,
@@ -1055,7 +1056,7 @@ object ListenTogether {
             clock.reset()
             token = null
             activePartyServerBase = null
-            prefs.edit().remove(KEY_CODE).remove(KEY_TOKEN).apply()
+            prefs.edit {remove(KEY_CODE).remove(KEY_TOKEN)}
             _state.value = State()
             if (code != null && held != null) {
                 releaseStaleSlotOnServer(currentServer, code, held)
@@ -1515,14 +1516,14 @@ object ListenTogether {
 
     private fun writeKicks(entries: Map<String, Long>) {
         if (entries.isEmpty()) {
-            prefs.edit().remove(KEY_KICKED).apply()
+            prefs.edit {remove(KEY_KICKED)}
             return
         }
         val encoded = json.encodeToString(
             MapSerializer(String.serializer(), Long.serializer()),
             entries,
         )
-        prefs.edit().putString(KEY_KICKED, encoded).apply()
+        prefs.edit {putString(KEY_KICKED, encoded)}
     }
 
     /** @see recentKicks */
@@ -1579,7 +1580,7 @@ object ListenTogether {
     private fun deviceId(): String {
         prefs.getString(KEY_DEVICE, null)?.let { return it }
         return UUID.randomUUID().toString().also {
-            prefs.edit().putString(KEY_DEVICE, it).apply()
+            prefs.edit {putString(KEY_DEVICE, it)}
         }
     }
 

@@ -364,9 +364,10 @@ class BluetoothAudioTracker(private val context: Context) {
 
         val sampleRateHz = mapSampleRate(sampleRateMask)
         val bitDepth = mapBitDepth(bitsMask)
-        val mode = when (codecType) {
-            SOURCE_CODEC_TYPE_LDAC -> parseLdacQualityMode(codecSpecific1)
-            else -> null
+        val mode = if (codecType == SOURCE_CODEC_TYPE_LDAC) {
+            parseLdacQualityMode(codecSpecific1)
+        } else {
+            null
         }
 
         return BluetoothTelemetry(

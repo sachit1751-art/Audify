@@ -1,5 +1,6 @@
 package com.music.audify.ui.screens
 
+import androidx.core.content.edit
 import com.music.audify.ui.components.trackArtSize
 import com.music.audify.ui.components.OrganicFluidBackground
 import android.os.Build
@@ -235,15 +236,17 @@ private const val SONGS_PER_COLUMN = 4
 private const val ARTIST_ROW_MAX_ITEMS = 5
 
 /** Content that arrives after the page is already up fades in instead of popping in. */
-private fun androidx.compose.foundation.lazy.LazyItemScope.arriveFade(): Modifier =
-    Modifier.animateItem(
-        fadeInSpec = androidx.compose.animation.core.tween(
-            durationMillis = 380,
-            easing = androidx.compose.animation.core.FastOutSlowInEasing,
-        ),
-        placementSpec = null,
-        fadeOutSpec = null,
-    )
+private fun Modifier.arriveFade(scope: androidx.compose.foundation.lazy.LazyItemScope): Modifier =
+    with(scope) {
+        this@arriveFade.animateItem(
+            fadeInSpec = androidx.compose.animation.core.tween(
+                durationMillis = 380,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing,
+            ),
+            placementSpec = null,
+            fadeOutSpec = null,
+        )
+    }
 
 /** The artist photo, very slightly taller than it is wide. */
 private const val ARTIST_PHOTO_RATIO = 0.95f
@@ -717,7 +720,7 @@ fun DetailScreen(
 
             if (songs.isNotEmpty() && isArtist) {
                 item(key = "actions") {
-                    Column(arriveFade()) {
+                    Column(Modifier.arriveFade(this)) {
                     ActionRow(
                         onPlay = { onSongClick(songs, 0) },
                         onShuffle = { onShuffle(songs) },
@@ -734,7 +737,7 @@ fun DetailScreen(
             val topRelease = if (isArtist) page.sections.topRelease() else null
             if (topRelease != null) {
                 item(key = "top-release") {
-                    Column(arriveFade()) {
+                    Column(Modifier.arriveFade(this)) {
                     TopReleaseCard(
                         item = topRelease,
                         palette = palette,
@@ -828,7 +831,7 @@ fun DetailScreen(
                     item(key = "artist-songs") {
                         val top = state.data.take(MAX_ARTIST_SONGS)
                         val isCurrentRow = playingRowMatcher(top, currentSong)
-                        Column(arriveFade()) {
+                        Column(Modifier.arriveFade(this)) {
                         SectionHeading(
                             title = stringResource(R.string.top_songs),
                             palette = palette,
@@ -2716,7 +2719,7 @@ private fun SectionCard(
     item: ShelfItem,
     palette: ArtworkPalette,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.width(SHELF_CARD_WIDTH),
+    modifier: Modifier = Modifier,
     onLongPress: (() -> Unit)? = null,
 ) {
     // An artist's Videos shelf: widescreen, as on the web player.
@@ -3825,10 +3828,10 @@ private fun rememberLikedCovers(pageId: String, songs: List<Song>): List<String>
         if (fresh) return@remember saved
         if (pool.isEmpty()) return@remember saved
         val picked = pool.shuffled().take(LIKED_MAX_COVERS)
-        prefs.edit()
-            .putString("covers_v${LIKED_COVER_CACHE_VERSION}_$pageId", picked.joinToString("\n"))
-            .putLong("at_v${LIKED_COVER_CACHE_VERSION}_$pageId", now)
-            .apply()
+        prefs.edit {
+                putString("covers_v${LIKED_COVER_CACHE_VERSION}_$pageId", picked.joinToString("\n"))
+                .putLong("at_v${LIKED_COVER_CACHE_VERSION}_$pageId", now)
+            }
         picked
     }
 }

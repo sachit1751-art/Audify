@@ -107,11 +107,9 @@ fun MixCoverOverlay(title: String, subtitle: String, modifier: Modifier = Modifi
                     ),
                 ),
         )
-        Wordmark(
+        BrandIcon(
             logoHeight = 14.dp,
-            fontSize = 16.sp,
             color = Color.White,
-            gap = 2.dp,
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 12.dp),
         )
         Column(

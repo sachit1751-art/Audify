@@ -1,5 +1,6 @@
 package com.music.audify.ui.screens
 
+import androidx.core.graphics.scale
 import android.graphics.Bitmap
 import android.os.PowerManager
 import android.provider.Settings
@@ -259,7 +260,7 @@ private fun albumSoftCopy(src: ImageBitmap): ImageBitmap? = runCatching {
     val b = src.asAndroidBitmap()
     val m = min(b.width, b.height)
     val square = Bitmap.createBitmap(b, (b.width - m) / 2, (b.height - m) / 2, m, m)
-    Bitmap.createScaledBitmap(square, ALBUM_SOFT_PX, ALBUM_SOFT_PX, true).asImageBitmap()
+    square.scale(ALBUM_SOFT_PX, ALBUM_SOFT_PX).asImageBitmap()
 }.getOrNull()
 
 /**

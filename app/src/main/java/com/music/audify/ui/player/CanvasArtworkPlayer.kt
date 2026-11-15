@@ -2,6 +2,7 @@
 
 package com.music.audify.ui.player
 
+import androidx.core.graphics.createBitmap
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BlendMode
@@ -766,11 +767,7 @@ private suspend fun TextureView.copyStill(
         },
     )
     val shrink = if (maxSide > 0) minOf(1f, maxSide.toFloat() / maxOf(videoWidth, videoHeight)) else 1f
-    val bitmap = Bitmap.createBitmap(
-        (videoWidth * scale * shrink).roundToInt().coerceAtLeast(1),
-        (videoHeight * scale * shrink).roundToInt().coerceAtLeast(1),
-        Bitmap.Config.ARGB_8888,
-    )
+    val bitmap = createBitmap((videoWidth * scale * shrink).roundToInt().coerceAtLeast(1), (videoHeight * scale * shrink).roundToInt().coerceAtLeast(1), )
     val result = runCatching {
         suspendCancellableCoroutine { continuation ->
             val surface = Surface(texture)
@@ -864,7 +861,7 @@ private fun shownFrame(
 ): Bitmap {
     val matrix = contentMatrix(raw.width, raw.height, clipAspect, contentMode, alignPortraitTop)
         ?: return raw
-    val shown = Bitmap.createBitmap(raw.width, raw.height, Bitmap.Config.ARGB_8888)
+    val shown = createBitmap(raw.width, raw.height)
     Canvas(shown).drawBitmap(raw, matrix, Paint(Paint.FILTER_BITMAP_FLAG))
     raw.recycle()
     return shown

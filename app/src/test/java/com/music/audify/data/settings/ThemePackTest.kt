@@ -72,7 +72,7 @@ class ThemePackTest {
     }
 
     @Test
-    fun everyThemeProducesDistinctLightAndDarkBackgroundsTintedByItsPalette() {
+    fun themeBackgroundsKeepTheOriginalNeutralSurfaceTreatment() {
         ThemePacks.builtIns.forEach { pack ->
             val light = ThemePacks.lightBackgroundHex(pack)
             val dark = ThemePacks.darkBackgroundHex(pack)
@@ -80,6 +80,13 @@ class ThemePackTest {
             assertTrue("${pack.name} dark background must be valid", ThemePacks.isValidHex(dark))
             assertNotEquals("${pack.name} light and dark backgrounds must differ", light, dark)
         }
+        assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "amoled" }))
+        assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "classic" }))
+        assertEquals("#080D18", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "midnight" }))
+        assertEquals("#15171B", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "graphite" }))
+        assertEquals("#120D1D", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "sakura" }))
+        assertEquals("#19130F", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "ember" }))
+        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
         val rose = ThemePacks.builtIns.first { it.id == "rose" }
         assertNotEquals("#FFFFFF", ThemePacks.lightBackgroundHex(rose))
         assertTrue(ThemePacks.lightBackgroundHex(rose).startsWith("#F"))

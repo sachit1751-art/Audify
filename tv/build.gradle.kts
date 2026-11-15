@@ -286,6 +286,8 @@ val newPipeExtractorRaw = configurations.create("newPipeExtractorRaw") {
     isCanBeConsumed = false
 }
 dependencies {
+    // The shared phone source tree imports ExifInterface in account artwork handling.
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     newPipeExtractorRaw("com.github.TeamNewPipe:NewPipeExtractor:v0.26.3")
 }
 val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>(
