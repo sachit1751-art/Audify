@@ -1,5 +1,6 @@
 package com.music.audify.ui.screens
 
+import androidx.core.net.toUri
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -71,7 +72,12 @@ import com.music.audify.playback.AudioOutputStatus
 import com.music.audify.ui.components.IosSwitch
 import kotlinx.coroutines.launch
 
-private val BugCategories = listOf("Playback glitch", "Audio Output / DAC", "UI / Display", "Crash or Freeze", "Other")
+private val BugCategories = listOf(
+    "Playback glitch", "Audio Output / DAC", "UI / Display", "Crash or Freeze",
+    "Network / Connectivity", "Login / Account", "Search", "Downloads / Storage",
+    "Lyrics / Synchronisation", "Android Auto", "Android TV", "Wear OS",
+    "Notifications / Widgets", "Other",
+)
 private val FeatureCategories = listOf("Playback", "Playlists", "Discovery", "Library", "Downloads", "Lyrics", "Appearance", "Accessibility", "Performance", "Android Auto", "Android TV", "Wear OS", "Other")
 
 @Composable
@@ -91,6 +97,7 @@ internal fun FeedbackDialog(
     var showDiagnosticPreview by rememberSaveable(kind) { mutableStateOf(false) }
     var showPrivacyInfo by rememberSaveable(kind) { mutableStateOf(false) }
     var screenshotName by rememberSaveable(kind) { mutableStateOf<String?>(null) }
+    var screenshotUri by rememberSaveable(kind) { mutableStateOf<Uri?>(null) }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -105,6 +112,7 @@ internal fun FeedbackDialog(
     )
 
     val screenshotPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        screenshotUri = uri
         screenshotName = uri?.let { picked ->
             context.contentResolver.query(picked, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                 ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
@@ -218,7 +226,7 @@ internal fun FeedbackDialog(
                             Icon(Icons.Rounded.Image, null, tint = MaterialTheme.colorScheme.primary)
                             Column(Modifier.weight(1f)) {
                                 Text(if (screenshotName == null) "Attach screenshot" else screenshotName!!, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(if (screenshotName == null) "Optional image" else "Selected · add it on the issue page after submission", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (screenshotName == null) "Optional · uploaded with your report" else "Selected · uploaded with your report", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text("${if (screenshotName == null) "Choose" else "Change"}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
                         }
@@ -254,7 +262,7 @@ internal fun FeedbackDialog(
                     }
 
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    Text("No account, email address or listening history is collected.", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No account or email is required. Reports and attached screenshots are public. Remove personal information before submitting.", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
                 }
 
@@ -265,6 +273,7 @@ internal fun FeedbackDialog(
                             error = null
                             scope.launch {
                                 runCatching {
+                                    val attachment = screenshotUri?.let { FeedbackRepository.readAttachment(context, it) }
                                     FeedbackRepository.submit(
                                         kind = kind,
                                         category = category,
@@ -272,11 +281,13 @@ internal fun FeedbackDialog(
                                         description = description,
                                         includeDiagnostics = includeDiagnostics,
                                         diagnosticDetails = diagnosticLines(),
-                                        attachmentNote = screenshotName?.let { "Screenshot selected ($it). User will attach it on the issue page." },
+                                        attachmentBytes = attachment?.bytes,
+                                        attachmentMimeType = attachment?.mimeType,
+                                        attachmentName = screenshotName,
                                     )
                                 }.onSuccess { receipt ->
                                     onDismiss()
-                                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(receipt.url))) }
+                                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, receipt.url.toUri())) }
                                 }.onFailure { error = it.message ?: "Could not submit feedback. Try again." }
                                 submitting = false
                             }
@@ -309,8 +320,8 @@ internal fun FeedbackDialog(
             title = { Text("About feedback data") },
             text = {
                 Text(
-                    if (isBug) "Bug reports are submitted without an Audify account or email address. If enabled, diagnostics include your device, Android version and active audio-route details. Android does not allow ordinary apps to collect unrestricted system logcat. Screenshots are selected here but attached manually on the GitHub issue page."
-                    else "Feature suggestions are submitted without an Audify account or email address. A selected screenshot is not uploaded by the app; attach it manually on the GitHub issue page after submission."
+                    if (isBug) "Bug reports are submitted without an Audify or GitHub account and without an email address. If enabled, diagnostics include your device, Android version and active audio-route details. Screenshots are uploaded to the public Audify repository and linked in the issue. Do not include personal or account information."
+                    else "Feature suggestions are submitted without an Audify or GitHub account and without an email address. Selected screenshots are uploaded to the public Audify repository and linked in the issue. Do not include personal or account information."
                 )
             },
             confirmButton = {
