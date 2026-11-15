@@ -6,7 +6,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.music.audify.R
-import com.music.audify.auth.AuthStore
 import com.music.audify.auth.SignedIn
 import com.music.audify.auth.GoogleAccountSession
 import com.music.audify.auth.YouTubeProfile
@@ -128,7 +127,10 @@ private const val HOME_MAX_EMPTY_CONTINUATION_PAGES = 3
 @OptIn(FlowPreview::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val authStore = AuthStore(app)
+    // Application has already opened and restored the encrypted session store.
+    // Reuse that instance rather than constructing another wrapper on the main
+    // thread while the first screen is being composed.
+    private val authStore = com.music.audify.AudifyApplication.authStore
 
     // Process-wide, so the playback service offers Like on the same tracks.
     private val _signedIn = SignedIn.state(app)
@@ -1555,9 +1557,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * showing it a moment out of date.
      */
     private var libraryStale = false
+    private var libraryRequested = false
 
     /** Call when the library tab becomes visible. */
     fun onLibraryShown() {
+        if (!libraryRequested) loadLibrary()
         loadPlaylists()
         if (!libraryStale) return
         libraryStale = false
@@ -1573,9 +1577,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // and the dozen-odd artwork browses after it went out at launch with
         // Home's own requests, to the same host, for a page not yet opened.
         if (_signedIn.value) {
-            loadLibrary()
             loadAccount()
-            loadPlaylists()
         }
         viewModelScope.launch {
             // drop(1): the current value is just the count so far, not a play.
@@ -1594,7 +1596,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (searchSubmitted && _query.value.isNotBlank()) runSearch()
                 if (_signedIn.value) {
                     loadHistory()
-                    loadLibrary()
+                    if (libraryRequested) loadLibrary(force = true)
                 }
             }
         }
@@ -2354,8 +2356,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun loadLibrary() {
+    fun loadLibrary(force: Boolean = false) {
         if (!_signedIn.value) return
+        if (libraryRequested && !force) return
+        libraryRequested = true
         val identity = listenerKey()
         _library.value = UiState.Loading
         viewModelScope.launch { fetchLibrary(identity) }
@@ -4127,6 +4131,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         ownershipInFlight.clear()
         _songMenu.value = null
         _library.value = UiState.Loading
+        libraryRequested = false
         _history.value = UiState.Loading
         if (restoreCached) listenerCache[listenerKey()]?.let { cached ->
             _account.value = cached.account

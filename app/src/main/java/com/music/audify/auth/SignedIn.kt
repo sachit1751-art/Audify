@@ -16,6 +16,13 @@ object SignedIn {
 
     @Volatile private var state: MutableStateFlow<Boolean>? = null
 
+    /** Seeds the process-wide state from the session already restored by Application. */
+    fun initialize(isSignedIn: Boolean) {
+        synchronized(this) {
+            if (state == null) state = MutableStateFlow(isSignedIn)
+        }
+    }
+
     fun state(context: Context): MutableStateFlow<Boolean> =
         state ?: synchronized(this) {
             state ?: MutableStateFlow(AuthStore(context.applicationContext).isSignedIn).also { state = it }

@@ -96,6 +96,10 @@ internal fun FeedbackDialog(
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var receipt by remember { mutableStateOf<FeedbackRepository.Receipt?>(null) }
+    var trackedIssues by remember { mutableStateOf(FeedbackRepository.trackedIssues(context)) }
+    var selectedIssue by remember { mutableStateOf<FeedbackRepository.IssueDetail?>(null) }
+    var loadingIssue by remember { mutableStateOf<Int?>(null) }
+    var issueError by remember { mutableStateOf<String?>(null) }
 
     fun diagnosticLines(): Map<String, String> = mapOf(
         "app_version" to "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
@@ -152,6 +156,56 @@ internal fun FeedbackDialog(
                     modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
+                    if (trackedIssues.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("YOUR REPORTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                            trackedIssues.forEach { tracked ->
+                                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(12.dp)) {
+                                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                        Text(tracked.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("#${tracked.number}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                                            OutlinedButton(
+                                                onClick = {
+                                                    loadingIssue = tracked.number
+                                                    issueError = null
+                                                    scope.launch {
+                                                        runCatching { FeedbackRepository.fetchIssue(tracked.number) }
+                                                            .onSuccess { selectedIssue = it }
+                                                            .onFailure { issueError = it.message ?: "Could not refresh this report." }
+                                                        loadingIssue = null
+                                                    }
+                                                },
+                                                enabled = loadingIssue == null,
+                                            ) { Text(if (loadingIssue == tracked.number) "Checking…" else "Refresh status") }
+                                        }
+                                        selectedIssue?.takeIf { it.number == tracked.number }?.let { detail ->
+                                            Text(detail.status, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                                            Text("Updated ${detail.updatedAt ?: "recently"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            if (detail.labels.isNotEmpty()) Text(detail.labels.joinToString(" · "), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            if (detail.body.isNotBlank()) {
+                                                HorizontalRule()
+                                                Text("Original report", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                                Text(detail.body, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                            if (detail.comments.isNotEmpty()) {
+                                                HorizontalRule()
+                                                Text("Conversation", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                            }
+                                            detail.comments.forEach { comment ->
+                                                HorizontalRule()
+                                                Text(comment.author, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                                Text(comment.body, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                            OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, detail.url.toUri())) }, modifier = Modifier.fillMaxWidth()) { Text("Open conversation on GitHub") }
+                                        }
+                                    }
+                                }
+                            }
+                            issueError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                        }
+                    }
+
                     Text(
                         if (isBug) "Describe the issue or unexpected audio behavior. Optional device and audio details help us investigate." else "Describe the feature and the problem it would solve. Include enough detail for us to evaluate it.",
                         style = MaterialTheme.typography.bodySmall,
@@ -235,7 +289,7 @@ internal fun FeedbackDialog(
                     }
 
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    Text("No account or email is required. Submitted reports are public. Do not include personal or account information.", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Reports are public. Do not include personal or account information.", modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
                 }
 
@@ -257,11 +311,13 @@ internal fun FeedbackDialog(
                                 }.onSuccess { result ->
                                     error = null
                                     receipt = result
+                                    FeedbackRepository.rememberIssue(context, FeedbackRepository.TrackedIssue(result.number, result.url, summary.trim()))
+                                    trackedIssues = FeedbackRepository.trackedIssues(context)
                                 }.onFailure { error = it.message ?: "Could not submit feedback. Try again." }
                                 submitting = false
                             }
                         },
-                        enabled = !submitting && receipt == null && summary.trim().length in 4..80 && description.trim().length in 20..6000,
+                        enabled = !submitting && receipt == null && summary.trim().length in 4..80 && description.trim().length in 10..6000,
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = CircleShape,
                     ) {
@@ -270,6 +326,7 @@ internal fun FeedbackDialog(
                     }
                     receipt?.let { submitted ->
                         Text("Submitted as #${submitted.number}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                        Text("You can track replies and status changes in Your reports above.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, submitted.url.toUri())) }, modifier = Modifier.fillMaxWidth()) { Text("View GitHub issue") }
                         OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Done") }
                     }
@@ -294,8 +351,8 @@ internal fun FeedbackDialog(
             title = { Text("About feedback data") },
             text = {
                 Text(
-                    if (isBug) "Bug reports are submitted without an Audify or GitHub account and without an email address. If enabled, diagnostics include your device, Android version and active audio-route details. Reports are public. Do not include personal or account information."
-                    else "Feature suggestions are submitted without an Audify or GitHub account and without an email address. Reports are public. Do not include personal or account information."
+                    if (isBug) "If enabled, diagnostics include your device, Android version and active audio-route details. Reports are public. Do not include personal or account information."
+                    else "Reports are public. Do not include personal or account information."
                 )
             },
             confirmButton = {

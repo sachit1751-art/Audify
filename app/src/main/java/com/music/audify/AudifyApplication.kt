@@ -19,6 +19,7 @@ import coil3.svg.SvgDecoder
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import okhttp3.OkHttpClient
 import com.music.audify.auth.AuthStore
+import com.music.audify.auth.SignedIn
 import com.music.audify.data.DebugLog
 import com.music.audify.data.Http
 import com.music.audify.data.lyrics.LyricsTranslation
@@ -119,6 +120,10 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         }
         authStore.cookie = restoredSession?.cookie
         Innertube.cookie = restoredSession?.cookie
+        // MainViewModel and PlaybackService share this value. Seed it from the
+        // session already restored above instead of reopening/parsing encrypted
+        // preferences during the first Activity composition.
+        SignedIn.initialize(restoredSession?.cookie?.let(AuthStore::hasApiSid) == true)
         // Which account that cookie actually acts as. Read here rather than on
         // demand so the answer is usually in hand before the first request needs
         // it: a play registered under the wrong account is indistinguishable, to

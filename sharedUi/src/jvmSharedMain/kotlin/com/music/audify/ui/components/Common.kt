@@ -145,6 +145,9 @@ import androidx.compose.foundation.border
  */
 val PAGE_GUTTER = 16.dp
 
+/** Keeps feed content readable on tablets while leaving phone layouts full width. */
+val PAGE_CONTENT_MAX_WIDTH = 1000.dp
+
 /**
  * The inset the floating chrome sits at: the mini player, the tab bar and the
  * top bar's controls. The same as [PAGE_GUTTER], so the bars' edges line up

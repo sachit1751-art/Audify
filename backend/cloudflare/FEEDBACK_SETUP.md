@@ -25,4 +25,18 @@ The Android app submits bug reports and feature suggestions to `POST /api/feedba
 
 Screenshots and file attachments are intentionally not supported. Reports are text-only so attachment permissions, upload failures and image privacy cannot block issue submission.
 
+## In-app issue tracking
+
+The app stores only the issue number, title and canonical issue URL locally on that device (up to 30 reports). It does not create a user identity or send a device identifier to GitHub. `GET /api/feedback/{issueNumber}` reads the public issue and its comments through the Worker, then returns a restricted response containing the status, labels, update time and comment text. The app refreshes this data on demand; it does not poll in the background.
+
+Use GitHub labels to communicate workflow state:
+
+- `in-progress` (or `status:in-progress`) → **In Progress**
+- `fixed` (or `status:fixed`) → **Fixed**
+- `planned` (or `status:planned`) → **Planned**
+- No workflow label on an open issue → **Open**
+- Closed with GitHub reason `completed` → **Fixed**; other closed issues → **Closed**
+
+Replies posted to the GitHub issue are displayed in Audify after the user refreshes the report. The app links to the full GitHub conversation for replying; it does not expose an anonymous comment-writing API.
+
 Cloudflare still processes request metadata (including IP address) to deliver and protect the endpoint. This feature does not claim network-level anonymity.

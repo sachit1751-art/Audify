@@ -124,6 +124,12 @@ test('anonymous feedback validates submissions and never reports honeypot submis
     });
     assert.equal(unicodeDescription.status, 503, 'valid Unicode descriptions should reach the feedback service');
     assert.equal((await json(unicodeDescription)).error, 'feedback_unavailable');
+    const shortDescription = await request('/api/feedback', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...validPayload, description: 'Audio cuts' }),
+    });
+    assert.equal(shortDescription.status, 503, '10-character descriptions should pass validation');
+    assert.equal((await json(shortDescription)).error, 'feedback_unavailable');
   } else {
     t.diagnostic('Live GitHub issue creation is verified separately; avoid creating test issues in production.');
   }
@@ -131,6 +137,13 @@ test('anonymous feedback validates submissions and never reports honeypot submis
   const bot = await request('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...validPayload, website: 'spam.example' }) });
   assert.equal(bot.status, 202);
   assert.deepEqual(await json(bot), { ok: true });
+});
+
+test('feedback tracking endpoint validates issue references and reports unavailable upstream clearly', async t => {
+  assert.equal((await request('/api/feedback/12')).status, 503, 'tracking must fail clearly when the GitHub token is not configured in local tests');
+  assert.equal((await request('/api/feedback/0')).status, 422);
+  assert.equal((await request('/api/feedback/not-a-number')).status, 404);
+  assert.equal((await request('/api/feedback/12', { method: 'POST' })).status, 405);
 });
 
 test('native WebSocket bearer-header authentication matches the Android client', async () => {

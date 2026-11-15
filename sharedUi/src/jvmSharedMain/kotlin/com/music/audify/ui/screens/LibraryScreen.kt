@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -66,6 +68,7 @@ import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.components.LIBRARY_GRID_SPACING
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
+import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.PullToRefresh
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
 import com.music.audify.ui.components.libraryGrid
@@ -169,9 +172,10 @@ fun LibraryScreen(
         topInset = contentPadding.calculateTopPadding(),
         modifier = modifier,
     ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize(),
             // The heading sits where Home's does: the whole page is lifted by
             // the same amount, not just the title.
             contentPadding = if (showTitle) {
@@ -385,6 +389,7 @@ fun LibraryScreen(
             }
             layout.arrange(sections) { it.first }.forEach { it.second(this) }
             status.forEach { it(this) }
+        }
         }
     }
 }
@@ -785,7 +790,11 @@ fun LibraryGridPage(
             contentPadding = contentPadding,
             horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
             verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.padding(horizontal = PAGE_GUTTER),
+            modifier = Modifier
+                .widthIn(max = PAGE_CONTENT_MAX_WIDTH)
+                .fillMaxSize()
+                .align(Alignment.TopCenter)
+                .padding(horizontal = PAGE_GUTTER),
         ) {
             if (onNewPlaylist != null) {
                 item(key = "leading") {

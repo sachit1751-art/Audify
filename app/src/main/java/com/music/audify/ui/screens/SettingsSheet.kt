@@ -41,6 +41,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.automirrored.rounded.Notes
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.Animation
@@ -3831,19 +3833,19 @@ enum class SettingsCategory(@param:StringRes val title: Int) {
 
     val icon: ImageVector
         get() = when (this) {
-            DOWNLOADS -> SfIcons.Download
-            PLAYBACK -> SfIcons.PlayCircle
-            APPEARANCE -> SfIcons.Appearance
-            PERFORMANCE -> SfIcons.Performance
-            LOCAL_MUSIC -> SfIcons.LibraryMusic
-            STORAGE -> SfIcons.Storage
-            PRIVACY_AND_DATA -> SfIcons.YourData
-            BACKUP -> SfIcons.FileUpload
-            UPDATES -> SfIcons.Upgrade
-            MISCELLANEOUS -> SfIcons.Miscellaneous
-            LANGUAGE -> SfIcons.Language
-            ADVANCED -> SfIcons.Advanced
-            ABOUT -> SfIcons.Info
+            DOWNLOADS -> Icons.Rounded.Download
+            PLAYBACK -> Icons.Rounded.SmartDisplay
+            APPEARANCE -> Icons.Rounded.Brightness4
+            PERFORMANCE -> Icons.Rounded.BarChart
+            LOCAL_MUSIC -> Icons.Rounded.Folder
+            STORAGE -> Icons.Rounded.Storage
+            PRIVACY_AND_DATA -> Icons.Rounded.VisibilityOff
+            BACKUP -> Icons.Rounded.FileUpload
+            UPDATES -> Icons.Rounded.Download
+            MISCELLANEOUS -> Icons.Rounded.Apps
+            LANGUAGE -> Icons.Rounded.Language
+            ADVANCED -> Icons.Rounded.Extension
+            ABOUT -> Icons.Rounded.Info
             CONTENT -> SfIcons.FilterAlt
         }
 }

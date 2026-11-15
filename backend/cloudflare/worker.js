@@ -41,7 +41,7 @@ function validateFeedback(body) {
   const description = clampText(body.description, 6001).trim();
   if (title.length < 4 || title.length > 120) return 'Title must be between 4 and 120 characters.';
   if (/[\r\n\u0000-\u001f]/.test(title)) return 'Title must be a single line.';
-  if (description.length < 20 || description.length > 6000) return 'Description must be between 20 and 6000 characters.';
+  if (description.length < 10 || description.length > 6000) return 'Description must be between 10 and 6000 characters.';
   if (body.diagnostics != null && !isObject(body.diagnostics)) return 'Diagnostic details are invalid.';
   return null;
 }
@@ -65,6 +65,16 @@ function feedbackIssueBody(body) {
   }
   lines.push('', '---', '*Submitted anonymously from Audify. Do not post passwords, tokens, account details, private listening history, or personal files.*');
   return { title: `[${kind}] ${clampText(body.title, 120).trim()}`, body: lines.join('\n'), labels: body.kind === 'bug' ? ['bug'] : ['enhancement'] };
+}
+
+function feedbackStatus(issue) {
+  const labels = (Array.isArray(issue.labels) ? issue.labels : [])
+    .map(label => String(typeof label === 'string' ? label : label?.name ?? '').toLowerCase().replace(/[_ ]+/g, '-'));
+  if (labels.some(label => ['fixed', 'status:fixed', 'resolved'].includes(label))) return 'Fixed';
+  if (labels.some(label => ['in-progress', 'status:in-progress', 'working', 'status:working'].includes(label))) return 'In Progress';
+  if (labels.some(label => ['planned', 'status:planned'].includes(label))) return 'Planned';
+  if (issue.state === 'closed') return issue.state_reason === 'completed' ? 'Fixed' : 'Closed';
+  return 'Open';
 }
 
 function inviteHtml({ code, origin, active, members = 0, title = '', artist = '' }) {
@@ -639,6 +649,54 @@ export default {
         return fail(502, 'feedback_upstream_invalid', 'The issue tracker returned an invalid response. Please try again later.');
       }
       return json({ ok: true, number: created.number, url: created.html_url }, 201, cors);
+    }
+    const feedbackIssueMatch = path.match(/^\/api\/feedback\/(\d+)$/);
+    if (feedbackIssueMatch) {
+      if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'GET' } });
+      const issueNumber = Number(feedbackIssueMatch[1]);
+      if (!Number.isSafeInteger(issueNumber) || issueNumber < 1) return fail(422, 'invalid_issue_number', 'Issue number is invalid.');
+      if (!env.GITHUB_ISSUES_TOKEN) return fail(503, 'feedback_unavailable', 'Issue tracking is temporarily unavailable.');
+      const headers = {
+        authorization: `Bearer ${env.GITHUB_ISSUES_TOKEN}`,
+        accept: 'application/vnd.github+json',
+        'user-agent': 'Audify-Feedback',
+        'x-github-api-version': '2022-11-28',
+      };
+      let issueResponse, commentsResponse;
+      try {
+        [issueResponse, commentsResponse] = await Promise.all([
+          fetch(`https://api.github.com/repos/sachit1751-art/Audify/issues/${issueNumber}`, { headers }),
+          fetch(`https://api.github.com/repos/sachit1751-art/Audify/issues/${issueNumber}/comments?per_page=100`, { headers }),
+        ]);
+      } catch {
+        return fail(502, 'feedback_upstream_unavailable', 'Could not reach the issue tracker. Please try again.');
+      }
+      if (issueResponse.status === 404) return fail(404, 'feedback_not_found', 'This feedback issue could not be found.');
+      if (!issueResponse.ok || !commentsResponse.ok) return fail(502, 'feedback_upstream_rejected', 'The issue tracker could not load this conversation. Please try again.');
+      let issue, comments;
+      try { issue = await issueResponse.json(); comments = await commentsResponse.json(); } catch {
+        return fail(502, 'feedback_upstream_invalid', 'The issue tracker returned an invalid response.');
+      }
+      if (!Array.isArray(comments) || !String(issue.html_url ?? '').startsWith('https://github.com/sachit1751-art/Audify/issues/')) {
+        return fail(502, 'feedback_upstream_invalid', 'The issue tracker returned an invalid response.');
+      }
+      return json({
+        ok: true,
+        number: issue.number,
+        title: clampText(issue.title, 200),
+        body: clampText(issue.body, 12000),
+        url: issue.html_url,
+        state: issue.state === 'closed' ? 'closed' : 'open',
+        status: feedbackStatus(issue),
+        updatedAt: issue.updated_at ?? issue.created_at ?? null,
+        labels: (issue.labels ?? []).map(label => String(typeof label === 'string' ? label : label?.name ?? '')).filter(Boolean).slice(0, 30),
+        comments: comments.slice(0, 100).map(comment => ({
+          author: clampText(comment.user?.login, 80) || 'GitHub user',
+          body: clampText(comment.body, 12000),
+          createdAt: comment.created_at ?? null,
+          url: String(comment.html_url ?? '').startsWith('https://github.com/sachit1751-art/Audify/issues/') ? comment.html_url : null,
+        })),
+      }, 200, cors);
     }
     if (path === '/api/stats/live' || path === '/api/stats/live/badge.svg') {
       if (request.method !== 'GET') return new Response('Method Not Allowed', { status: 405, headers: { ...cors, allow: 'GET' } });

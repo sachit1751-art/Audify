@@ -29,10 +29,9 @@ import kotlin.math.abs
  * spends most of its time settling, slower and slower, into place, which is
  * where the eye is following the artwork home.
  */
-// Softer than before: 300 made the whole trip over in about a third of a
-// second, too fast to follow the cover. Still critically damped (no bounce),
-// just a longer, gentler settle.
-private const val SLIDE_STIFFNESS = 150f
+// Match the pre-1.9.3 player spring. This is the established open/close feel;
+// changing it alters both the artwork flight and the panel's settling time.
+private const val SLIDE_STIFFNESS = 195f
 
 /** Close enough to stop, in pixels — rather than a spring's whole long tail. */
 private const val SLIDE_SETTLED_PX = 0.5f

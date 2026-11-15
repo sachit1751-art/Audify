@@ -4278,6 +4278,7 @@ private fun AudifyApp(
                 } else {
                     ProgressiveScrollEdgeBlur(
                         hazeState = hazeState,
+                        pageColor = chromePageColor,
                         edge = ScrollBlurEdge.Top,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
@@ -4681,6 +4682,7 @@ private fun AudifyApp(
 
                 ProgressiveScrollEdgeBlur(
                     hazeState = hazeState,
+                    pageColor = chromePageColor,
                     edge = ScrollBlurEdge.Bottom,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
@@ -5364,54 +5366,17 @@ private fun AudifyApp(
         }
         DrawNowPlayingOverlay()
 
-        @Composable
-        fun DrawReplayOverlay() {
-            // ---- Replay stories ----
-        // Mounted out here rather than inside the pane above, because a story
-        // covers the window: on a tablet the page is only the left half of the
-        // row, and a story laid out inside it would run alongside the player
-        // instead of over it.
-        replayStory?.let { start ->
-            replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
-                ReplayStories(
-                    summary = summary,
-                    start = start,
-                    onClose = { replayStory = null },
-                    onShare = { card ->
-                        replaySharePage = card
-                        showReplayShare = true
-                    },
-                    paused = showReplayShare,
-                    mainPlayer = controller,
-                )
-            }
-        }
-
-        // ---- Share the Replay ----
-        if (showReplayShare) {
-            replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
-                ModalBottomSheet(
-                    onDismissRequest = { showReplayShare = false },
-                    // Straight to full height. The sheet is a picture and two
-                    // buttons, and half-open it showed the picture with both
-                    // buttons below the fold — a sheet whose only two controls
-                    // need a drag to reach.
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                    containerColor = MaterialTheme.colorScheme.background,
-                ) {
-                    ReplayShareSheet(
-                        summary = summary,
-                        holder = account?.name.orEmpty(),
-                        memberSince = replay.memberSince,
-                        page = replaySharePage,
-                        onDismiss = { showReplayShare = false },
-                    )
-                }
-            }
-        }
-
-        }
-        DrawReplayOverlay()
+        ReplayOverlay(
+            replay = replay,
+            story = replayStory,
+            onStoryChange = { replayStory = it },
+            shareVisible = showReplayShare,
+            onShareVisibleChange = { showReplayShare = it },
+            sharePage = replaySharePage,
+            onSharePageChange = { replaySharePage = it },
+            accountName = account?.name.orEmpty(),
+            controller = controller,
+        )
 
         @Composable
         fun DrawTrackMenuOverlay() {
@@ -6576,6 +6541,61 @@ private fun AudifyApp(
         }
         DrawRemainingDialogs()
 
+    }
+}
+
+/**
+ * Replay's full-window overlays are kept outside the page/player row so stories
+ * and sharing cover the entire window on tablets as well as phones. Keeping
+ * this in its own composable also prevents its sheet/story branches from being
+ * part of AudifyApp's already-large composition method.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReplayOverlay(
+    replay: com.music.audify.ui.replay.ReplayState,
+    story: com.music.audify.ui.replay.ReplayStoryPage?,
+    onStoryChange: (com.music.audify.ui.replay.ReplayStoryPage?) -> Unit,
+    shareVisible: Boolean,
+    onShareVisibleChange: (Boolean) -> Unit,
+    sharePage: com.music.audify.ui.replay.ReplayStoryPage?,
+    onSharePageChange: (com.music.audify.ui.replay.ReplayStoryPage?) -> Unit,
+    accountName: String,
+    controller: androidx.media3.session.MediaController?,
+) {
+    // Stories cover the window, not just the page half of a tablet layout.
+    story?.let { start ->
+        replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
+            ReplayStories(
+                summary = summary,
+                start = start,
+                onClose = { onStoryChange(null) },
+                onShare = { card ->
+                    onSharePageChange(card)
+                    onShareVisibleChange(true)
+                },
+                paused = shareVisible,
+                mainPlayer = controller,
+            )
+        }
+    }
+
+    if (shareVisible) {
+        replay.summary?.takeUnless { it.isEmpty }?.let { summary ->
+            ModalBottomSheet(
+                onDismissRequest = { onShareVisibleChange(false) },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = MaterialTheme.colorScheme.background,
+            ) {
+                ReplayShareSheet(
+                    summary = summary,
+                    holder = accountName,
+                    memberSince = replay.memberSince,
+                    page = sharePage,
+                    onDismiss = { onShareVisibleChange(false) },
+                )
+            }
+        }
     }
 }
 

@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.audify.ui.components.ShelfRow
@@ -120,6 +121,7 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.HERO_CARD_RATIO
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
+import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.RowMoreButton
 import com.music.audify.ui.components.PullToRefresh
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
@@ -645,9 +647,10 @@ fun HomeScreen(
         topInset = contentPadding.calculateTopPadding(),
         modifier = modifier,
     ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize(),
             // The heading sits higher than the other tabs' first row: pull the
             // whole feed up by [HOME_TITLE_LIFT] with it.
             contentPadding = if (title != null) {
@@ -779,6 +782,7 @@ fun HomeScreen(
                     if (loadingMore) feedMoreSkeleton()
                 }
             }
+        }
         }
     }
 
@@ -1265,21 +1269,27 @@ private fun HomeHeader(
     onAccountClick: (() -> Unit)?,
 ) {
     val hour = java.time.LocalTime.now().hour
+    val profileThumbnail = account?.thumbnailUrl
     val greeting = when (hour) {
         in 5..11 -> "Good morning"
         in 12..16 -> "Good afternoon"
         else -> "Good evening"
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Keep the three actions inside the row on narrow phones instead of
+        // letting their fixed touch targets crowd the account label.
+        val compactHeader = maxWidth < 360.dp
+        val actionSize = if (compactHeader) 38.dp else 42.dp
+        val actionGap = if (compactHeader) 2.dp else 4.dp
         // Scale the brand mark with the available content width, but keep it
         // within a legible range on compact phones and wide layouts.
-        val logoWidth = (maxWidth * 0.11f).coerceIn(34.dp, 50.dp)
+        val logoWidth = (maxWidth * 0.11f).coerceIn(if (compactHeader) 30.dp else 34.dp, 50.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(actionGap),
         ) {
             Icon(
                 painter = painterResource(Res.drawable.ic_logo),
@@ -1305,15 +1315,46 @@ private fun HomeHeader(
                 )
             }
             if (onCustomizeClick != null) {
-                Icon(
-                    imageVector = Icons.Rounded.Tune,
-                    contentDescription = "Arrange Home",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(36.dp).clip(CircleShape)
-                        .clickable(onClick = onCustomizeClick).padding(8.dp),
-                )
+                HomeHeaderAction(Icons.Rounded.Tune, "Arrange Home", onCustomizeClick, actionSize)
+            }
+            HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick, actionSize)
+            Box(
+                modifier = Modifier
+                    .size(actionSize)
+                    .clip(CircleShape)
+                    .clickable(enabled = onAccountClick != null, onClick = { onAccountClick?.invoke() }),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!profileThumbnail.isNullOrBlank()) {
+                    AsyncImage(
+                        model = profileThumbnail,
+                        contentDescription = "Profile",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(34.dp).clip(CircleShape),
+                    )
+                } else {
+                    Icon(
+                        Icons.Rounded.Person,
+                        contentDescription = "Profile",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(25.dp),
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: (() -> Unit)?, size: Dp) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() }),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
     }
 }
 
