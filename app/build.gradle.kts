@@ -218,10 +218,8 @@ android {
         }
     }
     androidResources {
-        // Automix models are optional and downloaded only after the user opts in.
-        // Keep the originals in the repository at the existing download URL, but
-        // exclude their ~35 MB payload from every APK build variant.
-        ignoreAssetsPattern += ":!beat_this_final0_q8.onnx:!beat_this_int8.onnx:!vocals_umxhq_int8.onnx"
+        // Bundle the Automix ONNX models in the APK. This preserves first-launch
+        // offline availability and the original no-download-required behaviour.
     }
     buildFeatures {
         compose = true

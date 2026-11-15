@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
-/** Dua model ONNX Automix: tidak dibundel di APK, diunduh sekali setelah pengguna setuju. */
+/** Automix ONNX models are bundled in the APK for immediate offline availability. */
 object AutomixModels {
     /** Id baris di manager unduhan (DownloadSession). */
     const val SESSION_ID = "audify.automix.models"
@@ -44,8 +44,9 @@ object AutomixModels {
     )
 
     /**
-     * Memulai unduhan lewat [AutomixModelService]. Bila model sudah ada, langsung
-     * menyalakan Automix. Aman dipanggil berulang: unduhan yang sedang jalan tidak digandakan.
+     * Enables Automix immediately when the bundled models are present. The
+     * download service remains a fallback for builds or installs missing models.
+     * Safe to call repeatedly: an active download is never duplicated.
      */
     fun start(context: Context) {
         val app = context.applicationContext
@@ -123,7 +124,7 @@ object AutomixModels {
 
     private val names get() = listOf(BeatTracker.MODEL_ASSET, VocalTracker.MODEL_ASSET)
 
-    /** Apakah kedua model sudah ada (hasil unduhan atau masih dibundel di build lama). */
+    /** Whether both required models are available from app assets or local storage. */
     fun isReady(context: Context): Boolean = names.all { present(context, it) }
 
     private fun present(context: Context, name: String): Boolean {
