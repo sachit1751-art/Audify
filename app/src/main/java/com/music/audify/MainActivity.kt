@@ -16,6 +16,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -414,7 +415,15 @@ internal fun shouldSkipAfterDislike(
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
+        // Keep the navigation gesture region genuinely edge-to-edge. Android's
+        // contrast scrim can otherwise paint an opaque black strip over the
+        // app's themed background (notably on API 29+ and Android 15+).
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         // Before the composition, so a cold launch from a widget's artwork has
         // the request already standing by the time AudifyApp first reads it.
         PlayerDeepLink.consume(intent)
