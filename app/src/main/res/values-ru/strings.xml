@@ -255,17 +255,11 @@ Project: AUDIFY
     <string name="delete">Удалить</string>
     <string name="disconnect">Отключить</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Аккаунт Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} и {album_name} заменяются данными текущего трека.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} и {album_name} заменяются данными трека. Первая кнопка открывает песню в YouTube Music, а вторая — этот проект.</string>
     <string name="discord_presence_footer">Карточка обновляется при изменении трека, позиции воспроизведения или его состояния. Она исчезает, когда воспроизведение останавливается.</string>
     <string name="discord_show_audio_quality">Показывать качество звука</string>
     <string name="discord_show_audio_quality_subtitle">Характеристики Hi-Res, lossless и Dolby в карточке статуса</string>
-    <string name="discord_sign_in_footer">Вход открывает страницу входа Discord. В Audify ничего не вводится.</string>
-    <string name="discord_token">Токен Discord</string>
-    <string name="discord_token_description">Вставьте токен своего аккаунта Discord. Он хранится в зашифрованном виде на этом устройстве и отправляется только в Discord.</string>
-    <string name="discord_token_rejected">Discord отклонил этот токен.</string>
-    <string name="discord_token_warning">Discord не предоставляет API, позволяющий приложениям задавать ваш статус, поэтому эта функция выполняет вход в ваш аккаунт и использует протокол Discord. Ваш токен хранится в зашифрованном виде на этом устройстве и отправляется только в Discord. Он даёт доступ ко всему вашему аккаунту, а автоматизация аккаунта нарушает условия использования Discord. Используйте эту функцию, только если принимаете этот риск.</string>
     <string name="dislike">Не нравится</string>
     <string name="done">Готово</string>
     <string name="download">Загрузить</string>
@@ -273,8 +267,6 @@ Project: AUDIFY
     <string name="downloaded">Загружено</string>
     <string name="drag_to_reorder">Перетащите, чтобы изменить порядок</string>
     <string name="enabled">Включено</string>
-    <string name="enter_token_instead">Ввести токен вручную</string>
-    <string name="enter_token_instead_subtitle">Используйте это, если страница входа не загружается</string>
     <string name="enter_token_to_enable">Введите токен, чтобы включить</string>
     <string name="first_button">Первая кнопка</string>
     <string name="got_it">Понятно</string>

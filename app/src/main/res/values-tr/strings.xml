@@ -269,17 +269,11 @@ Project: AUDIFY
     <string name="delete">Sil</string>
     <string name="disconnect">Bağlantıyı kes</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Discord hesabı</string>
     <string name="discord_button_variables">{song_name}, {artist_name} ve {album_name} geçerli parçayla değiştirilir.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} ve {album_name} parçayla değiştirilir. İlk düğme şarkıyı YouTube Music\'te açar, ikincisi ise bu projeyi açar.</string>
     <string name="discord_presence_footer">Parça, konum veya çalma durumu değiştiğinde kart güncellenir. Çalma durduğunda temizlenir.</string>
     <string name="discord_show_audio_quality">Ses kalitesini göster</string>
     <string name="discord_show_audio_quality_subtitle">Durum kartında Hi-Res, kayıpsız ve Dolby bilgileri</string>
-    <string name="discord_sign_in_footer">Giriş yapmak Discord\'un giriş sayfasını açar. Audify\'a hiçbir şey yazılmaz.</string>
-    <string name="discord_token">Discord belirteci</string>
-    <string name="discord_token_description">Discord hesap belirtecinizi yapıştırın. Bu cihazda şifreli kalır ve yalnızca Discord\'a gönderilir.</string>
-    <string name="discord_token_rejected">Discord bu belirteci reddetti.</string>
-    <string name="discord_token_warning">Discord, uygulamaların varlığınızı ayarlamasına izin veren bir API sunmuyor, bu yüzden bu özellik hesabınız olarak giriş yapar ve Discord\'un protokolünü kullanır. Belirteciniz bu cihazda şifreli kalır ve yalnızca Discord\'a gönderilir. Tüm hesabınıza erişim sağlar ve hesap otomasyonu Discord\'un hizmet şartlarını ihlal eder. Yalnızca bu riski kabul ediyorsanız kullanın.</string>
     <string name="dislike">Beğenme</string>
     <string name="done">Tamam</string>
     <string name="download">İndir</string>
@@ -287,8 +281,6 @@ Project: AUDIFY
     <string name="downloaded">İndirildi</string>
     <string name="drag_to_reorder">Yeniden sıralamak için sürükleyin</string>
     <string name="enabled">Etkin</string>
-    <string name="enter_token_instead">Bunun yerine bir belirteç girin</string>
-    <string name="enter_token_instead_subtitle">Giriş sayfası yüklenmiyorsa bunu kullanın</string>
     <string name="enter_token_to_enable">Etkinleştirmek için bir belirteç girin</string>
     <string name="first_button">İlk düğme</string>
     <string name="got_it">Anladım</string>

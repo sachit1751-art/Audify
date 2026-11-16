@@ -19,6 +19,17 @@ get_filename_component(AUDIFY_NATIVE_DIR
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_library(log-lib log)
+
+# Official Discord Social SDK. The AAR supplies Prefab headers and ABI-matched
+# shared libraries; the C++ wrapper implementation is compiled exactly once
+# in discord_presence_jni.cpp.
+find_package(discord_partner_sdk REQUIRED CONFIG)
+
+add_library(audify_discord SHARED jni/discord_presence_jni.cpp)
+target_compile_options(audify_discord PRIVATE -O2 -fvisibility=hidden)
+target_link_libraries(audify_discord PRIVATE discord_partner_sdk::discord_partner_sdk ${log-lib})
+target_link_options(audify_discord PRIVATE "-Wl,-z,max-page-size=16384")
 
 add_library(audify_analysis SHARED
     ${AUDIFY_NATIVE_DIR}/analyzer/audio_analysis.cpp
@@ -40,7 +51,6 @@ target_include_directories(audify_analysis PRIVATE
 # arithmetic (see audio_analysis.cpp) is tuned against exact IEEE behaviour.
 target_compile_options(audify_analysis PRIVATE -O3 -fvisibility=hidden)
 
-find_library(log-lib log)
 target_link_libraries(audify_analysis ${log-lib})
 
 # 16KB page-size support (Android 15+ 16KB kernels, Play requirement): align

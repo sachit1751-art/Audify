@@ -1161,16 +1161,6 @@ object AppSettings {
     // ── Discord Rich Presence ───────────────────────────────────────────
 
     /**
-     * The connected Discord account's token, mirrored out of [AuthStore] so
-     * [PlaybackService][com.music.audify.playback.PlaybackService] can pick
-     * up a login without polling for one. Empty means not connected.
-     *
-     * Only the mirror is here — the persisted copy is encrypted, because unlike
-     * a scrobbler key this one is the account itself.
-     */
-    val discordToken = MutableStateFlow("")
-
-    /**
      * Nama dan foto profil buatan pengguna, hanya berlaku di aplikasi ini dan
      * menggantikan milik Google. [owner] mengikat override ke satu akun
      * (lihat [profileOwnerOf]) supaya tidak muncul di akun lain.
@@ -1181,15 +1171,6 @@ object AppSettings {
 
     fun profileOwnerOf(email: String?): String = email.orEmpty().ifBlank { "default" }
 
-    /**
-     * Who the token belongs to, cached at login. Kept so the settings screen
-     * can show the account without a round trip every time it opens, and can
-     * still show it offline.
-     */
-    val discordUsername = MutableStateFlow("")
-    val discordName = MutableStateFlow("")
-    val discordAvatar = MutableStateFlow("")
-
     val discordRpcEnabled = MutableStateFlow(true)
 
     /** Put the track title on the bold profile line, in place of the artist. */
@@ -1198,22 +1179,29 @@ object AppSettings {
     /** Show measured Hi-Res, Lossless, or Dolby specs on the presence card. */
     val discordShowAudioQuality = MutableStateFlow(true)
 
+    val discordShowTrackTitle = MutableStateFlow(true)
+    val discordShowArtist = MutableStateFlow(true)
+    val discordShowAlbum = MutableStateFlow(false)
+
+    /** Include the current track artwork in the published activity. */
+    val discordShowArtwork = MutableStateFlow(true)
+
+    /** Include elapsed/remaining playback timestamps in the published activity. */
+    val discordShowElapsedTime = MutableStateFlow(true)
+
+    /** Keep the last activity visible while playback is paused. */
+    val discordHideWhenPaused = MutableStateFlow(false)
+
     /** Reveals the presence-shape controls: status, activity type/name, buttons. */
     val discordAdvancedMode = MutableStateFlow(false)
 
-    val discordStatus = MutableStateFlow("online")
     val discordActivityType = MutableStateFlow("listening")
-
-    /** Overrides the "Listening to ___" line; empty means the app's own name. */
-    val discordActivityName = MutableStateFlow("")
 
     val discordButton1Text = MutableStateFlow("")
     val discordButton1Visible = MutableStateFlow(true)
     val discordButton2Text = MutableStateFlow("")
     val discordButton2Visible = MutableStateFlow(true)
 
-    /** The notice about what connecting an account actually does has been read. */
-    val discordInfoDismissed = MutableStateFlow(false)
 
     /** Published by PlaybackService so the UI can open the system equalizer. */
     val audioSessionId = MutableStateFlow(0)
@@ -1765,10 +1753,15 @@ object AppSettings {
         )
         pinnedPlaylists.value = readPinnedPlaylists()
         pinnedCards.value = readPinnedCards()
-        discordToken.value = authStore.discordToken.orEmpty()
-        discordUsername.value = prefs.getString(KEY_DISCORD_USERNAME, "").orEmpty()
-        discordName.value = prefs.getString(KEY_DISCORD_NAME, "").orEmpty()
-        discordAvatar.value = prefs.getString(KEY_DISCORD_AVATAR, "").orEmpty()
+        // Remove stale profile metadata from the retired user-token integration.
+        prefs.edit {
+            remove("discord_username")
+            remove("discord_name")
+            remove("discord_avatar")
+            remove("discord_status")
+            remove("discord_activity_name")
+            remove("discord_info_dismissed")
+        }
         profileOverride.value = ProfileOverride(
             owner = prefs.getString(KEY_PROFILE_OWNER, "").orEmpty(),
             name = prefs.getString(KEY_PROFILE_NAME, "").orEmpty(),
@@ -1777,15 +1770,18 @@ object AppSettings {
         discordRpcEnabled.value = prefs.getBoolean(KEY_DISCORD_RPC_ENABLED, true)
         discordUseDetails.value = prefs.getBoolean(KEY_DISCORD_USE_DETAILS, false)
         discordShowAudioQuality.value = prefs.getBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, true)
+        discordShowTrackTitle.value = prefs.getBoolean(KEY_DISCORD_SHOW_TRACK_TITLE, true)
+        discordShowArtist.value = prefs.getBoolean(KEY_DISCORD_SHOW_ARTIST, true)
+        discordShowAlbum.value = prefs.getBoolean(KEY_DISCORD_SHOW_ALBUM, false)
+        discordShowArtwork.value = prefs.getBoolean(KEY_DISCORD_SHOW_ARTWORK, true)
+        discordShowElapsedTime.value = prefs.getBoolean(KEY_DISCORD_SHOW_ELAPSED_TIME, true)
+        discordHideWhenPaused.value = prefs.getBoolean(KEY_DISCORD_HIDE_WHEN_PAUSED, false)
         discordAdvancedMode.value = prefs.getBoolean(KEY_DISCORD_ADVANCED_MODE, false)
-        discordStatus.value = prefs.getString(KEY_DISCORD_STATUS, "online").orEmpty()
         discordActivityType.value = prefs.getString(KEY_DISCORD_ACTIVITY_TYPE, "listening").orEmpty()
-        discordActivityName.value = prefs.getString(KEY_DISCORD_ACTIVITY_NAME, "").orEmpty()
         discordButton1Text.value = prefs.getString(KEY_DISCORD_BUTTON_1_TEXT, "").orEmpty()
         discordButton1Visible.value = prefs.getBoolean(KEY_DISCORD_BUTTON_1_VISIBLE, true)
         discordButton2Text.value = prefs.getString(KEY_DISCORD_BUTTON_2_TEXT, "").orEmpty()
         discordButton2Visible.value = prefs.getBoolean(KEY_DISCORD_BUTTON_2_VISIBLE, true)
-        discordInfoDismissed.value = prefs.getBoolean(KEY_DISCORD_INFO_DISMISSED, false)
     }
 
     /**
@@ -2790,12 +2786,6 @@ object AppSettings {
         prefs.edit {putBoolean(KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY, value)}
     }
 
-    /** Writes through to the encrypted store; pass "" to disconnect. */
-    fun setDiscordToken(value: String) {
-        discordToken.value = value
-        authStore.discordToken = value.ifEmpty { null }
-    }
-
     /** Menyimpan override profil; foto lama yang diganti ikut dihapus dari penyimpanan. */
     fun setProfileOverride(owner: String, name: String, photoPath: String) {
         val oldPhoto = profileOverride.value.photoPath
@@ -2809,17 +2799,6 @@ object AppSettings {
     }
 
     fun clearProfileOverride() = setProfileOverride("", "", "")
-
-    fun setDiscordAccount(username: String, name: String, avatar: String?) {
-        discordUsername.value = username
-        discordName.value = name
-        discordAvatar.value = avatar.orEmpty()
-        prefs.edit {
-                putString(KEY_DISCORD_USERNAME, username)
-                .putString(KEY_DISCORD_NAME, name)
-                .putString(KEY_DISCORD_AVATAR, avatar.orEmpty())
-            }
-    }
 
     fun setDiscordRpcEnabled(value: Boolean) {
         discordRpcEnabled.value = value
@@ -2836,24 +2815,44 @@ object AppSettings {
         prefs.edit {putBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, value)}
     }
 
+    fun setDiscordShowTrackTitle(value: Boolean) {
+        discordShowTrackTitle.value = value
+        prefs.edit { putBoolean(KEY_DISCORD_SHOW_TRACK_TITLE, value) }
+    }
+
+    fun setDiscordShowArtist(value: Boolean) {
+        discordShowArtist.value = value
+        prefs.edit { putBoolean(KEY_DISCORD_SHOW_ARTIST, value) }
+    }
+
+    fun setDiscordShowAlbum(value: Boolean) {
+        discordShowAlbum.value = value
+        prefs.edit { putBoolean(KEY_DISCORD_SHOW_ALBUM, value) }
+    }
+
+    fun setDiscordShowArtwork(value: Boolean) {
+        discordShowArtwork.value = value
+        prefs.edit { putBoolean(KEY_DISCORD_SHOW_ARTWORK, value) }
+    }
+
+    fun setDiscordShowElapsedTime(value: Boolean) {
+        discordShowElapsedTime.value = value
+        prefs.edit { putBoolean(KEY_DISCORD_SHOW_ELAPSED_TIME, value) }
+    }
+
+    fun setDiscordHideWhenPaused(value: Boolean) {
+        discordHideWhenPaused.value = value
+        prefs.edit { putBoolean(KEY_DISCORD_HIDE_WHEN_PAUSED, value) }
+    }
+
     fun setDiscordAdvancedMode(value: Boolean) {
         discordAdvancedMode.value = value
         prefs.edit {putBoolean(KEY_DISCORD_ADVANCED_MODE, value)}
     }
 
-    fun setDiscordStatus(value: String) {
-        discordStatus.value = value
-        prefs.edit {putString(KEY_DISCORD_STATUS, value)}
-    }
-
     fun setDiscordActivityType(value: String) {
         discordActivityType.value = value
         prefs.edit {putString(KEY_DISCORD_ACTIVITY_TYPE, value)}
-    }
-
-    fun setDiscordActivityName(value: String) {
-        discordActivityName.value = value
-        prefs.edit {putString(KEY_DISCORD_ACTIVITY_NAME, value)}
     }
 
     fun setDiscordButton1Text(value: String) {
@@ -2874,11 +2873,6 @@ object AppSettings {
     fun setDiscordButton2Visible(value: Boolean) {
         discordButton2Visible.value = value
         prefs.edit {putBoolean(KEY_DISCORD_BUTTON_2_VISIBLE, value)}
-    }
-
-    fun setDiscordInfoDismissed(value: Boolean) {
-        discordInfoDismissed.value = value
-        prefs.edit {putBoolean(KEY_DISCORD_INFO_DISMISSED, value)}
     }
 
     fun setReplayGenres(value: Boolean) {
@@ -3134,12 +3128,6 @@ object AppSettings {
         return root.toString()
     }
 
-    /** Forgets the account: token and cached profile. */
-    fun clearDiscordAccount() {
-        setDiscordToken("")
-        setDiscordAccount("", "", null)
-    }
-
     // ── Backup ──────────────────────────────────────────────────────────────
 
     /**
@@ -3154,10 +3142,8 @@ object AppSettings {
      * that has left the device in plain text. Signing back in after a restore is
      * a minute; a leaked session key is not recoverable at all.
      *
-     * The Discord token is not here for the same reason and one more: it never
-     * reaches this file. It lives in the encrypted store — see [AuthStore] — and
-     * so does the YouTube cookie, which means neither can be exported by
-     * accident.
+     * The retired Discord user token is purged during AuthStore initialization;
+     * the official Social SDK does not require a user credential.
      */
     fun exportPrefs(): Map<String, Any?> {
         if (!this::prefs.isInitialized) return emptyMap()
@@ -3429,24 +3415,24 @@ object AppSettings {
     private const val KEY_LISTENBRAINZ_PRIMARY_ARTIST_ONLY = "listenbrainz_primary_artist_only"
     private const val KEY_SPOTIFY_SPDC_TOKEN = "spotify_spdc_token"
 
-    private const val KEY_DISCORD_USERNAME = "discord_username"
     private const val KEY_PROFILE_OWNER = "profile_override_owner"
     private const val KEY_PROFILE_NAME = "profile_override_name"
     private const val KEY_PROFILE_PHOTO = "profile_override_photo"
-    private const val KEY_DISCORD_NAME = "discord_name"
-    private const val KEY_DISCORD_AVATAR = "discord_avatar"
     private const val KEY_DISCORD_RPC_ENABLED = "discord_rpc_enabled"
     private const val KEY_DISCORD_USE_DETAILS = "discord_use_details"
     private const val KEY_DISCORD_SHOW_AUDIO_QUALITY = "discord_show_audio_quality"
+    private const val KEY_DISCORD_SHOW_TRACK_TITLE = "discord_show_track_title"
+    private const val KEY_DISCORD_SHOW_ARTIST = "discord_show_artist"
+    private const val KEY_DISCORD_SHOW_ALBUM = "discord_show_album"
+    private const val KEY_DISCORD_SHOW_ARTWORK = "discord_show_artwork"
+    private const val KEY_DISCORD_SHOW_ELAPSED_TIME = "discord_show_elapsed_time"
+    private const val KEY_DISCORD_HIDE_WHEN_PAUSED = "discord_hide_when_paused"
     private const val KEY_DISCORD_ADVANCED_MODE = "discord_advanced_mode"
-    private const val KEY_DISCORD_STATUS = "discord_status"
     private const val KEY_DISCORD_ACTIVITY_TYPE = "discord_activity_type"
-    private const val KEY_DISCORD_ACTIVITY_NAME = "discord_activity_name"
     private const val KEY_DISCORD_BUTTON_1_TEXT = "discord_button_1_text"
     private const val KEY_DISCORD_BUTTON_1_VISIBLE = "discord_button_1_visible"
     private const val KEY_DISCORD_BUTTON_2_TEXT = "discord_button_2_text"
     private const val KEY_DISCORD_BUTTON_2_VISIBLE = "discord_button_2_visible"
-    private const val KEY_DISCORD_INFO_DISMISSED = "discord_info_dismissed"
     private const val KEY_LAST_VERSION_CODE = "last_version_code"
     private const val KEY_AUDIFY_PREFS_MIGRATED = "_audify_preferences_migrated_v1"
 }

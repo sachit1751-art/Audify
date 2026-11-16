@@ -1575,16 +1575,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         startSuggestPipeline()
         startTypeaheadMediaPipeline()
         loadHome()
-        // Match the 1.9.2 startup schedule: begin Explore in the background
-        // while Home renders its shell and skeletons. Its artwork requests are
-        // bounded separately, and none of these calls block the first frame.
-        loadExplore()
         if (_signedIn.value) {
-            // Warm the signed-in pages before the listener opens them. The
-            // request functions publish asynchronously and retain their
-            // listener-identity checks, so tab changes cannot show stale data.
-            loadLibrary()
-            loadPlaylists()
+            // Account identity is used by the Home profile surface. Library,
+            // playlists and Explore are demand-loaded when their tabs open;
+            // starting those requests here competes with Home's first feed.
             loadAccount()
         }
         viewModelScope.launch {

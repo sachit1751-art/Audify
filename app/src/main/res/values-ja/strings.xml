@@ -246,17 +246,11 @@ Project: AUDIFY
     <string name="delete">削除</string>
     <string name="disconnect">接続を解除</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Discordアカウント</string>
     <string name="discord_button_variables">{song_name}、{artist_name}、{album_name}は現在の曲に置き換えられます。</string>
     <string name="discord_buttons_footer">{song_name}、{artist_name}、{album_name}は曲の情報に置き換えられます。1つ目のボタンはYouTube Musicで曲を開き、2つ目はこのプロジェクトを開きます。</string>
     <string name="discord_presence_footer">曲、再生位置、再生状態が変わるとカードが更新されます。再生が止まると消去されます。</string>
     <string name="discord_show_audio_quality">音質を表示</string>
     <string name="discord_show_audio_quality_subtitle">ステータスカードにハイレゾ・ロスレス・Dolbyの仕様を表示</string>
-    <string name="discord_sign_in_footer">ログインするとDiscordのログインページが開きます。Audifyに何かが入力されることはありません。</string>
-    <string name="discord_token">Discordトークン</string>
-    <string name="discord_token_description">Discordアカウントトークンを貼り付けてください。このデバイス内で暗号化され、Discordにのみ送信されます。</string>
-    <string name="discord_token_rejected">Discordがそのトークンを拒否しました。</string>
-    <string name="discord_token_warning">Discordはアプリがプレゼンスを設定できるAPIを提供していないため、この機能はあなたのアカウントとしてログインし、Discordのプロトコルを使用します。トークンはこのデバイス内で暗号化され、Discordにのみ送信されます。アカウント全体へのアクセス権を与えることになり、アカウントの自動化はDiscordの利用規約に違反します。このリスクを受け入れられる場合のみ使用してください。</string>
     <string name="dislike">低評価</string>
     <string name="done">完了</string>
     <string name="download">ダウンロード</string>
@@ -264,8 +258,6 @@ Project: AUDIFY
     <string name="downloaded">ダウンロード済み</string>
     <string name="drag_to_reorder">ドラッグして並べ替え</string>
     <string name="enabled">有効</string>
-    <string name="enter_token_instead">代わりにトークンを入力</string>
-    <string name="enter_token_instead_subtitle">ログインページが読み込まれない場合に使用してください</string>
     <string name="enter_token_to_enable">有効にするにはトークンを入力してください</string>
     <string name="first_button">1つ目のボタン</string>
     <string name="got_it">了解</string>

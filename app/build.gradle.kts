@@ -225,6 +225,7 @@ android {
         compose = true
         buildConfig = true
         resValues = true
+        prefab = true
     }
     testOptions {
         unitTests {
@@ -281,6 +282,8 @@ val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>
 }
 
 dependencies {
+    // Discord Social SDK 1.10: official Android Rich Presence over unauthenticated RPC.
+    implementation(files("libs/discord-social-sdk/discord_partner_sdk.aar"))
     implementation(project(":shared"))
     implementation(project(":sharedUi"))
 

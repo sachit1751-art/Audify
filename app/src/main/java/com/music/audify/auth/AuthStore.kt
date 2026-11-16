@@ -7,12 +7,9 @@ import android.content.SharedPreferences
 /**
  * Encrypted-at-rest storage for credentials.
  *
- * Two live here: the YouTube Music session cookie, and — if the user turns on
- * the Discord integration — that account's own bearer token. Neither is a
- * password: the Google one is typed into accounts.google.com inside a WebView,
- * and the Discord one is read out of a completed login session. But both grant
- * full access to their account, so they don't go in the plain prefs the
- * scrobbler tokens use.
+ * The YouTube Music session cookie and other account credentials live here.
+ * Discord Rich Presence uses the official Social SDK Android RPC and stores no
+ * Discord user credential.
  *
  * A restored file whose keyset this device can't unwrap is recreated, and a
  * Keystore that can't be used at all degrades to plain prefs rather than
@@ -23,6 +20,11 @@ class AuthStore(context: Context) {
 
     private val prefs: SharedPreferences =
         EncryptedPrefs.open(context, "bitchord_auth", "bitchord_auth_plain")
+
+    init {
+        // Purge the old self-account token when upgrading to Social SDK RPC.
+        prefs.edit { remove(KEY_DISCORD_TOKEN) }
+    }
 
     var cookie: String?
         get() = prefs.getString(KEY_COOKIE, null)
@@ -117,11 +119,6 @@ class AuthStore(context: Context) {
     val isSignedIn: Boolean
         get() = activeSession?.cookie?.let { hasApiSid(it) } == true
 
-    /** The Discord account's bearer token. See DiscordRPC for why a user token. */
-    var discordToken: String?
-        get() = prefs.getString(KEY_DISCORD_TOKEN, null)
-        set(value) = prefs.edit {putString(KEY_DISCORD_TOKEN, value)}
-
     /**
      * The WebDAV server password. Encrypted like every other credential here:
      * a backup export carries the server URL and username in plain prefs, but
@@ -202,7 +199,7 @@ class AuthStore(context: Context) {
     }
 
     /**
-     * Signs out of YouTube Music only — the Discord login is a separate account.
+     * Signs out of YouTube Music only.
      */
     fun signOut() {
         prefs.edit {remove(KEY_COOKIE).remove(KEY_SESSIONS)

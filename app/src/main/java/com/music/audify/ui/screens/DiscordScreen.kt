@@ -24,20 +24,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.RadioButtonChecked
 import androidx.compose.material.icons.rounded.SmartButton
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
 import com.music.audify.ui.components.IosSwitch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,29 +56,16 @@ import coil3.compose.AsyncImage
 import com.music.audify.R
 import com.music.audify.data.NerdStats
 import com.music.audify.data.discord.DiscordRPC
-import com.music.audify.data.discord.SuperProperties
 import com.music.audify.data.discord.discordAudioQualityLine
 import com.music.audify.data.model.CARD_ART_PX
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.artworkAt
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.components.ChoiceAlert
-import com.music.audify.ui.components.DiscordTokenAlert
 import com.music.audify.ui.components.TextValueAlert
 import com.music.audify.ui.components.thumbnailBorder
-import com.my.kizzy.rpc.KizzyRPC
 import dev.chrisbanes.haze.HazeState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Locale
-
-/** Which dot Discord draws on the avatar, and what it tells other people. */
-enum class DiscordPresenceStatus(val value: String, val label: String, val detail: String) {
-    ONLINE("online", "Online", "Green dot"),
-    IDLE("idle", "Idle", "Amber crescent — as if away"),
-    DND("dnd", "Do not disturb", "Red dash — suppresses their notifications too"),
-}
 
 /**
  * The verb on the profile. All four render the same card; only the line above it
@@ -97,26 +83,10 @@ enum class DiscordActivityKind(val value: String, val verb: String, val label: S
  * rendered by the activity, above the tab bar and mini player, rather than
  * inside the scrolling screen where a full-screen scrim would be trapped.
  */
-enum class DiscordDialog { TOKEN, STATUS, ACTIVITY_TYPE, ACTIVITY_NAME, BUTTON_1, BUTTON_2 }
-
-private fun statusOf(value: String) =
-    DiscordPresenceStatus.entries.firstOrNull { it.value == value } ?: DiscordPresenceStatus.ONLINE
+enum class DiscordDialog { ACTIVITY_TYPE, BUTTON_1, BUTTON_2 }
 
 private fun kindOf(value: String) =
     DiscordActivityKind.entries.firstOrNull { it.value == value } ?: DiscordActivityKind.LISTENING
-
-@Composable
-private fun localizedStatusCopy(): Map<DiscordPresenceStatus, Pair<String, String>> = mapOf(
-    DiscordPresenceStatus.ONLINE to (
-        stringResource(R.string.status_online) to stringResource(R.string.status_online_detail)
-        ),
-    DiscordPresenceStatus.IDLE to (
-        stringResource(R.string.status_idle) to stringResource(R.string.status_idle_detail)
-        ),
-    DiscordPresenceStatus.DND to (
-        stringResource(R.string.status_dnd) to stringResource(R.string.status_dnd_detail)
-        ),
-)
 
 @Composable
 private fun localizedActivityCopy(): Map<DiscordActivityKind, Pair<String, String>> = mapOf(
@@ -133,10 +103,6 @@ private fun localizedActivityCopy(): Map<DiscordActivityKind, Pair<String, Strin
         stringResource(R.string.activity_competing) to stringResource(R.string.verb_competing)
         ),
 )
-
-@Composable
-private fun DiscordPresenceStatus.localizedLabel(): String =
-    localizedStatusCopy().getValue(this).first
 
 @Composable
 private fun DiscordActivityKind.localizedLabel(): String =
@@ -159,51 +125,32 @@ fun DiscordScreen(
     song: Song?,
     positionMs: Long,
     durationMs: Long,
-    onOpenLogin: () -> Unit,
     onOpenDialog: (DiscordDialog) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    val token by AppSettings.discordToken.collectAsStateWithLifecycle()
-    val username by AppSettings.discordUsername.collectAsStateWithLifecycle()
-    val name by AppSettings.discordName.collectAsStateWithLifecycle()
-    val avatar by AppSettings.discordAvatar.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var installCheck by remember { mutableStateOf(0) }
+    val discordInstalled = remember(context, installCheck) {
+        runCatching { context.packageManager.getPackageInfo("com.discord", 0) }.isSuccess
+    }
     val rpcEnabled by AppSettings.discordRpcEnabled.collectAsStateWithLifecycle()
     val useDetails by AppSettings.discordUseDetails.collectAsStateWithLifecycle()
     val showAudioQuality by AppSettings.discordShowAudioQuality.collectAsStateWithLifecycle()
-    val advancedMode by AppSettings.discordAdvancedMode.collectAsStateWithLifecycle()
-    val status by AppSettings.discordStatus.collectAsStateWithLifecycle()
+    val showTrackTitle by AppSettings.discordShowTrackTitle.collectAsStateWithLifecycle()
+    val showArtist by AppSettings.discordShowArtist.collectAsStateWithLifecycle()
+    val showAlbum by AppSettings.discordShowAlbum.collectAsStateWithLifecycle()
+    val showArtwork by AppSettings.discordShowArtwork.collectAsStateWithLifecycle()
+    val showElapsedTime by AppSettings.discordShowElapsedTime.collectAsStateWithLifecycle()
+    val hideWhenPaused by AppSettings.discordHideWhenPaused.collectAsStateWithLifecycle()
     val activityType by AppSettings.discordActivityType.collectAsStateWithLifecycle()
-    val activityName by AppSettings.discordActivityName.collectAsStateWithLifecycle()
     val button1Text by AppSettings.discordButton1Text.collectAsStateWithLifecycle()
     val button1Visible by AppSettings.discordButton1Visible.collectAsStateWithLifecycle()
     val button2Text by AppSettings.discordButton2Text.collectAsStateWithLifecycle()
     val button2Visible by AppSettings.discordButton2Visible.collectAsStateWithLifecycle()
-    val infoDismissed by AppSettings.discordInfoDismissed.collectAsStateWithLifecycle()
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
 
-    val connected = token.isNotEmpty()
     val discordIcon = ImageVector.vectorResource(R.drawable.ic_discord)
-
-    // Refreshes the cached profile whenever the connected account changes. A
-    // failure is left to stand rather than clearing the cache: the usual reason
-    // for one is being offline, and blanking the name every time the phone loses
-    // signal would read as having been signed out.
-    LaunchedEffect(token) {
-        if (token.isEmpty()) {
-            AppSettings.setDiscordAccount("", "", null)
-            return@LaunchedEffect
-        }
-        withContext(Dispatchers.IO) {
-            KizzyRPC.getUserInfo(
-                token,
-                SuperProperties.userAgent,
-                SuperProperties.superPropertiesBase64,
-            ).onSuccess {
-                AppSettings.setDiscordAccount(it.username, it.name, it.avatar)
-            }
-        }
-    }
 
     Column(
         modifier = modifier
@@ -214,64 +161,72 @@ fun DiscordScreen(
         SettingsPageTitle(stringResource(R.string.discord))
 
         DiscordAccountCard(
-            connected = connected,
-            name = name,
-            username = username,
-            avatar = avatar,
-            status = statusOf(status),
+            installed = discordInstalled,
             icon = discordIcon,
-            onConnect = onOpenLogin,
+            onInstall = {
+                val market = Intent(Intent.ACTION_VIEW, "market://details?id=com.discord".toUri())
+                runCatching { context.startActivity(market) }.onFailure {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=com.discord".toUri()))
+                }
+            },
+            onCheckAgain = { installCheck++ },
         )
 
-        if (!connected) {
-            SettingsGroup(
-                footer = stringResource(R.string.discord_sign_in_footer),
-            ) {
-                SettingsRow(
-                    icon = SfIcons.Key,
-                    title = stringResource(R.string.enter_token_instead),
-                    subtitle = stringResource(R.string.enter_token_instead_subtitle),
-                    onClick = { onOpenDialog(DiscordDialog.TOKEN) },
-                )
-            }
-        }
-
-        AnimatedVisibility(visible = !infoDismissed) {
-            NoticeCard(
-                text = stringResource(R.string.discord_token_warning),
-                onDismiss = { AppSettings.setDiscordInfoDismissed(true) },
+        SettingsGroup(header = stringResource(R.string.rich_presence), footer = stringResource(R.string.discord_presence_footer)) {
+            SettingsRow(
+                icon = discordIcon,
+                title = stringResource(R.string.show_what_playing),
+                subtitle = if (discordInstalled) null else stringResource(R.string.discord_app_required),
+                trailing = {
+                    IosSwitch(
+                        checked = rpcEnabled,
+                        onCheckedChange = AppSettings::setDiscordRpcEnabled,
+                    )
+                },
+                onClick = { AppSettings.setDiscordRpcEnabled(!rpcEnabled) },
             )
         }
 
         SettingsGroup(
-            header = stringResource(R.string.rich_presence),
-            footer = stringResource(R.string.discord_presence_footer),
+            header = "Display preferences",
+            footer = "These options are saved on this device and immediately update the published activity.",
         ) {
             SettingsRow(
-                icon = discordIcon,
-                title = stringResource(R.string.show_what_playing),
-                subtitle = if (connected) null else stringResource(R.string.connect_account_first),
-                enabled = connected,
-                trailing = {
-                    IosSwitch(
-                        checked = rpcEnabled && connected,
-                        onCheckedChange = AppSettings::setDiscordRpcEnabled,
-                        enabled = connected,
-                    )
-                },
-                onClick = { AppSettings.setDiscordRpcEnabled(!rpcEnabled) },
+                icon = SfIcons.Label,
+                title = "Track title",
+                subtitle = "Show the real title of the current track",
+                enabled = rpcEnabled,
+                trailing = { IosSwitch(checked = showTrackTitle, onCheckedChange = AppSettings::setDiscordShowTrackTitle) },
+                onClick = { AppSettings.setDiscordShowTrackTitle(!showTrackTitle) },
+            )
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Label,
+                title = "Artist name",
+                subtitle = "Show the current track's artist",
+                enabled = rpcEnabled,
+                trailing = { IosSwitch(checked = showArtist, onCheckedChange = AppSettings::setDiscordShowArtist) },
+                onClick = { AppSettings.setDiscordShowArtist(!showArtist) },
+            )
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Label,
+                title = "Album name",
+                subtitle = "Include the album when the track provides it",
+                enabled = rpcEnabled,
+                trailing = { IosSwitch(checked = showAlbum, onCheckedChange = AppSettings::setDiscordShowAlbum) },
+                onClick = { AppSettings.setDiscordShowAlbum(!showAlbum) },
             )
             RowDivider()
             SettingsRow(
                 icon = SfIcons.Label,
                 title = stringResource(R.string.lead_with_song),
                 subtitle = stringResource(R.string.lead_with_song_subtitle),
-                enabled = connected && rpcEnabled,
+                enabled = rpcEnabled,
                 trailing = {
                     IosSwitch(
                         checked = useDetails,
                         onCheckedChange = AppSettings::setDiscordUseDetails,
-                        enabled = connected && rpcEnabled,
                     )
                 },
                 onClick = { AppSettings.setDiscordUseDetails(!useDetails) },
@@ -279,58 +234,64 @@ fun DiscordScreen(
             RowDivider()
             SettingsRow(
                 icon = SfIcons.GraphicEq,
-                title = stringResource(R.string.discord_show_audio_quality),
-                subtitle = stringResource(R.string.discord_show_audio_quality_subtitle),
-                enabled = connected && rpcEnabled,
-                trailing = {
-                    IosSwitch(
-                        checked = showAudioQuality,
-                        onCheckedChange = AppSettings::setDiscordShowAudioQuality,
-                        enabled = connected && rpcEnabled,
-                    )
-                },
-                onClick = { AppSettings.setDiscordShowAudioQuality(!showAudioQuality) },
+                title = "Show album artwork",
+                subtitle = "Include the playing track's real artwork",
+                enabled = rpcEnabled,
+                trailing = { IosSwitch(checked = showArtwork, onCheckedChange = AppSettings::setDiscordShowArtwork) },
+                onClick = { AppSettings.setDiscordShowArtwork(!showArtwork) },
             )
             RowDivider()
             SettingsRow(
                 icon = SfIcons.Tune,
-                title = stringResource(R.string.customize_card),
-                subtitle = stringResource(R.string.customize_card_subtitle),
-                enabled = connected && rpcEnabled,
+                title = "Show elapsed playback time",
+                subtitle = "Show the live progress and remaining time",
+                enabled = rpcEnabled,
+                trailing = { IosSwitch(checked = showElapsedTime, onCheckedChange = AppSettings::setDiscordShowElapsedTime) },
+                onClick = { AppSettings.setDiscordShowElapsedTime(!showElapsedTime) },
+            )
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.Tune,
+                title = "Hide when paused",
+                subtitle = "Clear your Discord activity instead of keeping the paused track visible",
+                enabled = rpcEnabled,
+                trailing = { IosSwitch(checked = hideWhenPaused, onCheckedChange = AppSettings::setDiscordHideWhenPaused) },
+                onClick = { AppSettings.setDiscordHideWhenPaused(!hideWhenPaused) },
+            )
+            RowDivider()
+            SettingsRow(
+                icon = SfIcons.GraphicEq,
+                title = stringResource(R.string.discord_show_audio_quality),
+                subtitle = stringResource(R.string.discord_show_audio_quality_subtitle),
+                enabled = rpcEnabled,
                 trailing = {
                     IosSwitch(
-                        checked = advancedMode,
-                        onCheckedChange = AppSettings::setDiscordAdvancedMode,
-                        enabled = connected && rpcEnabled,
+                        checked = showAudioQuality,
+                        onCheckedChange = AppSettings::setDiscordShowAudioQuality,
                     )
                 },
-                onClick = { AppSettings.setDiscordAdvancedMode(!advancedMode) },
+                onClick = { AppSettings.setDiscordShowAudioQuality(!showAudioQuality) },
             )
         }
 
-        AnimatedVisibility(visible = connected && rpcEnabled && advancedMode) {
-            Column(Modifier.fillMaxWidth()) {
-                SettingsGroup(header = stringResource(R.string.presence)) {
-                    SettingsRow(
-                        icon = SfIcons.RadioButtonChecked,
-                        title = stringResource(R.string.status),
-                        value = statusOf(status).localizedLabel(),
-                        onClick = { onOpenDialog(DiscordDialog.STATUS) },
-                    )
-                    RowDivider()
-                    SettingsRow(
-                        icon = SfIcons.Tune,
-                        title = stringResource(R.string.activity),
-                        value = kindOf(activityType).localizedLabel(),
-                        onClick = { onOpenDialog(DiscordDialog.ACTIVITY_TYPE) },
-                    )
-                    RowDivider()
-                    SettingsRow(
-                        icon = SfIcons.Label,
-                        title = stringResource(R.string.name),
-                        subtitle = activityName.ifEmpty { appName() },
-                        onClick = { onOpenDialog(DiscordDialog.ACTIVITY_NAME) },
-                    )
+        Column(Modifier.fillMaxWidth()) {
+                SettingsGroup(header = "Activity style", footer = "Choose how Audify is labelled on your Discord profile. Changes apply immediately.") {
+                    DiscordActivityKind.entries.forEach { kind ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .background(if (activityType == kind.value) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                .clickable(enabled = rpcEnabled) { AppSettings.setDiscordActivityType(kind.value) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(kind.localizedLabel(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onBackground)
+                                Text("${kind.localizedVerb()} ${appName()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            RadioButton(selected = activityType == kind.value, onClick = { AppSettings.setDiscordActivityType(kind.value) }, enabled = rpcEnabled)
+                        }
+                        Spacer(Modifier.height(7.dp))
+                    }
                 }
 
                 SettingsGroup(
@@ -363,7 +324,6 @@ fun DiscordScreen(
                         onClick = { onOpenDialog(DiscordDialog.BUTTON_2) },
                     )
                 }
-            }
         }
 
         SettingsGroup(
@@ -374,24 +334,21 @@ fun DiscordScreen(
                 song = song,
                 positionMs = positionMs,
                 durationMs = durationMs,
-                heading = activityName.ifEmpty { appName() },
+                heading = appName(),
                 verb = kindOf(activityType).localizedVerb(),
                 useDetails = useDetails,
                 audioQuality = discordAudioQualityLine(nerdStats).takeIf { showAudioQuality },
+                showTrackTitle = showTrackTitle,
+                showArtist = showArtist,
+                showAlbum = showAlbum,
+                showArtwork = showArtwork,
+                showElapsedTime = showElapsedTime,
+                enabled = rpcEnabled,
                 button1Text = button1Text,
                 button1Visible = button1Visible,
                 button2Text = button2Text,
                 button2Visible = button2Visible,
             )
-        }
-
-        if (connected) {
-            SettingsGroup {
-                DestructiveRow(
-                    label = stringResource(R.string.disconnect),
-                    onClick = { AppSettings.clearDiscordAccount() },
-                )
-            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -401,13 +358,10 @@ fun DiscordScreen(
 /** Who this posts as. Same frame as [AccountCard], with Discord's status dot. */
 @Composable
 private fun DiscordAccountCard(
-    connected: Boolean,
-    name: String,
-    username: String,
-    avatar: String,
-    status: DiscordPresenceStatus,
+    installed: Boolean,
     icon: ImageVector,
-    onConnect: () -> Unit,
+    onInstall: () -> Unit,
+    onCheckAgain: () -> Unit,
 ) {
     val cardColor = MaterialTheme.colorScheme.surfaceVariant
     Row(
@@ -416,59 +370,29 @@ private fun DiscordAccountCard(
             .padding(horizontal = GROUP_INSET)
             .clip(GroupShape)
             .background(cardColor)
-            .then(if (connected) Modifier else Modifier.clickable(onClick = onConnect))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(52.dp)) {
-            if (avatar.isNotEmpty()) {
-                AsyncImage(
-                    model = avatar,
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.outline),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(52.dp).clip(CircleShape).thumbnailBorder(CircleShape),
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.outline),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(26.dp),
-                    )
-                }
-            }
-            if (connected) {
-                Box(
-                    modifier = Modifier
-                        .size(15.dp)
-                        .align(Alignment.BottomEnd)
-                        // Discord rings the dot in the card's own colour so it
-                        // reads as punched out of the avatar rather than on it.
-                        .border(2.5.dp, cardColor, CircleShape)
-                        .padding(2.5.dp)
-                        .clip(CircleShape)
-                        .background(
-                            when (status) {
-                                DiscordPresenceStatus.IDLE -> MaterialTheme.colorScheme.tertiary
-                                DiscordPresenceStatus.DND -> MaterialTheme.colorScheme.error
-                                DiscordPresenceStatus.ONLINE -> MaterialTheme.colorScheme.primary
-                            },
-                        ),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp),
                 )
             }
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                text = if (connected) name.ifEmpty { stringResource(R.string.connected) }
-                else stringResource(R.string.not_connected),
+                text = stringResource(R.string.discord_social_sdk_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
@@ -476,56 +400,16 @@ private fun DiscordAccountCard(
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = when {
-                    username.isNotEmpty() -> "@$username"
-                    connected -> stringResource(R.string.discord_account)
-                    else -> stringResource(R.string.tap_to_sign_in_discord)
-                },
+                text = if (installed) "Discord app detected · account status is managed by Discord" else "Discord app not detected on this device",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (!connected) {
-            Spacer(Modifier.width(8.dp))
-            Chevron()
-        }
-    }
-}
-
-/** A one-off explanation with its own dismiss, shaped like a settings group. */
-@Composable
-private fun NoticeCard(text: String, onDismiss: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            // Same 26dp gap SettingsGroup leaves above itself, so this sits in
-            // the rhythm of the groups either side of it.
-            .padding(start = GROUP_INSET, end = GROUP_INSET, top = 26.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(GroupShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp),
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.got_it),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onDismiss)
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-            )
+        Column(horizontalAlignment = Alignment.End) {
+            if (!installed) TextButton(onClick = onInstall) { Text("Install Discord") }
+            TextButton(onClick = onCheckAgain) { Text("Check again") }
         }
     }
 }
@@ -547,14 +431,21 @@ private fun RichPresencePreview(
     verb: String,
     useDetails: Boolean,
     audioQuality: String?,
+    showTrackTitle: Boolean,
+    showArtist: Boolean,
+    showAlbum: Boolean,
+    showArtwork: Boolean,
+    showElapsedTime: Boolean,
+    enabled: Boolean,
     button1Text: String,
     button1Visible: Boolean,
     button2Text: String,
     button2Visible: Boolean,
 ) {
     val context = LocalContext.current
-    val title = song?.title ?: stringResource(R.string.widget_preview_title)
-    val artist = song?.artist ?: stringResource(R.string.widget_preview_artist)
+    val title = song?.title ?: "Nothing playing"
+    val artist = song?.artist ?: "Start playback to preview real track details"
+    val album = song?.albumName
 
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
         Text(
@@ -567,14 +458,14 @@ private fun RichPresencePreview(
 
         Row(verticalAlignment = Alignment.Top) {
             val artShape = RoundedCornerShape(6.dp)
-            if (song?.thumbnailUrl != null) {
+            if (showArtwork && song?.thumbnailUrl != null) {
                 AsyncImage(
                     model = song.artworkAt(CARD_ART_PX),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.size(84.dp).clip(artShape).thumbnailBorder(artShape),
                 )
-            } else {
+            } else if (showArtwork) {
                 Box(
                     Modifier
                         .size(84.dp)
@@ -588,7 +479,7 @@ private fun RichPresencePreview(
                 // that is the one it also repeats next to the user's name in a
                 // member list — so which of these is emphasised is the whole
                 // point of the "Lead with the song" switch.
-                Text(
+                if (showTrackTitle) Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                     fontWeight = if (useDetails) FontWeight.W700 else FontWeight.W400,
@@ -596,10 +487,17 @@ private fun RichPresencePreview(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
+                if (showArtist && artist.isNotBlank()) Text(
                     text = artist,
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                    fontWeight = if (useDetails) FontWeight.W400 else FontWeight.W700,
+                    fontWeight = if (useDetails && showTrackTitle) FontWeight.W400 else FontWeight.W700,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (showAlbum && !album.isNullOrBlank()) Text(
+                    text = album,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -614,7 +512,7 @@ private fun RichPresencePreview(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                ProgressLine(positionMs = positionMs, durationMs = durationMs)
+                if (showElapsedTime) ProgressLine(positionMs = positionMs, durationMs = durationMs)
             }
         }
 
@@ -626,7 +524,7 @@ private fun RichPresencePreview(
             Spacer(Modifier.height(12.dp))
             PresenceButton(
                 label = resolved(button1Text, DiscordRPC.DEFAULT_BUTTON_1),
-                enabled = song != null,
+                enabled = song != null && enabled,
                 onClick = {
                     song?.let {
                         context.startActivity(
@@ -640,7 +538,7 @@ private fun RichPresencePreview(
             Spacer(Modifier.height(8.dp))
             PresenceButton(
                 label = resolved(button2Text, DiscordRPC.DEFAULT_BUTTON_2),
-                enabled = true,
+                enabled = enabled,
                 onClick = {
                     context.startActivity(
                         Intent(Intent.ACTION_VIEW, DiscordRPC.PROJECT_URL.toUri()),
@@ -736,74 +634,11 @@ fun DiscordDialogHost(
     hazeState: HazeState,
     onDismiss: () -> Unit,
 ) {
-    val rejectedToken = stringResource(R.string.discord_token_rejected)
     when (which) {
-        DiscordDialog.TOKEN -> {
-            val scope = rememberCoroutineScope()
-            var input by remember { mutableStateOf("") }
-            var error by remember { mutableStateOf<String?>(null) }
-            var checking by remember { mutableStateOf(false) }
-            DiscordTokenAlert(
-                hazeState = hazeState,
-                tokenInput = input,
-                onTokenInputChange = { input = it },
-                error = error,
-                loading = checking,
-                // Verified before it is saved, because a token that doesn't work
-                // fails silently later: the presence simply never appears, with
-                // nothing on this screen to say why.
-                onSave = {
-                    checking = true
-                    error = null
-                    scope.launch {
-                        val trimmed = input.trim()
-                        val info = withContext(Dispatchers.IO) {
-                            KizzyRPC.getUserInfo(
-                                trimmed,
-                                SuperProperties.userAgent,
-                                SuperProperties.superPropertiesBase64,
-                            )
-                        }
-                        info.onSuccess {
-                            AppSettings.setDiscordAccount(it.username, it.name, it.avatar)
-                            AppSettings.setDiscordToken(trimmed)
-                            onDismiss()
-                        }.onFailure {
-                            error = rejectedToken
-                            checking = false
-                        }
-                    }
-                },
-                onDismiss = onDismiss,
-            )
-        }
-
-        DiscordDialog.STATUS -> {
-            val current by AppSettings.discordStatus.collectAsStateWithLifecycle()
-            val copy = localizedStatusCopy()
-            ChoiceAlert(
-                hazeState = hazeState,
-                title = stringResource(R.string.status),
-                message = stringResource(R.string.status_dialog_message),
-                options = DiscordPresenceStatus.entries,
-                selected = statusOf(current),
-                label = { copy.getValue(it).first },
-                detail = { copy.getValue(it).second },
-                onSelect = {
-                    AppSettings.setDiscordStatus(it.value)
-                    onDismiss()
-                },
-                onDismiss = onDismiss,
-            )
-        }
-
         DiscordDialog.ACTIVITY_TYPE -> {
             val current by AppSettings.discordActivityType.collectAsStateWithLifecycle()
-            val activityName by AppSettings.discordActivityName.collectAsStateWithLifecycle()
-            // Read out here: `detail` is a plain lambda, so the composable
-            // lookup can't happen inside it.
-            val name = activityName.ifEmpty { appName() }
             val copy = localizedActivityCopy()
+            val applicationName = appName()
             ChoiceAlert(
                 hazeState = hazeState,
                 title = stringResource(R.string.activity),
@@ -811,27 +646,9 @@ fun DiscordDialogHost(
                 options = DiscordActivityKind.entries,
                 selected = kindOf(current),
                 label = { copy.getValue(it).first },
-                detail = { "\"${copy.getValue(it).second} $name\"" },
+                detail = { "\"${copy.getValue(it).second} $applicationName\"" },
                 onSelect = {
                     AppSettings.setDiscordActivityType(it.value)
-                    onDismiss()
-                },
-                onDismiss = onDismiss,
-            )
-        }
-
-        DiscordDialog.ACTIVITY_NAME -> {
-            val current by AppSettings.discordActivityName.collectAsStateWithLifecycle()
-            var input by remember { mutableStateOf(current) }
-            TextValueAlert(
-                hazeState = hazeState,
-                title = stringResource(R.string.name),
-                message = stringResource(R.string.activity_name_message, appName()),
-                placeholder = appName(),
-                value = input,
-                onValueChange = { input = it },
-                onSave = {
-                    AppSettings.setDiscordActivityName(input.trim())
                     onDismiss()
                 },
                 onDismiss = onDismiss,

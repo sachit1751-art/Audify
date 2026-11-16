@@ -123,7 +123,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.music.audify.auth.DiscordLoginScreen
 import com.music.audify.auth.SpotifyLoginScreen
 import com.music.audify.auth.WebSessionMode
 import com.music.audify.auth.YtMusicLoginScreen
@@ -164,6 +163,7 @@ import kotlinx.coroutines.sync.withLock
 import com.music.audify.data.model.durationMillis
 import com.music.audify.data.scrobbling.LastFM
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.discord.DiscordSocialPresence
 import com.music.audify.data.settings.BitPerfectMode
 import com.music.audify.data.settings.LastPlayerScreen
 import com.music.audify.ui.AddonBlockedAlert
@@ -413,8 +413,14 @@ internal fun shouldSkipAfterDislike(
 
 
 class MainActivity : AppCompatActivity() {
+    override fun onStart() {
+        super.onStart()
+        DiscordSocialPresence.attachActivity(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DiscordSocialPresence.attachActivity(this)
         enableEdgeToEdge(
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
@@ -793,12 +799,7 @@ private fun AudifyApp(
     var showLastfmLogin by remember { mutableStateOf(false) }
     var showWebDavEditor by remember { mutableStateOf(false) }
     var showSmbEditor by remember { mutableStateOf(false) }
-    // Discord Rich Presence: its own page under Account & integrations (a
-    // route), its own full-screen sign-in, and one slot for whichever of its
-    // alerts is open. The alerts live out here rather than on the page because
-    // their scrim has to cover the tab bar and mini player, which are drawn
-    // after it.
-    var showDiscordLogin by remember { mutableStateOf(false) }
+    // Discord Rich Presence dialogs are hosted above the tab bar and mini player.
     var showSpotifyLogin by remember { mutableStateOf(false) }
     var discordDialog by remember { mutableStateOf<DiscordDialog?>(null) }
     var songActions by remember { mutableStateOf<Song?>(null) }
@@ -3390,7 +3391,6 @@ private fun AudifyApp(
                                 song = player.song,
                                 positionMs = player.position.positionMs,
                                 durationMs = player.durationMs,
-                                onOpenLogin = { showDiscordLogin = true },
                                 onOpenDialog = { discordDialog = it },
                                 contentPadding = listPadding,
                             )
@@ -3835,10 +3835,8 @@ private fun AudifyApp(
                                         )
                                     },
                                 onAccountClick = {
-                                    if (signedIn) {
-                                        viewModel.loadChannels()
-                                        showAccountSelector = true
-                                    } else navigator.push(AppRoute.Settings)
+                                    if (signedIn) viewModel.loadChannels()
+                                    showAccountSelector = true
                                 },
                                 onListenTogetherClick = { navigator.push(AppRoute.ListenTogether) },
                                 onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
@@ -4415,26 +4413,9 @@ private fun AudifyApp(
                         }
                     } else null,
                     actions = {
-                        // Search remains available as a dedicated screen, but
-                        // Audify's fourth primary tab is Settings. Keep Search
-                        // one tap away from the main tabs without replacing it.
-                        if (route == null && detail == null && selectedMoodGenre == null) {
-                            IconButton(
-                                onClick = {
-                                    navigator.clear()
-                                    viewModel.closeMoodGenre()
-                                    viewModel.onQueryChange("")
-                                    selectedTab = TAB_SEARCH
-                                    searchFocusRequested = true
-                                },
-                            ) {
-                                Icon(
-                                    AudifyIcons.Search,
-                                    contentDescription = stringResource(R.string.search),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
+                        // Search is reached from the Home/search surfaces and
+                        // the primary navigation. Do not add a second floating
+                        // search glyph beside the search field.
                         // The indicator owns its own collector/restart scope; a
                         // party ping update must not recompose the app shell.
                         if (route == AppRoute.ListenTogether) ListenTogetherStatusIndicator()
@@ -4628,7 +4609,10 @@ private fun AudifyApp(
                             // three of its own controls — Apple Music leaves the
                             // profile off its album pages too. Nor on Listen
                             // together, where the pill is the server's round trip.
-                            if (!isReleaseDetail && route != AppRoute.ListenTogether) TopBarAccountButton(
+                            // Home already renders its own account/profile action.
+                            // Keeping this second avatar in the top bar caused two
+                            // account controls to overlap on the Home surface.
+                            if (selectedTab != TAB_HOME && !isReleaseDetail && route != AppRoute.ListenTogether) TopBarAccountButton(
                                 // Offline the account request fails and `account` stays null;
                                 // the profile saved on the device (what the popup reads) stands in.
                                 account = account ?: googleAccounts
@@ -4643,10 +4627,8 @@ private fun AudifyApp(
                                         )
                                     },
                                 onClick = {
-                                    if (signedIn) {
-                                        viewModel.loadChannels()
-                                        showAccountSelector = true
-                                    } else navigator.push(AppRoute.Settings)
+                                    if (signedIn) viewModel.loadChannels()
+                                    showAccountSelector = true
                                 },
                                 onSwipeProfile = { forward -> viewModel.stepProfile(forward) },
                                 hidden = showAccountSelector && !accountSelectorLeaving,
@@ -4655,16 +4637,9 @@ private fun AudifyApp(
                     },
                 )
 
-                // Drawn before the bars so their own glass reads on top of it.
-                BottomFadeScrim(
-                    withMiniPlayer = player.song != null,
-                    // Not the wash: by the foot of the screen the page has finished
-                    // easing out of it and into this, so this is what is actually
-                    // under the tab bar.
-                    pageColor = chromePageColor,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-
+                // Keep the feed visible up to the progressive blur. A separate
+                // opaque-ending fade here darkens the last part of the feed and
+                // reads as a black slab above the floating glass navigation.
                 ProgressiveScrollEdgeBlur(
                     hazeState = hazeState,
                     pageColor = chromePageColor,
@@ -6315,41 +6290,6 @@ private fun AudifyApp(
         // leaving the batch suspended on a dismissed dialog would hang the
         // upload with no way to reach the question again.
         WebDavUploadConflictDialog(hazeState)
-
-        // ---- Discord sign-in (full screen WebView) ----
-        if (showDiscordLogin) {
-            BackHandler { showDiscordLogin = false }
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(onClick = { showDiscordLogin = false }) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = stringResource(R.string.close),
-                                tint = MaterialTheme.colorScheme.onBackground,
-                            )
-                        }
-                        Text(
-                            "Sign in to Discord",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
-                    DiscordLoginScreen(
-                        onTokenCaptured = { token ->
-                            AppSettings.setDiscordToken(token)
-                            showDiscordLogin = false
-                        },
-                    )
-                }
-            }
-        }
 
         // ---- Spotify sign-in (full screen WebView) ----
         // Out here with Discord's rather than on the Spotify page itself: see

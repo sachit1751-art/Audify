@@ -253,17 +253,11 @@ Project: AUDIFY
     <string name="delete">Usuń</string>
     <string name="disconnect">Odłącz</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Konto Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} i {album_name} są zastępowane obecnym utworem.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} i {album_name} są zastępowane utworem. Pierwszy przycisk otwiera utwór w YouTube Music, a drugi otwiera ten projekt.</string>
     <string name="discord_presence_footer">Karta aktualizuje się, gdy zmieni się utwór, pozycja lub stan odtwarzania. Znika, gdy odtwarzanie się zatrzyma.</string>
     <string name="discord_show_audio_quality">Pokaż jakość dźwięku</string>
     <string name="discord_show_audio_quality_subtitle">Parametry Hi-Res, bezstratne i Dolby na karcie statusu</string>
-    <string name="discord_sign_in_footer">Logowanie otwiera stronę logowania Discord. Nic nie jest wpisywane do Audify.</string>
-    <string name="discord_token">Token Discord</string>
-    <string name="discord_token_description">Wklej token swojego konta Discord. Pozostaje on zaszyfrowany na tym urządzeniu i jest wysyłany tylko do Discorda.</string>
-    <string name="discord_token_rejected">Discord odrzucił ten token.</string>
-    <string name="discord_token_warning">Discord nie oferuje API, które pozwala aplikacjom na ustawianie statusu aktywności, więc ta funkcja loguje się na twoje konto i używa protokołu Discorda. Twój token pozostaje zaszyfrowany na tym urządzeniu i jest wysyłany tylko do Discorda. Daje dostęp do całego konta, a automatyzacja konta narusza regulamin Discorda. Używaj tylko jeśli akceptujesz to ryzyko.</string>
     <string name="dislike">Nie lubię</string>
     <string name="done">Gotowe</string>
     <string name="download">Pobierz</string>
@@ -271,8 +265,6 @@ Project: AUDIFY
     <string name="downloaded">Pobrane</string>
     <string name="drag_to_reorder">Przeciągnij, aby zmienić kolejność</string>
     <string name="enabled">Włączone</string>
-    <string name="enter_token_instead">Wprowadź token</string>
-    <string name="enter_token_instead_subtitle">Użyj tego, jeśli strona logowania się nie ładuje</string>
     <string name="enter_token_to_enable">Wprowadź token, aby włączyć</string>
     <string name="first_button">Pierwszy przycisk</string>
     <string name="got_it">Rozumiem</string>

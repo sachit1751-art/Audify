@@ -246,17 +246,11 @@ Project: AUDIFY
     <string name="delete">删除</string>
     <string name="disconnect">断开连接</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Discord 账号</string>
     <string name="discord_button_variables">{song_name}、{artist_name} 和 {album_name} 会被替换为当前曲目的信息。</string>
     <string name="discord_buttons_footer">{song_name}、{artist_name} 和 {album_name} 会被替换为该曲目的信息。第一个按钮会在 YouTube Music 中打开这首歌，第二个按钮会打开本项目。</string>
     <string name="discord_presence_footer">当曲目、播放进度或播放状态发生变化时，卡片会随之更新；播放停止时会清除。</string>
     <string name="discord_show_audio_quality">显示音质</string>
     <string name="discord_show_audio_quality_subtitle">在状态卡片上显示 Hi-Res、无损和 Dolby 规格</string>
-    <string name="discord_sign_in_footer">登录会打开 Discord 的登录页面，你不会在 Audify 中输入任何内容。</string>
-    <string name="discord_token">Discord 令牌</string>
-    <string name="discord_token_description">粘贴你的 Discord 账号令牌。它会在此设备上加密保存，且只会发送给 Discord。</string>
-    <string name="discord_token_rejected">Discord 拒绝了该令牌。</string>
-    <string name="discord_token_warning">Discord 没有提供可供应用设置状态的 API，因此此功能会以你的账号登录并使用 Discord 的协议。你的令牌会在此设备上加密保存，且只会发送给 Discord。它会授予对你整个账号的访问权限，而账号自动化违反了 Discord 的服务条款。请仅在你接受此风险时使用此功能。</string>
     <string name="dislike">不喜欢</string>
     <string name="done">完成</string>
     <string name="download">下载</string>
@@ -264,8 +258,6 @@ Project: AUDIFY
     <string name="downloaded">已下载</string>
     <string name="drag_to_reorder">拖动以重新排序</string>
     <string name="enabled">已启用</string>
-    <string name="enter_token_instead">改为输入令牌</string>
-    <string name="enter_token_instead_subtitle">如果登录页面无法加载，请使用此方式</string>
     <string name="enter_token_to_enable">输入令牌以启用</string>
     <string name="first_button">第一个按钮</string>
     <string name="got_it">知道了</string>

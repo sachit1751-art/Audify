@@ -265,17 +265,11 @@ Project: AUDIFY
     <string name="delete">ลบ</string>
     <string name="disconnect">ยกเลิกการเชื่อมต่อ</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">บัญชี Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} และ {album_name} จะถูกแทนที่ด้วยข้อมูลแทร็กปัจจุบัน</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} และ {album_name} จะถูกแทนที่ด้วยข้อมูลแทร็ก ปุ่มแรกเปิดเพลงบน YouTube Music ส่วนปุ่มที่สองเปิดโปรเจกต์นี้</string>
     <string name="discord_presence_footer">การ์ดจะอัปเดตเมื่อแทร็ก ตำแหน่ง หรือสถานะการเล่นเปลี่ยนไป และจะล้างเมื่อหยุดเล่น</string>
     <string name="discord_show_audio_quality">แสดงคุณภาพเสียง</string>
     <string name="discord_show_audio_quality_subtitle">ข้อมูล Hi-Res, Lossless และ Dolby บนการ์ดสถานะ</string>
-    <string name="discord_sign_in_footer">การลงชื่อเข้าใช้จะเปิดหน้าเข้าสู่ระบบของ Discord ไม่มีการพิมพ์สิ่งใดลงใน Audify</string>
-    <string name="discord_token">โทเคน Discord</string>
-    <string name="discord_token_description">วางโทเคนบัญชี Discord ของคุณ โทเคนจะถูกเข้ารหัสไว้ในอุปกรณ์นี้และส่งไปยัง Discord เท่านั้น</string>
-    <string name="discord_token_rejected">Discord ปฏิเสธโทเคนนั้น</string>
-    <string name="discord_token_warning">Discord ไม่มี API ให้แอปตั้งค่าสถานะของคุณ ฟีเจอร์นี้จึงลงชื่อเข้าใช้ในนามบัญชีของคุณและใช้โปรโตคอลของ Discord โทเคนของคุณจะถูกเข้ารหัสไว้ในอุปกรณ์นี้และส่งไปยัง Discord เท่านั้น แต่มันให้สิทธิ์เข้าถึงบัญชีทั้งหมดของคุณ และการทำงานอัตโนมัติกับบัญชีถือเป็นการละเมิดข้อกำหนดของ Discord ใช้ฟีเจอร์นี้เฉพาะเมื่อคุณยอมรับความเสี่ยงนี้</string>
     <string name="dislike">ไม่ชอบ</string>
     <string name="done">เสร็จสิ้น</string>
     <string name="download">ดาวน์โหลด</string>
@@ -283,8 +277,6 @@ Project: AUDIFY
     <string name="downloaded">ดาวน์โหลดแล้ว</string>
     <string name="drag_to_reorder">ลากเพื่อจัดลำดับใหม่</string>
     <string name="enabled">เปิดใช้งาน</string>
-    <string name="enter_token_instead">ป้อนโทเคนแทน</string>
-    <string name="enter_token_instead_subtitle">ใช้วิธีนี้หากหน้าเข้าสู่ระบบโหลดไม่ขึ้น</string>
     <string name="enter_token_to_enable">ป้อนโทเคนเพื่อเปิดใช้งาน</string>
     <string name="first_button">ปุ่มแรก</string>
     <string name="got_it">เข้าใจแล้ว</string>

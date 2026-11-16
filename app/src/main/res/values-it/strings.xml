@@ -290,17 +290,11 @@ Project: AUDIFY
     <string name="delete">Elimina</string>
     <string name="disconnect">Disconnetti</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Account Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} e {album_name} vengono sostituiti con il brano attuale.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} e {album_name} vengono sostituiti con il brano. Il primo pulsante apre il brano su YouTube Music e il secondo apre questo progetto.</string>
     <string name="discord_presence_footer">La scheda si aggiorna quando cambiano il brano, la posizione o lo stato di riproduzione. Si azzera quando la riproduzione si interrompe.</string>
     <string name="discord_show_audio_quality">Mostra qualità audio</string>
     <string name="discord_show_audio_quality_subtitle">Specifiche Hi-Res, lossless e Dolby sulla scheda di stato</string>
-    <string name="discord_sign_in_footer">L\'accesso apre la pagina di login di Discord. Nulla viene digitato in Audify.</string>
-    <string name="discord_token">Token Discord</string>
-    <string name="discord_token_description">Incolla il token del tuo account Discord. Resta cifrato su questo dispositivo e viene inviato solo a Discord.</string>
-    <string name="discord_token_rejected">Discord ha rifiutato quel token.</string>
-    <string name="discord_token_warning">Discord non offre un\'API che permetta alle app di impostare la tua presenza, quindi questa funzione accede come il tuo account e usa il protocollo di Discord. Il tuo token resta cifrato su questo dispositivo e viene inviato solo a Discord. Concede accesso all\'intero account e l\'automazione dell\'account viola i termini di Discord. Usala solo se accetti questo rischio.</string>
     <string name="dislike">Non mi piace</string>
     <string name="done">Fatto</string>
     <string name="download">Download</string>
@@ -308,8 +302,6 @@ Project: AUDIFY
     <string name="downloaded">Scaricato</string>
     <string name="drag_to_reorder">Trascina per riordinare</string>
     <string name="enabled">Attivato</string>
-    <string name="enter_token_instead">Inserisci un token invece</string>
-    <string name="enter_token_instead_subtitle">Usalo se la pagina di accesso non si carica</string>
     <string name="enter_token_to_enable">Inserisci un token per attivare</string>
     <string name="first_button">Primo pulsante</string>
     <string name="got_it">Capito</string>

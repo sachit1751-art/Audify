@@ -278,17 +278,11 @@ Project: AUDIFY
     <string name="delete">Xóa</string>
     <string name="disconnect">Ngắt kết nối</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Tài khoản Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} và {album_name} sẽ được thay thế bằng bài hát hiện tại.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} và {album_name} sẽ được thay thế bằng bài hát. Nút đầu tiên mở bài hát trên YouTube Music và nút thứ hai mở dự án này.</string>
     <string name="discord_presence_footer">Thẻ sẽ cập nhật khi bài hát, vị trí phát hoặc trạng thái phát thay đổi. Thẻ sẽ biến mất khi dừng phát.</string>
     <string name="discord_show_audio_quality">Hiển thị chất lượng âm thanh</string>
     <string name="discord_show_audio_quality_subtitle">Thông số Hi-Res, lossless và Dolby trên thẻ trạng thái</string>
-    <string name="discord_sign_in_footer">Đăng nhập sẽ mở trang đăng nhập của Discord. Không có thông tin nào được nhập vào Audify.</string>
-    <string name="discord_token">Token Discord</string>
-    <string name="discord_token_description">Dán mã token tài khoản Discord của bạn. Token được mã hóa an toàn trên thiết bị này và chỉ được gửi đến Discord.</string>
-    <string name="discord_token_rejected">Discord đã từ chối token đó.</string>
-    <string name="discord_token_warning">Discord không cung cấp API cho phép ứng dụng đặt trạng thái của bạn, vì vậy tính năng này đăng nhập bằng tài khoản của bạn và sử dụng giao thức của Discord. Token của bạn được mã hóa trên thiết bị này và chỉ gửi đến Discord. Token cấp toàn quyền truy cập tài khoản của bạn, và việc tự động hóa tài khoản vi phạm điều khoản của Discord. Bạn chỉ nên sử dụng nếu chấp nhận rủi ro này.</string>
     <string name="dislike">Không thích</string>
     <string name="done">Xong</string>
     <string name="download">Tải xuống</string>
@@ -296,8 +290,6 @@ Project: AUDIFY
     <string name="downloaded">Đã tải</string>
     <string name="drag_to_reorder">Kéo để sắp xếp lại</string>
     <string name="enabled">Đã bật</string>
-    <string name="enter_token_instead">Nhập token thay thế</string>
-    <string name="enter_token_instead_subtitle">Dùng tùy chọn này nếu trang đăng nhập không tải được</string>
     <string name="enter_token_to_enable">Nhập token để bật</string>
     <string name="first_button">Nút thứ nhất</string>
     <string name="got_it">Đã hiểu</string>

@@ -19,6 +19,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 
+private val WEBVIEW_VERSION_TOKEN = Regex("""Version/\d+(\.\d+)*\s*""")
+private const val FALLBACK_USER_AGENT =
+    "Mozilla/5.0 (Linux; Android 14; SM-S921U; Build/UP1A.231005.007) " +
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36"
+
+internal fun browserUserAgent(platformUserAgent: String?): String {
+    val stripped = platformUserAgent
+        ?.replace("; wv", "")
+        ?.replace(WEBVIEW_VERSION_TOKEN, "")
+        ?.replace("  ", " ")
+        ?.trim()
+    return stripped?.takeIf { it.contains("Chrome/") } ?: FALLBACK_USER_AGENT
+}
+
 private const val LOGIN_URL =
     "https://accounts.spotify.com/login?continue=https%3A%2F%2Fopen.spotify.com%2F"
 
@@ -68,7 +82,7 @@ fun clearSpotifyWebSession() {
  * login, then hands the `sp_dc` cookie to [onConnected] once the page lands on
  * open.spotify.com.
  *
- * Must be hosted as a root overlay, like [DiscordLoginScreen], never inside the
+ * Must be hosted as a root overlay, never inside the
  * page content: that subtree is the `hazeSource` and the glass backdrop, both of
  * which record it into a layer and draw it a second time. A WebView drawn twice
  * flickers, drops parts of the page, and on some devices takes the app down in
@@ -88,7 +102,7 @@ fun SpotifyLoginScreen(
         factory = { context ->
             WebView(context).apply {
                 // MATCH_PARENT, not the WRAP_CONTENT Compose hands a bare view:
-                // see DiscordLoginScreen — a zero layout viewport collapses
+                // a zero layout viewport collapses
                 // any page sized off `height: 100%`, and Spotify's is.
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,

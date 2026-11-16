@@ -43,7 +43,6 @@ fun libraryLinks(signedIn: Boolean): List<LibraryLink> {
     val webdavConfigured by AppSettings.webdavUrl.collectAsStateWithLifecycle()
     val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
     val smbShare by AppSettings.smbShare.collectAsStateWithLifecycle()
-    val showCacheFolder by AppSettings.showCacheFolder.collectAsStateWithLifecycle()
     val spotifyConnected by AppSettings.spotifySpdcToken.collectAsStateWithLifecycle()
     fun link(title: String, subtitle: String, browseId: String, icon: ImageVector = deviceFolderIcon(browseId) ?: Icons.Rounded.Cloud) = LibraryLink(
         item = ShelfItem(
@@ -73,13 +72,6 @@ fun libraryLinks(signedIn: Boolean): List<LibraryLink> {
             stringResource(R.string.audio_files_on_device),
             "local:all",
         ),
-        // Opt-in from Settings → Storage: what the song cache is holding from
-        // YouTube and JioSaavn. See [com.music.audify.playback.AudioCache.cachedSongs].
-        link(
-            stringResource(R.string.cached_songs),
-            stringResource(R.string.cached_songs_subtitle),
-            CACHE_FOLDER_BROWSE_ID,
-        ).takeIf { showCacheFolder },
         // Only once set up in Sources; unconfigured, they'd just be dead ends.
         link(
             stringResource(R.string.webdav),

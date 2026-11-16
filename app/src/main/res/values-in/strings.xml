@@ -315,17 +315,11 @@
     <string name="delete">Hapus</string>
     <string name="disconnect">Putuskan</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Akun Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name}, dan {album_name} akan digantikan dengan trek yang sedang diputar.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name}, dan {album_name} akan digantikan dengan trek tersebut. Tombol pertama membuka lagu di YouTube Music dan tombol kedua membuka proyek ini.</string>
     <string name="discord_presence_footer">Kartu diperbarui saat trek, posisi, atau status pemutaran berubah. Kartu akan hilang saat pemutaran berhenti.</string>
     <string name="discord_show_audio_quality">Tampilkan kualitas audio</string>
     <string name="discord_show_audio_quality_subtitle">Spesifikasi Hi-Res, lossless, dan Dolby di kartu status</string>
-    <string name="discord_sign_in_footer">Masuk akan membuka halaman login Discord. Tidak ada yang diketik ke Audify.</string>
-    <string name="discord_token">Token Discord</string>
-    <string name="discord_token_description">Tempel token akun Discord Anda. Token ini tetap terenkripsi di perangkat ini dan hanya dikirim ke Discord.</string>
-    <string name="discord_token_rejected">Discord menolak token tersebut.</string>
-    <string name="discord_token_warning">Discord tidak menyediakan API yang memungkinkan aplikasi mengatur presence Anda, sehingga fitur ini masuk sebagai akun Anda dan menggunakan protokol Discord. Token Anda tetap terenkripsi di perangkat ini dan hanya dikirim ke Discord. Token ini memberikan akses ke seluruh akun Anda, dan otomatisasi akun melanggar ketentuan layanan Discord. Gunakan hanya jika Anda menerima risiko ini.</string>
     <string name="dislike">Tidak suka</string>
     <string name="done">Selesai</string>
     <string name="download">Unduh</string>
@@ -333,8 +327,6 @@
     <string name="downloaded">Diunduh</string>
     <string name="drag_to_reorder">Seret untuk mengatur ulang urutan</string>
     <string name="enabled">Aktif</string>
-    <string name="enter_token_instead">Masukkan token sebagai gantinya</string>
-    <string name="enter_token_instead_subtitle">Gunakan ini jika halaman login tidak dimuat</string>
     <string name="enter_token_to_enable">Masukkan token untuk mengaktifkan</string>
     <string name="first_button">Tombol pertama</string>
     <string name="got_it">Mengerti</string>

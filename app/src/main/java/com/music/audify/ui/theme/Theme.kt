@@ -421,27 +421,15 @@ fun SystemBarIcons(dark: Boolean) {
     val view = LocalView.current
     if (view.isInEditMode) return
     val window = findWindow(view) ?: return
-    val scheme = MaterialTheme.colorScheme
-    val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
-    val darkSurface = scheme.background.luminance() < 0.5f
-    val navigationBarColor = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, darkSurface) {
-        when (backgroundStyle) {
-            AppBackgroundStyle.PLAIN -> scheme.background
-            AppBackgroundStyle.AURORA -> scheme.background.withAccent(scheme.primary, if (darkSurface) .10f else .34f)
-            AppBackgroundStyle.OCEAN -> scheme.background.withAccent(scheme.secondary, if (darkSurface) .12f else .38f)
-            AppBackgroundStyle.SUNSET -> scheme.background.withAccent(scheme.secondary, if (darkSurface) .12f else .30f)
-            AppBackgroundStyle.NEBULA -> scheme.background.withAccent(scheme.primary, if (darkSurface) .12f else .32f)
-        }.toArgb()
-    }
     SideEffect {
-        // Gesture-navigation area is part of the app canvas on modern Android.
-        // Match it to the active theme instead of leaving the framework's
-        // default black navigation strip visible below the edge-to-edge content.
-        // Android 15+ ignores the legacy navigationBarColor for gesture nav.
-        // The uncovered inset area falls back to the window decor background,
-        // which was hard-coded black in themes.xml. Keep that fallback in sync
-        // with the active palette as well (including theme changes at runtime).
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(navigationBarColor))
+        // Keep the gesture-navigation region transparent. The app's edge-to-edge
+        // Compose backdrop already paints the active theme/background there; an
+        // opaque decor drawable creates a second, flat strip below the glass bar
+        // and hides wallpapers/gradients. The theme XML background is only a
+        // pre-content launch fallback, not the steady-state navigation surface.
+        window.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT),
+        )
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = dark
             isAppearanceLightNavigationBars = dark

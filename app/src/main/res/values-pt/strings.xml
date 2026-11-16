@@ -252,17 +252,11 @@ Project: AUDIFY
     <string name="delete">Excluir</string>
     <string name="disconnect">Desconectar</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Conta do Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} e {album_name} são substituídos pela faixa atual.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} e {album_name} são substituídos pela faixa. O primeiro botão abre a música no YouTube Music e o segundo abre este projeto.</string>
     <string name="discord_presence_footer">O cartão é atualizado quando a faixa, a posição ou o estado de reprodução mudam. Ele é limpo quando a reprodução para.</string>
     <string name="discord_show_audio_quality">Mostrar qualidade de áudio</string>
     <string name="discord_show_audio_quality_subtitle">Especificações Hi-Res, lossless e Dolby no cartão de status</string>
-    <string name="discord_sign_in_footer">O login abre a página de login do Discord. Nada é digitado no Audify.</string>
-    <string name="discord_token">Token do Discord</string>
-    <string name="discord_token_description">Cole o token da sua conta do Discord. Ele permanece criptografado neste dispositivo e é enviado apenas para o Discord.</string>
-    <string name="discord_token_rejected">O Discord rejeitou esse token.</string>
-    <string name="discord_token_warning">O Discord não oferece uma API que permite aos aplicativos definir sua presença, portanto, este recurso faz login na sua conta e usa o protocolo do Discord. Seu token permanece criptografado neste dispositivo e é enviado apenas para o Discord. Ele concede acesso à sua conta completa e a automação de contas viola os termos do Discord. Use-o apenas se aceitar esse risco.</string>
     <string name="dislike">Não curtir</string>
     <string name="done">Concluído</string>
     <string name="download">Baixar</string>
@@ -270,8 +264,6 @@ Project: AUDIFY
     <string name="downloaded">Baixado</string>
     <string name="drag_to_reorder">Arraste para reordenar</string>
     <string name="enabled">Ativado</string>
-    <string name="enter_token_instead">Insira um token</string>
-    <string name="enter_token_instead_subtitle">Use isso se a página de login não carregar</string>
     <string name="enter_token_to_enable">Insira um token para ativar</string>
     <string name="first_button">Primeiro botão</string>
     <string name="got_it">Entendi</string>

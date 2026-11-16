@@ -252,17 +252,11 @@ Project: AUDIFY
     <string name="delete">Supprimer</string>
     <string name="disconnect">Déconnecter</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Compte Discord</string>
     <string name="discord_button_variables">{song_name}, {artist_name} et {album_name} sont remplacés par la piste en cours.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} et {album_name} sont remplacés par la piste. Le premier bouton ouvre la chanson sur YouTube Music et le second ouvre ce projet.</string>
     <string name="discord_presence_footer">La carte se met à jour lorsque la piste, la position ou l\'état de lecture change. Elle s\'efface à l\'arrêt de la lecture.</string>
     <string name="discord_show_audio_quality">Afficher la qualité audio</string>
     <string name="discord_show_audio_quality_subtitle">Caractéristiques Hi-Res, sans perte et Dolby sur la carte de statut</string>
-    <string name="discord_sign_in_footer">La connexion ouvre la page de connexion de Discord. Rien n\'est saisi dans Audify.</string>
-    <string name="discord_token">Jeton Discord</string>
-    <string name="discord_token_description">Collez le jeton de votre compte Discord. Il reste chiffré sur cet appareil et n\'est envoyé qu\'à Discord.</string>
-    <string name="discord_token_rejected">Discord a rejeté ce jeton.</string>
-    <string name="discord_token_warning">Discord ne propose pas d\'API permettant à une application de définir votre présence. Cette fonctionnalité se connecte donc avec votre compte et utilise le protocole de Discord. Votre jeton reste chiffré sur cet appareil et n\'est envoyé qu\'à Discord. Il donne accès à l\'ensemble de votre compte, et automatiser un compte enfreint les conditions d\'utilisation de Discord. N\'utilisez cette fonctionnalité que si vous acceptez ce risque.</string>
     <string name="dislike">Je n\'aime pas</string>
     <string name="done">Terminé</string>
     <string name="download">Télécharger</string>
@@ -270,8 +264,6 @@ Project: AUDIFY
     <string name="downloaded">Téléchargé</string>
     <string name="drag_to_reorder">Glisser pour réorganiser</string>
     <string name="enabled">Activé</string>
-    <string name="enter_token_instead">Saisir un jeton à la place</string>
-    <string name="enter_token_instead_subtitle">Utilisez cette option si la page de connexion ne se charge pas</string>
     <string name="enter_token_to_enable">Saisissez un jeton pour activer</string>
     <string name="first_button">Premier bouton</string>
     <string name="got_it">Compris</string>

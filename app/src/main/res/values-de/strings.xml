@@ -249,17 +249,11 @@ Project: AUDIFY
     <string name="delete">Löschen</string>
     <string name="disconnect">Trennen</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Discord-Konto</string>
     <string name="discord_button_variables">{song_name}, {artist_name} und {album_name} werden durch den aktuellen Titel ersetzt.</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} und {album_name} werden durch den Titel ersetzt. Die erste Schaltfläche öffnet den Song in YouTube Music, die zweite öffnet dieses Projekt.</string>
     <string name="discord_presence_footer">Die Karte wird aktualisiert, wenn sich Titel, Position oder Wiedergabestatus ändern. Sie wird geleert, sobald die Wiedergabe stoppt.</string>
     <string name="discord_show_audio_quality">Audioqualität anzeigen</string>
     <string name="discord_show_audio_quality_subtitle">Hi-Res-, Lossless- und Dolby-Angaben auf der Statuskarte</string>
-    <string name="discord_sign_in_footer">Die Anmeldung öffnet Discords Login-Seite. Es wird nichts in Audify eingegeben.</string>
-    <string name="discord_token">Discord-Token</string>
-    <string name="discord_token_description">Füge deinen Discord-Konto-Token ein. Er bleibt verschlüsselt auf diesem Gerät gespeichert und wird nur an Discord gesendet.</string>
-    <string name="discord_token_rejected">Discord hat diesen Token abgelehnt.</string>
-    <string name="discord_token_warning">Discord bietet keine API, mit der Apps deine Presence festlegen können. Diese Funktion meldet sich daher als dein Konto an und nutzt Discords Protokoll. Dein Token bleibt verschlüsselt auf diesem Gerät gespeichert und wird nur an Discord gesendet. Er gewährt Zugriff auf dein gesamtes Konto, und Kontoautomatisierung verstößt gegen Discords Nutzungsbedingungen. Verwende ihn nur, wenn du dieses Risiko akzeptierst.</string>
     <string name="dislike">Nicht gefällt mir</string>
     <string name="done">Fertig</string>
     <string name="download">Herunterladen</string>
@@ -267,8 +261,6 @@ Project: AUDIFY
     <string name="downloaded">Heruntergeladen</string>
     <string name="drag_to_reorder">Ziehen, um die Reihenfolge zu ändern</string>
     <string name="enabled">Aktiviert</string>
-    <string name="enter_token_instead">Stattdessen einen Token eingeben</string>
-    <string name="enter_token_instead_subtitle">Nutze dies, wenn die Anmeldeseite nicht lädt</string>
     <string name="enter_token_to_enable">Token eingeben, um zu aktivieren</string>
     <string name="first_button">Erste Schaltfläche</string>
     <string name="got_it">Verstanden</string>

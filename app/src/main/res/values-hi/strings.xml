@@ -250,17 +250,11 @@ Project: AUDIFY
     <string name="delete">मिटाएं</string>
     <string name="disconnect">डिसकनेक्ट करें</string>
     <string name="discord">Discord</string>
-    <string name="discord_account">Discord खाता</string>
     <string name="discord_button_variables">{song_name}, {artist_name} और {album_name} की जगह मौजूदा ट्रैक की जानकारी आ जाती है।</string>
     <string name="discord_buttons_footer">{song_name}, {artist_name} और {album_name} की जगह ट्रैक की जानकारी आ जाती है। पहला बटन गाने को YouTube Music पर खोलता है और दूसरा इस प्रोजेक्ट को खोलता है।</string>
     <string name="discord_presence_footer">ट्रैक, पोज़िशन या प्लेबैक स्थिति बदलने पर कार्ड अपडेट होता है। प्लेबैक रुकने पर यह साफ़ हो जाता है।</string>
     <string name="discord_show_audio_quality">ऑडियो क्वालिटी दिखाएँ</string>
     <string name="discord_show_audio_quality_subtitle">स्टेटस कार्ड पर Hi-Res, लॉसलेस और Dolby जानकारी</string>
-    <string name="discord_sign_in_footer">साइन इन करने पर Discord का लॉगिन पेज खुलता है। Audify में कुछ भी टाइप नहीं किया जाता।</string>
-    <string name="discord_token">Discord टोकन</string>
-    <string name="discord_token_description">अपना Discord खाता टोकन पेस्ट करें। यह इस डिवाइस पर एन्क्रिप्टेड रहता है और केवल Discord को भेजा जाता है।</string>
-    <string name="discord_token_rejected">Discord ने वह टोकन अस्वीकार कर दिया।</string>
-    <string name="discord_token_warning">Discord कोई ऐसा API नहीं देता जिससे ऐप्स आपकी प्रेज़ेंस सेट कर सकें, इसलिए यह फ़ीचर आपके खाते के रूप में साइन इन करता है और Discord के प्रोटोकॉल का इस्तेमाल करता है। आपका टोकन इस डिवाइस पर एन्क्रिप्टेड रहता है और केवल Discord को भेजा जाता है। यह आपके पूरे खाते तक पहुंच देता है, और खाता ऑटोमेशन Discord की शर्तों का उल्लंघन करता है। इसे तभी इस्तेमाल करें जब आप यह जोखिम स्वीकार करते हों।</string>
     <string name="dislike">नापसंद</string>
     <string name="done">हो गया</string>
     <string name="download">डाउनलोड करें</string>
@@ -268,8 +262,6 @@ Project: AUDIFY
     <string name="downloaded">डाउनलोड किया गया</string>
     <string name="drag_to_reorder">क्रम बदलने के लिए खींचें</string>
     <string name="enabled">चालू</string>
-    <string name="enter_token_instead">इसके बजाय टोकन डालें</string>
-    <string name="enter_token_instead_subtitle">अगर लॉगिन पेज लोड न हो तो इसका इस्तेमाल करें</string>
     <string name="enter_token_to_enable">चालू करने के लिए टोकन डालें</string>
     <string name="first_button">पहला बटन</string>
     <string name="got_it">समझ गए</string>
