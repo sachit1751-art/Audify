@@ -144,7 +144,7 @@ import com.music.audify.ui.player.MeshPalette
 import kotlinx.coroutines.launch
 
 /** How far the Listen now heading and feed sit above the shared top inset. */
-internal val HOME_TITLE_LIFT = 28.dp
+internal val HOME_TITLE_LIFT = 64.dp
 
 private const val RECENTS_TITLE = "Recents"
 
@@ -616,6 +616,8 @@ fun HomeScreen(
     onCustomizeClick: (() -> Unit)? = null,
     account: Account? = null,
     onAccountClick: (() -> Unit)? = null,
+    onListenTogetherClick: (() -> Unit)? = null,
+    onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
 ) {
     // Top Picks' pictures and motion wait for the feed — see LocalArtworkImages.
     val feedReady = state !is UiState.Loading
@@ -632,6 +634,16 @@ fun HomeScreen(
     }
     // Held from the first frame, so the row's slot never opens up after the feed is drawn.
     val topPicksWaiting = topPicks == null && (topPicksLoading || state is UiState.Loading)
+    var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
+    LaunchedEffect(feedReady) {
+        if (!feedReady || onPodcastsClick == null) return@LaunchedEffect
+        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
+        homePodcastShows = saved
+        YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
+            .flatMap { it.shows }
+            .let { discovered -> (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12) }
+            .also { homePodcastShows = it }
+    }
     CompositionLocalProvider(
         LocalArtworkMotion provides (artworkMotion && feedReady),
         LocalArtworkImages provides feedReady,
@@ -765,6 +777,9 @@ fun HomeScreen(
                         recentsPending = recentlyPlayedLoading,
                         onPlaySongs = onPlaySongs,
                         homeLayout = homeLayout,
+                        onListenTogetherClick = onListenTogetherClick,
+                        podcastShows = homePodcastShows,
+                        onPodcastsClick = onPodcastsClick,
                         topPicksPending = onTopPickClick != null && topPicksWaiting,
                         topPicksItem = if (onTopPickClick != null && !topPicks.isNullOrEmpty()) {
                             {
@@ -817,7 +832,12 @@ fun HomeScreen(
 fun homeFeedShelves(shelves: List<HomeShelf>, dropEditorial: Boolean = true): List<HomeShelf> {
     val editorial = if (dropEditorial) editorialShelfIndex(shelves) else null
     val kept = if (editorial != null) shelves.filterIndexed { index, _ -> index != editorial } else shelves
-    return kept.withoutSpeedDial().withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain()
+    val quickPicks = kept.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
+    val albums = kept.indexOfFirst { it.title.contains("Albums", ignoreCase = true) }
+    val ordered = if (quickPicks >= 0 && albums >= 0 && albums < quickPicks) {
+        kept.toMutableList().apply { add(quickPicks, removeAt(albums)) }
+    } else kept
+    return ordered.withoutSpeedDial()
 }
 
 /**
@@ -831,8 +851,8 @@ fun homeDefaultSlotKeys(
     dropEditorial: Boolean = withTopPicks,
 ): List<String> {
     val ordered = homeFeedShelves(shelves, dropEditorial = dropEditorial)
-    val moodAt = (ordered.indexOfFirst { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
-        .takeIf { it >= 0 } ?: 1) + 1
+    val moodAt = ordered.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
+        .takeIf { it >= 0 }?.plus(1) ?: ordered.size
     return buildList {
         if (withTopPicks) add(HOME_SLOT_TOP_PICKS)
         ordered.forEachIndexed { index, shelf ->
@@ -868,6 +888,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     topPicksPending: Boolean = false,
     /** Recents is still loading: a skeleton holds the slot it will land in. */
     recentsPending: Boolean = false,
+    onListenTogetherClick: (() -> Unit)? = null,
+    podcastShows: List<PodcastProviderShow> = emptyList(),
+    onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
 ) {
     // Recents swaps places with Listen again once it arrives, so its slot is
     // reserved from the start and the rows beneath are already where they will stay.
@@ -878,11 +901,16 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     } else {
         shelves
     }
-    val ordered = withRecentsSlot.withoutSpeedDial().withListenAgainFirst().withQuickPicksInListenAgainSlot().withOtherModelBelowListenAgain()
-    // Find Your Mood sits right after Recents, so it never follows another
-    // row of cards directly. Without Recents (a guest) it goes after the second shelf.
-    val moodAt = (ordered.indexOfFirst { it.title.trim().equals(RECENTS_TITLE, ignoreCase = true) }
-        .takeIf { it >= 0 } ?: 1) + 1
+    val quickPicksIndex = withRecentsSlot.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
+    val albumsIndex = withRecentsSlot.indexOfFirst { it.title.contains("Albums", ignoreCase = true) }
+    val ordered = if (!homeLayout.isCustom && quickPicksIndex >= 0 && albumsIndex >= 0 && albumsIndex < quickPicksIndex) {
+        withRecentsSlot.toMutableList().apply { add(quickPicksIndex, removeAt(albumsIndex)) }.withoutSpeedDial()
+    } else {
+        withRecentsSlot.withoutSpeedDial()
+    }
+    // 1.9.3 places Find Your Mood immediately after Quick Picks.
+    val moodAt = ordered.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
+        .takeIf { it >= 0 }?.plus(1) ?: ordered.size
     fun shelfItem(index: Int, shelf: HomeShelf) {
         if (recentsPending && shelf.items.isEmpty() && shelf.title == RECENTS_TITLE) {
             recentlyPlayedSkeleton()
@@ -948,6 +976,14 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                 )
             }
         }
+        if (shelf.title.equals("Quick picks", ignoreCase = true)) {
+            item(key = "home-listen-together") {
+                ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
+            }
+            if (onPodcastsClick != null) {
+                item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+            }
+        }
     }
 
     if (homeLayout.isCustom) {
@@ -983,6 +1019,44 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     }
     if (moodAt >= ordered.size && onMoodClick != null) {
         item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
+    }
+    if (ordered.none { it.title.equals("Quick picks", ignoreCase = true) } && onPodcastsClick != null) {
+        item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
+        item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+    }
+}
+
+@Composable
+private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        SectionHeader("Listen together")
+        ShelfRow(
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            items(listOf("Start a session", "Join a session").withIndex().toList(), key = { it.value }) { (index, label) ->
+                Box(
+                    modifier = Modifier.width(300.dp).height(142.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                        .clickable(enabled = onClick != null) { onClick?.invoke() },
+                ) {
+                    val artwork = artworks.getOrNull(index)
+                    if (!artwork.isNullOrBlank()) {
+                        AsyncImage(model = artwork, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .86f), Color.Black.copy(alpha = .28f))),
+                        ),
+                    )
+                    Column(Modifier.align(Alignment.CenterStart).padding(18.dp)) {
+                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .78f))
+                        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                    }
+                }
+            }
+        }
     }
 }
 

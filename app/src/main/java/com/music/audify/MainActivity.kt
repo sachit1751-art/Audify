@@ -693,11 +693,6 @@ private fun AudifyApp(
     val appForeground = com.music.audify.ui.rememberIsForeground()
     val appMotion = appForeground && !showNowPlaying
     val homeArtworkMotion = appMotion && selectedTab == TAB_HOME
-    // Top Picks turns over each hour; coming back to the app after a
-    // turn-over is an open too.
-    LaunchedEffect(appForeground) {
-        if (appForeground) viewModel.refreshTopPicksIfStale()
-    }
     // Where the two ends of opening and closing the player meet: the mini
     // player's cover reports itself here, the sheet its offset, and the player
     // flies its artwork between them — see [PlayerDock].
@@ -1002,7 +997,6 @@ private fun AudifyApp(
     val hideHomeBranding by AppSettings.hideHomeBranding.collectAsStateWithLifecycle()
     val hideHomeVideos by AppSettings.hideHomeVideos.collectAsStateWithLifecycle()
     val hideExplicitContent by AppSettings.hideExplicitContent.collectAsStateWithLifecycle()
-    val hideHomeTopPicks by AppSettings.hideHomeTopPicks.collectAsStateWithLifecycle()
     val hideHomeMoods by AppSettings.hideHomeMoods.collectAsStateWithLifecycle()
     val homeLayout by AppSettings.homeLayout.collectAsStateWithLifecycle()
     val libraryArtistsRow by AppSettings.libraryArtistsRow.collectAsStateWithLifecycle()
@@ -1027,8 +1021,6 @@ private fun AudifyApp(
     }
     val homeLoadingMore by viewModel.homeLoadingMore.collectAsStateWithLifecycle()
     val homeRecentlyPlayedLoading by viewModel.homeRecentlyPlayedLoading.collectAsStateWithLifecycle()
-    val topPicks by viewModel.topPicks.collectAsStateWithLifecycle()
-    val topPicksLoading by viewModel.topPicksLoading.collectAsStateWithLifecycle()
 
     // The top bar's icon is the quiet, always-there nudge; this is the
     // once-per-launch popup version of the same news. `updateDialogShown`
@@ -2041,11 +2033,7 @@ private fun AudifyApp(
      * built with.
      */
     val playMood: (TopPickMood, String) -> Unit = { mood, title ->
-        val hints = topPicks?.firstOrNull { it.kind == TopPickKind.MOOD }?.hints
-        openTopPick(
-            if (hints != null) TopPicks.moodStation(mood, hints) else TopPicks.moodStation(mood),
-            title,
-        )
+        openTopPick(TopPicks.moodStation(mood), title)
     }
     val addToQueue: (Song) -> Unit = { song ->
         scope.launch {
@@ -3825,17 +3813,8 @@ private fun AudifyApp(
                                 onLoadMore = viewModel::loadMoreHome,
                                 loadingMore = homeLoadingMore,
                                 recentlyPlayedLoading = homeRecentlyPlayedLoading && !hideHomeRecents,
-                                topPicks = topPicks,
-                                topPicksLoading = topPicksLoading,
                                 listenerName = account?.name,
-                                onTopPickClick = { pick: TopPick, label: String ->
-                                    if (pick.kind == TopPickKind.MOOD) {
-                                        navigator.push(AppRoute.Moods)
-                                    } else {
-                                        openTopPick(pick, label)
-                                    }
-                                    Unit
-                                }.takeUnless { hideHomeTopPicks },
+                                onTopPickClick = null,
                                 onMoodClick = playMood.takeUnless { hideHomeMoods },
                                 onMoodsShowAll = { navigator.push(AppRoute.Moods) },
                                 homeLayout = homeLayout,
@@ -3861,19 +3840,8 @@ private fun AudifyApp(
                                         showAccountSelector = true
                                     } else navigator.push(AppRoute.Settings)
                                 },
-                                onTopPickLongPress = { pick ->
-                                    pick.browseId?.let { browseId ->
-                                        onShelfLongPress(
-                                            ShelfItem(
-                                                title = pick.title,
-                                                subtitle = pick.artistName.orEmpty(),
-                                                thumbnailUrl = pick.images.firstOrNull(),
-                                                videoId = null,
-                                                browseId = browseId,
-                                            ),
-                                        )
-                                    }
-                                },
+                                onListenTogetherClick = { navigator.push(AppRoute.ListenTogether) },
+                                onPodcastsClick = { show -> navigator.push(AppRoute.Podcasts(show)) },
                             )
                             TAB_EXPLORE -> selectedMoodGenre?.let { category ->
                                 MoodGenrePlaylistsScreen(

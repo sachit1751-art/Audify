@@ -118,25 +118,22 @@ fun HomeLayoutDialog(
         )
     }
 
-    // Top Picks and Find Your Mood hide with the layout. AppSettings keeps these
-    // two flags in step with it, so a flag set before any layout existed still
-    // reads as hidden here.
-    val topPicksHidden by AppSettings.hideHomeTopPicks.collectAsStateWithLifecycle()
+    // Find Your Mood and Recents hide with the layout. The 1.9.3 Home layout
+    // has no Top Picks row, so it is not part of this list or its defaults.
     val moodsHidden by AppSettings.hideHomeMoods.collectAsStateWithLifecycle()
     val recentsHidden by AppSettings.hideHomeRecents.collectAsStateWithLifecycle()
     val recentsKey = remember { homeShelfKey("Recents") }
-    // Home keeps the release row out of the feed only while Top Picks shows.
-    val titles = remember(shelves, topPicksHidden) {
-        homeFeedShelves(shelves, dropEditorial = !topPicksHidden)
+    val titles = remember(shelves) {
+        homeFeedShelves(shelves, dropEditorial = false)
             .distinctBy { homeShelfKey(it.title) }
             .associate { homeShelfKey(it.title) to it.title }
     }
-    val defaults = remember(shelves, topPicksHidden) {
+    val defaults = remember(shelves) {
         homeDefaultSlotKeys(
             shelves,
-            withTopPicks = true,
+            withTopPicks = false,
             withMoods = true,
-            dropEditorial = !topPicksHidden,
+            dropEditorial = false,
         )
     }
     // The feed is personalised and changes on every load, so a saved row can be
@@ -146,10 +143,9 @@ fun HomeLayoutDialog(
         val remembered = layout.slots.map { it.key }.filter { it !in defaults }
         layout.arrange(defaults + remembered, dropHidden = false) { it }
     }
-    val hidden = remember(layout, order, topPicksHidden, moodsHidden, recentsHidden) {
+    val hidden = remember(layout, order, moodsHidden, recentsHidden) {
         order.filter {
             layout.isHidden(it) ||
-                (it == HOME_SLOT_TOP_PICKS && topPicksHidden) ||
                 (it == HOME_SLOT_MOODS && moodsHidden) ||
                 (it == recentsKey && recentsHidden)
         }.toSet()

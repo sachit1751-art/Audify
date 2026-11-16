@@ -1575,10 +1575,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         startSuggestPipeline()
         startTypeaheadMediaPipeline()
         loadHome()
-        // Explore waits for its tab (see [onExploreShown]): its category list
-        // and the dozen-odd artwork browses after it went out at launch with
-        // Home's own requests, to the same host, for a page not yet opened.
+        // Match the 1.9.2 startup schedule: begin Explore in the background
+        // while Home renders its shell and skeletons. Its artwork requests are
+        // bounded separately, and none of these calls block the first frame.
+        loadExplore()
         if (_signedIn.value) {
+            // Warm the signed-in pages before the listener opens them. The
+            // request functions publish asynchronously and retain their
+            // listener-identity checks, so tab changes cannot show stale data.
+            loadLibrary()
+            loadPlaylists()
             loadAccount()
         }
         viewModelScope.launch {
@@ -1626,11 +1632,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // A hidden row is never fetched; turning it back on fetches it then.
             AppSettings.hideHomeRecents.drop(1).collect { hidden ->
                 if (!hidden) loadHomeRecents(listenerKey(), homeLoadGeneration.get())
-            }
-        }
-        viewModelScope.launch {
-            AppSettings.hideHomeTopPicks.drop(1).collect { hidden ->
-                if (!hidden) loadTopPicks(listenerKey(), rebuild = false)
             }
         }
         viewModelScope.launch {
@@ -1966,7 +1967,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // out: it has its own skeleton at the head of the page rather than the
         // one at the tail.
         _homePendingShelves.value = 1 + YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.size
-        if (!AppSettings.hideHomeTopPicks.value) loadTopPicks(identity, rebuild = false)
         viewModelScope.launch {
             val coreFeed = launch {
                 try {
@@ -2225,7 +2225,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         // Top Picks keeps to its hour; a pull refreshes the feed, not the
         // picks, unless the hour has already turned over.
-        if (!AppSettings.hideHomeTopPicks.value && topPicksJob?.isActive != true) loadTopPicks(identity, rebuild = false)
         val primary = YtMusicRepository.home().getOrNull()
         val useFallback = primary == null || (primary.shelves.isEmpty() && primary.continuation == null)
         val feed = if (useFallback) {
