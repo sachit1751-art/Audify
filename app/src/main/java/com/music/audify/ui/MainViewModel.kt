@@ -124,6 +124,8 @@ enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
 
 private const val HOME_MAX_EMPTY_CONTINUATION_PAGES = 3
 
+internal fun shouldQueueGuestLibraryMigration(wasSignedIn: Boolean): Boolean = !wasSignedIn
+
 @OptIn(FlowPreview::class)
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -3142,6 +3144,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
          */
 
         fun browseTypeOf(browseId: String, fallback: BrowseType = BrowseType.OTHER): BrowseType = when {
+            // Imported Spotify playlists are stored locally under this namespace.
+            // Treat them as real playlists so their detail page uses the same
+            // bounded, playlist-owned playback path as YouTube Music playlists.
+            browseId.startsWith("local:playlist:") -> BrowseType.PLAYLIST
             // Built for playlists, but an album downloaded whole opens through
             // the same prefix, and its page should read as the album it is.
             browseId.startsWith(Downloads.PLAYLIST_PREFIX) ->
@@ -3995,7 +4001,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
             val wasSignedIn = _signedIn.value
             if (wasSignedIn) cacheCurrentListener()
-            authStore.upsertSession(stored)
+            val migrateGuestLibrary = shouldQueueGuestLibraryMigration(wasSignedIn)
+            authStore.upsertSession(stored, migrateGuestLibrary = migrateGuestLibrary)
             authStore.cookie = session.cookie // legacy compatibility only
             _googleAccounts.value = authStore.sessions
             _activeAccountId.value = accountId
@@ -4012,6 +4019,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             if (wasSignedIn) clearListenerState()
             reloadForAccount()
             loadChannels(force = true)
+            // Guest playlists live in LocalPlaylistStore until an account is
+            // available. Snapshot them only after the validated account/profile
+            // has been persisted, so the outbox is always scoped to this identity.
+            if (migrateGuestLibrary) {
+                viewModelScope.launch(Dispatchers.IO) {
+                    runCatching {
+                        com.music.audify.data.local.LocalFirstRepository.initialize(getApplication())
+                        com.music.audify.data.local.LocalFirstRepository.enqueueLibrarySnapshot(
+                            stored,
+                            profile.profileId,
+                        )
+                        authStore.pendingGuestLibraryMigration = false
+                    }.onFailure {
+                        Log.e("Audify", "Guest library migration could not be queued", it)
+                    }
+                }
+            }
             onComplete(true)
         }
     }

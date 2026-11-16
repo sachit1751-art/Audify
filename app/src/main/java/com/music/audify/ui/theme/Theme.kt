@@ -27,6 +27,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.text.TextStyle
@@ -330,25 +331,37 @@ fun AudifyTheme(
         )
     }
     val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+    // Keep a subtle theme tint at the bottom edge. Fading every dark gradient
+    // all the way to pure black created a visible black band behind the gesture
+    // navigation area, even though the rest of the screen used the active pack.
+    val bottomBackgroundColor = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, darkTheme) {
+        when (backgroundStyle) {
+            AppBackgroundStyle.PLAIN -> scheme.background
+            AppBackgroundStyle.AURORA -> scheme.background.withAccent(scheme.primary, if (darkTheme) .10f else .34f)
+            AppBackgroundStyle.OCEAN -> scheme.background.withAccent(scheme.secondary, if (darkTheme) .12f else .38f)
+            AppBackgroundStyle.SUNSET -> scheme.background.withAccent(scheme.secondary, if (darkTheme) .12f else .30f)
+            AppBackgroundStyle.NEBULA -> scheme.background.withAccent(scheme.primary, if (darkTheme) .12f else .32f)
+        }
+    }
     val appBackgroundBrush = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme) {
         val base = scheme.background
         when (backgroundStyle) {
             AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
             AppBackgroundStyle.AURORA -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), base)
-                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), base),
+                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), bottomBackgroundColor)
+                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), bottomBackgroundColor),
             )
             AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), base)
-                else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), base),
+                if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), bottomBackgroundColor)
+                else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), bottomBackgroundColor),
             )
             AppBackgroundStyle.SUNSET -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), base)
-                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), base),
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), bottomBackgroundColor)
+                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), bottomBackgroundColor),
             )
             AppBackgroundStyle.NEBULA -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), base)
-                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), base),
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), bottomBackgroundColor)
+                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), bottomBackgroundColor),
             )
         }
     }
@@ -408,7 +421,27 @@ fun SystemBarIcons(dark: Boolean) {
     val view = LocalView.current
     if (view.isInEditMode) return
     val window = findWindow(view) ?: return
+    val scheme = MaterialTheme.colorScheme
+    val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+    val darkSurface = scheme.background.luminance() < 0.5f
+    val navigationBarColor = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, darkSurface) {
+        when (backgroundStyle) {
+            AppBackgroundStyle.PLAIN -> scheme.background
+            AppBackgroundStyle.AURORA -> scheme.background.withAccent(scheme.primary, if (darkSurface) .10f else .34f)
+            AppBackgroundStyle.OCEAN -> scheme.background.withAccent(scheme.secondary, if (darkSurface) .12f else .38f)
+            AppBackgroundStyle.SUNSET -> scheme.background.withAccent(scheme.secondary, if (darkSurface) .12f else .30f)
+            AppBackgroundStyle.NEBULA -> scheme.background.withAccent(scheme.primary, if (darkSurface) .12f else .32f)
+        }.toArgb()
+    }
     SideEffect {
+        // Gesture-navigation area is part of the app canvas on modern Android.
+        // Match it to the active theme instead of leaving the framework's
+        // default black navigation strip visible below the edge-to-edge content.
+        // Android 15+ ignores the legacy navigationBarColor for gesture nav.
+        // The uncovered inset area falls back to the window decor background,
+        // which was hard-coded black in themes.xml. Keep that fallback in sync
+        // with the active palette as well (including theme changes at runtime).
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(navigationBarColor))
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = dark
             isAppearanceLightNavigationBars = dark

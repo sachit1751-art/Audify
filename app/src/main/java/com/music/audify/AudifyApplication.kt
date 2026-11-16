@@ -140,8 +140,23 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         AppSettings.init(this, authStore)
         com.music.audify.data.podcast.PodcastRepository.initialize(this)
         CoroutineScope(Dispatchers.IO).launch {
-            runCatching { com.music.audify.data.local.LocalFirstRepository.initialize(this@AudifyApplication) }
-                .onFailure { android.util.Log.e("Audify", "Local Room database initialization failed", it) }
+            runCatching {
+                val local = com.music.audify.data.local.LocalFirstRepository
+                local.initialize(this@AudifyApplication)
+                // Recover only a pending guest-to-account migration. Never
+                // snapshot every local playlist on ordinary launches/account
+                // switches: that could copy one account's local data to another.
+                val session = authStore.activeSession
+                val profileId = authStore.activeProfileId ?: session?.activeProfileId
+                if (authStore.pendingGuestLibraryMigration && session != null && profileId != null &&
+                    session.profiles.any { it.profileId == profileId }
+                ) {
+                    local.enqueueLibrarySnapshot(session, profileId)
+                    authStore.pendingGuestLibraryMigration = false
+                }
+            }.onFailure {
+                android.util.Log.e("Audify", "Local Room initialization or account sync enqueue failed", it)
+            }
         }
         // Restores a party this device is still a member of, so a process death
         // mid-session is something the rest of the party never sees. The socket

@@ -61,6 +61,11 @@ class AuthStore(context: Context) {
         get() = prefs.getString(KEY_ACTIVE_PROFILE, null)
         set(value) = prefs.edit {putString(KEY_ACTIVE_PROFILE, value)}
 
+    /** Durable one-shot marker for guest-library migration after first sign-in. */
+    var pendingGuestLibraryMigration: Boolean
+        get() = prefs.getBoolean(KEY_PENDING_GUEST_LIBRARY_MIGRATION, false)
+        set(value) = prefs.edit { putBoolean(KEY_PENDING_GUEST_LIBRARY_MIGRATION, value) }
+
     val activeSession: GoogleAccountSession?
         get() = sessions.firstOrNull { it.accountId == activeAccountId }
             ?: sessions.firstOrNull()
@@ -69,7 +74,11 @@ class AuthStore(context: Context) {
         prefs.edit {putString(KEY_SESSIONS, value.toJson())}
     }
 
-    fun upsertSession(session: GoogleAccountSession, activate: Boolean = true) {
+    fun upsertSession(
+        session: GoogleAccountSession,
+        activate: Boolean = true,
+        migrateGuestLibrary: Boolean = false,
+    ) {
         val existing = sessions
         val index = existing.indexOfFirst { it.accountId == session.accountId }
         val next = if (index >= 0) {
@@ -77,8 +86,17 @@ class AuthStore(context: Context) {
         } else {
             existing + session
         }
-        replaceSessions(next)
-        if (activate) select(session.accountId, session.activeProfileId)
+        // Persist the validated session and its one-shot guest-migration marker
+        // atomically. A process death cannot leave the new account saved while
+        // losing the fact that its guest library still needs to be queued.
+        prefs.edit {
+            putString(KEY_SESSIONS, next.toJson())
+            if (activate) {
+                putString(KEY_ACTIVE_ACCOUNT, session.accountId)
+                putString(KEY_ACTIVE_PROFILE, session.activeProfileId)
+            }
+            if (migrateGuestLibrary) putBoolean(KEY_PENDING_GUEST_LIBRARY_MIGRATION, true)
+        }
     }
 
     fun select(accountId: String, profileId: String?) {
@@ -224,6 +242,7 @@ class AuthStore(context: Context) {
         private const val KEY_SESSIONS = "google_account_sessions_v2"
         private const val KEY_ACTIVE_ACCOUNT = "active_google_account_id_v2"
         private const val KEY_ACTIVE_PROFILE = "active_youtube_profile_id_v2"
+        private const val KEY_PENDING_GUEST_LIBRARY_MIGRATION = "pending_guest_library_migration_v1"
         private const val KEY_CHANNEL_PAGE_ID = "channel_page_id"
         private const val KEY_CHANNEL_DATASYNC_ID = "channel_datasync_id"
         private const val KEY_CHANNEL_NAME = "channel_name"

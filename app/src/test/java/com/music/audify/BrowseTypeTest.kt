@@ -34,6 +34,11 @@ class BrowseTypeTest {
     }
 
     @Test
+    fun `resolves locally imported Spotify playlist IDs as BrowseType PLAYLIST`() {
+        assertEquals(BrowseType.PLAYLIST, MainViewModel.browseTypeOf("local:playlist:sp_local_12345"))
+    }
+
+    @Test
     fun `preserves fallback when browse ID prefix is unknown`() {
         assertEquals(BrowseType.ALBUM, MainViewModel.browseTypeOf("unknown_id", fallback = BrowseType.ALBUM))
         assertEquals(BrowseType.ARTIST, MainViewModel.browseTypeOf("custom_source", fallback = BrowseType.ARTIST))

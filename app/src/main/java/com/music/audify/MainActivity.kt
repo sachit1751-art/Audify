@@ -16,6 +16,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -158,6 +159,8 @@ import com.music.audify.data.model.EntityType
 import com.music.audify.data.model.SearchHistoryEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.music.audify.data.model.durationMillis
 import com.music.audify.data.scrobbling.LastFM
 import com.music.audify.data.settings.AppSettings
@@ -412,7 +415,15 @@ internal fun shouldSkipAfterDislike(
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
+        // Keep the navigation gesture region genuinely edge-to-edge. Android's
+        // contrast scrim can otherwise paint an opaque black strip over the
+        // app's themed background (notably on API 29+ and Android 15+).
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
         // Before the composition, so a cold launch from a widget's artwork has
         // the request already standing by the time AudifyApp first reads it.
         PlayerDeepLink.consume(intent)
@@ -911,6 +922,9 @@ private fun AudifyApp(
     var searchFieldFocused by remember { mutableStateOf(false) }
     // Invalidates an in-flight radio lookup when a later play request wins.
     var playRequestGeneration by remember { mutableIntStateOf(0) }
+    // Queue replacement is a multi-step session command. Serialize starts so an
+    // older playlist handoff cannot finish after a newer selection.
+    val playbackStartMutex = remember { Mutex() }
     // Starting radio from the item already playing must not replace that media
     // item just to add UI metadata. This temporary label covers that seed; all
     // following radio items carry radioName in their MediaItem extras.
@@ -1747,52 +1761,55 @@ private fun AudifyApp(
         if (allSongs.getOrNull(allIndex)?.isUnresolvedSpotify == true) return
         val songs = allSongs.filterNot { it.isUnresolvedSpotify }
         val index = songs.indexOf(allSongs.getOrNull(allIndex)).coerceAtLeast(0)
-        playRequestGeneration++
+        val requestGeneration = ++playRequestGeneration
         activeRadioSeed = null
         scope.launch {
-            if (refusedByHost()) return@launch
-            val c = controller ?: return@launch
-            val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
-                ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
-            val currentIndex = c.currentMediaItemIndex
+            playbackStartMutex.withLock {
+                if (requestGeneration != playRequestGeneration) return@withLock
+                if (refusedByHost()) return@withLock
+                val c = controller ?: return@withLock
+                val currentTimeline = player.queue.takeIf { it.size == c.mediaItemCount }
+                    ?: (0 until c.mediaItemCount).map { c.getMediaItemAt(it).toSong() }
+                val currentIndex = c.currentMediaItemIndex
 
-            if (ListenTogether.state.value.inParty) {
-                val selectedSong = songs.getOrNull(index) ?: return@launch
-                val party = ListenTogether.state.value
-                val partyQueue = party.queue.items
-                val partyIndex = partyQueueIndexOf(party.queue, party.playback, party.playback.track?.videoId)
-                val upcomingPartyTracks = if (partyIndex >= 0) {
-                    partyQueue.drop(partyIndex + 1)
-                } else {
-                    emptyList()
-                }
-                val timeline = QueueCoordinator.buildPartyPlaybackQueue(
-                    tappedSong = selectedSong,
-                    source = source,
-                    upcomingPartyTracks = upcomingPartyTracks,
-                )
-                c.playSongs(timeline, 0)
-            } else {
-                // A Cast session still owns the full queue on the phone so the
-                // receiver can follow its existing queue semantics. The bounded
-                // service path is local-player-only; the service repeats this
-                // guard for commands that race a newly connected receiver.
-                //
-                // Any list too long to fit the window goes this way too, whatever
-                // page it came from: a whole library in the player is a whole
-                // library re-sent to every media controller on each queue edit.
-                val bounded = boundedContext || songs.size > BoundedQueuePlanner.MAX_PHYSICAL_CONTEXT
-                if (bounded && !CastController.state.value.casting) {
-                    c.playBoundedContext(songs, index, source, continuationToken)
-                } else {
-                    val result = QueueCoordinator.buildContextQueue(
-                        currentTimeline = currentTimeline,
-                        currentIndex = currentIndex,
-                        newContextSongs = songs,
-                        selectedIndex = index,
-                        contextSource = source,
+                if (ListenTogether.state.value.inParty) {
+                    val selectedSong = songs.getOrNull(index) ?: return@withLock
+                    val party = ListenTogether.state.value
+                    val partyQueue = party.queue.items
+                    val partyIndex = partyQueueIndexOf(party.queue, party.playback, party.playback.track?.videoId)
+                    val upcomingPartyTracks = if (partyIndex >= 0) {
+                        partyQueue.drop(partyIndex + 1)
+                    } else {
+                        emptyList()
+                    }
+                    val timeline = QueueCoordinator.buildPartyPlaybackQueue(
+                        tappedSong = selectedSong,
+                        source = source,
+                        upcomingPartyTracks = upcomingPartyTracks,
                     )
-                    c.playSongs(result.timeline, result.startIndex)
+                    c.playSongs(timeline, 0)
+                } else {
+                    // A Cast session still owns the full queue on the phone so the
+                    // receiver can follow its existing queue semantics. The bounded
+                    // service path is local-player-only; the service repeats this
+                    // guard for commands that race a newly connected receiver.
+                    //
+                    // Any list too long to fit the window goes this way too, whatever
+                    // page it came from: a whole library in the player is a whole
+                    // library re-sent to every media controller on each queue edit.
+                    val bounded = boundedContext || songs.size > BoundedQueuePlanner.MAX_PHYSICAL_CONTEXT
+                    if (bounded && !CastController.state.value.casting) {
+                        c.playBoundedContext(songs, index, source, continuationToken)
+                    } else {
+                        val result = QueueCoordinator.buildContextQueue(
+                            currentTimeline = currentTimeline,
+                            currentIndex = currentIndex,
+                            newContextSongs = songs,
+                            selectedIndex = index,
+                            contextSource = source,
+                        )
+                        c.playSongs(result.timeline, result.startIndex)
+                    }
                 }
             }
             // Start playback in the mini-player; the user opens the full view by tapping it.

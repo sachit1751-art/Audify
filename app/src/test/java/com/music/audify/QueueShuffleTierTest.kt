@@ -540,6 +540,21 @@ class QueueShuffleTierTest {
     }
 
     @Test
+    fun `playlist-wide shuffle starts with selected song and contains every playlist track exactly once`() {
+        val songs = (0 until 80).map { testSong("spotify-track-$it", entryId = "spotify-entry-$it") }
+        val selectedIndex = 37
+
+        QueueShuffle.enableForNextQueue()
+        val shuffled = QueueShuffle.startingOrder(songs, selectedIndex)
+
+        assertEquals(songs[selectedIndex].videoId, shuffled.first().videoId)
+        assertEquals(songs.map { it.videoId }.toSet(), shuffled.map { it.videoId }.toSet())
+        assertEquals(songs.size, shuffled.map { it.videoId }.distinct().size)
+        val canonicalRemainder = songs.filterIndexed { index, _ -> index != selectedIndex }.map { it.videoId }
+        assertNotEquals(canonicalRemainder, shuffled.drop(1).map { it.videoId })
+    }
+
+    @Test
     fun `getCanonicalIndex and restore fall back cleanly to mediaId when item has a distinct or fresh queueEntryId`() {
         val songs = (1..5).map { testSong("track-$it", QueueTier.CONTEXT, "canonical-id-$it") }
         val canonicalItems = songs.mapIndexed { idx, s ->

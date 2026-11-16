@@ -2818,6 +2818,18 @@ class PlaybackService : MediaLibraryService() {
         BoundedContextPersistence.clearImmediately()
         boundedEditState = BoundedQueueEdits.invalidateContext(boundedEditState)
 
+        // A new playlist is a new playback session. Cancel every job that may
+        // still be materializing the previous playlist and discard its deferred
+        // edits before installing the new context/window.
+        boundedContinuationJob?.cancel()
+        boundedContinuationJob = null
+        boundedTopUpJob?.cancel()
+        boundedTopUpJob = null
+        boundedCanonicalJob?.cancel()
+        boundedCanonicalJob = null
+        boundedEditState = BoundedQueueEditState()
+        QueueShuffle.clearCanonicalContext()
+
         val source = request.source
         val requestedSongs = request.songs
             .filterNot { it.isUnresolvedSpotify }
@@ -2843,12 +2855,13 @@ class PlaybackService : MediaLibraryService() {
         val selectedIndex = registered.songs.indexOfFirst { it.contextEntryKey() == selectedKey }
             .takeIf { it >= 0 } ?: 0
         val shuffle = request.shuffle
+        QueueShuffle.setEnabled(shuffle)
+        AppSettings.setShuffleEnabled(shuffle)
         // A fresh seed per start: the default one is fixed, which gave the
         // same album the same "shuffled" order every time it was played.
         val window = QueueWindow(registered.songs.size, shuffleSeed = Random.nextLong())
             .startAt(selectedIndex, shuffle)
 
-        boundedContinuationJob?.cancel()
         boundedContextWindow = window
         boundedContextToken = contextToken
         boundedContextSource = source
@@ -2876,8 +2889,6 @@ class PlaybackService : MediaLibraryService() {
         // Off the main thread: this is the one step here that scales with the
         // whole list, and [toMediaItem] stats every downloaded track. Shuffle
         // toggled before it lands reads the player's own rows, then this replaces them.
-        boundedCanonicalJob?.cancel()
-        QueueShuffle.clearCanonicalContext()
         boundedCanonicalJob = scope.launch(Dispatchers.Default) {
             val canonicalItems = registered.songs.mapIndexed { index, song ->
                 val canonical = song.copy(queueEntryId = "context:$contextToken:$index")

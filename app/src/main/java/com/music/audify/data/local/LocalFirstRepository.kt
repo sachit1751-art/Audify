@@ -213,9 +213,20 @@ object LocalFirstRepository {
             val payload = JSONObject().put("title", playlist.title)
                 .put("videoIds", JSONArray(currentIds)).put("revision", revision)
             val synced = dao.playlistSync(playlist.id, session.accountId, profileId)
-            val alreadySynced = synced?.status == "synced" && synced.syncedTitle == playlist.title &&
-                synced.syncedVideoIdsJson == JSONArray(currentIds).toString()
-            if (!alreadySynced && synced?.status != "conflict") {
+            val previouslySyncedIds = synced?.syncedVideoIdsJson?.let { raw ->
+                runCatching {
+                    val array = JSONArray(raw)
+                    (0 until array.length()).map { array.getString(it) }
+                }.getOrNull()
+            }
+            val needsSync = needsPlaylistSnapshotSync(
+                status = synced?.status,
+                syncedTitle = synced?.syncedTitle,
+                syncedVideoIds = previouslySyncedIds,
+                title = playlist.title,
+                videoIds = currentIds,
+            )
+            if (needsSync && synced?.status != "conflict") {
                 dao.enqueue(SyncOperationRow(
                     0, "playlist:${session.accountId}:$profileId:${playlist.id}", session.accountId, profileId,
                     TYPE_PLAYLIST, playlist.id, payload.toString(), "pending", 0, 0L, null, now, now,
@@ -342,6 +353,15 @@ object LocalFirstRepository {
     private const val TYPE_FAVORITE = "favorite"
     private const val TYPE_PLAYLIST = "playlist"
 }
+
+/** Pure idempotency policy shared by guest-library migration and its regression tests. */
+internal fun needsPlaylistSnapshotSync(
+    status: String?,
+    syncedTitle: String?,
+    syncedVideoIds: List<String>?,
+    title: String,
+    videoIds: List<String>,
+): Boolean = status != "synced" || syncedTitle != title || syncedVideoIds != videoIds
 
 private fun Song.toRow() = SongRow(
     videoId, title, artist, thumbnailUrl, durationText, artistId,
