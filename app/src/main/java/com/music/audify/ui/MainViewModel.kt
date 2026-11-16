@@ -1992,14 +1992,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
             if (_signedIn.value && !AppSettings.hideHomeRecents.value) loadHomeRecents(identity, generation)
-            // Fetched together but published one after another in list order, and
-            // only once the core feed is in, so the rows never swap places with
-            // whichever request happened to answer first.
-            val supplements = YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.map { browseId ->
-                async { runCatching { YtMusicRepository.homeSupplement(browseId).getOrNull() }.getOrNull() }
-            }
             launch {
                 coreFeed.join()
+                // The core Home feed is the first useful remote content on a
+                // cold launch. Do not let optional shelves compete with it for
+                // network, JSON parsing, and scheduler time. Start the same
+                // parallel supplement batch only after the primary feed has
+                // been published; retain stable shelf order below.
+                val supplements = YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.map { browseId ->
+                    async { runCatching { YtMusicRepository.homeSupplement(browseId).getOrNull() }.getOrNull() }
+                }
                 supplements.forEach { request ->
                     try {
                         val shelves = request.await()

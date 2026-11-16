@@ -513,6 +513,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeLayoutSkeleton(
     withRecents: Boolean,
 ) {
     val recentsKey = homeShelfKey(RECENTS_TITLE)
+    // These shelves render as a four-track paged list, not as square artwork
+    // cards. Keep their loading footprint identical to the content that will
+    // replace it once the feed arrives.
+    val pagedListKeys = (LISTEN_AGAIN_TITLES + RECENTS_TITLE)
+        .mapTo(HashSet(), ::homeShelfKey)
     var shown = 0
     for (key in slots) {
         if (shown >= HOME_SKELETON_SLOTS) break
@@ -523,6 +528,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeLayoutSkeleton(
                 shown++
             }
             key == recentsKey -> if (withRecents) {
+                recentlyPlayedSkeleton()
+                shown++
+            }
+            key in pagedListKeys -> {
                 recentlyPlayedSkeleton()
                 shown++
             }
