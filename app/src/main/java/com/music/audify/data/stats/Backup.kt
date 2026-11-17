@@ -21,6 +21,9 @@ import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.IOException
+import java.io.FileNotFoundException
+import kotlinx.coroutines.CancellationException
 
 /**
  * The whole of what this app knows about you, as one JSON file you own.
@@ -63,7 +66,7 @@ object Backup {
 
     /** Writes a private, atomic snapshot for scheduled recovery. */
     suspend fun createAutomatic(context: Context): Result<File> = withContext(Dispatchers.IO) {
-        runCatching {
+        backupResult {
             // Keep scheduled snapshots on this install only. The user-owned
             // export is the portable copy; these recovery snapshots must not
             // silently enter Android cloud backup or device-transfer payloads.
@@ -94,9 +97,9 @@ object Backup {
 
     /** Parses and validates a selected backup without mutating app data. */
     suspend fun preview(context: Context, source: Uri): Result<Preview> = withContext(Dispatchers.IO) {
-        runCatching {
+        backupResult {
             val text = context.contentResolver.openInputStream(source)?.use(::readBoundedBackup)
-                ?: error("Couldn't open that file")
+                ?: throw FileNotFoundException("Backup file is unavailable")
             val file = decodeAndValidate(text)
             Preview(
                 songs = file.favorites.distinctBy { it.videoId }.size,
@@ -123,23 +126,22 @@ object Backup {
      * has no path to and no permission for. The picker grants access to that one
      * document and nothing else, which is the correct amount.
      */
-    suspend fun exportTo(context: Context, target: Uri): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
+    suspend fun exportTo(context: Context, target: Uri): Result<ExportSummary> = withContext(Dispatchers.IO) {
+        backupResult {
             val file = buildBackupFile()
             val text = json.encodeToString(BackupFile.serializer(), file)
             validateBackupSize(text.toByteArray().size)
             context.contentResolver.openOutputStream(target, "wt")
                 ?.use { it.write(text.toByteArray()) }
-                ?: error("Couldn't open that file for writing")
+                ?: throw IOException("Could not open the selected destination for writing")
             @Suppress("UseKtx")
             val committed = context.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
                 .edit().putLong(LAST_EXTERNAL_BACKUP_AT, System.currentTimeMillis()).commit()
-            check(committed) {
-                "Backup was written, but its reminder timestamp could not be saved"
-            }
-            file.listening.size
+            ExportSummary(months = file.listening.size, timestampSaved = committed)
         }
     }
+
+    data class ExportSummary(val months: Int, val timestampSaved: Boolean)
 
     /**
      * Reads [source] and replaces this device's settings and listening with it.
@@ -150,10 +152,10 @@ object Backup {
      * mixed together with nothing to say which came from where.
      */
     suspend fun importFrom(context: Context, source: Uri): Result<Summary> = withContext(Dispatchers.IO) {
-        runCatching {
+        backupResult {
             val text = context.contentResolver.openInputStream(source)
                 ?.use(::readBoundedBackup)
-                ?: error("Couldn't open that file")
+                ?: throw FileNotFoundException("Backup file is unavailable")
             val file = decodeAndValidate(text)
 
             // Keep a rollback image until every store has accepted the incoming
@@ -175,12 +177,23 @@ object Backup {
                 AppSettings.importPrefs(file.settings.mapValues { it.value.decoded() })
                 SearchHistory.reload()
             } catch (restoreFailure: Throwable) {
-                runCatching { LocalLibraryStore.importLibrary(oldFavorites, oldHistory) }
-                runCatching { LocalPlaylistStore.importSnapshot(oldPlaylists) }
-                runCatching { LocalPlaylistStore.syncFavorites(oldFavorites) }
-                runCatching { ListeningStats.importAll(oldListening) }
-                runCatching { AppSettings.importPrefs(oldSettings) }
-                runCatching { SearchHistory.reload() }
+                // A failed rollback is materially different from a rejected
+                // restore: some of the previous data may not have been put back.
+                val rollbackFailures = listOf(
+                    runCatching { LocalLibraryStore.importLibrary(oldFavorites, oldHistory) },
+                    runCatching { LocalPlaylistStore.importSnapshot(oldPlaylists) },
+                    runCatching { LocalPlaylistStore.syncFavorites(oldFavorites) },
+                    runCatching { ListeningStats.importAll(oldListening) },
+                    runCatching { AppSettings.importPrefs(oldSettings) },
+                    runCatching { SearchHistory.reload() },
+                ).mapNotNull { it.exceptionOrNull() }
+                if (rollbackFailures.isNotEmpty()) {
+                    if (restoreFailure is CancellationException) {
+                        rollbackFailures.forEach(restoreFailure::addSuppressed)
+                        throw restoreFailure
+                    }
+                    throw RestoreRollbackException(restoreFailure, rollbackFailures)
+                }
                 throw restoreFailure
             }
             Summary(
@@ -199,6 +212,23 @@ object Backup {
         val from: String,
         val at: String,
     )
+
+    /** The incoming restore failed and at least one rollback store also failed. */
+    class RestoreRollbackException(
+        cause: Throwable,
+        rollbackFailures: List<Throwable>,
+    ) : IOException("Restore failed and previous data could not be fully recovered", cause) {
+        init { rollbackFailures.forEach(::addSuppressed) }
+    }
+
+    /** Keep coroutine cancellation observable instead of turning it into a UI error. */
+    private inline fun <T> backupResult(block: () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        Result.failure(failure)
+    }
 
     private const val APP_TAG = "audify"
     private const val BACKUP_PREFS = "audify_backup_state"
@@ -267,7 +297,7 @@ object Backup {
     private fun decodeAndValidate(text: String): BackupFile {
         require(text.toByteArray().size <= MAX_BACKUP_BYTES) { "Backup file is too large" }
         val file = runCatching { json.decodeFromString(BackupFile.serializer(), text) }
-            .getOrElse { error("That doesn't look like an Audify backup") }
+            .getOrElse { throw IllegalArgumentException("That doesn't look like an Audify backup", it) }
         require(file.app == APP_TAG) { "That backup is from another app" }
         require(file.version in 1..SCHEMA_VERSION) { "That backup version isn't supported" }
         require(file.favorites.size <= 100_000 && file.history.size <= 100_000) { "Backup contains too many songs" }

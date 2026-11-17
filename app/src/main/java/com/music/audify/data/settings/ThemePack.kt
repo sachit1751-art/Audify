@@ -96,6 +96,25 @@ object ThemePacks {
         return if (blackContrast >= whiteContrast) "#000000" else "#FFFFFF"
     }
 
+    /** Keeps light-mode accents legible on white surfaces without changing palette swatches. */
+    fun accessibleLightAccentHex(hex: String): String {
+        require(isValidHex(hex)) { "Expected a six-digit colour" }
+        fun luminance(value: String): Double {
+            val rgb = value.drop(1).chunked(2).map { it.toInt(16) / 255.0 }
+            fun linear(channel: Double) = if (channel <= 0.04045) channel / 12.92 else Math.pow((channel + 0.055) / 1.055, 2.4)
+            return 0.2126 * linear(rgb[0]) + 0.7152 * linear(rgb[1]) + 0.0722 * linear(rgb[2])
+        }
+        fun contrastOnWhite(value: String) = 1.05 / (luminance(value) + 0.05)
+        if (contrastOnWhite(hex) >= 3.0) return hex.uppercase()
+        var channels = hex.drop(1).chunked(2).map { it.toInt(16) }
+        repeat(100) {
+            channels = channels.map { (it * 0.94).toInt().coerceAtLeast(0) }
+            val candidate = channels.joinToString(prefix = "#", separator = "") { it.toString(16).padStart(2, '0') }.uppercase()
+            if (contrastOnWhite(candidate) >= 3.0) return candidate
+        }
+        return "#000000"
+    }
+
     fun resolve(id: String, custom: List<ThemePack>): ThemePack =
         builtIns.firstOrNull { it.id == id }
             ?: custom.firstOrNull { it.id == id }

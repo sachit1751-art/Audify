@@ -105,6 +105,15 @@ internal val floatingBarInsets: WindowInsets
 /** A gesture bar's inset — 45px at the test phone's 3x density. */
 private val GESTURE_BAR_FLOOR = 15.dp
 
+// The non-Liquid-Glass navigation bar keeps the original 1.9.2 geometry.
+// These are deliberately separate from the newer glass measurements below:
+// changing the glass pill must not silently resize the classic navigation bar.
+private val CLASSIC_PILL_INSET = 6.dp
+private val CLASSIC_BAR_BOTTOM_PADDING = 2.dp
+private val CLASSIC_TAB_VERTICAL_PADDING = 9.dp
+private val CLASSIC_TAB_ICON_LABEL_GAP = 2.dp
+private val CLASSIC_TAB_ICON_SIZE = 25.dp
+
 /**
  * Each tab's own vertical padding, and the counterweight to [PILL_INSET].
  *
@@ -187,6 +196,11 @@ fun FloatingBottomBar(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val useGlass = LocalLiquidGlassEnabled.current && isGlassSupported()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val pillInset = if (useGlass) PILL_INSET else CLASSIC_PILL_INSET
+    val tabVerticalPadding = if (useGlass) TAB_VERTICAL_PADDING else CLASSIC_TAB_VERTICAL_PADDING
+    val tabIconLabelGap = if (useGlass) TAB_ICON_LABEL_GAP else CLASSIC_TAB_ICON_LABEL_GAP
+    val tabIconSize = if (useGlass) TAB_ICON_SIZE else 25.dp
+    val tabTextStyle = if (useGlass) tabLabelStyle() else MaterialTheme.typography.labelSmall
     // The glass settle is exactly the motion "reduce animation" promises to
     // drop — snapping both the indicator's travel and the glyph's pop to
     // their target leaves the tap itself instant rather than eased.
@@ -249,8 +263,8 @@ fun FloatingBottomBar(
     Box(
         modifier = modifier
             .windowInsetsPadding(floatingBarInsets)
-            .padding(horizontal = NAV_BAR_GUTTER)
-            .padding(bottom = NAV_BAR_LIFT)
+            .padding(horizontal = if (useGlass) NAV_BAR_GUTTER else BAR_GUTTER)
+            .padding(bottom = if (useGlass) NAV_BAR_LIFT else CLASSIC_BAR_BOTTOM_PADDING)
             .fillMaxWidth()
             .clip(pillShape)
             .then(
@@ -266,7 +280,7 @@ fun FloatingBottomBar(
                 },
             )
             .border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, pillShape)
-            .padding(horizontal = PILL_INSET, vertical = PILL_INSET),
+            .padding(horizontal = pillInset, vertical = pillInset),
     ) {
         if (tabWidthPx > 0f) {
             Box(
@@ -350,6 +364,10 @@ fun FloatingBottomBar(
                     glassSpec = glassSpec,
                     selectedTint = MaterialTheme.colorScheme.primary,
                     unselectedTint = adaptiveTint?.copy(alpha = 0.65f),
+                    iconSize = tabIconSize,
+                    iconLabelGap = tabIconLabelGap,
+                    verticalPadding = tabVerticalPadding,
+                    textStyle = tabTextStyle,
                     onClick = { onTabSelected(index) },
                     modifier = Modifier.weight(1f),
                 )
@@ -368,6 +386,10 @@ private fun BottomBarItem(
     /** Overrides the theme's primary/onSurfaceVariant tint — see the glass branch above. */
     selectedTint: Color? = null,
     unselectedTint: Color? = null,
+    iconSize: androidx.compose.ui.unit.Dp = TAB_ICON_SIZE,
+    iconLabelGap: androidx.compose.ui.unit.Dp = TAB_ICON_LABEL_GAP,
+    verticalPadding: androidx.compose.ui.unit.Dp = TAB_VERTICAL_PADDING,
+    textStyle: TextStyle = tabLabelStyle(),
 ) {
     // The same spring the indicator rides, so the glyph arriving and the glass
     // arriving are one movement rather than two that nearly agree.
@@ -398,23 +420,23 @@ private fun BottomBarItem(
                 if (!selected) haptics.play(Haptic.Select)
                 onClick()
             }
-            .padding(vertical = TAB_VERTICAL_PADDING),
+            .padding(vertical = verticalPadding),
     ) {
         Icon(
             imageVector = tab.icon,
             contentDescription = tab.label,
             tint = tint,
             modifier = Modifier
-                .size(TAB_ICON_SIZE)
+                .size(iconSize)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
                 },
         )
-        Spacer(Modifier.height(TAB_ICON_LABEL_GAP))
+        Spacer(Modifier.height(iconLabelGap))
         Text(
             text = tab.label,
-            style = tabLabelStyle(),
+            style = textStyle,
             color = tint,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

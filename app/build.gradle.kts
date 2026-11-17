@@ -104,6 +104,8 @@ android {
 
     splits {
         abi {
+            // Ship the universal APK plus device-specific production packages.
+            // Keep the same supported native ABIs as TV and Wear OS.
             isEnable = true
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86_64")
@@ -133,6 +135,7 @@ android {
             dimension = "env"
             applicationId = "com.dev.audify"
             resValue("string", "app_name", "Audify Dev")
+            signingConfig = signingConfigs.getByName("debug")
         }
         create("prod") {
             dimension = "env"
@@ -159,11 +162,21 @@ android {
         }
     }
 
+    // Dev release builds must remain upgrade-compatible with the locally
+    // installed Dev app. Production alone uses the configured release key.
+    productFlavors.getByName("dev").signingConfig = signingConfigs.getByName("debug")
+    signingConfigs.findByName("release")?.let {
+        productFlavors.getByName("prod").signingConfig = it
+    }
+
     buildTypes {
         debug {
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
         }
         release {
+            // R8 optimisations are meaningful only for a non-debuggable build.
+            // Dev Release still uses the local debug certificate via its flavor.
+            isDebuggable = false
             // Carried here too — see [betaSuffix]. A sideloaded beta is a
             // release build, and it is the one that most needs the marker.
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
@@ -177,8 +190,8 @@ android {
              * NewPipe, InnerTubeX, QuickJS, SMBJ and BouncyCastle, ONNX's JNI,
              * protobuf-lite, Ktor — is kept whole: see proguard-rules.pro. What R8
              * is left to optimise is Compose, Media3, coroutines and our own
-             * code, which is where the time goes. Checked on a device through the
-             * `benchmark` build type below before it ships.
+             * code, which is where the time goes. Dev and Production use the
+             * same optimisation rules.
              */
             isMinifyEnabled = true
             isShrinkResources = true
@@ -186,23 +199,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Null without a keystore to sign with: the build then produces
-            // app-release-unsigned.apk instead of failing outright.
-            signingConfig = signingConfigs.findByName("release")
-        }
-        /*
-         * The release build, installable next to the dev and prod apps: same R8,
-         * same non-debuggable runtime, signed with the debug key under its own
-         * package so it never replaces either. For measuring startup the way
-         * users get it and for checking that shrinking broke nothing — a debug
-         * build is interpreted and verified at runtime and says little about
-         * either. `./gradlew installDevBenchmark`.
-         */
-        create("benchmark") {
-            initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("debug")
-            applicationIdSuffix = ".benchmark"
-            matchingFallbacks += listOf("release")
+            // Signing is selected per environment above: debug key for Dev,
+            // configured release key for Production.
         }
     }
     compileOptions {
@@ -574,7 +572,6 @@ if (providers.gradleProperty("audify.bundleWear").orNull != "false" && findProje
     androidComponents.onVariants { variant ->
         val flavor = variant.productFlavors.firstOrNull { it.first == "env" }?.second ?: return@onVariants
         val type = variant.buildType ?: return@onVariants
-        // The benchmark build has no watch counterpart.
         if (type != "debug" && type != "release") return@onVariants
         val cap = variant.name.replaceFirstChar { it.uppercase() }
         val bundle = tasks.register<BundleWearApk>("bundleWearApk$cap") {

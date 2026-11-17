@@ -293,6 +293,65 @@ enum class GlassPreset(
             iconLift = 0.19f,
             squash = 0.39f,
         ),
+    ),
+
+    /** Low-overhead glass: frosted surface, no lens sampling, restrained shadows. */
+    PERFORMANCE(
+        level = 0.32f,
+        custom = GlassCustom(
+            blur = 0.55f, saturation = 0.9f, tint = 1.15f,
+            refraction = 0f, refractionWidth = 0.8f, depth = false,
+            rainbow = 0f, rim = 0.65f, shadow = 0.35f, quality = 0.65f,
+        ),
+        indicator = GlassIndicator(
+            restLens = false, restRefraction = 0f, restRefractionWidth = 0.8f,
+            liftRefraction = 0f, liftRefractionWidth = 0.8f, rainbow = 0f,
+            depth = false, blur = 0.45f, saturation = 1f, brightness = 1f,
+            fill = 0.85f, rim = 0.65f, innerShadow = 0.35f, innerRadius = 1f,
+            shadow = 0.35f, lift = 0.55f, iconLift = 0.12f, squash = 0.25f,
+        ),
+        darkCustom = GlassCustom(
+            blur = 0.5f, saturation = 0.9f, tint = 1.05f,
+            refraction = 0f, refractionWidth = 0.8f, depth = false,
+            rainbow = 0f, rim = 0.55f, shadow = 0.45f, quality = 0.65f,
+        ),
+        darkIndicator = GlassIndicator(
+            restLens = false, restRefraction = 0f, restRefractionWidth = 0.8f,
+            liftRefraction = 0f, liftRefractionWidth = 0.8f, rainbow = 0f,
+            depth = false, blur = 0.35f, saturation = 0.9f, brightness = 1.2f,
+            fill = 0.65f, rim = 0.55f, innerShadow = 0.5f, innerRadius = 1f,
+            shadow = 0.45f, lift = 0.55f, iconLift = 0.12f, squash = 0.25f,
+        ),
+        frosted = true,
+    ),
+
+    /** Full visual treatment: crisp refraction, rich colour, depth and edge highlights. */
+    BEST_EXPERIENCE(
+        level = 0.58f,
+        custom = GlassCustom(
+            blur = 1.12f, saturation = 1.2f, tint = 0.95f,
+            refraction = 1.25f, refractionWidth = 1.15f, depth = true,
+            rainbow = 0.7f, rim = 1f, shadow = 1.25f, quality = 1.25f,
+        ),
+        indicator = GlassIndicator(
+            restLens = true, restRefraction = 1.45f, restRefractionWidth = 1.1f,
+            liftRefraction = 1.15f, liftRefractionWidth = 1.05f, rainbow = 0.8f,
+            depth = true, blur = 1.05f, saturation = 1.25f, brightness = 1.08f,
+            fill = 1.05f, rim = 1.15f, innerShadow = 1.05f, innerRadius = 1.1f,
+            shadow = 1.2f, lift = 0.85f, iconLift = 0.18f, squash = 0.4f,
+        ),
+        darkCustom = GlassCustom(
+            blur = 1.05f, saturation = 1.15f, tint = 0.85f,
+            refraction = 1.2f, refractionWidth = 1.1f, depth = true,
+            rainbow = 0.55f, rim = 0.9f, shadow = 1.45f, quality = 1.2f,
+        ),
+        darkIndicator = GlassIndicator(
+            restLens = true, restRefraction = 1.25f, restRefractionWidth = 1f,
+            liftRefraction = 1.1f, liftRefractionWidth = 1f, rainbow = 0.65f,
+            depth = true, blur = 0.85f, saturation = 1.1f, brightness = 1.3f,
+            fill = 0.85f, rim = 1f, innerShadow = 1.35f, innerRadius = 1.05f,
+            shadow = 1.35f, lift = 0.85f, iconLift = 0.18f, squash = 0.4f,
+        ),
     );
 
     /** Nilai custom preset ini untuk tema terang atau gelap. */
@@ -753,11 +812,8 @@ object AppSettings {
     /** Show the output / Listen Together pill under the player's transport. */
     val showListenTogetherButton = MutableStateFlow(false)
 
-    /** Show a Listen Together tab in the bottom navigation bar, before Search. */
-    val showListenTogetherTab = MutableStateFlow(true)
-
-    /** Search sebagai lingkaran terpisah di glass nav bar; mati = Search jadi tab keempat di dalam pil. */
-    val searchTabSeparate = MutableStateFlow(false)
+    /** Show a Listen Together tab in the bottom navigation bar when explicitly enabled. */
+    val showListenTogetherTab = MutableStateFlow(false)
 
     /** Freezes the main player's mesh gradient instead of letting it drift/crossfade. */
     val reduceAnimation = MutableStateFlow(false)
@@ -1588,8 +1644,7 @@ object AppSettings {
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
         showListenTogetherButton.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_BUTTON, false)
-        showListenTogetherTab.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_TAB, true)
-        searchTabSeparate.value = prefs.getBoolean(KEY_SEARCH_TAB_SEPARATE, false)
+        showListenTogetherTab.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_TAB, false)
         reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
         coverSlideAnimation.value = prefs.getBoolean(KEY_COVER_SLIDE_ANIMATION, true)
         coverFluidAnimation.value = prefs.getBoolean(KEY_COVER_FLUID_ANIMATION, false)
@@ -2106,11 +2161,6 @@ object AppSettings {
         prefs.edit {putBoolean(KEY_LISTEN_TOGETHER_TAB, value)}
     }
 
-    fun setSearchTabSeparate(value: Boolean) {
-        searchTabSeparate.value = value
-        prefs.edit {putBoolean(KEY_SEARCH_TAB_SEPARATE, value)}
-    }
-
     fun setShowListenTogetherButton(value: Boolean) {
         showListenTogetherButton.value = value
         prefs.edit {putBoolean(KEY_LISTEN_TOGETHER_BUTTON, value)}
@@ -2384,13 +2434,13 @@ object AppSettings {
         setFrostedGlass(preset.frosted)
     }
 
-    /** Tema berganti: kalau masih memakai preset Audify, nilainya ikut tema baru. */
+    /** Keep whichever ready-made preset is selected in step with the active theme. */
     fun syncGlassPresetTheme(dark: Boolean) {
         glassDarkTheme = dark
-        val preset = GlassPreset.DEFAULT
-        if (preset.matches(glassClarity.value.level, glassCustom.value, glassIndicator.value, frostedGlass.value)) {
-            applyGlassPreset(preset)
-        }
+        val selectedPreset = GlassPreset.values().firstOrNull { preset ->
+            preset.matches(glassClarity.value.level, glassCustom.value, glassIndicator.value, frostedGlass.value)
+        } ?: return
+        applyGlassPreset(selectedPreset)
     }
 
     fun setProgressiveBlur(value: Boolean) {
@@ -3286,8 +3336,8 @@ object AppSettings {
     private const val KEY_REPEAT_MODE = "repeat_mode"
     private const val KEY_NERD_STATS = "show_nerd_stats"
     private const val KEY_LISTEN_TOGETHER_BUTTON = "show_listen_together_button"
-    private const val KEY_LISTEN_TOGETHER_TAB = "show_listen_together_tab"
-    private const val KEY_SEARCH_TAB_SEPARATE = "search_tab_separate"
+    // v2 intentionally defaults hidden; do not inherit the earlier always-on tab.
+    private const val KEY_LISTEN_TOGETHER_TAB = "show_listen_together_tab_v2"
     private const val KEY_CACHE_LIMIT = "audio_cache_limit_bytes"
     private const val KEY_CANVAS_CACHE_LIMIT = "canvas_cache_limit_bytes"
     private const val KEY_REDUCE_ANIMATION = "reduce_animation"

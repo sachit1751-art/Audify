@@ -161,6 +161,7 @@ android {
             dimension = "env"
             applicationId = "com.dev.audify.tv"
             resValue("string", "app_name", "Audify TV")
+            signingConfig = signingConfigs.getByName("debug")
         }
         create("prod") {
             dimension = "env"
@@ -187,11 +188,17 @@ android {
         }
     }
 
+    productFlavors.getByName("dev").signingConfig = signingConfigs.getByName("debug")
+    signingConfigs.findByName("release")?.let {
+        productFlavors.getByName("prod").signingConfig = it
+    }
+
     buildTypes {
         debug {
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
         }
         release {
+            isDebuggable = false
             // Carried here too — see [betaSuffix]. A sideloaded beta is a
             // release build, and it is the one that most needs the marker.
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
@@ -205,8 +212,8 @@ android {
              * NewPipe, InnerTubeX, QuickJS, SMBJ and BouncyCastle, ONNX's JNI,
              * protobuf-lite, Ktor — is kept whole: see proguard-rules.pro. What R8
              * is left to optimise is Compose, Media3, coroutines and our own
-             * code, which is where the time goes. Checked on a device through the
-             * `benchmark` build type below before it ships.
+             * code, which is where the time goes. Dev and Production use the
+             * same optimisation rules.
              */
             isMinifyEnabled = true
             isShrinkResources = true
@@ -214,23 +221,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "../app/proguard-rules.pro"
             )
-            // Null without a keystore to sign with: fallback to debug signing
-            // so the release build is fully R8 optimized and directly installable.
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
-        }
-        /*
-         * The release build, installable next to the dev and prod apps: same R8,
-         * same non-debuggable runtime, signed with the debug key under its own
-         * package so it never replaces either. For measuring startup the way
-         * users get it and for checking that shrinking broke nothing — a debug
-         * build is interpreted and verified at runtime and says little about
-         * either. `./gradlew installDevBenchmark`.
-         */
-        create("benchmark") {
-            initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("debug")
-            applicationIdSuffix = ".benchmark"
-            matchingFallbacks += listOf("release")
+            // Signing is selected per environment above: debug key for Dev,
+            // configured release key for Production.
         }
     }
     compileOptions {
@@ -247,6 +239,7 @@ android {
         compose = true
         buildConfig = true
         resValues = true
+        prefab = true
     }
     testOptions {
         unitTests {
@@ -304,6 +297,9 @@ val newPipeExtractorStripped = tasks.register<org.gradle.api.tasks.bundling.Jar>
 }
 
 dependencies {
+    // TV compiles the phone app's shared source tree, including DiscordSocialPresence;
+    // it must therefore compile against the same official Discord Social SDK AAR.
+    implementation(files("../app/libs/discord-social-sdk/discord_partner_sdk.aar"))
     implementation(project(":shared"))
     implementation(project(":sharedUi"))
 

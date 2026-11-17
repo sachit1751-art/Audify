@@ -244,9 +244,15 @@ fun AudifyTheme(
     val scheme = remember(darkTheme, activeThemePack) {
         val primaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.tertiaryHex else activeThemePack.primaryHex
         val tertiaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.primaryHex else activeThemePack.tertiaryHex
-        val primary = primaryHex.toThemeColor()
-        val secondary = activeThemePack.secondaryHex.toThemeColor()
-        val tertiary = tertiaryHex.toThemeColor()
+        // Bright palette accents can disappear on the light canvas. Preserve
+        // the exact swatches in the theme picker, but darken only rendered
+        // light-mode accents enough to remain visible on white surfaces.
+        val renderedPrimaryHex = if (darkTheme) primaryHex else ThemePacks.accessibleLightAccentHex(primaryHex)
+        val renderedSecondaryHex = if (darkTheme) activeThemePack.secondaryHex else ThemePacks.accessibleLightAccentHex(activeThemePack.secondaryHex)
+        val renderedTertiaryHex = if (darkTheme) tertiaryHex else ThemePacks.accessibleLightAccentHex(tertiaryHex)
+        val primary = renderedPrimaryHex.toThemeColor()
+        val secondary = renderedSecondaryHex.toThemeColor()
+        val tertiary = renderedTertiaryHex.toThemeColor()
         // Restore the pre-1.9.3 separation: the palette colours controls and
         // component accents; it does not recolour the entire app canvas.
         // Keep the original neutral light surfaces and the theme pack's
@@ -311,15 +317,15 @@ fun AudifyTheme(
             else Color(0xFFF7F5FA).withAccent(secondary, 0.22f)
         baseColors.copy(
             primary = primary,
-            onPrimary = ThemePacks.contentColorHex(primaryHex).toThemeColor(),
+            onPrimary = ThemePacks.contentColorHex(renderedPrimaryHex).toThemeColor(),
             primaryContainer = primaryContainer,
             onPrimaryContainer = if (primaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             secondary = secondary,
-            onSecondary = ThemePacks.contentColorHex(activeThemePack.secondaryHex).toThemeColor(),
+            onSecondary = ThemePacks.contentColorHex(renderedSecondaryHex).toThemeColor(),
             secondaryContainer = secondaryContainer,
             onSecondaryContainer = if (secondaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             tertiary = tertiary,
-            onTertiary = ThemePacks.contentColorHex(tertiaryHex).toThemeColor(),
+            onTertiary = ThemePacks.contentColorHex(renderedTertiaryHex).toThemeColor(),
             surfaceTint = primary,
             inversePrimary = secondary,
         )

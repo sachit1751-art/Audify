@@ -1308,4 +1308,30 @@
 <string name="download_storage_budget_reached">다운로드 저장 공간 한도에 도달했습니다. 다시 시도하기 전에 가장 오래된 파일을 검토하세요.</string>
 <string name="download_storage_delete_failed">선택한 파일을 삭제하지 못했습니다. 파일은 삭제되지 않았습니다. 파일 접근 권한을 확인한 후 다시 시도하세요.</string>
 <string name="download_storage_partial_delete">선택한 파일 중 일부는 삭제했지만 나머지는 삭제하지 못했습니다. 다운로드를 다시 시도해 저장 공간 사용량을 새로 고치세요.</string>
-<string name="liquid_flow">LiquidFlow 가사</string></resources>
+<string name="liquid_flow">LiquidFlow 가사</string>    <string name="glass_preset_performance">성능</string>
+    <string name="glass_preset_performance_subtitle">렌즈 굴절 없이 블러와 그림자를 줄인 가벼운 반투명 효과입니다. 부드러운 스크롤과 구형 기기에 적합합니다.</string>
+    <string name="glass_preset_best_experience">최상의 Liquid Glass</string>
+    <string name="glass_preset_best_experience_subtitle">더 강한 굴절, 깊이감, 색상과 가장자리 하이라이트를 사용하는 전체 유리 효과입니다. 그래픽 처리량이 더 많이 필요합니다.</string>
+<string name="discord_social_sdk_title">Discord Rich Presence</string>
+<string name="discord_app_detected">Discord 앱이 감지되었습니다</string>
+<string name="discord_app_required">청취 활동을 공유하려면 Discord를 설치하고 로그인하세요.</string>
+<string name="discord_presence_off">상태 표시 꺼짐</string>
+<string name="backup_exporting">백업을 만드는 중…</string>
+<string name="backup_exported_timestamp_warning">파일은 생성되었지만 Audify가 설정에 내보내기 날짜를 저장하지 못했습니다.</string>
+<string name="backup_checking_file">백업 파일 확인 중…</string>
+<string name="backup_restoring">백업 복원 중…</string>
+<string name="backup_last_automatic">기기 복구 사본: %1$s</string>
+<string name="backup_last_external">외부 백업 내보냄: %1$s</string>
+<string name="backup_automatic_scope">자동 백업은 이 기기에만 저장됩니다. 다른 휴대전화로 데이터를 옮기려면 별도로 내보내세요.</string>
+<string name="backup_automatic_not_created">기기 복구 사본: 아직 생성되지 않음</string>
+<string name="backup_external_not_created">외부 백업: 아직 내보내지 않음</string>
+<string name="backup_unknown_version">알 수 없음</string>
+<string name="backup_unknown_date">알 수 없음</string>
+<string name="backup_restore_scope">복원하면 이 기기의 즐겨찾기, 청취 기록, 로컬 재생목록, 청취 통계 및 백업된 설정이 대체됩니다. 로그인 정보, 다운로드한 오디오와 캐시는 포함되지 않습니다. 필요할 수 있는 현재 데이터는 먼저 내보내세요.</string>
+<string name="backup_error_access">이 파일에 대한 접근이 거부되었습니다. 파일 제공 앱을 다시 열고 Audify에 접근 권한을 부여한 뒤 다시 시도하세요.</string>
+<string name="backup_error_missing">선택한 파일을 더 이상 사용할 수 없습니다. 백업 파일을 다시 선택하세요.</string>
+<string name="backup_error_io">Audify가 해당 위치를 읽거나 쓸 수 없습니다. 저장 공간과 파일 제공 앱의 접근 권한을 확인한 뒤 다른 위치를 선택하세요.</string>
+<string name="backup_error_invalid">유효한 Audify 백업 파일이 아니거나 크기가 32MB 제한을 초과합니다.</string>
+<string name="backup_error_restore_rollback">복원에 실패했고 Audify가 이전 데이터를 완전히 복구하지 못했습니다. 앱을 종료하지 마세요. 다시 복원하기 전에 현재 상태를 별도 파일로 내보내세요.</string>
+<string name="backup_error_generic">백업 처리 중 문제가 발생했습니다. 다시 시도하거나 다른 파일을 선택하세요.</string>
+</resources>

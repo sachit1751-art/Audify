@@ -73,14 +73,14 @@ jobs:
 
       - run: chmod +x gradlew
 
-      - name: Build the TV dev APK
-        run: ./gradlew :tv:assembleDevDebug
+      - name: Build the optimized TV dev APK
+        run: ./gradlew :tv:assembleDevRelease
 
       - name: Upload the TV dev APK
         uses: actions/upload-artifact@v4
         with:
-          name: audify-tv-dev-debug
-          path: tv/build/outputs/apk/dev/debug/*universal*.apk
+          name: audify-tv-dev-release
+          path: tv/build/outputs/apk/dev/release/*universal*.apk
 
       - name: Upload build reports
         if: failure()

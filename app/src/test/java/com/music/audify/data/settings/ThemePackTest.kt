@@ -102,6 +102,19 @@ class ThemePackTest {
         }
     }
 
+    @Test
+    fun renderedLightModeAccentsRemainVisibleOnWhiteSurfaces() {
+        ThemePacks.builtIns.forEach { pack ->
+            listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { accent ->
+                val rendered = ThemePacks.accessibleLightAccentHex(accent)
+                assertTrue("$rendered must be valid", ThemePacks.isValidHex(rendered))
+                assertTrue("$rendered must have at least 3:1 contrast on white", contrastRatio(rendered, "#FFFFFF") >= 3.0)
+            }
+        }
+        val brightCustomAccent = ThemePacks.accessibleLightAccentHex("#FDE047")
+        assertTrue(contrastRatio(brightCustomAccent, "#FFFFFF") >= 3.0)
+    }
+
     private fun contrastRatio(firstHex: String, secondHex: String): Double {
         fun luminance(hex: String): Double {
             val rgb = hex.drop(1).chunked(2).map { it.toInt(16) / 255.0 }

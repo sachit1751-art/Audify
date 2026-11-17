@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -154,6 +156,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.halilibo.richtext.markdown.Markdown
 import com.halilibo.richtext.ui.RichTextStyle
 import com.halilibo.richtext.ui.material3.RichText
@@ -310,7 +313,6 @@ fun SettingsScreen(
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val listenTogetherTab by AppSettings.showListenTogetherTab.collectAsStateWithLifecycle()
-    val searchTabSeparate by AppSettings.searchTabSeparate.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val coverSlideAnimation by AppSettings.coverSlideAnimation.collectAsStateWithLifecycle()
     val coverFluidAnimation by AppSettings.coverFluidAnimation.collectAsStateWithLifecycle()
@@ -417,6 +419,8 @@ fun SettingsScreen(
     // result reports itself under the word "Export".
     var exportStatus by remember { mutableStateOf<String?>(null) }
     var importStatus by remember { mutableStateOf<String?>(null) }
+    var isExportingBackup by remember { mutableStateOf(false) }
+    var isImportingBackup by remember { mutableStateOf(false) }
     var confirmImport by remember { mutableStateOf(false) }
     var importPreview by remember { mutableStateOf<Backup.Preview?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
@@ -539,14 +543,21 @@ fun SettingsScreen(
     ) { target ->
         if (target == null) return@rememberLauncherForActivityResult
         backupScope.launch {
-            exportStatus = Backup.exportTo(context, target).fold(
-                onSuccess = { months ->
-                    exportSucceededTemplate.replace("%1\$s", context.countOfMonths(months))
-                },
-                onFailure = {
-                    exportFailedTemplate.replace("%1\$s", it.message ?: unknownErrorMessage)
-                },
-            )
+            isExportingBackup = true
+            exportStatus = context.getString(R.string.backup_exporting)
+            try {
+                exportStatus = Backup.exportTo(context, target).fold(
+                    onSuccess = { months ->
+                        exportSucceededTemplate.replace("%1\$s", context.countOfMonths(months.months)) +
+                            if (months.timestampSaved) "" else "\n${context.getString(R.string.backup_exported_timestamp_warning)}"
+                    },
+                    onFailure = {
+                        exportFailedTemplate.replace("%1\$s", context.backupFailureMessage(it, unknownErrorMessage))
+                    },
+                )
+            } finally {
+                isExportingBackup = false
+            }
         }
     }
     val importPicker = rememberLauncherForActivityResult(
@@ -554,15 +565,22 @@ fun SettingsScreen(
     ) { source ->
         if (source == null) return@rememberLauncherForActivityResult
         backupScope.launch {
-            Backup.preview(context, source).fold(
-                onSuccess = { preview ->
-                    pendingImportUri = source
-                    importPreview = preview
-                },
-                onFailure = {
-                    importStatus = importFailedTemplate.replace("%1\$s", it.message ?: unknownErrorMessage)
-                },
-            )
+            isImportingBackup = true
+            importStatus = context.getString(R.string.backup_checking_file)
+            try {
+                Backup.preview(context, source).fold(
+                    onSuccess = { preview ->
+                        pendingImportUri = source
+                        importPreview = preview
+                        importStatus = null
+                    },
+                    onFailure = {
+                        importStatus = importFailedTemplate.replace("%1\$s", context.backupFailureMessage(it, unknownErrorMessage))
+                    },
+                )
+            } finally {
+                isImportingBackup = false
+            }
         }
     }
     val themeBackgroundPicker = rememberLauncherForActivityResult(
@@ -658,6 +676,10 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            // Keep settings readable on tablets/foldables while remaining edge-to-edge
+            // on phones; the full-width outer slot centers this capped content.
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = 720.dp)
             // A page that fits has nothing to scroll, so it takes no drag at all:
             // otherwise the rubber band pulls it off its place for no reason.
             .verticalScroll(
@@ -678,11 +700,11 @@ fun SettingsScreen(
                 // the floating bars have, and a bright edge. Tinted from the
                 // theme's own text colour so it reads on a light page too.
                 chrome = Modifier
-                    .height(54.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f), RoundedCornerShape(14.dp))
-                    .liquidGlassRim(RoundedCornerShape(14.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f), RoundedCornerShape(14.dp)),
+                .heightIn(min = 40.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                .liquidGlassRim(RoundedCornerShape(16.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
             )
 
             SearchableSettingsGroup(search, header = null) {
@@ -1306,16 +1328,17 @@ fun SettingsScreen(
             val themeTitle = stringResource(R.string.theme)
             row(themeTitle, "dark mode", "light mode") {
                 SettingsRow(icon = Icons.Rounded.Brightness4, title = themeTitle)
-                LiquidThemeSelector(
-                    selectedTheme = theme,
-                    onThemeSelected = { AppSettings.setThemeMode(it) },
+                ClassicSegmentedControl(
+                    options = ThemeMode.entries.map { it.localizedLabel() },
+                    selectedIndex = ThemeMode.entries.indexOf(theme),
+                    onSelect = { AppSettings.setThemeMode(ThemeMode.entries[it]) },
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
                 )
             }
             val fontTitle = stringResource(R.string.font)
             row(fontTitle, "typeface", "sf pro", "legacy") {
                 SettingsRow(icon = SfIcons.Font, title = fontTitle, subtitle = "Choose the typeface used throughout AUDIFY.")
-                SegmentedControl(
+                ClassicSegmentedControl(
                     options = listOf("Audify", "System", "Serif"),
                     selectedIndex = when (appFont) {
                         AppFont.DEFAULT, AppFont.LEGACY -> 0
@@ -2040,15 +2063,31 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.FileUpload,
                     title = exportDataTitle,
-                    subtitle = exportStatus ?: run {
+                    subtitleContent = {
+                        val status = if (isExportingBackup) stringResource(R.string.backup_exporting) else exportStatus
                         val formatter = java.text.DateFormat.getDateTimeInstance()
                         val automaticAt = backupTimestamps.first
                         val externalAt = backupTimestamps.second
-                        val automatic = if (automaticAt > 0L) "Automatic backup: ${formatter.format(java.util.Date(automaticAt))}" else "Automatic backup: pending"
-                        val external = if (externalAt > 0L) "External backup: ${formatter.format(java.util.Date(externalAt))}" else "External backup: not created"
-                        "${stringResource(R.string.export_data_subtitle)}\n$automatic\n$external"
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            if (status != null) {
+                                Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 3)
+                            }
+                            Text(stringResource(R.string.export_data_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.backup_automatic_scope), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                if (automaticAt > 0L) stringResource(R.string.backup_last_automatic, formatter.format(java.util.Date(automaticAt))) else stringResource(R.string.backup_automatic_not_created),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                if (externalAt > 0L) stringResource(R.string.backup_last_external, formatter.format(java.util.Date(externalAt))) else stringResource(R.string.backup_external_not_created),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     },
-                    onClick = { exportPicker.launch(Backup.suggestedName()) },
+                    enabled = !isExportingBackup && !isImportingBackup,
+                    onClick = { exportStatus = null; exportPicker.launch(Backup.suggestedName()) },
                 )
             }
             val importDataTitle = stringResource(R.string.import_data)
@@ -2056,8 +2095,16 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = SfIcons.FileDownload,
                     title = importDataTitle,
-                    subtitle = importStatus ?: stringResource(R.string.import_data_subtitle),
-                    onClick = { confirmImport = true },
+                    subtitleContent = {
+                        Text(
+                            if (isImportingBackup) stringResource(R.string.backup_checking_file) else importStatus ?: stringResource(R.string.import_data_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 3,
+                        )
+                    },
+                    enabled = !isExportingBackup && !isImportingBackup,
+                    onClick = { importStatus = null; confirmImport = true },
                 )
             }
         }
@@ -2145,21 +2192,6 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setShowListenTogetherTab(!listenTogetherTab) },
-                )
-            }
-            val searchTabSeparateTitle = stringResource(R.string.search_tab_separate)
-            row(searchTabSeparateTitle, "search", "tab", "navbar", "navigation", "pencarian", "ios") {
-                SettingsRow(
-                    icon = SfIcons.Apps,
-                    title = searchTabSeparateTitle,
-                    subtitle = stringResource(R.string.search_tab_separate_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = searchTabSeparate,
-                            onCheckedChange = AppSettings::setSearchTabSeparate,
-                        )
-                    },
-                    onClick = { AppSettings.setSearchTabSeparate(!searchTabSeparate) },
                 )
             }
             val listenTogetherButtonTitle = stringResource(R.string.show_listen_together_button)
@@ -2729,7 +2761,16 @@ fun SettingsScreen(
     importPreview?.let { preview ->
         IosConfirmDialog(
             title = "Restore backup?",
-            message = "Backup version ${preview.from}\nExported: ${preview.at}\n\n${preview.songs} saved songs\n${preview.history} history entries\n${preview.playlists} playlists\n${preview.months} months of listening data\n${preview.settings} settings\n\nRestoring replaces saved songs, history, listening data and settings on this device. Included playlists are restored too.",
+            message = context.getString(
+                R.string.restore_preview_body,
+                preview.songs,
+                preview.history,
+                preview.playlists,
+                preview.months,
+                preview.settings,
+                preview.from.ifBlank { context.getString(R.string.backup_unknown_version) },
+                preview.at.ifBlank { context.getString(R.string.backup_unknown_date) },
+            ) + "\n\n" + context.getString(R.string.backup_restore_scope),
             confirmText = "Restore",
             dismissText = stringResource(R.string.cancel),
             onDismiss = { importPreview = null; pendingImportUri = null },
@@ -2738,14 +2779,20 @@ fun SettingsScreen(
                 importPreview = null
                 pendingImportUri = null
                 if (uri != null) backupScope.launch {
-                    importStatus = Backup.importFrom(context, uri).fold(
-                        onSuccess = {
-                            importSucceededTemplate
-                                .replace("%1\$s", context.countOfMonths(it.months))
-                                .replace("%2\$s", it.from)
-                        },
-                        onFailure = { importFailedTemplate.replace("%1\$s", it.message ?: unknownErrorMessage) },
-                    )
+                    isImportingBackup = true
+                    importStatus = context.getString(R.string.backup_restoring)
+                    try {
+                        importStatus = Backup.importFrom(context, uri).fold(
+                            onSuccess = {
+                                importSucceededTemplate
+                                    .replace("%1\$s", context.countOfMonths(it.months))
+                                    .replace("%2\$s", it.from)
+                            },
+                            onFailure = { importFailedTemplate.replace("%1\$s", context.backupFailureMessage(it, unknownErrorMessage)) },
+                        )
+                    } finally {
+                        isImportingBackup = false
+                    }
                 }
             },
         )
@@ -3036,6 +3083,17 @@ private fun Context.countOfMonths(months: Int): String = if (months == 0) {
     getString(R.string.no_listening_history)
 } else {
     resources.getQuantityString(R.plurals.listening_month_count, months, months)
+}
+
+/** Translate storage/provider failures into a next step instead of exposing raw exceptions. */
+private fun Context.backupFailureMessage(error: Throwable, unknown: String): String = when (error) {
+    is Backup.RestoreRollbackException -> getString(R.string.backup_error_restore_rollback)
+    is SecurityException -> getString(R.string.backup_error_access)
+    is java.io.FileNotFoundException -> getString(R.string.backup_error_missing)
+    is java.io.IOException -> getString(R.string.backup_error_io)
+    is IllegalArgumentException -> getString(R.string.backup_error_invalid)
+    is IllegalStateException -> getString(R.string.backup_error_generic)
+    else -> unknown.ifBlank { getString(R.string.backup_error_generic) }
 }
 
 @Composable
@@ -3335,7 +3393,7 @@ private fun bitPerfectSubtitle(mode: BitPerfectMode, status: BitPerfectOutput.St
 
 // ---- Building blocks --------------------------------------------------------
 
-internal val GroupShape = RoundedCornerShape(14.dp)
+internal val GroupShape = RoundedCornerShape(16.dp)
 internal val GROUP_INSET = 16.dp
 internal val ROW_INSET = 16.dp
 internal val ICON_SIZE = 22.dp
@@ -3455,7 +3513,7 @@ private inline fun SearchableSettingsGroup(
 internal fun SettingsPageTitle(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.headlineLarge,
+        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 28.sp, lineHeight = 34.sp),
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 14.dp),
@@ -3789,6 +3847,61 @@ internal fun SegmentedControl(
     liquid: Boolean = false,
 ) {
     GlassSegmentedControl(options, selectedIndex, onSelect, modifier, enabled, liquid)
+}
+
+/** The original 1.9.2 selector, retained specifically for Theme and Font. */
+@Composable
+private fun ClassicSegmentedControl(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val haptics = LocalHapticFeedback.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.outline)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        options.forEachIndexed { index, label ->
+            val chosen = index == selectedIndex
+            val pill by animateColorAsState(
+                targetValue = if (chosen) MaterialTheme.colorScheme.primary else Color.Transparent,
+                animationSpec = tween(150),
+                label = "classicSegmentPill",
+            )
+            val labelColor by animateColorAsState(
+                targetValue = if (chosen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(150),
+                label = "classicSegmentLabel",
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(pill)
+                    .clickable(enabled = enabled) {
+                        if (!chosen) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSelect(index)
+                        }
+                    }
+                    .padding(vertical = 9.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = labelColor,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 
 // ---- Pages ------------------------------------------------------------------
@@ -4279,10 +4392,14 @@ private fun LiquidGlassSettingsContent() {
 
 private fun GlassPreset.titleRes(): Int = when (this) {
     GlassPreset.DEFAULT -> R.string.glass_preset_default
+    GlassPreset.PERFORMANCE -> R.string.glass_preset_performance
+    GlassPreset.BEST_EXPERIENCE -> R.string.glass_preset_best_experience
 }
 
 private fun GlassPreset.subtitleRes(): Int = when (this) {
     GlassPreset.DEFAULT -> R.string.glass_preset_default_subtitle
+    GlassPreset.PERFORMANCE -> R.string.glass_preset_performance_subtitle
+    GlassPreset.BEST_EXPERIENCE -> R.string.glass_preset_best_experience_subtitle
 }
 
 /** Satu baris slider: judul dan nilai di atas, slider di bawah, [below] opsional di bawah slider. */
@@ -4393,35 +4510,31 @@ private fun SettingsCategoryList(onOpen: (SettingsCategory) -> Unit) {
         SettingsCategory.ADVANCED,
         SettingsCategory.ABOUT,
     )
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         categories.forEach { category ->
             SettingsGroup(topSpacing = 0.dp) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpen(category) }
-                        .padding(horizontal = 15.dp, vertical = 11.dp),
+                        .heightIn(min = 56.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = category.icon,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
+                    Icon(
+                        imageVector = category.icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
                     Text(
                         text = stringResource(category.title),
                         modifier = Modifier
                             .weight(1f)
-                            .padding(start = 12.dp, end = 10.dp),
+                            .padding(start = 14.dp, end = 10.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,

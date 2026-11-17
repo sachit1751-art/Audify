@@ -59,33 +59,33 @@ jobs:
       - name: Android, TV, Wear OS and shared tests
         run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :tv:testProdDebugUnitTest :wearos:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
 
-      - name: Android lint
-        run: ./gradlew --no-daemon --max-workers=2 :app:lintDevDebug
+      - name: Optimized Dev Release lint
+        run: ./gradlew --no-daemon --max-workers=2 :app:lintDevRelease :tv:lintDevRelease :wearos:lintDevRelease
 
-      - name: Build phone, TV and Wear OS dev variants
-        run: ./gradlew --no-daemon --max-workers=2 :app:assembleDevDebug :tv:assembleDevDebug :wearos:assembleDevDebug
+      - name: Build optimized phone, TV and Wear OS dev variants
+        run: ./gradlew --no-daemon --max-workers=2 :app:assembleDevRelease :tv:assembleDevRelease :wearos:assembleDevRelease
 
       - name: Upload the dev APK
         uses: actions/upload-artifact@v4
         with:
-          name: audify-dev-debug
-          path: app/build/outputs/apk/dev/debug/*.apk
+          name: audify-dev-release
+          path: app/build/outputs/apk/dev/release/*.apk
           if-no-files-found: error
           retention-days: 7
 
       - name: Upload TV dev APKs
         uses: actions/upload-artifact@v4
         with:
-          name: audify-tv-dev-debug
-          path: tv/build/outputs/apk/dev/debug/*.apk
+          name: audify-tv-dev-release
+          path: tv/build/outputs/apk/dev/release/*.apk
           if-no-files-found: error
           retention-days: 7
 
       - name: Upload Wear OS dev APKs
         uses: actions/upload-artifact@v4
         with:
-          name: audify-wear-dev-debug
-          path: wearos/build/outputs/apk/dev/debug/*.apk
+          name: audify-wear-dev-release
+          path: wearos/build/outputs/apk/dev/release/*.apk
           if-no-files-found: error
           retention-days: 7
 

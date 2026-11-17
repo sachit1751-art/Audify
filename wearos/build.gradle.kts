@@ -70,6 +70,7 @@ android {
             dimension = "env"
             applicationId = "com.dev.audify"
             resValue("string", "app_name", "Audify Dev")
+            signingConfig = signingConfigs.getByName("debug")
         }
         create("prod") {
             dimension = "env"
@@ -88,6 +89,13 @@ android {
                 keyPassword = signing.getProperty("keyPassword")
             }
         }
+    }
+
+    // Keep Wear OS signatures aligned with the matching phone flavor so the
+    // Data Layer can pair Dev with Dev and Production with Production.
+    productFlavors.getByName("dev").signingConfig = signingConfigs.getByName("debug")
+    signingConfigs.findByName("release")?.let {
+        productFlavors.getByName("prod").signingConfig = it
     }
 
     buildTypes {
@@ -110,6 +118,7 @@ android {
             )
         }
         release {
+            isDebuggable = false
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
             isMinifyEnabled = true
             isShrinkResources = true
@@ -117,9 +126,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Null without a keystore, like the phone: an unsigned APK rather
-            // than a build failure.
-            signingConfig = signingConfigs.findByName("release")
+            // Signing is selected per environment above.
         }
     }
 

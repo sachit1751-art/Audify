@@ -1552,23 +1552,23 @@ private fun AudifyApp(
     val libraryLabel = stringResource(R.string.library)
     val searchLabel = stringResource(R.string.search)
     val settingsLabel = stringResource(R.string.settings)
+    val listenTogetherTabLabel = stringResource(R.string.listen_together_tab)
+    val showListenTogetherTab by AppSettings.showListenTogetherTab.collectAsStateWithLifecycle()
     val historyLabel = stringResource(R.string.history)
     val replayLabel = stringResource(R.string.replay)
     val queueLabel = stringResource(R.string.queue)
     val sharedLinkLabel = stringResource(R.string.shared_link)
     val openedFileLabel = stringResource(R.string.opened_file)
-    val tabs = remember(homeLabel, exploreLabel, libraryLabel, settingsLabel) {
-        listOf(
-            BottomTab(homeLabel, AudifyIcons.Home),
-            BottomTab(exploreLabel, AudifyIcons.TabExplore),
-            BottomTab(libraryLabel, AudifyIcons.TabLibrary),
-            BottomTab(settingsLabel, Icons.Rounded.Settings),
-        )
+    val tabs = remember(homeLabel, exploreLabel, libraryLabel, settingsLabel, listenTogetherTabLabel, showListenTogetherTab) {
+        buildList {
+            add(BottomTab(homeLabel, AudifyIcons.Home))
+            add(BottomTab(exploreLabel, AudifyIcons.TabExplore))
+            add(BottomTab(libraryLabel, AudifyIcons.TabLibrary))
+            if (showListenTogetherTab) add(BottomTab(listenTogetherTabLabel, SfIcons.Groups))
+            add(BottomTab(settingsLabel, Icons.Rounded.Settings))
+        }
     }
-    // Audify's primary navigation remains Home, Explore, Library and Settings.
-    // Search is still a full screen (opened from the Home search action and
-    // other search entry points), while Listen Together remains a destination
-    // inside the app rather than taking over a permanent tab.
+    // Search remains an action/destination; Together is an optional primary tab.
 
     val scope = rememberCoroutineScope()
 
@@ -4658,16 +4658,25 @@ private fun AudifyApp(
                 // One tab handler, whichever bar is drawing it.
                 // A tab is a fresh start: everything pushed over the old one —
                 // routes and release pages alike — goes with it.
-                // Settings is a real fourth tab again. Search is a separate
-                // destination reached from search actions, so it does not
-                // displace Settings in the primary navigation.
-                val selectedBarIndex = if (AppRoute.Settings in navigator) {
-                    3
+                // Together is inserted before Settings when enabled; keep the
+                // selected index and Settings action aligned with that layout.
+                val togetherTabIndex = 3
+                val settingsTabIndex = if (showListenTogetherTab) 4 else 3
+                val selectedBarIndex = if (route == AppRoute.ListenTogether && showListenTogetherTab) {
+                    togetherTabIndex
+                } else if (AppRoute.Settings in navigator) {
+                    settingsTabIndex
                 } else {
                     selectedTab.coerceAtMost(TAB_LIBRARY)
                 }
                 val onTabSelected: (Int) -> Unit = tabSelected@{ barIndex ->
-                    if (barIndex == 3) {
+                    if (showListenTogetherTab && barIndex == togetherTabIndex) {
+                        navigator.clear()
+                        viewModel.closeMoodGenre()
+                        navigator.push(AppRoute.ListenTogether)
+                        return@tabSelected
+                    }
+                    if (barIndex == settingsTabIndex) {
                         if (AppRoute.Settings !in navigator) {
                             navigator.clear()
                             viewModel.closeMoodGenre()
