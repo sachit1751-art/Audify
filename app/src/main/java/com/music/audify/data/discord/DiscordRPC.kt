@@ -28,7 +28,8 @@ class DiscordRPC {
         val now = System.currentTimeMillis()
         val safeSpeed = playbackSpeed.takeIf { it.isFinite() && it > 0f } ?: 1f
         val position = (currentPlaybackTimeMillis.coerceAtLeast(0L) / safeSpeed).toLong()
-        val remaining = ((durationMillis - currentPlaybackTimeMillis).coerceAtLeast(0L) / safeSpeed).toLong()
+        val remaining = (durationMillis.coerceAtLeast(0L) - currentPlaybackTimeMillis.coerceAtLeast(0L))
+            .coerceAtLeast(0L)
         val title = if (safeSpeed != 1f) {
             "${song.title} [${String.format(Locale.ROOT, "%.2fx", safeSpeed)}]"
         } else song.title
@@ -40,32 +41,33 @@ class DiscordRPC {
             resolveVariables(button2Text.ifEmpty { DEFAULT_BUTTON_2 }, song) to PROJECT_URL
         } else null
 
-        // The Social SDK owns the application name and identity. Android RPC
-        // does not use OAuth, account tokens or a user-account connection.
+        // Keep the music metadata on one compact line, with comma-separated
+        // fields, rather than splitting title, artist and album across lines.
+        // The Social SDK uses Playing for third-party app presence.
+        val activityDetails = buildList {
+            if (showTrackTitle) title.takeIf(String::isNotBlank)?.let(::add)
+            if (showArtist) song.artist.takeIf(String::isNotBlank)?.let(::add)
+            if (showAlbum) song.albumName?.takeIf(String::isNotBlank)?.let(::add)
+        }.joinToString(", ").take(128).takeIf { it.length >= 2 }
 
         DiscordSocialPresence.update(
-            details = title.take(128).takeIf { showTrackTitle },
-            state = buildList {
-                if (showArtist) song.artist.take(128).takeIf(String::isNotBlank)?.let(::add)
-                if (showAlbum) song.albumName?.take(128)?.takeIf(String::isNotBlank)?.let(::add)
-            }.joinToString(" · ").takeIf(String::isNotBlank),
+            details = activityDetails,
+            state = null,
             imageUrl = song.artworkAt(ART_PX)?.takeIf { showArtwork && (it.startsWith("https://") || it.startsWith("http://")) },
             imageTooltip = audioQuality?.take(128),
             detailsUrl = watchUrl(song),
-            // Discord expects Unix timestamps in seconds, not Android's
-            // millisecond clock. Sending milliseconds makes the activity's
-            // progress timestamps invalid and can prevent the card updating.
+            // Send both timestamps so Discord has the full track interval for
+            // its progress indicator. Discord may render this as remaining time.
             startMs = if (showElapsedTime) (now - position) / 1_000L else 0L,
-            endMs = if (showElapsedTime && durationMillis > 0L) (now + remaining) / 1_000L else 0L,
+            endMs = if (showElapsedTime && durationMillis > 0L && remaining > 0L) {
+                (now + (remaining / safeSpeed).toLong()) / 1_000L
+            } else 0L,
             showArtwork = showArtwork,
             showElapsedTime = showElapsedTime,
-            activityType = when (activityType) {
-                "playing" -> 1
-                "watching" -> 2
-                "competing" -> 3
-                else -> 0
-            },
-            useDetails = useDetails && showTrackTitle,
+            // Discord's Social SDK documents Playing as the supported
+            // Rich Presence activity type for third-party app integrations.
+            activityType = 0,
+            useDetails = true,
             button1Label = button1?.first?.take(32),
             button1Url = button1?.second,
             button2Label = button2?.first?.take(32),

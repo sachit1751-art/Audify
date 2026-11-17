@@ -3,6 +3,7 @@ package com.music.audify.ui.screens
 import androidx.core.net.toUri
 import com.music.audify.ui.icons.SfIcons
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,6 +86,14 @@ enum class DiscordActivityKind(val value: String, val verb: String, val label: S
  */
 enum class DiscordDialog { ACTIVITY_TYPE, BUTTON_1, BUTTON_2 }
 
+private enum class DiscordSettingsPage(val title: String) {
+    OVERVIEW("Discord Rich Presence"),
+    INTEGRATION("Discord Integration"),
+    DISPLAY("Display Preferences"),
+    ACTIVITY("Activity Style"),
+    PRIVACY("Privacy Controls"),
+}
+
 private fun kindOf(value: String) =
     DiscordActivityKind.entries.firstOrNull { it.value == value } ?: DiscordActivityKind.LISTENING
 
@@ -130,6 +139,7 @@ fun DiscordScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    var page by remember { mutableStateOf(DiscordSettingsPage.OVERVIEW) }
     var installCheck by remember { mutableStateOf(0) }
     val discordInstalled = remember(context, installCheck) {
         runCatching { context.packageManager.getPackageInfo("com.discord", 0) }.isSuccess
@@ -149,6 +159,11 @@ fun DiscordScreen(
     val button2Text by AppSettings.discordButton2Text.collectAsStateWithLifecycle()
     val button2Visible by AppSettings.discordButton2Visible.collectAsStateWithLifecycle()
     val nerdStats by NerdStats.current.collectAsStateWithLifecycle()
+    val advancedMode by AppSettings.discordAdvancedMode.collectAsStateWithLifecycle()
+
+    BackHandler(enabled = page != DiscordSettingsPage.OVERVIEW) {
+        page = DiscordSettingsPage.OVERVIEW
+    }
 
     val discordIcon = ImageVector.vectorResource(R.drawable.ic_discord)
 
@@ -158,197 +173,151 @@ fun DiscordScreen(
             .verticalScroll(rememberScrollState())
             .padding(contentPadding),
     ) {
-        SettingsPageTitle(stringResource(R.string.discord))
-
-        DiscordAccountCard(
-            installed = discordInstalled,
-            icon = discordIcon,
-            onInstall = {
-                val market = Intent(Intent.ACTION_VIEW, "market://details?id=com.discord".toUri())
-                runCatching { context.startActivity(market) }.onFailure {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=com.discord".toUri()))
-                }
-            },
-            onCheckAgain = { installCheck++ },
-        )
-
-        SettingsGroup(header = stringResource(R.string.rich_presence), footer = stringResource(R.string.discord_presence_footer)) {
-            SettingsRow(
-                icon = discordIcon,
-                title = stringResource(R.string.show_what_playing),
-                subtitle = if (discordInstalled) null else stringResource(R.string.discord_app_required),
-                trailing = {
-                    IosSwitch(
-                        checked = rpcEnabled,
-                        onCheckedChange = AppSettings::setDiscordRpcEnabled,
-                    )
-                },
-                onClick = { AppSettings.setDiscordRpcEnabled(!rpcEnabled) },
-            )
-        }
-
-        SettingsGroup(
-            header = "Display preferences",
-            footer = "These options are saved on this device and immediately update the published activity.",
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            SettingsRow(
-                icon = SfIcons.Label,
-                title = "Track title",
-                subtitle = "Show the real title of the current track",
-                enabled = rpcEnabled,
-                trailing = { IosSwitch(checked = showTrackTitle, onCheckedChange = AppSettings::setDiscordShowTrackTitle) },
-                onClick = { AppSettings.setDiscordShowTrackTitle(!showTrackTitle) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.Label,
-                title = "Artist name",
-                subtitle = "Show the current track's artist",
-                enabled = rpcEnabled,
-                trailing = { IosSwitch(checked = showArtist, onCheckedChange = AppSettings::setDiscordShowArtist) },
-                onClick = { AppSettings.setDiscordShowArtist(!showArtist) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.Label,
-                title = "Album name",
-                subtitle = "Include the album when the track provides it",
-                enabled = rpcEnabled,
-                trailing = { IosSwitch(checked = showAlbum, onCheckedChange = AppSettings::setDiscordShowAlbum) },
-                onClick = { AppSettings.setDiscordShowAlbum(!showAlbum) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.Label,
-                title = stringResource(R.string.lead_with_song),
-                subtitle = stringResource(R.string.lead_with_song_subtitle),
-                enabled = rpcEnabled,
-                trailing = {
-                    IosSwitch(
-                        checked = useDetails,
-                        onCheckedChange = AppSettings::setDiscordUseDetails,
-                    )
-                },
-                onClick = { AppSettings.setDiscordUseDetails(!useDetails) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.GraphicEq,
-                title = "Show album artwork",
-                subtitle = "Include the playing track's real artwork",
-                enabled = rpcEnabled,
-                trailing = { IosSwitch(checked = showArtwork, onCheckedChange = AppSettings::setDiscordShowArtwork) },
-                onClick = { AppSettings.setDiscordShowArtwork(!showArtwork) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.Tune,
-                title = "Show elapsed playback time",
-                subtitle = "Show the live progress and remaining time",
-                enabled = rpcEnabled,
-                trailing = { IosSwitch(checked = showElapsedTime, onCheckedChange = AppSettings::setDiscordShowElapsedTime) },
-                onClick = { AppSettings.setDiscordShowElapsedTime(!showElapsedTime) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.Tune,
-                title = "Hide when paused",
-                subtitle = "Clear your Discord activity instead of keeping the paused track visible",
-                enabled = rpcEnabled,
-                trailing = { IosSwitch(checked = hideWhenPaused, onCheckedChange = AppSettings::setDiscordHideWhenPaused) },
-                onClick = { AppSettings.setDiscordHideWhenPaused(!hideWhenPaused) },
-            )
-            RowDivider()
-            SettingsRow(
-                icon = SfIcons.GraphicEq,
-                title = stringResource(R.string.discord_show_audio_quality),
-                subtitle = stringResource(R.string.discord_show_audio_quality_subtitle),
-                enabled = rpcEnabled,
-                trailing = {
-                    IosSwitch(
-                        checked = showAudioQuality,
-                        onCheckedChange = AppSettings::setDiscordShowAudioQuality,
-                    )
-                },
-                onClick = { AppSettings.setDiscordShowAudioQuality(!showAudioQuality) },
+            if (page != DiscordSettingsPage.OVERVIEW) {
+                TextButton(onClick = { page = DiscordSettingsPage.OVERVIEW }) { Text("‹") }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(page.title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+                if (page == DiscordSettingsPage.OVERVIEW) {
+                    Text("Control how Audify appears on Discord", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Text(
+                text = if (rpcEnabled) "● RPC ON" else "○ RPC OFF",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (rpcEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        Column(Modifier.fillMaxWidth()) {
-                SettingsGroup(header = "Activity style", footer = "Choose how Audify is labelled on your Discord profile. Changes apply immediately.") {
+        when (page) {
+            DiscordSettingsPage.OVERVIEW -> {
+                SettingsGroup(header = "Status Preview", footer = if (song == null) "Start playback to preview live track information." else "Live preview · updates with playback and display settings") {
+                    RichPresencePreview(
+                        song = song, positionMs = positionMs, durationMs = durationMs,
+                        heading = appName(), verb = "Playing",
+                        trackVerb = kindOf(activityType).localizedVerb(),
+                        useDetails = useDetails,
+                        audioQuality = discordAudioQualityLine(nerdStats).takeIf { showAudioQuality },
+                        showTrackTitle = showTrackTitle, showArtist = showArtist,
+                        showAlbum = showAlbum, showArtwork = showArtwork,
+                        showElapsedTime = showElapsedTime, enabled = rpcEnabled,
+                        button1Text = button1Text, button1Visible = button1Visible,
+                        button2Text = button2Text, button2Visible = button2Visible,
+                    )
+                }
+                SettingsGroup(header = "Integration") {
+                    SettingsRow(
+                        icon = discordIcon, title = "Discord connection",
+                        subtitle = if (discordInstalled) "Discord app detected · tap for connection details" else "Discord app not detected · setup required",
+                        onClick = { page = DiscordSettingsPage.INTEGRATION },
+                    )
+                }
+                SettingsGroup(header = "Presence Settings") {
+                    SettingsRow(
+                        icon = discordIcon, title = "Enable Rich Presence",
+                        subtitle = "Broadcast current playback to your Discord status",
+                        trailing = { IosSwitch(checked = rpcEnabled, onCheckedChange = AppSettings::setDiscordRpcEnabled) },
+                        onClick = { AppSettings.setDiscordRpcEnabled(!rpcEnabled) },
+                    )
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.Tune, title = "Display Preferences", subtitle = "Track details, artwork and buttons", onClick = { page = DiscordSettingsPage.DISPLAY })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.RadioButtonChecked, title = "Activity Style", subtitle = "Listening, Playing or Watching", onClick = { page = DiscordSettingsPage.ACTIVITY })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.GraphicEq, title = "Privacy Controls", subtitle = "Control what remains visible when playback stops", onClick = { page = DiscordSettingsPage.PRIVACY })
+                }
+            }
+
+            DiscordSettingsPage.INTEGRATION -> {
+                DiscordAccountCard(
+                    installed = discordInstalled, icon = discordIcon,
+                    onInstall = {
+                        val market = Intent(Intent.ACTION_VIEW, "market://details?id=com.discord".toUri())
+                        runCatching { context.startActivity(market) }.onFailure {
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=com.discord".toUri())) }
+                        }
+                    },
+                    onCheckAgain = { installCheck++ },
+                )
+                SettingsGroup(header = "Connection Status", footer = if (discordInstalled) "Audify uses Discord's local Social SDK. No Discord login token is stored by Audify." else "Install the official Discord app, then use Check Again. Rich Presence cannot be delivered while Discord is unavailable.") {
+                    Text(
+                        text = if (discordInstalled) "Discord app detected" else "Discord not detected",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (discordInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        text = if (discordInstalled) "The app package is present. Actual RPC connection still depends on Discord's SDK handshake." else "The Discord app package was not found on this device.",
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                SettingsGroup(header = "Broadcast") {
+                    SettingsRow(icon = discordIcon, title = "Enable Rich Presence", subtitle = "Allow Audify to publish playback status", trailing = { IosSwitch(checked = rpcEnabled, onCheckedChange = AppSettings::setDiscordRpcEnabled) }, onClick = { AppSettings.setDiscordRpcEnabled(!rpcEnabled) })
+                }
+            }
+
+            DiscordSettingsPage.DISPLAY -> {
+                SettingsGroup(header = "Broadcast Fields", footer = "Changes are saved immediately and reflected in the preview.") {
+                    SettingsRow(icon = SfIcons.Label, title = "Track title", subtitle = "Show the current song name", enabled = rpcEnabled, trailing = { IosSwitch(checked = showTrackTitle, onCheckedChange = AppSettings::setDiscordShowTrackTitle) }, onClick = { AppSettings.setDiscordShowTrackTitle(!showTrackTitle) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.Label, title = "Artist name", subtitle = "Show primary and featured artists", enabled = rpcEnabled, trailing = { IosSwitch(checked = showArtist, onCheckedChange = AppSettings::setDiscordShowArtist) }, onClick = { AppSettings.setDiscordShowArtist(!showArtist) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.Label, title = "Album name", subtitle = "Include album or EP title", enabled = rpcEnabled, trailing = { IosSwitch(checked = showAlbum, onCheckedChange = { AppSettings.setDiscordShowAlbum(it) }) }, onClick = { AppSettings.setDiscordShowAlbum(!showAlbum) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.GraphicEq, title = "Album artwork", subtitle = "Show current track artwork when available", enabled = rpcEnabled, trailing = { IosSwitch(checked = showArtwork, onCheckedChange = { AppSettings.setDiscordShowArtwork(it) }) }, onClick = { AppSettings.setDiscordShowArtwork(!showArtwork) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.Tune, title = "Elapsed playback time", subtitle = "Show synced duration and timestamps", enabled = rpcEnabled, trailing = { IosSwitch(checked = showElapsedTime, onCheckedChange = { AppSettings.setDiscordShowElapsedTime(it) }) }, onClick = { AppSettings.setDiscordShowElapsedTime(!showElapsedTime) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.GraphicEq, title = "Audio quality", subtitle = stringResource(R.string.discord_show_audio_quality_subtitle), enabled = rpcEnabled, trailing = { IosSwitch(checked = showAudioQuality, onCheckedChange = AppSettings::setDiscordShowAudioQuality) }, onClick = { AppSettings.setDiscordShowAudioQuality(!showAudioQuality) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.Tune, title = "Lead with track title", subtitle = stringResource(R.string.lead_with_song_subtitle), enabled = rpcEnabled, trailing = { IosSwitch(checked = useDetails, onCheckedChange = AppSettings::setDiscordUseDetails) }, onClick = { AppSettings.setDiscordUseDetails(!useDetails) })
+                }
+                SettingsGroup(header = "Action Buttons", footer = stringResource(R.string.discord_buttons_footer)) {
+                    SettingsRow(icon = SfIcons.SmartButton, title = stringResource(R.string.first_button), subtitle = button1Text.ifEmpty { DiscordRPC.DEFAULT_BUTTON_1 }, trailing = { IosSwitch(checked = button1Visible, onCheckedChange = AppSettings::setDiscordButton1Visible) }, onClick = { onOpenDialog(DiscordDialog.BUTTON_1) })
+                    RowDivider()
+                    SettingsRow(icon = SfIcons.SmartButton, title = stringResource(R.string.second_button), subtitle = button2Text.ifEmpty { DiscordRPC.DEFAULT_BUTTON_2 }, trailing = { IosSwitch(checked = button2Visible, onCheckedChange = AppSettings::setDiscordButton2Visible) }, onClick = { onOpenDialog(DiscordDialog.BUTTON_2) })
+                }
+                SettingsGroup(header = "Advanced") {
+                    SettingsRow(icon = SfIcons.Tune, title = "Advanced mode", subtitle = "Expose additional presence configuration", trailing = { IosSwitch(checked = advancedMode, onCheckedChange = AppSettings::setDiscordAdvancedMode) }, onClick = { AppSettings.setDiscordAdvancedMode(!advancedMode) })
+                }
+            }
+
+            DiscordSettingsPage.ACTIVITY -> {
+                SettingsGroup(header = "Presence Type", footer = "Choose how your playback status is labelled across Discord.") {
                     DiscordActivityKind.entries.forEach { kind ->
                         Row(
                             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(if (activityType == kind.value) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                .background(if (activityType == kind.value) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
                                 .clickable(enabled = rpcEnabled) { AppSettings.setDiscordActivityType(kind.value) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 14.dp, vertical = 13.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text(kind.localizedLabel(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onBackground)
+                                Text(kind.localizedLabel(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
                                 Text("${kind.localizedVerb()} ${appName()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             RadioButton(selected = activityType == kind.value, onClick = { AppSettings.setDiscordActivityType(kind.value) }, enabled = rpcEnabled)
                         }
-                        Spacer(Modifier.height(7.dp))
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
+                Text("The selected style is applied immediately to the next presence update.", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
 
-                SettingsGroup(
-                    header = stringResource(R.string.buttons),
-                    footer = stringResource(R.string.discord_buttons_footer),
-                ) {
-                    SettingsRow(
-                        icon = SfIcons.SmartButton,
-                        title = stringResource(R.string.first_button),
-                        subtitle = button1Text.ifEmpty { DiscordRPC.DEFAULT_BUTTON_1 },
-                        trailing = {
-                            IosSwitch(
-                                checked = button1Visible,
-                                onCheckedChange = AppSettings::setDiscordButton1Visible,
-                            )
-                        },
-                        onClick = { onOpenDialog(DiscordDialog.BUTTON_1) },
-                    )
-                    RowDivider()
-                    SettingsRow(
-                        icon = SfIcons.SmartButton,
-                        title = stringResource(R.string.second_button),
-                        subtitle = button2Text.ifEmpty { DiscordRPC.DEFAULT_BUTTON_2 },
-                        trailing = {
-                            IosSwitch(
-                                checked = button2Visible,
-                                onCheckedChange = AppSettings::setDiscordButton2Visible,
-                            )
-                        },
-                        onClick = { onOpenDialog(DiscordDialog.BUTTON_2) },
-                    )
+            DiscordSettingsPage.PRIVACY -> {
+                SettingsGroup(header = "Playback Privacy", footer = "These controls affect whether playback details remain visible when audio is paused.") {
+                    SettingsRow(icon = SfIcons.RadioButtonChecked, title = "Hide when paused", subtitle = "Clear Discord activity instead of showing a paused indicator", enabled = rpcEnabled, trailing = { IosSwitch(checked = hideWhenPaused, onCheckedChange = AppSettings::setDiscordHideWhenPaused) }, onClick = { AppSettings.setDiscordHideWhenPaused(!hideWhenPaused) })
                 }
-        }
-
-        SettingsGroup(
-            header = stringResource(R.string.preview),
-            footer = if (song == null) stringResource(R.string.play_to_preview) else null,
-        ) {
-            RichPresencePreview(
-                song = song,
-                positionMs = positionMs,
-                durationMs = durationMs,
-                heading = appName(),
-                verb = kindOf(activityType).localizedVerb(),
-                useDetails = useDetails,
-                audioQuality = discordAudioQualityLine(nerdStats).takeIf { showAudioQuality },
-                showTrackTitle = showTrackTitle,
-                showArtist = showArtist,
-                showAlbum = showAlbum,
-                showArtwork = showArtwork,
-                showElapsedTime = showElapsedTime,
-                enabled = rpcEnabled,
-                button1Text = button1Text,
-                button1Visible = button1Visible,
-                button2Text = button2Text,
-                button2Visible = button2Visible,
-            )
+                SettingsGroup(header = "Privacy Status") {
+                    Text("Private-session-aware presence is not available in this app build yet. This page only exposes controls that are currently connected to playback behaviour.", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -429,6 +398,7 @@ private fun RichPresencePreview(
     durationMs: Long,
     heading: String,
     verb: String,
+    trackVerb: String,
     useDetails: Boolean,
     audioQuality: String?,
     showTrackTitle: Boolean,
@@ -480,7 +450,7 @@ private fun RichPresencePreview(
                 // member list — so which of these is emphasised is the whole
                 // point of the "Lead with the song" switch.
                 if (showTrackTitle) Text(
-                    text = title,
+                    text = "$trackVerb $title",
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
                     fontWeight = if (useDetails) FontWeight.W700 else FontWeight.W400,
                     color = MaterialTheme.colorScheme.onBackground,

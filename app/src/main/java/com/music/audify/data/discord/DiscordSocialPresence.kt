@@ -21,6 +21,7 @@ internal object DiscordSocialPresence {
     private var callbacksScheduled = false
     private var presenceActive = false
     private var callbackGraceDeadline = 0L
+    private var requestGeneration = 0L
 
     private val callbackPump = object : Runnable {
         override fun run() {
@@ -66,7 +67,20 @@ internal object DiscordSocialPresence {
         button2Url: String?,
     ) {
         mainHandler.post {
+            val generation = ++requestGeneration
+            if (com.music.audify.BuildConfig.DEBUG) {
+                android.util.Log.d(TAG, "Presence update queued (generation=$generation)")
+            }
             runWhenNativeReady {
+                // An update can be queued while the native SDK is loading. If
+                // playback stopped or the track changed before loading finished,
+                // never publish that stale queued payload.
+                if (generation != requestGeneration) {
+                    if (com.music.audify.BuildConfig.DEBUG) {
+                        android.util.Log.d(TAG, "Dropped stale presence update (generation=$generation)")
+                    }
+                    return@runWhenNativeReady
+                }
                 if (!initialized) {
                     registerCurrentActivity()
                     initialized = runCatching { nativeInitialize(APPLICATION_ID) }
@@ -76,6 +90,9 @@ internal object DiscordSocialPresence {
                 if (!initialized) return@runWhenNativeReady
                 presenceActive = true
                 ensureCallbackPump()
+                if (com.music.audify.BuildConfig.DEBUG) {
+                    android.util.Log.d(TAG, "Dispatching current presence to native RPC")
+                }
                 runCatching {
                     nativeUpdate(
                         details, state, imageUrl, imageTooltip, detailsUrl,
@@ -89,6 +106,11 @@ internal object DiscordSocialPresence {
 
     fun clear() {
         mainHandler.post {
+            // Invalidate any update waiting for the native library to load.
+            requestGeneration++
+            if (com.music.audify.BuildConfig.DEBUG) {
+                android.util.Log.d(TAG, "Presence clear requested")
+            }
             if (!nativeLibraryLoaded || !initialized) return@post
             presenceActive = false
             callbackGraceDeadline = SystemClock.uptimeMillis() + CLEAR_CALLBACK_GRACE_MS
@@ -157,7 +179,9 @@ internal object DiscordSocialPresence {
     private external fun nativeClear()
     private external fun nativeRunCallbacks()
 
-    private const val CALLBACK_INTERVAL_MS = 50L
+    // RPC callbacks are not frame-rendering work. 10 Hz keeps acknowledgements
+    // responsive without waking the UI thread 20 times per second all playback.
+    private const val CALLBACK_INTERVAL_MS = 100L
     private const val CLEAR_CALLBACK_GRACE_MS = 2_000L
     private const val TAG = "AudifyDiscord"
 }

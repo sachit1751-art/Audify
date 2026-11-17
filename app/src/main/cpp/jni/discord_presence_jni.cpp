@@ -26,12 +26,11 @@ std::optional<std::string> ToOptionalString(JNIEnv* env, jstring value) {
 }
 
 discordpp::ActivityTypes ToActivityType(jint value) {
-    switch (value) {
-        case 1: return discordpp::ActivityTypes::Playing;
-        case 2: return discordpp::ActivityTypes::Watching;
-        case 3: return discordpp::ActivityTypes::Competing;
-        default: return discordpp::ActivityTypes::Listening;
-    }
+    // Discord's Social SDK Rich Presence guide specifies Playing as the
+    // supported activity type. The chosen presentation verb is carried in
+    // the details field by DiscordRPC instead.
+    (void)value;
+    return discordpp::ActivityTypes::Playing;
 }
 
 void AddButton(
@@ -58,9 +57,28 @@ Java_com_music_audify_data_discord_DiscordSocialPresence_nativeInitialize(
     if (g_client) return JNI_TRUE;
     try {
         g_client = std::make_unique<discordpp::Client>();
+        // The SDK's own transport diagnostics are essential here: a successful
+        // UpdateRichPresence callback alone cannot distinguish a working
+        // Android RPC handoff from an account/visibility restriction.
+        g_client->AddLogCallback(
+            [](std::string message, discordpp::LoggingSeverity severity) {
+                const int priority = severity == discordpp::LoggingSeverity::Error
+                    ? ANDROID_LOG_ERROR
+                    : severity == discordpp::LoggingSeverity::Warning
+                        ? ANDROID_LOG_WARN
+                        : ANDROID_LOG_INFO;
+                __android_log_print(priority, "AudifyDiscordSDK", "%s", message.c_str());
+            },
+#ifdef NDEBUG
+            discordpp::LoggingSeverity::Warning
+#else
+            discordpp::LoggingSeverity::Info
+#endif
+        );
         g_client->SetApplicationId(
             applicationId > 0 ? static_cast<uint64_t>(applicationId) : kAudifyApplicationId
         );
+        __android_log_print(ANDROID_LOG_INFO, "AudifyDiscord", "Discord Social SDK client initialized");
         return JNI_TRUE;
     } catch (...) {
         g_client.reset();
@@ -92,6 +110,11 @@ Java_com_music_audify_data_discord_DiscordSocialPresence_nativeUpdate(
 
     discordpp::Activity activity;
     activity.SetType(ToActivityType(activityType));
+    // Give the custom activity a music-player identity rather than Discord's
+    // generic registered fallback label (currently shown as "Game").
+    // This remains a Playing activity; the Social SDK does not support using
+    // the Spotify-only Listening presentation for third-party integrations.
+    activity.SetName("Audify");
     activity.SetDetails(ToOptionalString(env, details));
     activity.SetState(ToOptionalString(env, state));
     activity.SetDetailsUrl(ToOptionalString(env, detailsUrl));
@@ -122,12 +145,20 @@ Java_com_music_audify_data_discord_DiscordSocialPresence_nativeUpdate(
 
     // Do not call Client::Connect(): on Android 1.10+ this uses the signed-in
     // Discord app's unauthenticated RPC transport and requires no user token.
+    __android_log_print(ANDROID_LOG_DEBUG, "AudifyDiscord", "Dispatching Rich Presence update");
     g_client->UpdateRichPresence(std::move(activity), [](discordpp::ClientResult result) {
         if (result.Successful()) {
-            __android_log_print(ANDROID_LOG_INFO, "AudifyDiscord", "Discord accepted Rich Presence update");
+            __android_log_print(ANDROID_LOG_INFO, "AudifyDiscord", "Discord RPC update callback succeeded");
         } else {
             const std::string error = result.Error();
-            __android_log_print(ANDROID_LOG_WARN, "AudifyDiscord", "Presence update failed: %s", error.c_str());
+            __android_log_print(
+                ANDROID_LOG_WARN,
+                "AudifyDiscord",
+                "Discord RPC update callback failed (code=%d retryable=%d): %s",
+                result.ErrorCode(),
+                result.Retryable() ? 1 : 0,
+                error.c_str()
+            );
         }
     });
 }
