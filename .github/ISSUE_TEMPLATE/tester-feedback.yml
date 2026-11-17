@@ -12,8 +12,8 @@ body:
     id: app-version
     attributes:
       label: Audify version
-      description: Include the release tag (for example, 1.8.2) and whether it was stable or prerelease.
-      placeholder: 1.8.2 stable
+      description: Include the release tag and whether it was stable or prerelease.
+      placeholder: 1.9.3 stable (or your installed version)
     validations:
       required: true
   - type: input

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and community support
+    url: https://github.com/sachit1751-art/Audify/discussions
+    about: Ask questions and discuss ideas with the Audify community.
+  - name: Report a security vulnerability
+    url: https://github.com/sachit1751-art/Audify/security/advisories
+    about: Report security issues privately. Do not post vulnerabilities in public issues.

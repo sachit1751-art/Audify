@@ -4,19 +4,19 @@ Project: AUDIFY
 -->
 # Production release process
 
-**Last reviewed:** 2026-11-08
+**Last reviewed:** 2026-11-17
 **Workflow:** [Audify Release](../../.github/workflows/android.yml)
-**Latest published release:** [Audify 1.9.1](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.1)
+**Latest published stable release:** [Audify 1.9.3](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.3)
 
 This document records the published release inventory and the checks required for future production releases. The GitHub Release and its attached assets are authoritative for publication status; do not infer publication from a local build or a successful workflow run.
 
 ## Current release snapshot
 
-- Release: `1.9.1`
-- Tag: [`v1.9.1`](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.1)
-- Publication state: **published** (2026-11-08)
-- Target branch recorded by GitHub: `fix/android-ci-ui-audit-2026-11-06`
-- Download page: <https://github.com/sachit1751-art/Audify/releases/tag/v1.9.1>
+- Stable release: `1.9.3`
+- Tag: [`v1.9.3`](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.3)
+- Publication state: **published** (2026-11-12)
+- Draft release: [`v1.9.4`](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.4), currently unpublished and without release assets.
+- Download page: <https://github.com/sachit1751-art/Audify/releases/tag/v1.9.3>
 
 ## Published assets
 
@@ -24,19 +24,17 @@ The release currently contains the following downloadable assets:
 
 | Platform | Asset | Purpose |
 | --- | --- | --- |
-| Android phone | `Audify-1.9.1.apk` | Universal phone/tablet APK |
-| Android phone | `Audify-1.9.1_arm64-v8a.apk` | ARM64 phone APK |
-| Android phone | `Audify-1.9.1_armeabi-v7a.apk` | ARMv7 phone APK |
-| Android phone | `Audify-1.9.1_x86_64.apk` | x86_64 phone APK |
-| Android TV | `AudifyTV-1.9.1.apk` | Universal Android TV / Google TV APK |
-| Wear OS | `AudifyWear-prod-universal-release.apk` | Universal Wear OS companion APK |
-| Windows | `Audify-Setup.exe` | Windows x64 desktop installer |
+| Android phone | `Audify-1.9.3.apk` | Universal phone/tablet APK |
+| Android phone | `Audify-1.9.3_arm64-v8a.apk` | ARM64 phone APK |
+| Android TV | `AudifyTV-1.9.3.apk` | Universal Android TV / Google TV APK |
+| Wear OS | `AudifyWear-1.9.3.apk` | Universal Wear OS companion APK |
+| Checksums | `SHA256SUMS.txt` | SHA-256 hashes for the four APK assets |
 
-The TV APK is a separate TV-targeted application, not a phone build. The Windows installer is intentionally unsigned; do not describe it as Authenticode-signed or trusted by Windows publisher verification. No macOS or Linux desktop installer is included in this release.
+The TV APK is a separate TV-targeted application, not a phone build. No Windows, macOS, or Linux desktop installer is attached to the 1.9.3 release.
 
 ## Release notes and download links
 
-The published release notes must match the actual attached asset names. Keep the download section explicit about phone universal and ABI-specific APKs, the TV APK, Wear OS APK, and Windows installer. Do not list an asset unless its upload state is `uploaded` in the GitHub Release API. The repository [README](../../README.md) and platform guides link to the versioned 1.9.0 assets.
+The published release notes must match the actual attached asset names. Do not list an asset unless its upload state is `uploaded` in the GitHub Release API. The repository [README](../../README.md) and [changelog](../../CHANGELOG.md) link to the published 1.9.3 assets and release notes.
 
 ## Validation requirements for future releases
 
@@ -54,7 +52,7 @@ A draft is not a published release. A successful build is not proof of an upload
 
 - Keep keystore files, signing credentials, and CI secret values private; never print or commit them.
 - Verify Android APK signing identity against the intended distribution identity before claiming a build is suitable for public distribution.
-- Windows Authenticode signing is not required for the current 1.9.0 installer. Do not substitute a self-signed certificate and call it trusted.
+- Do not describe a desktop installer as available unless it is attached to a published release and its signing status has been verified.
 - Do not publish a draft or create a new release tag without explicit authorization.
 - Keep unrelated working-tree changes out of release commits.
 

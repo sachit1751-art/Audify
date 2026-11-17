@@ -19,7 +19,7 @@ Audify 1.9.3 focuses on a more responsive, personal playback experience, with Ho
 
 ## Android downloads
 
-The following production APKs have been built from the verified 1.9.3 production variants. They are attached to the unpublished GitHub draft release after package/version/signature checks:
+The following production APKs were built from the verified 1.9.3 production variants and are attached to the published GitHub release:
 
 - **Phone / tablet (universal):** `Audify-1.9.3.apk`.
 - **Phone / tablet (ARM64):** `Audify-1.9.3_arm64-v8a.apk`.
@@ -33,13 +33,13 @@ The following production APKs have been built from the verified 1.9.3 production
 - Phone, TV, Wear OS, shared and shared UI production-debug unit-test tasks passed.
 - All four release APKs passed APK signature verification and match the existing approved signing certificate.
 - Package IDs and version metadata were verified as 1.9.3 (version code 42).
-- The release remains an unpublished draft pending final device-level review.
+- The release was published on 2026-11-12 after the release assets and checksums were uploaded.
 
 - Android version: **1.9.3** (version code **42**).
 - Production assets must use the existing approved Audify signing identity (certificate SHA-256: `4bde8155328a9a8659ce6b75d1a0df2e4811c0ccdc555a52ccb3df2a4be94e21`).
 - The universal phone and TV packages must contain the supported ARMv7, ARM64 and x86_64 native-library payloads.
 - Package IDs, version metadata, signatures and APK integrity are checked by the release workflow before assets are attached.
-- This is an **unpublished draft**. It will remain a draft for manual review; creating it does not publish the release.
+- The [published GitHub release](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.3) is the authoritative download location.
 
 ## Platform scope
 

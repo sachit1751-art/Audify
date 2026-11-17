@@ -17,11 +17,11 @@ Project: AUDIFY
 <p align="center">
   <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/github/v/release/sachit1751-art/Audify?label=latest%20stable" alt="Latest stable release"></a>
   <a href="https://github.com/sachit1751-art/Audify/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sachit1751-art/Audify" alt="GPL-3.0 license"></a>
-  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/badge/downloads-27.4k-green" alt="GitHub downloads"></a>
+  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/github/downloads/sachit1751-art/Audify/total?label=downloads" alt="GitHub release downloads"></a>
 </p>
 
 <p align="center">
-  <a href="#downloads"><strong>↓ Download Audify 1.9.0</strong></a>
+  <a href="#downloads"><strong>↓ Download Audify 1.9.3</strong></a>
 </p>
 
 <p align="center">
@@ -33,6 +33,7 @@ Project: AUDIFY
 </p>
 
 <p align="center">
+  <a href="https://audify-music.vercel.app">Website</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="#features">Features</a> ·
   <a href="#platforms">Platforms</a> ·
@@ -139,28 +140,30 @@ See Audify as it actually looks. These are captures from the app, not concept mo
 | **Android phones and tablets** | Full music discovery, library management, playback, lyrics and downloads. |
 | **Android TV** | A dedicated TV experience for browsing and listening on a larger screen. |
 | **Wear OS** | A companion experience for supported watch-based playback controls. |
-| **Desktop (Windows)** | Native Rust desktop client. The 1.9.0 release provides a Windows x64 installer; macOS and Linux installers are not included in this release. See the [desktop project guide](desktop/README.md). |
+| **Desktop (Windows)** | Native Rust desktop client. No desktop installer is attached to the latest stable Android release; see the [desktop project guide](desktop/README.md) for its current build status. |
 
 ## Downloads
 
-The current stable release is **Audify 1.9.0**. Download the build for your device from the links below, or open the [complete GitHub release](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.0) to view every asset and its checksum metadata.
+The latest published stable release is **Audify 1.9.3**. The [1.9.4 release](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.4) is still a draft and is not a public download. Use the [complete 1.9.3 release page](https://github.com/sachit1751-art/Audify/releases/tag/v1.9.3) to view all assets and their checksum metadata.
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Android phone / tablet | [Universal APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/Audify-1.9.1.apk) | Recommended for most devices. |
-| Android phone / tablet | [ARM64 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/Audify-1.9.1_arm64-v8a.apk) · [ARMv7 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/Audify-1.9.1_armeabi-v7a.apk) · [x86_64 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/Audify-1.9.1_x86_64.apk) | Choose the ABI matching your device if you specifically need an architecture-specific package. |
-| Android TV / Google TV | [AudifyTV 1.9.1 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/AudifyTV-1.9.1.apk) | TV-specific interface; not the phone app. |
-| Wear OS | [Universal Wear OS APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/AudifyWear-prod-universal-release.apk) | Companion app; requires a compatible phone app. |
-| Windows x64 | [Audify Setup](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/Audify-Setup.exe) | Windows installer; currently unsigned. |
+| Android phone / tablet | [Universal APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.3/Audify-1.9.3.apk) | Recommended for most devices. |
+| Android phone / tablet | [ARM64 APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.3/Audify-1.9.3_arm64-v8a.apk) | Architecture-specific package for ARM64 devices. |
+| Android TV / Google TV | [AudifyTV APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.3/AudifyTV-1.9.3.apk) | TV-specific interface; not the phone app. |
+| Wear OS | [Universal Wear OS APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.3/AudifyWear-1.9.3.apk) | Companion app; requires a compatible phone app. |
+| Checksums | [SHA256SUMS.txt](https://github.com/sachit1751-art/Audify/releases/download/v1.9.3/SHA256SUMS.txt) | SHA-256 checksums for the four published APKs. |
 
-For installation notes and platform-specific requirements, see the [Android TV guide](tv/README.md), [Wear OS guide](wearos/README.md), and [Desktop guide](desktop/README.md). Linux and macOS desktop downloads are not available in 1.9.0.
+For installation notes and platform-specific requirements, see the [Android TV guide](tv/README.md), [Wear OS guide](wearos/README.md), and [Desktop guide](desktop/README.md).
 ## Community
 
 - **Questions and ideas:** [GitHub Discussions](https://github.com/sachit1751-art/Audify/discussions)
 - **Report a bug:** [Open a bug report](https://github.com/sachit1751-art/Audify/issues/new?template=bug_report.yml)
 - **Suggest a feature:** [Submit a feature suggestion](https://github.com/sachit1751-art/Audify/issues/new?template=feature_request.yml)
 - **Tester feedback:** [Share feedback](https://github.com/sachit1751-art/Audify/issues/new?template=tester-feedback.yml)
-- **Contribute code:** Read the [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Contribute code:** Read the [Contributing Guide](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), and [Pull Request template](.github/PULL_REQUEST_TEMPLATE.md).
+- **Security:** See [SECURITY.md](SECURITY.md) for responsible vulnerability reporting.
+- **Changelog:** Browse the [release history](CHANGELOG.md).
 - **More project docs:** [Documentation index](docs/ADDITIONAL.md)
 
 When reporting an issue, include clear reproduction steps and relevant app details. Remove personal information from screenshots and logs. Never share account credentials, tokens, or private listening data.
@@ -174,7 +177,7 @@ The Android app also supports direct anonymous bug reports and feature suggestio
 
 Audify uses the Gradle wrapper; a separate Gradle installation is not required. Android Studio is optional, but the Android SDK is required.
 
-For a repeatable setup on Windows, macOS or Linux, follow the [Development Environment Setup Guide](docs/DEVELOPMENT_ENVIRONMENT.md). On Windows, `scripts/first-run.ps1 -AcceptLicenses` bootstraps the SDK, runs the unit/JVM test gates, and builds phone, TV and Wear OS debug APKs in one flow.
+For development requirements and test commands, follow the [Contributing Guide](CONTRIBUTING.md). On Windows, `scripts/first-run.ps1 -AcceptLicenses` checks the JDK and Android SDK, runs the phone and shared UI unit-test tasks, and builds the phone `prodDebug` APK. Build TV and Wear OS separately with the Gradle tasks below.
 
 - **JDK 21**
 - **Android SDK Platform 37** and the Android build tools required by the project

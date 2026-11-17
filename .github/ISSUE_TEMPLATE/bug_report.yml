@@ -15,7 +15,7 @@ body:
     attributes:
       label: Audify version
       description: Include the release version and whether it is stable or a prerelease.
-      placeholder: 1.8.6 stable
+      placeholder: 1.9.3 stable (or your installed version)
     validations:
       required: true
   - type: input

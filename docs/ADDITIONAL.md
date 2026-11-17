@@ -11,7 +11,9 @@ Use this index to find the maintained product, design, release, and implementati
 - [Lyrics Translation](future%20updates/LYRICS_TRANSLATION.md): Pipeline documentation for on-demand lyrics translation, timing projection, and UI transitions.
 - [Product context](PRODUCT.md): shipped capability baseline, architecture constraints, and project rules.
 - [Design context](DESIGN.md): current visual, interaction, accessibility, and motion conventions.
-- [Release process and current status](future%20updates/RELEASE_PROCESS.md): published 1.9.0 asset inventory, validation requirements, signing policy, and release procedure.
+- [Release process and current status](future%20updates/RELEASE_PROCESS.md): published 1.9.3 asset inventory, draft status, validation requirements, signing policy, and release procedure.
+- [Changelog](../CHANGELOG.md): index of published release notes and unpublished work.
+- [Social preview artwork](social-preview.png): 1280 × 640 repository and link-preview graphic.
 - [Improvement plans](../plans/README.md): active proposal index and implementation status ledger.
 
 ## Development

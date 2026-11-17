@@ -9,6 +9,7 @@ Thank you for contributing to Audify. Follow these guidelines to ensure an effic
 ## Proposing Contributions
 - Substantial features, refactors, or UI redesigns should normally be discussed before implementation. Open an issue on GitHub to outline your proposal.
 - Straightforward bug fixes, documentation improvements, or minor corrections can be submitted directly as a Pull Request.
+- Before starting, check the [open issues](https://github.com/sachit1751-art/Audify/issues), existing pull requests, and the current release notes so work does not duplicate an active fix.
 
 ## Branch and Pull Request Workflow
 Always check the repository for the current active version or development branch before starting work.
@@ -25,7 +26,7 @@ When contributing:
 
 ## Development Setup
 
-For a fresh machine, use the [cross-platform environment setup guide](docs/DEVELOPMENT_ENVIRONMENT.md). It pins the SDK components and preserves machine-local credentials.
+For a fresh Windows machine, run `scripts/first-run.ps1 -AcceptLicenses` from PowerShell. It checks JDK 21, installs or validates the Android SDK packages declared by `scripts/setup.ps1`, runs the phone and shared UI unit-test tasks, and builds the phone `prodDebug` APK. It does not build the TV or Wear OS variants. On other platforms, install the required components below and use the Gradle wrapper commands in this guide.
 The project requires the following tools:
 - **JDK**: JDK 21 to run the current Gradle/Kotlin build. The Android app's Java/Kotlin bytecode target remains JVM 17; that is not the required Gradle runtime JDK.
 - **Android SDK**: phone and TV use `compileSdk = 37`, `targetSdk = 36`, `minSdk = 26`; Wear OS uses `compileSdk = 37`, `targetSdk = 36`, `minSdk = 30`.
@@ -74,6 +75,8 @@ Distinguish clearly between source metadata, decoder format, internal DSP format
 
 ## Review Process
 All pull requests require review and approval by repository maintainers before merging. Maintainers review changes for correctness, architecture fit, and maintainability.
+
+Use the repository's pull request template. Include the user-visible effect, the areas changed, commands actually run, and any known limitations. For UI changes, attach before/after screenshots where they help reviewers. Do not mark a check as passing unless it completed successfully.
 
 ## Dependencies and Licensing
 Audify is licensed under the **GNU General Public License v3.0 (GPLv3)**.
