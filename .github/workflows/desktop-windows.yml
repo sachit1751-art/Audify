@@ -1,0 +1,99 @@
+name: Windows Desktop
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-windows.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: i686-pc-windows-msvc
+            runner: windows-latest
+            arch: x86
+            setup: Audify-Setup-x86
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            arch: x64compatible
+            setup: Audify-Setup
+          - target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+            arch: arm64
+            setup: Audify-Setup-arm64
+
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.target == 'i686-pc-windows-msvc'
+        with:
+          arch: x86
+
+      - name: Install NASM for 32-bit TLS assembly
+        if: matrix.target == 'i686-pc-windows-msvc'
+        shell: pwsh
+        run: choco install nasm --yes --no-progress
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: desktop-${{ matrix.target }}
+          cache-targets: false
+          cache-on-failure: true
+
+      - name: Build desktop executable
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+        run: cargo build --release --locked --package audify --target "$env:TARGET"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build architecture-specific installer
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+          AUDIFY_ARCH: ${{ matrix.arch }}
+          AUDIFY_SETUP: ${{ matrix.setup }}
+        run: |
+          $version = if ($env:GITHUB_REF -match '^refs/tags/v') { $env:GITHUB_REF_NAME.Substring(1) } else { '0.0.0' }
+          $env:AUDIFY_VERSION = $version
+          $env:AUDIFY_EXE = (Resolve-Path "target/$env:TARGET/release/audify.exe").Path
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $env:AUDIFY_DIST = (Resolve-Path dist).Path
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "scripts/windows/audify.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Audify-Windows-${{ matrix.target }}
+          path: desktop/dist/${{ matrix.setup }}.exe
+          if-no-files-found: error
