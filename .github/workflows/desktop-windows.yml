@@ -61,8 +61,15 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install target for the repository-pinned Rust toolchain
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+        run: rustup target add $env:TARGET
+
       - uses: Swatinem/rust-cache@v2
         with:
+          workspaces: desktop -> desktop/target
           key: desktop-${{ matrix.target }}
           cache-targets: false
           cache-on-failure: true
