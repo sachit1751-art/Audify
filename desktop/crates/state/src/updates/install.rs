@@ -7,9 +7,10 @@ use anyhow::{Context as _, Result};
 #[cfg(target_os = "windows")]
 const UNINSTALLER: &str = "unins000.exe";
 #[cfg(target_os = "windows")]
-const INSTALLER: &str = match cfg!(target_arch = "aarch64") {
-    true => "Audify-Setup-arm64.exe",
-    false => "Audify-Setup.exe",
+const INSTALLER: &str = match (cfg!(target_arch = "aarch64"), cfg!(target_arch = "x86")) {
+    (true, _) => "Audify-Setup-arm64.exe",
+    (_, true) => "Audify-Setup-x86.exe",
+    _ => "Audify-Setup.exe",
 };
 /// Where Homebrew keeps the stable and the nightly cask, on Apple silicon and on Intel. Any of
 /// them existing means Homebrew owns /Applications/Audify.app, though not a copy installed

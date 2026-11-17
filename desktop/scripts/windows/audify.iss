@@ -4,9 +4,9 @@
 #define AppVersion GetEnv("AUDIFY_VERSION")
 #define SourceExe GetEnv("AUDIFY_EXE")
 #define OutputDir GetEnv("AUDIFY_DIST")
-; x64compatible for the x64 build, arm64 for the ARM one
+; x86 for 32-bit Windows, x64compatible for x64 Windows, arm64 for Windows on ARM
 #define Arch GetEnv("AUDIFY_ARCH")
-; Audify-Setup for the x64 build, Audify-Setup-arm64 for the ARM one
+; Audify-Setup-x86, Audify-Setup, or Audify-Setup-arm64 for the matching Windows architecture
 #define SetupName GetEnv("AUDIFY_SETUP")
 
 [Setup]
@@ -24,7 +24,9 @@ SetupIconFile=..\..\assets\windows\audify.ico
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed={#Arch}
+#if GetEnv("AUDIFY_ARCH") != "x86"
 ArchitecturesInstallIn64BitMode={#Arch}
+#endif
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=commandline dialog
 WizardStyle=modern

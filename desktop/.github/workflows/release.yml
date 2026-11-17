@@ -39,6 +39,10 @@ jobs:
             os: macos-15
           - target: x86_64-apple-darwin
             os: macos-15-intel
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            arch: x86
+            setup: Audify-Setup-x86
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             arch: x64compatible
@@ -78,6 +82,15 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: configure the 32-bit MSVC toolchain
+        if: matrix.target == 'i686-pc-windows-msvc'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+      - name: install NASM for 32-bit TLS assembly
+        if: matrix.target == 'i686-pc-windows-msvc'
+        shell: pwsh
+        run: choco install nasm --yes --no-progress
       - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: Swatinem/rust-cache@v2
         with:

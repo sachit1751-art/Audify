@@ -2,12 +2,19 @@ param(
     [string]$Version = "1.9.1",
     [string]$Executable = "target/release/audify.exe",
     [string]$Output = "dist",
-    [ValidateSet("x64compatible", "arm64")]
+    [ValidateSet("x86", "x64compatible", "arm64")]
     [string]$Architecture = "x64compatible",
-    [string]$SetupName = "Audify-Setup"
+    [string]$SetupName = ""
 )
 
 $ErrorActionPreference = "Stop"
+if ([string]::IsNullOrWhiteSpace($SetupName)) {
+    $SetupName = switch ($Architecture) {
+        "x86" { "Audify-Setup-x86" }
+        "arm64" { "Audify-Setup-arm64" }
+        default { "Audify-Setup" }
+    }
+}
 $root = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $source = Resolve-Path (Join-Path $root $Executable)
 $outputPath = Join-Path $root $Output
