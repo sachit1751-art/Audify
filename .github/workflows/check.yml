@@ -60,7 +60,7 @@ jobs:
         run: ./gradlew --no-daemon --max-workers=2 :app:testDevDebugUnitTest :tv:testProdDebugUnitTest :wearos:testProdDebugUnitTest :shared:jvmTest :sharedUi:jvmTest
 
       - name: Optimized Dev Release lint
-        run: ./gradlew --no-daemon --max-workers=2 :app:lintDevRelease :tv:lintDevRelease :wearos:lintDevRelease
+        run: ./gradlew --no-daemon --max-workers=2 --continue :app:lintDevRelease :tv:lintDevRelease :wearos:lintDevRelease
 
       - name: Build optimized phone, TV and Wear OS dev variants
         run: ./gradlew --no-daemon --max-workers=2 :app:assembleDevRelease :tv:assembleDevRelease :wearos:assembleDevRelease
@@ -97,6 +97,10 @@ jobs:
           path: |
             app/build/reports/
             app/build/intermediates/lint_intermediate_text_report/
+            tv/build/reports/
+            tv/build/intermediates/lint_intermediate_text_report/
+            wearos/build/reports/
+            wearos/build/intermediates/lint_intermediate_text_report/
             app/build/test-results/
             shared/build/reports/
             sharedUi/build/reports/

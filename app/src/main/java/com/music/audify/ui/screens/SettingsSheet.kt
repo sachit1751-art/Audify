@@ -288,6 +288,13 @@ fun SettingsScreen(
     val exportFailedTemplate = stringResource(R.string.export_failed)
     val importSucceededTemplate = stringResource(R.string.import_succeeded)
     val importFailedTemplate = stringResource(R.string.import_failed)
+    val backupExportingMessage = stringResource(R.string.backup_exporting)
+    val backupExportedTimestampWarning = stringResource(R.string.backup_exported_timestamp_warning)
+    val backupCheckingFileMessage = stringResource(R.string.backup_checking_file)
+    val backupRestoringMessage = stringResource(R.string.backup_restoring)
+    val backupUnknownVersionMessage = stringResource(R.string.backup_unknown_version)
+    val backupUnknownDateMessage = stringResource(R.string.backup_unknown_date)
+    val backupRestoreScopeMessage = stringResource(R.string.backup_restore_scope)
     val canvasCacheClearedMessage = stringResource(R.string.canvas_cache_cleared)
     val imageCacheClearedMessage = stringResource(R.string.image_cache_cleared)
     val songCacheClearedMessage = stringResource(R.string.song_cache_cleared)
@@ -544,12 +551,12 @@ fun SettingsScreen(
         if (target == null) return@rememberLauncherForActivityResult
         backupScope.launch {
             isExportingBackup = true
-            exportStatus = context.getString(R.string.backup_exporting)
+            exportStatus = backupExportingMessage
             try {
                 exportStatus = Backup.exportTo(context, target).fold(
                     onSuccess = { months ->
                         exportSucceededTemplate.replace("%1\$s", context.countOfMonths(months.months)) +
-                            if (months.timestampSaved) "" else "\n${context.getString(R.string.backup_exported_timestamp_warning)}"
+                            if (months.timestampSaved) "" else "\n$backupExportedTimestampWarning"
                     },
                     onFailure = {
                         exportFailedTemplate.replace("%1\$s", context.backupFailureMessage(it, unknownErrorMessage))
@@ -566,7 +573,7 @@ fun SettingsScreen(
         if (source == null) return@rememberLauncherForActivityResult
         backupScope.launch {
             isImportingBackup = true
-            importStatus = context.getString(R.string.backup_checking_file)
+            importStatus = backupCheckingFileMessage
             try {
                 Backup.preview(context, source).fold(
                     onSuccess = { preview ->
@@ -2761,16 +2768,16 @@ fun SettingsScreen(
     importPreview?.let { preview ->
         IosConfirmDialog(
             title = "Restore backup?",
-            message = context.getString(
+            message = stringResource(
                 R.string.restore_preview_body,
                 preview.songs,
                 preview.history,
                 preview.playlists,
                 preview.months,
                 preview.settings,
-                preview.from.ifBlank { context.getString(R.string.backup_unknown_version) },
-                preview.at.ifBlank { context.getString(R.string.backup_unknown_date) },
-            ) + "\n\n" + context.getString(R.string.backup_restore_scope),
+                preview.from.ifBlank { backupUnknownVersionMessage },
+                preview.at.ifBlank { backupUnknownDateMessage },
+            ) + "\n\n" + backupRestoreScopeMessage,
             confirmText = "Restore",
             dismissText = stringResource(R.string.cancel),
             onDismiss = { importPreview = null; pendingImportUri = null },
@@ -2780,7 +2787,7 @@ fun SettingsScreen(
                 pendingImportUri = null
                 if (uri != null) backupScope.launch {
                     isImportingBackup = true
-                    importStatus = context.getString(R.string.backup_restoring)
+                    importStatus = backupRestoringMessage
                     try {
                         importStatus = Backup.importFrom(context, uri).fold(
                             onSuccess = {
