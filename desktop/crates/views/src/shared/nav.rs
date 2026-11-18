@@ -17,6 +17,7 @@ pub(crate) fn nav_row(
         .tint(tint)
         .gap_2p5()
         .justify_start()
+        .w_full()
         .hover(move |style| style.bg(accent))
         .active(move |style| style.bg(accent))
 }

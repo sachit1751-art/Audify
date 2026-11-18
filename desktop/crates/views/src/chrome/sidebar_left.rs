@@ -33,41 +33,60 @@ const PINS: &str = "sidebar-pins";
 /// The sidebar's navigation rows in order: the entry that can hide each, its icon and where it goes.
 /// Settings has no entry, so it is always shown, and it opens on the settings page last visited
 /// rather than on the one named here.
-pub(crate) const NAV: [(Option<NavEntry>, &str, Destination); 7] = [
-    (Some(NavEntry::Home), "icons/house.svg", Destination::Home),
+pub(crate) const NAV: [(Option<NavEntry>, &str, &str, Destination); 7] = [
+    (
+        Some(NavEntry::Home),
+        "nav-home",
+        "icons/house.svg",
+        Destination::Home,
+    ),
     (
         Some(NavEntry::Search),
+        "nav-search",
         "icons/search.svg",
         Destination::Search,
     ),
     (
         Some(NavEntry::Library),
+        "nav-library",
         "icons/library-big.svg",
         Destination::Library(LibraryTab::Songs),
     ),
     (
         Some(NavEntry::Local),
+        "nav-local",
         "icons/file-music.svg",
         Destination::Local(LibraryTab::Songs),
     ),
-    (None, "icons/headphones.svg", Destination::Podcasts),
+    (
+        None,
+        "nav-podcasts",
+        "icons/headphones.svg",
+        Destination::Podcasts,
+    ),
     (
         Some(NavEntry::History),
+        "nav-history",
         "icons/rotate-ccw-clock.svg",
         Destination::History,
     ),
     (
         None,
+        "nav-settings",
         "icons/settings.svg",
         Destination::Settings(SettingsPage::General),
     ),
 ];
 
-const LIBRARY_TABS: [(&str, LibraryTab); 4] = [
-    ("nav-songs", LibraryTab::Songs),
-    ("nav-albums", LibraryTab::Albums),
-    ("nav-artists", LibraryTab::Artists),
-    ("nav-playlists", LibraryTab::Playlists),
+const LIBRARY_TABS: [(&str, &str, LibraryTab); 4] = [
+    ("nav-songs", "icons/music.svg", LibraryTab::Songs),
+    ("nav-albums", "icons/disc-3.svg", LibraryTab::Albums),
+    ("nav-artists", "icons/user-round.svg", LibraryTab::Artists),
+    (
+        "nav-playlists",
+        "icons/list-music.svg",
+        LibraryTab::Playlists,
+    ),
 ];
 
 const MIN_WIDTH: Pixels = px(160.);
@@ -278,7 +297,7 @@ impl SidebarLeft {
         let stocked = self.session.read(cx).authenticated()
             || self.library.read(cx).stocked(Shelf::Streaming);
         let mut rows = Vec::new();
-        for (index, (entry, _, destination)) in NAV.iter().enumerate() {
+        for (index, (entry, _, _, destination)) in NAV.iter().enumerate() {
             if entry.is_some_and(|entry| !self.settings.read(cx).nav_shown(entry.id())) {
                 continue;
             }
@@ -582,8 +601,7 @@ impl SidebarLeft {
     fn nav(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
         let theme = *cx.theme();
         let accent = theme.sidebar_accent;
-        let (entry, icon, destination) = NAV[index].clone();
-        let key = entry.map_or("nav-settings", NavEntry::key);
+        let (_entry, key, icon, destination) = NAV[index].clone();
         let current = self.trail.read(cx).current();
         let group = Group::of(&destination);
         let active = match group {
@@ -619,28 +637,35 @@ impl SidebarLeft {
         let theme = *cx.theme();
         let accent = theme.sidebar_accent;
         let current = self.trail.read(cx).current();
-        let tab = |id: ElementId, key: &'static str, destination: Destination| {
-            let chosen = destination == current;
-            let tint = match chosen {
-                true => theme.foreground,
-                false => theme.muted_foreground,
+        let tab =
+            |id: ElementId, key: &'static str, icon: &'static str, destination: Destination| {
+                let chosen = destination == current;
+                let tint = match chosen {
+                    true => theme.foreground,
+                    false => theme.muted_foreground,
+                };
+
+                nav_row(id, key, tint, accent)
+                    .icon(icon)
+                    .flex_1()
+                    .when(chosen, |button| button.bg(accent).aria_selected(true))
+                    .on_click(move |_, _, cx| navigate(destination.clone(), cx))
             };
 
-            nav_row(id, key, tint, accent)
-                .flex_1()
-                .when(chosen, |button| button.bg(accent).aria_selected(true))
-                .on_click(move |_, _, cx| navigate(destination.clone(), cx))
-        };
-
         match group {
-            Group::Library => Tabs::new().items(
-                LIBRARY_TABS
-                    .into_iter()
-                    .map(|(name, tab_id)| tab(name.into(), name, Destination::Library(tab_id))),
-            ),
+            Group::Library => {
+                Tabs::new().items(LIBRARY_TABS.into_iter().map(|(name, icon, tab_id)| {
+                    tab(name.into(), name, icon, Destination::Library(tab_id))
+                }))
+            }
             Group::Local => Tabs::new().items(LIBRARY_TABS.into_iter().enumerate().map(
-                |(slot, (name, tab_id))| {
-                    tab(("local-tab", slot).into(), name, Destination::Local(tab_id))
+                |(slot, (name, icon, tab_id))| {
+                    tab(
+                        ("local-tab", slot).into(),
+                        name,
+                        icon,
+                        Destination::Local(tab_id),
+                    )
                 },
             )),
         }
