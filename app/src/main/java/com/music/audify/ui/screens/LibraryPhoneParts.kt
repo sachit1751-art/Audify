@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.Storage
@@ -19,7 +18,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.R
 import com.music.audify.sharedui.resources.Res
 import com.music.audify.sharedui.resources.spotify_logo
-import com.music.audify.data.YtMusicRepository
 import com.music.audify.data.model.ShelfItem
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.download.Downloads
@@ -39,7 +37,7 @@ import com.music.audify.ui.replay.ReplayStoryPage
  * libraries it can reach.
  */
 @Composable
-fun libraryLinks(signedIn: Boolean): List<LibraryLink> {
+fun libraryLinks(): List<LibraryLink> {
     val webdavConfigured by AppSettings.webdavUrl.collectAsStateWithLifecycle()
     val smbHost by AppSettings.smbHost.collectAsStateWithLifecycle()
     val smbShare by AppSettings.smbShare.collectAsStateWithLifecycle()
@@ -55,13 +53,6 @@ fun libraryLinks(signedIn: Boolean): List<LibraryLink> {
         icon = icon,
     )
     return listOfNotNull(
-        // Paling atas, di atas Downloads. Hanya ada kalau sudah login.
-        link(
-            stringResource(R.string.liked_music),
-            "",
-            YtMusicRepository.LIKED_MUSIC,
-            icon = Icons.Rounded.Favorite,
-        ).takeIf { signedIn },
         link(
             stringResource(R.string.downloads),
             stringResource(R.string.downloaded_songs),

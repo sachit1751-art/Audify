@@ -2119,6 +2119,21 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+            val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
+            row(showNerdStatsTitle, "player", "audio", "quality", "codec", "automix", "bitrate") {
+                SettingsRow(
+                    icon = SfIcons.BarChart,
+                    title = showNerdStatsTitle,
+                    subtitle = stringResource(R.string.show_nerd_stats_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = nerdStats,
+                            onCheckedChange = AppSettings::setShowNerdStats,
+                        )
+                    },
+                    onClick = { AppSettings.setShowNerdStats(!nerdStats) },
+                )
+            }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
                 WearOsSettingsRow(onClick = onWearOs)
             }
@@ -2465,21 +2480,6 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setSmartVersionAlignment(!smartVersionAlignment) },
-                )
-            }
-            val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
-            row(showNerdStatsTitle, "debug", "bitrate", "codec") {
-                SettingsRow(
-                    icon = SfIcons.BarChart,
-                    title = showNerdStatsTitle,
-                    subtitle = stringResource(R.string.show_nerd_stats_subtitle),
-                    trailing = {
-                        IosSwitch(
-                            checked = nerdStats,
-                            onCheckedChange = AppSettings::setShowNerdStats,
-                        )
-                    },
-                    onClick = { AppSettings.setShowNerdStats(!nerdStats) },
                 )
             }
             val appIconTitle = stringResource(R.string.app_icon)

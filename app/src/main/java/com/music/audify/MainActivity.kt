@@ -4133,6 +4133,13 @@ private fun AudifyApp(
                                 onNewPlaylist = { creatingPlaylist = true },
                                 onImportSpotifyPlaylist = { showSpotifyImportDialog = true },
                                 onShowAll = { shelf -> navigator.push(AppRoute.LibraryShowAll(shelf)) },
+                                quickPicks = (homeState as? UiState.Success)?.data?.firstOrNull {
+                                    it.title.equals("Quick picks", ignoreCase = true) ||
+                                        it.title.equals("Lựa chọn nhanh", ignoreCase = true) ||
+                                        it.title.equals("Pilihan cepat", ignoreCase = true) ||
+                                        it.title.equals("Chọn nhanh đài phát", ignoreCase = true) ||
+                                        it.title.equals("クイック ミックス", ignoreCase = true)
+                                },
                                 replay = {
                                     LibraryReplayEntry(
                                         cards = replayCards,
@@ -4149,7 +4156,7 @@ private fun AudifyApp(
                                 onRefresh = { viewModel.refresh(MainViewModel.Feed.LIBRARY) },
                                 pullState = libraryPull,
                                 contentPadding = listPadding,
-                                links = libraryLinks(signedIn),
+                                links = libraryLinks(),
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
                                 pinnedExtraItems = spotifyPinnedItems,
                                 artistsRow = libraryArtistsRow,
