@@ -665,7 +665,8 @@ fun HomeScreen(
         refreshing = refreshing,
         onRefresh = onRefresh,
         state = pullState,
-        topInset = contentPadding.calculateTopPadding(),
+        // Home lifts its heading under the frosted bar; keep the refresh hint below that heading.
+        topInset = contentPadding.calculateTopPadding() + HOME_TITLE_LIFT,
         modifier = modifier,
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {

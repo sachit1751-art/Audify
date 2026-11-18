@@ -110,6 +110,8 @@ fun LibraryScreen(
      * their placeholders while the history is read, or nothing at all.
      */
     replay: @Composable () -> Unit,
+    /** The Home feed's Quick picks shelf, rendered with its original mix-card geometry. */
+    quickPicks: HomeShelf? = null,
     onSignIn: () -> Unit,
     onRetry: () -> Unit,
     refreshing: Boolean,
@@ -164,7 +166,7 @@ fun LibraryScreen(
         playlistItems.firstOrNull { it.browseId == id }
             ?: deviceItems.firstOrNull { it.browseId == id }
             ?: pinnedExtraItems.firstOrNull { it.browseId == id }
-    }
+    }.filterNot { it.browseId == YtMusicRepository.LIKED_MUSIC }
     PullToRefresh(
         refreshing = refreshing,
         onRefresh = onRefresh,
@@ -194,6 +196,15 @@ fun LibraryScreen(
                         style = MaterialTheme.typography.displayLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
+                    )
+                }
+            }
+            quickPicks?.takeIf { it.items.isNotEmpty() }?.let { picks ->
+                item(key = "library-quick-picks") {
+                    MixCoverShelf(
+                        shelf = picks,
+                        onItemClick = onShelfItemClick,
+                        onItemLongPress = onShelfItemLongPress,
                     )
                 }
             }
@@ -272,36 +283,6 @@ fun LibraryScreen(
                     }
                 }
             }
-            section(LIBRARY_SLOT_ON_DEVICE) {
-                item(key = "on-device-heading") {
-                    Column(Modifier.padding(horizontal = PAGE_GUTTER).padding(top = 20.dp, bottom = 12.dp)) {
-                        Text(
-                            text = onDevice,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                        Text(
-                            text = "Saved albums and playlists on this device will appear here.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                // What is pinned already sits in the grid above, so the shelf
-                // keeps only the rest; "Show all" still opens everything.
-                val unpinnedDevice = deviceItems.filterNot { it.browseId != null && it.browseId in pinnedPlaylists }
-                if (unpinnedDevice.isNotEmpty()) {
-                    item(key = "shelf:$onDevice") {
-                        val onDeviceShelf = HomeShelf(title = onDevice, items = unpinnedDevice)
-                        LibraryGridShelf(
-                            shelf = onDeviceShelf,
-                            onItemClick = onShelfItemClick,
-                            onItemLongPress = onShelfItemLongPress,
-                            onShowAll = { onShowAll(HomeShelf(title = onDevice, items = deviceItems)) },
-                        )
-                    }
-                }
-            }
             if (!signedIn) {
                 section(homeShelfKey(PLAYLISTS)) {
                     item(key = "shelf:$PLAYLISTS") {
@@ -352,17 +333,27 @@ fun LibraryScreen(
                                 }
                             }
                         }
-                        shelves.forEach { shelf ->
+                        shelves.filterNot { it.title.equals("Podcasts", ignoreCase = true) }.forEach { shelf ->
                             section(homeShelfKey(shelf.title)) {
                                 item(key = "shelf:${shelf.title}") {
                                     if (shelf.title == PLAYLISTS) {
+                                        val likedMusic = shelf.items.firstOrNull {
+                                            it.browseId == YtMusicRepository.LIKED_MUSIC
+                                        }
                                         val pinnedFirst = shelf
-                                            .copy(items = shelf.items.filterNot { it.browseId == YtMusicRepository.LIKED_MUSIC })
+                                            .copy(items = shelf.items.filterNot {
+                                                it.browseId == YtMusicRepository.LIKED_MUSIC
+                                            })
                                             .pinnedFirst(pinnedPlaylists)
+                                            .let { ordered -> ordered.copy(items = listOfNotNull(likedMusic) + ordered.items) }
                                         // Yang di-pin sudah tampil di grid atas, jadi shelf
                                         // hanya menampilkan sisanya. "Show all" tetap membuka semuanya.
                                         val unpinned = pinnedFirst.copy(
-                                            items = pinnedFirst.items.filterNot { it.browseId != null && it.browseId in pinnedPlaylists },
+                                            items = pinnedFirst.items.filterNot {
+                                                it.browseId != null &&
+                                                    it.browseId in pinnedPlaylists &&
+                                                    it.browseId != YtMusicRepository.LIKED_MUSIC
+                                            },
                                         )
                                         PlaylistShelf(
                                             shelf = unpinned,
@@ -387,7 +378,38 @@ fun LibraryScreen(
                     }
                 }
             }
-            layout.arrange(sections) { it.first }.forEach { it.second(this) }
+            // Device-only collections follow Playlists and are absent until
+            // this device actually has saved albums or playlists. The shelf
+            // itself supplies the single On Device heading.
+            if (deviceItems.isNotEmpty()) {
+                section(LIBRARY_SLOT_ON_DEVICE) {
+                    val unpinnedDevice = deviceItems.filterNot {
+                        it.browseId != null && it.browseId in pinnedPlaylists
+                    }
+                    if (unpinnedDevice.isNotEmpty()) {
+                        item(key = "shelf:$onDevice") {
+                            val onDeviceShelf = HomeShelf(title = onDevice, items = unpinnedDevice)
+                            LibraryGridShelf(
+                                shelf = onDeviceShelf,
+                                onItemClick = onShelfItemClick,
+                                onItemLongPress = onShelfItemLongPress,
+                                onShowAll = { onShowAll(HomeShelf(title = onDevice, items = deviceItems)) },
+                            )
+                        }
+                    }
+                }
+            }
+            val arrangedSections = layout.arrange(sections) { it.first }.toMutableList()
+            // Playlists always precede the device shelf, even when an older
+            // saved layout recorded the previous order.
+            val deviceIndex = arrangedSections.indexOfFirst { it.first == LIBRARY_SLOT_ON_DEVICE }
+            if (deviceIndex >= 0) {
+                val deviceSection = arrangedSections.removeAt(deviceIndex)
+                val playlistsIndex = arrangedSections.indexOfLast { it.first == homeShelfKey(PLAYLISTS) }
+                val targetIndex = if (playlistsIndex >= 0) playlistsIndex + 1 else deviceIndex
+                arrangedSections.add(targetIndex.coerceAtMost(arrangedSections.size), deviceSection)
+            }
+            arrangedSections.forEach { it.second(this) }
             status.forEach { it(this) }
         }
         }
