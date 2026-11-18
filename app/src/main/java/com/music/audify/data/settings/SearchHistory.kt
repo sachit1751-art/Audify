@@ -73,7 +73,7 @@ object SearchHistory {
     fun clearAddonQueries() = mutateAddon { emptyList() }
 
     fun init(context: Context) {
-        prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
+        prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         hydrated = false
         ioScope.launch { reload() }
     }

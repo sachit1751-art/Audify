@@ -196,7 +196,7 @@ object Downloads {
     fun init(context: Context) {
         synchronized(recordLock) {
             if (this::prefs.isInitialized) return
-            prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
+            prefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
             initializationStarted = true
             hydrating = true
         }

@@ -370,6 +370,7 @@ fun SettingsScreen(
     val hideStatusBarInPlayer by AppSettings.hideStatusBarInPlayer.collectAsStateWithLifecycle()
     val hideSongStatus by AppSettings.hideSongStatus.collectAsStateWithLifecycle()
     val showQueueHistory by AppSettings.showQueueHistory.collectAsStateWithLifecycle()
+    val hapticFeedbackEnabled by AppSettings.hapticFeedbackEnabled.collectAsStateWithLifecycle()
     val swipeToPlayNext by AppSettings.swipeToPlayNext.collectAsStateWithLifecycle()
     val dontRepeatSuggestions by AppSettings.dontRepeatSuggestions.collectAsStateWithLifecycle()
     val smartVersionAlignment by AppSettings.smartVersionAlignment.collectAsStateWithLifecycle()
@@ -2244,6 +2245,21 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setHideStatusBarInPlayer(!hideStatusBarInPlayer) },
+                )
+            }
+            val hapticFeedbackTitle = stringResource(R.string.haptic_feedback)
+            row(hapticFeedbackTitle, "haptic", "vibration", "touch feedback") {
+                SettingsRow(
+                    icon = SfIcons.Settings,
+                    title = hapticFeedbackTitle,
+                    subtitle = stringResource(R.string.haptic_feedback_subtitle),
+                    trailing = {
+                        IosSwitch(
+                            checked = hapticFeedbackEnabled,
+                            onCheckedChange = AppSettings::setHapticFeedbackEnabled,
+                        )
+                    },
+                    onClick = { AppSettings.setHapticFeedbackEnabled(!hapticFeedbackEnabled) },
                 )
             }
             val showQueueHistoryTitle = stringResource(R.string.show_queue_history)

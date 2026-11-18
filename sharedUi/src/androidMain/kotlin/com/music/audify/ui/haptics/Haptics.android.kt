@@ -25,7 +25,9 @@ actual class Haptics internal constructor(context: Context) {
     private val app = context.applicationContext
 
     actual fun play(haptic: Haptic) {
-        HapticDevice.of(app)?.play(haptic)
+        val enabled = app.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
+            .getBoolean("haptic_feedback_enabled", true)
+        if (enabled) HapticDevice.of(app)?.play(haptic)
     }
 }
 

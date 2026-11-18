@@ -857,6 +857,7 @@ object AppSettings {
     val hideSongStatus = MutableStateFlow(false)
 
     val showQueueHistory = MutableStateFlow(false)
+    val hapticFeedbackEnabled = MutableStateFlow(true)
 
     /** Swiping a song row plays it next instead of adding it to the end of the queue. */
     val swipeToPlayNext = MutableStateFlow(false)
@@ -1380,7 +1381,7 @@ object AppSettings {
      * one here was a measurable slice of cold start.
      */
     fun init(context: Context, authStore: AuthStore) {
-        val currentPrefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
+        val currentPrefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         migrateAudifyPreferences(context, currentPrefs)
         prefs = currentPrefs
         seedFirstInstallDefaults(context)
@@ -1410,9 +1411,9 @@ object AppSettings {
      * deliberately retained as a rollback-safe copy.
      */
     private fun migrateAudifyPreferences(context: Context, target: SharedPreferences) {
-        val legacy = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
+        val legacy = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         val legacyValues = legacy.all
-        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false) || legacyValues.isEmpty()) return
+        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) return
 
         // SharedPreferences.apply() updates the in-memory map atomically before
         // returning and persists it on the framework's disk writer. readAll()
@@ -1434,7 +1435,7 @@ object AppSettings {
             // in follow-up work. This prevents a migration from silently discarding
             // preferences that the current version does not yet read.
             legacyValues.forEach { (key, value) ->
-                if (!target.contains(key)) put(key, value)
+                put(key, value)
             }
 
             // Keys whose names changed during the copied-project integration.
@@ -1659,6 +1660,7 @@ object AppSettings {
         hideStatusBarInPlayer.value = prefs.getBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, false)
         hideSongStatus.value = prefs.getBoolean(KEY_HIDE_SONG_STATUS, false)
         showQueueHistory.value = prefs.getBoolean(KEY_SHOW_QUEUE_HISTORY, false)
+        hapticFeedbackEnabled.value = prefs.getBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, true)
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
@@ -2266,6 +2268,10 @@ object AppSettings {
         prefs.edit {putBoolean(KEY_SHOW_QUEUE_HISTORY, value)}
     }
 
+    fun setHapticFeedbackEnabled(value: Boolean) {
+        hapticFeedbackEnabled.value = value
+        prefs.edit { putBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, value) }
+    }
     fun setSwipeToPlayNext(value: Boolean) {
         swipeToPlayNext.value = value
         prefs.edit {putBoolean(KEY_SWIPE_TO_PLAY_NEXT, value)}
@@ -3352,6 +3358,7 @@ object AppSettings {
     private const val KEY_HIDE_STATUS_BAR_IN_PLAYER = "hide_status_bar_in_player"
     private const val KEY_HIDE_SONG_STATUS = "hide_song_status"
     private const val KEY_SHOW_QUEUE_HISTORY = "show_queue_history"
+    const val KEY_HAPTIC_FEEDBACK_ENABLED = "haptic_feedback_enabled"
     private const val KEY_SWIPE_TO_PLAY_NEXT = "swipe_to_play_next"
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
