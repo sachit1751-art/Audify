@@ -2214,6 +2214,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         homePreviousSessionVideoIds.addAll(homeSeenVideoIds)
         homeSessionSeed = refreshSeed
         _homeLoadingMore.value = false
+        // Refresh the same supplemental browse shelves that are loaded on a
+        // cold Home open. Previously pull-to-refresh updated only the primary
+        // feed and Recents, leaving New releases / Explore recommendations
+        // stale until the next full app load.
+        val supplements = YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.map { browseId ->
+            async { YtMusicRepository.homeSupplement(browseId).getOrNull().orEmpty() }
+        }
         val recent = if (_signedIn.value && !AppSettings.hideHomeRecents.value) {
             async { YtMusicRepository.homeRecentlyPlayed() }
         } else {
@@ -2229,6 +2236,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             primary
         }
         val recentShelf = recent?.await()?.getOrNull()
+        val refreshedSupplementShelves = supplements.flatMap { request ->
+            runCatching { request.await() }.getOrDefault(emptyList())
+        }
         if (identity != listenerKey() || loadGeneration != homeLoadGeneration.get() ||
             pagingGeneration != homePagingGeneration.get() || feed == null
         ) return@coroutineScope
@@ -2239,7 +2249,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         homeSeenTitles.clear()
         homeSeenVideoIds.clear()
         homeSeenContinuationTokens.clear()
-        val varied = diversifyHomeShelves(varyHomeFeed(feed.shelves, refreshSeed)).map { shelf ->
+        val refreshedShelves = mergeDuplicateHomeCredits(feed.shelves + refreshedSupplementShelves)
+        val varied = diversifyHomeShelves(varyHomeFeed(refreshedShelves, refreshSeed)).map { shelf ->
             diversifyHomeShelf(shelf, refreshSeed xor shelf.title.hashCode().toLong())
         }
         val (history, discovery) = varied.partition { shelf ->

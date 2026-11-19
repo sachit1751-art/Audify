@@ -124,7 +124,7 @@ object AppSegmentedControlStyle : SegmentedControlStyle {
         onSelect: (Int) -> Unit,
         modifier: Modifier,
         enabled: Boolean,
-    ) = GlassSegmentedControl(options, selectedIndex, onSelect, modifier, enabled)
+    ) = PillSegmentedControl(options, selectedIndex, onSelect, modifier, enabled)
 }
 
 @Composable

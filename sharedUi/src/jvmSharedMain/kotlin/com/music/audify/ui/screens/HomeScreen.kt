@@ -2022,9 +2022,8 @@ internal fun Shelf(
 }
 
 /**
- * A music video, as the web player lays one out: the thumbnail at its own
- * 16:9 rather than cropped into a square, the title and credit under it. About
- * as tall as the square cards, so a video shelf sits in the feed's rhythm.
+ * A music video uses a portrait 9:16 frame, with the original thumbnail fitted
+ * inside it rather than resized or cropped to fill the frame.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -2057,7 +2056,7 @@ fun VideoShelfCard(
                 // largest the row listed is already about card size.
                 model = item.thumbnailUrl,
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
             if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
@@ -2080,11 +2079,11 @@ fun VideoShelfCard(
     }
 }
 
-/** A music video's frame, or a square one when square video covers are on. */
-val VIDEO_ASPECT: Float get() = if (VideoThumbnails.square) 1f else 16f / 9f
+/** A music video's portrait thumbnail frame, or a square one when square covers are on. */
+val VIDEO_ASPECT: Float get() = if (VideoThumbnails.square) 1f else 9f / 16f
 
-/** Wide enough that a 16:9 card stands about as tall as a square [SHELF_CARD_WIDTH] one. */
-val VIDEO_CARD_WIDTH: Dp get() = if (VideoThumbnails.square) SHELF_CARD_WIDTH else 248.dp
+/** Keep video and square cards on the same shelf width; the image keeps its own ratio. */
+val VIDEO_CARD_WIDTH: Dp get() = SHELF_CARD_WIDTH
 
 /**
  * A card that isn't a thing yet — the dashed "New playlist" tile at the head

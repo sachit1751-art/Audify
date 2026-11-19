@@ -93,6 +93,18 @@ class ThemePackTest {
     }
 
     @Test
+    fun nonClassicDefaultSurfaceThemesAlsoTintTheDarkCanvas() {
+        ThemePacks.builtIns
+            .filter { it.surfaceStyle == ThemeSurfaceStyle.DEFAULT && it.id != ThemePacks.CLASSIC_ID }
+            .forEach { pack ->
+                val background = ThemePacks.darkBackgroundHex(pack)
+                assertTrue("${pack.name} should have a visible dark palette tint", background != "#000000")
+                assertTrue("${pack.name} dark background must remain a valid colour", ThemePacks.isValidHex(background))
+            }
+        assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == ThemePacks.CLASSIC_ID }))
+    }
+
+    @Test
     fun everyBuiltInAccentHasAtLeastWcagAaContrastWithItsChosenLabelColour() {
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { accent ->

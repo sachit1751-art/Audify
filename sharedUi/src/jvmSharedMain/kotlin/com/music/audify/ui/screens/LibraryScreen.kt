@@ -110,8 +110,6 @@ fun LibraryScreen(
      * their placeholders while the history is read, or nothing at all.
      */
     replay: @Composable () -> Unit,
-    /** The Home feed's Quick picks shelf, rendered with its original mix-card geometry. */
-    quickPicks: HomeShelf? = null,
     onSignIn: () -> Unit,
     onRetry: () -> Unit,
     refreshing: Boolean,
@@ -196,15 +194,6 @@ fun LibraryScreen(
                         style = MaterialTheme.typography.displayLarge,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(horizontal = PAGE_GUTTER, vertical = 8.dp),
-                    )
-                }
-            }
-            quickPicks?.takeIf { it.items.isNotEmpty() }?.let { picks ->
-                item(key = "library-quick-picks") {
-                    MixCoverShelf(
-                        shelf = picks,
-                        onItemClick = onShelfItemClick,
-                        onItemLongPress = onShelfItemLongPress,
                     )
                 }
             }

@@ -15,7 +15,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.music.audify.data.model.Song
-import com.music.audify.data.model.stableSongColumnComposeKeys
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,7 +31,11 @@ class ArtistCarouselScrollTest {
         }
         val songs = group + group
         val columns = songs.chunked(4)
-        val columnKeys = songs.stableSongColumnComposeKeys(columnSize = 4)
+        // The same tracks can occur in multiple carousel columns; include the
+        // occurrence index so Compose never receives duplicate LazyRow keys.
+        val columnKeys = columns.mapIndexed { index, column ->
+            "${column.joinToString("|") { it.videoId }}#$index"
+        }
 
         composeRule.setContent {
             LazyRow(Modifier.testTag("artist-top-songs")) {

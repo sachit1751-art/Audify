@@ -1688,7 +1688,18 @@ object AppSettings {
         hideHomeVideos.value = prefs.getBoolean(KEY_HIDE_HOME_VIDEOS, false)
         hideHomeTopPicks.value = prefs.getBoolean(KEY_HIDE_HOME_TOP_PICKS, false)
         hideHomeMoods.value = prefs.getBoolean(KEY_HIDE_HOME_MOODS, false)
-        squareVideoCovers.value = prefs.getBoolean(KEY_SQUARE_VIDEO_COVERS, true)
+        // Earlier builds defaulted video thumbnails to square. Move existing
+        // installs to the portrait 9:16 default once, while preserving a later
+        // explicit choice made from the setting.
+        if (!prefs.getBoolean(KEY_VIDEO_THUMBNAIL_RATIO_MIGRATED, false)) {
+            squareVideoCovers.value = false
+            prefs.edit {
+                putBoolean(KEY_SQUARE_VIDEO_COVERS, false)
+                putBoolean(KEY_VIDEO_THUMBNAIL_RATIO_MIGRATED, true)
+            }
+        } else {
+            squareVideoCovers.value = prefs.getBoolean(KEY_SQUARE_VIDEO_COVERS, false)
+        }
         VideoThumbnails.square = squareVideoCovers.value
         stillVideoCovers.value = prefs.getBoolean(KEY_STILL_VIDEO_COVERS, false)
         homeLayout.value = HomeLayout.decode(prefs.getString(KEY_HOME_LAYOUT, null))
@@ -3331,6 +3342,7 @@ object AppSettings {
     private const val KEY_SKIP_SILENCE = "skip_silence"
     private const val KEY_PAUSE_ON_MUTE = "pause_on_mute"
     private const val KEY_RESUME_ON_BLUETOOTH = "resume_on_bluetooth"
+    private const val KEY_VIDEO_THUMBNAIL_RATIO_MIGRATED = "video_thumbnail_ratio_9_16_migrated"
     private const val KEY_OUTPUT_PCM_MODE = "output_pcm_mode"
     private const val KEY_PREFER_USB_DAC = "prefer_usb_dac"
     private const val KEY_BIT_PERFECT_MODE = "bit_perfect_mode"

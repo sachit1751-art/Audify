@@ -216,8 +216,32 @@ private class FluidClock(startAt: Double) {
 private fun LayoutCoordinates.isOnScreen(screenW: Float, screenH: Float): Boolean {
     if (!isAttached) return false
     val r = boundsInWindow()
-    return r.width > 0f && r.height > 0f && r.right > 0f && r.bottom > 0f &&
-        r.left < screenW && r.top < screenH
+    return isFluidBoundsVisible(
+        left = r.left,
+        top = r.top,
+        right = r.right,
+        bottom = r.bottom,
+        windowWidth = screenW,
+        windowHeight = screenH,
+    )
+}
+
+/**
+ * A zero-sized WindowInfo can occur during the first layout pass (and briefly
+ * while a window is being resized). Treat that measurement as unknown rather
+ * than declaring every attached wallpaper invisible and stopping its clock.
+ */
+internal fun isFluidBoundsVisible(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    windowWidth: Float,
+    windowHeight: Float,
+): Boolean {
+    if (right <= left || bottom <= top) return false
+    if (windowWidth <= 0f || windowHeight <= 0f) return true
+    return right > 0f && bottom > 0f && left < windowWidth && top < windowHeight
 }
 
 private val UNIFORM_NAMES = arrayOf("c0", "c1", "c2", "c3", "c4")

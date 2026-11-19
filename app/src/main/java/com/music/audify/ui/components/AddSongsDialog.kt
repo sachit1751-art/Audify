@@ -291,12 +291,11 @@ fun AddSongsDialog(
                 ) {
                     Column {
                         Spacer(Modifier.height(10.dp))
-                        GlassSegmentedControl(
+                        PillSegmentedControl(
                             options = ADD_SONGS_FILTERS.map { it.label },
                             selectedIndex = ADD_SONGS_FILTERS.indexOf(filter).coerceAtLeast(0),
                             onSelect = { onFilterChange(ADD_SONGS_FILTERS[it]) },
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            liquid = true,
                         )
                     }
                 }

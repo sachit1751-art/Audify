@@ -58,6 +58,25 @@ private val MixCorner = RoundedCornerShape(12.dp)
 private fun ShelfItem.isMixItem(): Boolean =
     browseId?.removePrefix("VL")?.startsWith("RDTMAK") == true
 
+/**
+ * Sort only the numbered "My Mix N" cards, keeping every named mix in its
+ * original slot. Missing numbers are naturally skipped; no placeholder cards
+ * are created. Sorting by the numeric value keeps My Mix 10 after My Mix 9.
+ */
+internal fun orderNumberedMyMixes(items: List<ShelfItem>): List<ShelfItem> {
+    val numberedSlots = items.indices.filter { index ->
+        Regex("^My Mix\\s+\\d+$", RegexOption.IGNORE_CASE).matches(items[index].title.trim())
+    }
+    if (numberedSlots.size < 2) return items
+
+    val sorted = numberedSlots
+        .map { index -> items[index] }
+        .sortedWith(compareBy<ShelfItem> { Regex("\\d+").find(it.title)?.value?.toIntOrNull() ?: Int.MAX_VALUE })
+    return items.toMutableList().apply {
+        numberedSlots.forEachIndexed { position, slot -> this[slot] = sorted[position] }
+    }
+}
+
 /** Shelf yang isinya (hampir semuanya) mix: My Supermix, Discover Mix, My Mix 1, dst. */
 internal fun HomeShelf.isMixShelf(): Boolean =
     items.isNotEmpty() && items.count { it.isMixItem() } * 2 >= items.size
@@ -68,6 +87,7 @@ internal fun MixCoverShelf(
     onItemClick: (ShelfItem) -> Unit,
     onItemLongPress: ((ShelfItem) -> Unit)?,
 ) {
+    val orderedItems = remember(shelf.items) { orderNumberedMyMixes(shelf.items) }
     Column(Modifier.padding(bottom = 26.dp)) {
         SectionHeader(shelf.title, shelf.subtitle)
         ShelfRow(
@@ -75,7 +95,7 @@ internal fun MixCoverShelf(
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            itemsIndexed(shelf.items) { index, item ->
+            itemsIndexed(orderedItems) { index, item ->
                 Box(Modifier.shelfStagger(index)) {
                     MixCoverCard(
                         item = item,

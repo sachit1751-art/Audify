@@ -218,6 +218,7 @@ import kotlinx.coroutines.isActive
 import com.music.audify.playback.smart.AutomixModels
 import kotlin.math.roundToInt
 import java.util.Locale
+import java.text.Normalizer
 
 /**
  * Grouped settings, in the shape phones have taught people to expect: inset
@@ -687,17 +688,6 @@ fun SettingsScreen(
             }
         }
     }
-    val themeImportPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { themeUri ->
-        if (themeUri != null) {
-            runCatching {
-                context.contentResolver.openInputStream(themeUri)?.bufferedReader()?.use { it.readText() }
-                    ?: error("Unable to read theme file")
-            }.mapCatching(ThemePacks::decode).onSuccess(AppSettings::saveCustomThemePack)
-                .onFailure { Toast.makeText(context, it.message ?: "Invalid theme file", Toast.LENGTH_LONG).show() }
-        }
-    }
     var themeToExport by remember { mutableStateOf<ThemePack?>(null) }
     val themeExportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -1030,7 +1020,7 @@ fun SettingsScreen(
                         append(AudioOutputStatus.encodingLabel(outputStatus))
                     },
                 )
-                SegmentedControl(
+                ClassicSegmentedControl(
                     options = OutputPcmMode.entries.map(OutputPcmMode::label),
                     selectedIndex = OutputPcmMode.entries.indexOf(outputPcmMode),
                     onSelect = { AppSettings.setOutputPcmMode(OutputPcmMode.entries[it]) },
@@ -1495,14 +1485,6 @@ fun SettingsScreen(
                     onClick = { showCreateThemeDialog = true },
                 )
             }
-            row("Import theme", "theme file", "audify theme", "json") {
-                SettingsRow(
-                    icon = SfIcons.FileUpload,
-                    title = "Import theme",
-                    subtitle = "Import an Audify .json theme pack",
-                    onClick = { themeImportPicker.launch(arrayOf("application/json", "text/*")) },
-                )
-            }
             val selectedCustomTheme = customThemePacks.firstOrNull { it.id == selectedThemePackId }
             if (selectedCustomTheme != null) {
                 row("Export custom theme", "save theme", "share palette", "json") {
@@ -1537,7 +1519,7 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 10.dp),
                 )
-                SegmentedControl(
+                ClassicSegmentedControl(
                     options = AppBackgroundStyle.entries.map { it.label },
                     selectedIndex = AppBackgroundStyle.entries.indexOf(backgroundStyle).coerceAtLeast(0),
                     onSelect = { index -> AppSettings.setBackgroundStyle(AppBackgroundStyle.entries[index]) },
@@ -1908,7 +1890,7 @@ fun SettingsScreen(
                         icon = SfIcons.FrameRate,
                         title = refreshRateTitle,
                     )
-                    SegmentedControl(
+                    ClassicSegmentedControl(
                         options = supportedRefreshRates.map { "$it Hz" },
                         selectedIndex = supportedRefreshRates.indexOf(selectedPerformanceRefreshRate),
                         onSelect = { index ->
@@ -3551,18 +3533,34 @@ private class SettingsSearch(
     // Trimmed, because a trailing space is a typo rather than a search for
     // something ending in one â€” and on a phone keyboard it is one keystroke
     // away from every word typed.
-    private val needle = query.trim()
+    private val terms = normalizedSearchTerms(query)
 
     var anyMatch = false
         private set
 
     fun matches(vararg keywords: String?): Boolean {
-        val hit = needle.isEmpty() ||
-            keywords.any { it?.contains(needle, ignoreCase = true) == true }
+        val corpus = normalizeSettingsSearch(keywords.filterNotNull().joinToString(" "))
+        // Every query term must be represented somewhere in the row's title,
+        // subtitle, category or aliases. Matching is accent- and punctuation-
+        // insensitive, and substring matching keeps singular/plural variants
+        // and compound terms such as "cross fade" discoverable.
+        val compactCorpus = corpus.replace(" ", "")
+        val hit = terms.isEmpty() || terms.all { term ->
+            corpus.contains(term) || compactCorpus.contains(term.replace(" ", ""))
+        }
         if (hit) anyMatch = true
         return hit
     }
 }
+
+private fun normalizedSearchTerms(query: String): List<String> =
+    normalizeSettingsSearch(query).split(' ').filter(String::isNotBlank).distinct()
+
+private fun normalizeSettingsSearch(value: String): String = Normalizer
+    .normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
+    .replace(Regex("\\p{Mn}+"), "")
+    .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+    .trim()
 
 /** Collects the rows of one group that survived the search. */
 private class SettingsGroupScope(
@@ -3975,9 +3973,8 @@ internal fun SegmentedControl(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    liquid: Boolean = false,
 ) {
-    GlassSegmentedControl(options, selectedIndex, onSelect, modifier, enabled, liquid)
+    PillSegmentedControl(options, selectedIndex, onSelect, modifier, enabled)
 }
 
 /** The original 1.9.2 selector, retained specifically for Theme and Font. */

@@ -3553,7 +3553,7 @@ fun NowPlayingScreen(
                         // Collapsed, the thumbnail is a music video's own shape at
                         // the header's height, as every list shows one — see
                         // [trackArtSize] — and the credits start past it.
-                        val thumbWidth = if (videoMode && !squareVideo) THUMB_SIZE * (16f / 9f) else THUMB_SIZE
+                        val thumbWidth = if (videoMode && !squareVideo) THUMB_SIZE * (9f / 16f) else THUMB_SIZE
                         fun titleStart(): Dp = lerp(0.dp, thumbWidth + 12.dp, p())
 
                         // How far down the *screen* the sleeve's bottom edge sits, which

@@ -457,8 +457,8 @@ internal fun Modifier.playerDockPill(dock: PlayerDock?): Modifier {
         .graphicsLayer { alpha = if (dock.panelShown) 0f else 1f }
 }
 
-/** The mini player's cover for a music video: 16:9 at the cover's 40dp height. */
-private val VIDEO_ART_WIDTH = 71.dp
+/** The mini player's cover for a music video: 9:16 at the cover's 40dp height. */
+private val VIDEO_ART_WIDTH = 22.5.dp
 
 /** Frosted mini player that rides just above the floating tab bar. */
 @OptIn(ExperimentalHazeMaterialsApi::class)
@@ -534,8 +534,8 @@ fun MiniPlayer(
                 ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // A music video plays here at its own 16:9, as the web player's
-            // mini player does, rather than cropped into the square cover.
+            // A music video gets a portrait thumbnail frame, like its shelf
+            // card; fit the moving picture inside it instead of cropping it.
             val artWidth by animateDpAsState(
                 targetValue = if (song.isVideo && !VideoThumbnails.square && MusicOnlyPlayback.showsPicture(song.videoId)) VIDEO_ART_WIDTH else 40.dp,
                 label = "miniArtWidth",
@@ -551,16 +551,15 @@ fun MiniPlayer(
                 AsyncImage(
                     model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
-                // A music video keeps playing in the cover's place, cropped to
-                // it, as the web player's mini player does — the full player,
+                // A music video keeps playing in the portrait cover frame — the full player,
                 // when it is up, takes the picture over.
                 if (song.isVideo && MusicOnlyPlayback.showsPicture(song.videoId)) {
                     AndroidMusicVideo(
                         videoId = song.videoId,
-                        fit = false,
+                        fit = true,
                         onRenderedChanged = {},
                         modifier = Modifier.fillMaxSize(),
                         priority = 0,

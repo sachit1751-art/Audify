@@ -267,7 +267,9 @@ fun AudifyTheme(
             )
         } else {
             when (activeThemePack.surfaceStyle) {
-                ThemeSurfaceStyle.DEFAULT -> DarkColors
+                ThemeSurfaceStyle.DEFAULT -> DarkColors.copy(
+                    background = ThemePacks.darkBackgroundHex(activeThemePack).toThemeColor(),
+                )
                 ThemeSurfaceStyle.AMOLED -> darkColorScheme(
                     primary = Color.White,
                     onPrimary = Color.Black,
@@ -315,7 +317,28 @@ fun AudifyTheme(
             else Color(0xFFF7F5FA).withAccent(primary, 0.22f)
         val secondaryContainer = if (darkTheme) secondary.copy(alpha = 0.20f)
             else Color(0xFFF7F5FA).withAccent(secondary, 0.22f)
-        baseColors.copy(
+        // A palette must remain perceptible on the canvas and on the surfaces
+        // users spend time looking at. Keep Classic exactly neutral, but give
+        // every other pack a restrained accent wash across Material surfaces
+        // in both modes; this avoids a coloured selector sitting on an entirely
+        // unrelated black/white page.
+        val themedSurfaces = if (activeThemePack.id == ThemePacks.CLASSIC_ID) {
+            baseColors
+        } else {
+            val lift = if (darkTheme) 0.045f else 0.025f
+            baseColors.copy(
+                surface = baseColors.surface.withAccent(primary, lift),
+                surfaceVariant = baseColors.surfaceVariant.withAccent(primary, lift * 1.7f),
+                surfaceContainerLowest = baseColors.surfaceContainerLowest.withAccent(primary, lift * 0.35f),
+                surfaceContainerLow = baseColors.surfaceContainerLow.withAccent(primary, lift * 0.65f),
+                surfaceContainer = baseColors.surfaceContainer.withAccent(primary, lift),
+                surfaceContainerHigh = baseColors.surfaceContainerHigh.withAccent(primary, lift * 1.35f),
+                surfaceContainerHighest = baseColors.surfaceContainerHighest.withAccent(primary, lift * 1.7f),
+                outline = baseColors.outline.withAccent(secondary, lift * 1.5f),
+                outlineVariant = baseColors.outlineVariant.withAccent(secondary, lift * 1.8f),
+            )
+        }
+        themedSurfaces.copy(
             primary = primary,
             onPrimary = ThemePacks.contentColorHex(renderedPrimaryHex).toThemeColor(),
             primaryContainer = primaryContainer,

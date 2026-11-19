@@ -72,3 +72,8 @@
 -dontwarn org.conscrypt.**
 -dontwarn com.android.org.conscrypt.**
 -dontwarn io.github.muntashirakon.adb.**
+
+# Compose's generated NowPlayingScreen method fails ART verification in the
+# minified production APK on Android 16. Keep this composable host intact
+# until the optimizer regression is isolated with a reduced reproducer.
+-keep class com.music.audify.ui.player.NowPlayingScreenKt { *; }

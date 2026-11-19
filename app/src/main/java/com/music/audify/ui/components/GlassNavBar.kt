@@ -439,10 +439,10 @@ private fun GlassNowPlaying(
                     bottom = 4.dp,
                 ),
         ) {
-            // A music video plays in the cover's place at its own 16:9, as in
-            // the floating mini player; the full player takes it over when up.
+            // A music video uses a portrait thumbnail frame in the bar too;
+            // fit the moving picture instead of cropping the sides off.
             val artWidth by animateDpAsState(
-                targetValue = if (song.isVideo && !VideoThumbnails.square && MusicOnlyPlayback.showsPicture(song.videoId)) ACCESSORY_ART_SIZE * (16f / 9f) else ACCESSORY_ART_SIZE,
+                targetValue = if (song.isVideo && !VideoThumbnails.square && MusicOnlyPlayback.showsPicture(song.videoId)) ACCESSORY_ART_SIZE * (9f / 16f) else ACCESSORY_ART_SIZE,
                 label = "glassMiniArtWidth",
             )
             Box(
@@ -457,13 +457,13 @@ private fun GlassNowPlaying(
                 AsyncImage(
                     model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (song.isVideo && MusicOnlyPlayback.showsPicture(song.videoId)) {
                     AndroidMusicVideo(
                         videoId = song.videoId,
-                        fit = false,
+                        fit = true,
                         onRenderedChanged = {},
                         modifier = Modifier.fillMaxSize(),
                         priority = 0,

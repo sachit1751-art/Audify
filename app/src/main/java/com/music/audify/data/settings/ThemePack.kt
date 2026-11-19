@@ -71,7 +71,14 @@ object ThemePacks {
             ThemeSurfaceStyle.DEEP_PURPLE -> "#120D1D"
             ThemeSurfaceStyle.WARM -> "#19130F"
             ThemeSurfaceStyle.SLATE -> "#101820"
-            ThemeSurfaceStyle.DEFAULT -> "#000000"
+            // Classic keeps its original neutral AMOLED-like canvas. Other
+            // palettes get a restrained dark tint so selecting Ocean, Rose,
+            // Forest, etc. is visible in dark mode too, not only on controls.
+            ThemeSurfaceStyle.DEFAULT -> if (pack.id == CLASSIC_ID) {
+                "#000000"
+            } else {
+                blendHex("#101014", backgroundAccentHex(pack), 0.12)
+            }
         }
     }
 

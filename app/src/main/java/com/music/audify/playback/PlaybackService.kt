@@ -540,13 +540,38 @@ class PlaybackService : MediaLibraryService() {
     private var resumeOnBluetoothPending = false
     private var hadBluetoothOutputBeforeNoisyPause = false
     private var lastObservedMusicVolume = -1
+    private var pausedByMutePlayer: ExoPlayer? = null
+
+    private fun pauseForMute(target: ExoPlayer) {
+        if (!target.isPlaying) return
+        pausedByMutePlayer = target
+        try {
+            target.pause()
+        } catch (failure: Exception) {
+            pausedByMutePlayer = null
+            TrackLog.d("Audify", "Pause-on-mute could not pause playback: ${failure.message}")
+        }
+    }
+
     private val musicVolumeObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
-            val current = audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: return
+            val current = runCatching {
+                audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }.getOrNull() ?: return
             val previous = lastObservedMusicVolume
             lastObservedMusicVolume = current
             if (previous > 0 && current == 0 && AppSettings.pauseOnMute.value) {
-                player?.takeIf { it.isPlaying }?.pause()
+                player?.let(::pauseForMute)
+            } else if (previous == 0 && current > 0 && AppSettings.pauseOnMute.value) {
+                val paused = pausedByMutePlayer
+                pausedByMutePlayer = null
+                // Resume only the exact player this setting paused. An explicit
+                // user pause or a track change clears this marker in the listener.
+                if (paused != null && paused === player && !paused.playWhenReady) {
+                    runCatching { paused.play() }.onFailure {
+                        TrackLog.d("Audify", "Pause-on-mute could not resume playback: ${it.message}")
+                    }
+                }
             }
         }
     }
@@ -879,6 +904,11 @@ class PlaybackService : MediaLibraryService() {
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return
+            if (isPlaying && AppSettings.pauseOnMute.value &&
+                audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) == 0
+            ) {
+                pauseForMute(exoPlayer)
+            }
             // Do not open and scan the on-disk audio cache during app/service
             // startup. The first track can stream upstream; warm the cache only
             // once audio is already audible, away from the launch critical path.
@@ -971,6 +1001,12 @@ class PlaybackService : MediaLibraryService() {
          * on the audio, which is what the media notification shows too.
          */
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // A mute-triggered pause must survive this callback even if Media3
+            // dispatches it after pause() returns. Explicit play clears it;
+            // track changes clear it in onMediaItemTransition below.
+            if (playWhenReady) {
+                pausedByMutePlayer = null
+            }
             if (playWhenReady) {
                 resumeOnBluetoothPending = false
             } else if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY) {
@@ -1014,6 +1050,7 @@ class PlaybackService : MediaLibraryService() {
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            pausedByMutePlayer = null
             // The player this fired on, which is by definition the one the
             // session is currently pointed at.
             val exoPlayer = player ?: return

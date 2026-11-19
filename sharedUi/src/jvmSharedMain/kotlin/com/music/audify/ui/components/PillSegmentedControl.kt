@@ -57,7 +57,7 @@ interface SegmentedControlStyle {
     )
 }
 
-private object FlatSegmentedControlStyle : SegmentedControlStyle {
+object ClassicSegmentedControlStyle : SegmentedControlStyle {
     @Composable
     override fun Render(
         options: List<String>,
@@ -68,7 +68,7 @@ private object FlatSegmentedControlStyle : SegmentedControlStyle {
     ) = PillSegmentedControl(options, selectedIndex, onSelect, modifier, enabled)
 }
 
-val LocalSegmentedControlStyle = staticCompositionLocalOf<SegmentedControlStyle> { FlatSegmentedControlStyle }
+val LocalSegmentedControlStyle = staticCompositionLocalOf<SegmentedControlStyle> { ClassicSegmentedControlStyle }
 
 /** A segmented control in whatever style the app provided. */
 @Composable

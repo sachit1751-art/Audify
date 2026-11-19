@@ -212,12 +212,11 @@ fun HomeLayoutDialog(
                 )
             }
 
-            GlassSegmentedControl(
+            PillSegmentedControl(
                 options = listOf(stringResource(R.string.home), stringResource(R.string.library)),
                 selectedIndex = tab,
                 onSelect = { tab = it },
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
-                liquid = true,
             )
 
             if (tab == 1) {

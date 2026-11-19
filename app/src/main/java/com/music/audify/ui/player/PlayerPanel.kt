@@ -68,6 +68,7 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.ExplicitSongTitle
 import com.music.audify.ui.components.FadingLine
 import com.music.audify.ui.components.TrackTextSwitch
+import com.music.audify.ui.components.VideoThumbnails
 import com.music.audify.ui.components.LocalLiquidGlassEnabled
 import com.music.audify.ui.components.MiniPlayerNextButton
 import com.music.audify.ui.components.MiniPlayerPlayPauseButton
@@ -364,9 +365,8 @@ private fun PanelMiniRow(
             val artSize = if (glass) MINI_ART_SIZE else 40.dp
             val artShape = RoundedCornerShape(if (glass) MINI_ART_CORNER else 8.dp)
             val artWidth = when {
-                !song.isVideo -> artSize
-                glass -> artSize * (16f / 9f)
-                else -> 71.dp
+                !song.isVideo || VideoThumbnails.square -> artSize
+                else -> artSize * (9f / 16f)
             }
             Box(
                 Modifier
@@ -381,7 +381,7 @@ private fun PanelMiniRow(
                 AsyncImage(
                     model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
