@@ -152,6 +152,11 @@ private const val RECENTS_TITLE = "Recents"
 private fun List<HomeShelf>.withoutSpeedDial(): List<HomeShelf> =
     filterNot { shelf -> SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
 private const val RECENT_TRACKS_PER_COLUMN = 4
+private const val QUICK_PICKS_ROWS = 3
+private val QUICK_PICKS_COLUMN_WIDTH = 264.dp
+
+internal fun quickPicksColumns(items: List<ShelfItem>): List<List<ShelfItem>> =
+    items.chunked(QUICK_PICKS_ROWS)
 
 private val LISTEN_AGAIN_TITLES = listOf("Listen again", "Nghe lại", "もう一度聴く", "Dengarkan lagi", "Putar ulang", "다시 듣기")
 private val SPEED_DIAL_TITLES = listOf(LOCAL_SPEED_DIAL_TITLE, "Speed dial", "Panggilan cepat", "Quay số nhanh", "スピードダイヤル", "스피드 다이얼")
@@ -558,6 +563,101 @@ private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Bool
     return { it == byName }
 }
 
+/**
+ * Quick Picks is a compact three-row track shelf on Home: each horizontal
+ * column contains three tracks, and further columns continue to the right.
+ * Artwork comes directly from the track thumbnail; no branded placeholder or
+ * gradient treatment is applied to real recommendations.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun QuickPicksShelf(
+    shelf: HomeShelf,
+    onItemClick: (ShelfItem) -> Unit,
+    onItemLongPress: ((ShelfItem) -> Unit)?,
+    currentSong: Song?,
+    isPlaying: Boolean,
+) {
+    Column(Modifier.padding(bottom = 26.dp)) {
+        SectionHeader(shelf.title, shelf.subtitle)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val columns = remember(shelf.items) { quickPicksColumns(shelf.items) }
+        ShelfRow(
+            state = rememberShelfListState("home-quick-picks:${shelf.title}"),
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            items(
+                columns,
+                key = { column -> column.joinToString("|") { it.videoId ?: it.browseId ?: it.title } },
+                contentType = { "quick-picks-column" },
+            ) { column ->
+                Column(
+                    modifier = Modifier.width(QUICK_PICKS_COLUMN_WIDTH),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    column.forEach { item ->
+                        QuickPickTrackRow(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onLongPress = onItemLongPress?.let { { it(item) } },
+                            isCurrent = isCurrentItem(item),
+                            isPlaying = isCurrentItem(item) && isPlaying,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPickTrackRow(
+    item: ShelfItem,
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)?,
+    isCurrent: Boolean,
+    isPlaying: Boolean,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .contextClick(onLongPress)
+            .padding(vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(52.dp)) {
+            AsyncImage(
+                model = item.thumbnailUrl.artworkAt(ROW_ART_PX),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+            )
+            if (isCurrent && isPlaying) SearchPlayingBars(Modifier.align(Alignment.Center))
+        }
+        Spacer(Modifier.width(11.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = localizeCardSubtitle(item.subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (onLongPress != null) RowMoreButton(onClick = onLongPress)
+    }
+}
+
 @Composable
 fun HomeScreen(
     state: UiState<List<HomeShelf>>,
@@ -930,9 +1030,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
             val isListenAgain = LISTEN_AGAIN_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
             val isQuickPicks = QUICK_PICKS_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
-            // Quick picks is one row of square cards, as Recently Played is on
-            // Apple Music; Listen again and Recents keep the paged list.
-            if (shelf.isMixShelf()) {
+            // Quick Picks has its own compact three-row horizontal track shelf
+            // on Home. The Library keeps its independent shelf presentation.
+            if (isQuickPicks) {
+                QuickPicksShelf(
+                    shelf = shelf.copy(
+                        title = localizeShelfTitle(shelf.title),
+                        subtitle = localizeShelfSubtitle(shelf.subtitle),
+                    ),
+                    onItemClick = openItem,
+                    onItemLongPress = onItemLongPress,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                )
+            } else if (shelf.isMixShelf()) {
                 MixCoverShelf(
                     shelf = shelf,
                     onItemClick = openItem,

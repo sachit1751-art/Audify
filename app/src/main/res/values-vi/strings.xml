@@ -1231,4 +1231,6 @@ Project: AUDIFY
 <string name="backup_error_invalid">Tệp này không phải bản sao lưu Audify hợp lệ hoặc vượt quá giới hạn 32 MB.</string>
 <string name="backup_error_restore_rollback">Khôi phục thất bại và Audify không thể phục hồi hoàn toàn dữ liệu trước đó. Hãy giữ ứng dụng mở. Xuất trạng thái hiện tại ra một tệp riêng trước khi thử khôi phục lại.</string>
 <string name="backup_error_generic">Đã xảy ra lỗi khi xử lý bản sao lưu. Hãy thử lại hoặc chọn tệp khác.</string>
+  <string name="haptic_feedback">Phản hồi xúc giác</string>
+  <string name="haptic_feedback_subtitle">Rung khi chạm, chọn và sử dụng các điều khiển phát nhạc</string>
 </resources>

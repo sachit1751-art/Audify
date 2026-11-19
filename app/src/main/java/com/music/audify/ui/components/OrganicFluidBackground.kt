@@ -2,10 +2,19 @@ package com.music.audify.ui.components
 
 import android.graphics.RuntimeShader
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.database.ContentObserver
 import android.provider.Settings
+import android.os.PowerManager
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -29,6 +38,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -82,9 +92,35 @@ fun OrganicFluidBackground(
 ) {
     val context = LocalContext.current
     val motionAllowed = remember(context) {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+        mutableStateOf(isSystemMotionAllowed(context) && !isPowerSaveMode(context))
     }
-    val speed = if (motionAllowed) animationSpeed else 0f
+    DisposableEffect(context) {
+        fun refreshMotionPolicy() {
+            motionAllowed.value = isSystemMotionAllowed(context) && !isPowerSaveMode(context)
+        }
+        val animatorObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) = refreshMotionPolicy()
+        }
+        val powerSaveReceiver = object : BroadcastReceiver() {
+            override fun onReceive(receiverContext: Context?, intent: Intent?) = refreshMotionPolicy()
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+            false,
+            animatorObserver,
+        )
+        ContextCompat.registerReceiver(
+            context,
+            powerSaveReceiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose {
+            context.contentResolver.unregisterContentObserver(animatorObserver)
+            runCatching { context.unregisterReceiver(powerSaveReceiver) }
+        }
+    }
+    val speed = if (motionAllowed.value) animationSpeed else 0f
     val speedState = rememberUpdatedState(speed)
     val colorsState = rememberUpdatedState(colors.ifEmpty { OrganicFluidDefaults.Palette })
 
@@ -132,6 +168,14 @@ fun OrganicFluidBackground(
     )
 }
 
+private fun isSystemMotionAllowed(context: Context): Boolean = runCatching {
+    Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+}.getOrDefault(true)
+
+private fun isPowerSaveMode(context: Context): Boolean = runCatching {
+    context.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true
+}.getOrDefault(false)
+
 /**
  * Jam bersama untuk semua latar cairan. Fase bertambah hanya saat ada instance
  * yang berjalan (satu kali per frame, berapa pun jumlah instance), jadi kartu,
@@ -144,7 +188,11 @@ private object FluidTimeline {
     private var lastFrameNanos = 0L
 
     fun tick(frameNanos: Long, speed: Float): Double {
-        if (frameNanos > lastFrameNanos) {
+        // A full-screen wallpaper does not need to redraw at 60/90/120 Hz.
+        // Advancing at ~30 Hz halves or better the shader/fallback draw work
+        // while retaining fluid motion; inactive lifecycle/power-save handling
+        // above still stops the clock entirely.
+        if (shouldAdvanceFluidFrame(lastFrameNanos, frameNanos)) {
             // Dibatasi supaya jeda (pause / frame drop) tidak jadi lompatan.
             val dt = if (lastFrameNanos == 0L) 0.0 else ((frameNanos - lastFrameNanos) / 1_000_000_000.0).coerceAtMost(0.1)
             lastFrameNanos = frameNanos
@@ -153,6 +201,12 @@ private object FluidTimeline {
         return phase
     }
 }
+
+internal const val FLUID_FRAME_INTERVAL_NANOS = 33_333_333L
+
+internal fun shouldAdvanceFluidFrame(lastFrameNanos: Long, frameNanos: Long): Boolean =
+    frameNanos > lastFrameNanos &&
+        (lastFrameNanos == 0L || frameNanos - lastFrameNanos >= FLUID_FRAME_INTERVAL_NANOS)
 
 private class FluidClock(startAt: Double) {
     var seconds by mutableDoubleStateOf(startAt)

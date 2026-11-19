@@ -470,6 +470,10 @@ Project: AUDIFY
   <string name="app_icon_ocean" translatable="false">Ocean</string>
   <string name="app_icon_sunset" translatable="false">Sunset</string>
   <string name="app_icon_violet" translatable="false">Violet</string>
+  <string name="app_icon_emerald" translatable="false">Emerald</string>
+  <string name="app_icon_coral" translatable="false">Coral</string>
+  <string name="app_icon_amber" translatable="false">Amber</string>
+  <string name="app_icon_arctic" translatable="false">Arctic</string>
   <string name="app_icon_previous" translatable="false">Classic</string>
   <string name="app_icon_monochrome">Monochrome</string>
   <string name="app_icon_liquid_glass">Liquid Glass</string>
@@ -550,10 +554,10 @@ Project: AUDIFY
   <string name="glass_preset_liquid_subtitle">Kyant0 backdrop style: denser container, sharp refraction, no rainbow edge</string>
   <string name="glass_preset_bottom_bar">Glass Bottom Bar</string>
   <string name="glass_preset_bottom_bar_subtitle">Kyant0 tutorial style: light blur, strongly bent edges, 50%% surface</string>
-  <string name="glass_preset_performance">Performance</string>
-  <string name="glass_preset_performance_subtitle">Lighter frosted surfaces, reduced blur and shadows, no lens refraction. Best for smoother scrolling and older devices.</string>
-  <string name="glass_preset_best_experience">Best Liquid Glass</string>
-  <string name="glass_preset_best_experience_subtitle">Full glass treatment with stronger refraction, depth, colour and edge highlights. Uses more rendering work.</string>
+  <string name="glass_preset_performance" translatable="false">Performance</string>
+  <string name="glass_preset_performance_subtitle" translatable="false">Lighter frosted surfaces, reduced blur and shadows, no lens refraction. Best for smoother scrolling and older devices.</string>
+  <string name="glass_preset_best_experience" translatable="false">Best Liquid Glass</string>
+  <string name="glass_preset_best_experience_subtitle" translatable="false">Full glass treatment with stronger refraction, depth, colour and edge highlights. Uses more rendering work.</string>
   <string name="glass_section_color">Blur &amp; color</string>
   <string name="glass_section_refraction">Refraction</string>
   <string name="glass_section_edge">Edge &amp; shadow</string>
@@ -705,10 +709,10 @@ Project: AUDIFY
   <string name="delete">Delete</string>
   <string name="disconnect">Disconnect</string>
   <string name="discord">Discord</string>
-  <string name="discord_social_sdk_title">Discord Rich Presence</string>
-  <string name="discord_app_detected">Discord app detected</string>
-  <string name="discord_app_required">Install Discord and sign in there to publish your listening activity.</string>
-  <string name="discord_presence_off">Presence off</string>
+  <string name="discord_social_sdk_title" translatable="false">Discord Rich Presence</string>
+  <string name="discord_app_detected" translatable="false">Discord app detected</string>
+  <string name="discord_app_required" translatable="false">Install Discord and sign in there to publish your listening activity.</string>
+  <string name="discord_presence_off" translatable="false">Presence off</string>
   <string name="discord_button_variables">{song_name}, {artist_name} and {album_name} are replaced with the current track.</string>
   <string name="discord_buttons_footer">{song_name}, {artist_name} and {album_name} are replaced with the track. The first button opens the song on YouTube Music and the second opens this project.</string>
   <string name="discord_presence_footer">The card updates when the track, position or playback state changes. It clears when playback stops.</string>
@@ -1176,24 +1180,24 @@ Project: AUDIFY
   <string name="export_failed">Export failed: %1$s</string>
   <string name="import_succeeded">Imported %1$s from v%2$s</string>
   <string name="import_failed">Import failed: %1$s</string>
-  <string name="backup_exporting">Creating your backup…</string>
-  <string name="backup_exported_timestamp_warning">The file was created, but Audify couldn’t save the export date in Settings.</string>
-  <string name="backup_checking_file">Checking backup file…</string>
-  <string name="backup_restoring">Restoring your backup…</string>
-  <string name="backup_last_automatic">On-device recovery copy: %1$s</string>
-  <string name="backup_last_external">External copy exported: %1$s</string>
-  <string name="backup_automatic_scope">Automatic copies stay on this device. Export separately to move data to another phone.</string>
-  <string name="backup_automatic_not_created">On-device recovery copy: not created yet</string>
-  <string name="backup_external_not_created">External copy: not exported yet</string>
-  <string name="backup_unknown_version">unknown</string>
-  <string name="backup_unknown_date">unknown</string>
-  <string name="backup_restore_scope">Restoring replaces this device’s favorites, listening history, local playlists, listening statistics and backed-up settings. Sign-in credentials, downloaded audio and caches are not included. Export your current data first if you may need it.</string>
-  <string name="backup_error_access">Access to this file was denied. Reopen your file provider and grant Audify access, then try again.</string>
-  <string name="backup_error_missing">The selected file is no longer available. Choose the backup file again.</string>
-  <string name="backup_error_io">Audify couldn’t read or write that location. Check available storage and file-provider access, then try another location.</string>
-  <string name="backup_error_invalid">This file isn’t a valid Audify backup, or it exceeds the 32 MB limit.</string>
-  <string name="backup_error_restore_rollback">The restore failed, and Audify couldn’t fully recover the data that was there before. Keep the app open. Export the current state to a separate file before trying another restore.</string>
-  <string name="backup_error_generic">Something went wrong while handling the backup. Try again or choose another file.</string>
+  <string name="backup_exporting" translatable="false">Creating your backup…</string>
+  <string name="backup_exported_timestamp_warning" translatable="false">The file was created, but Audify couldn’t save the export date in Settings.</string>
+  <string name="backup_checking_file" translatable="false">Checking backup file…</string>
+  <string name="backup_restoring" translatable="false">Restoring your backup…</string>
+  <string name="backup_last_automatic" translatable="false">On-device recovery copy: %1$s</string>
+  <string name="backup_last_external" translatable="false">External copy exported: %1$s</string>
+  <string name="backup_automatic_scope" translatable="false">Automatic copies stay on this device. Export separately to move data to another phone.</string>
+  <string name="backup_automatic_not_created" translatable="false">On-device recovery copy: not created yet</string>
+  <string name="backup_external_not_created" translatable="false">External copy: not exported yet</string>
+  <string name="backup_unknown_version" translatable="false">unknown</string>
+  <string name="backup_unknown_date" translatable="false">unknown</string>
+  <string name="backup_restore_scope" translatable="false">Restoring replaces this device’s favorites, listening history, local playlists, listening statistics and backed-up settings. Sign-in credentials, downloaded audio and caches are not included. Export your current data first if you may need it.</string>
+  <string name="backup_error_access" translatable="false">Access to this file was denied. Reopen your file provider and grant Audify access, then try again.</string>
+  <string name="backup_error_missing" translatable="false">The selected file is no longer available. Choose the backup file again.</string>
+  <string name="backup_error_io" translatable="false">Audify couldn’t read or write that location. Check available storage and file-provider access, then try another location.</string>
+  <string name="backup_error_invalid" translatable="false">This file isn’t a valid Audify backup, or it exceeds the 32 MB limit.</string>
+  <string name="backup_error_restore_rollback" translatable="false">The restore failed, and Audify couldn’t fully recover the data that was there before. Keep the app open. Export the current state to a separate file before trying another restore.</string>
+  <string name="backup_error_generic" translatable="false">Something went wrong while handling the backup. Try again or choose another file.</string>
   <string name="unknown_error">unknown error</string>
   <string name="no_listening_history">no listening history</string>
   <plurals name="listening_month_count">
@@ -1547,6 +1551,6 @@ Project: AUDIFY
   <string name="no_audio_version">No audio version found for this video</string>
   <string name="no_video_version">No video version found for this song</string>
   <string name="version_switch_in_party">Everyone in Listen Together hears the same version</string>
-  <string name="haptic_feedback">Haptic feedback</string>
-  <string name="haptic_feedback_subtitle">Vibrate for taps, selections and playback controls</string>
+  <string name="haptic_feedback" translatable="false">Haptic feedback</string>
+  <string name="haptic_feedback_subtitle" translatable="false">Vibrate for taps, selections and playback controls</string>
 </resources>

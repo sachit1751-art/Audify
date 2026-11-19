@@ -4023,7 +4023,7 @@ class PlaybackService : MediaLibraryService() {
         val mediaId = item.mediaId
         val uri = item.localConfiguration?.uri
         val position = player.currentPosition.coerceAtLeast(0L)
-        val attempts = recoveries.getOrDefault(mediaId, 0) + 1
+        val attempts = PlaybackRecoveryPolicy.nextAttempt(recoveries.getOrDefault(mediaId, 0))
         recoveries[mediaId] = attempts
         TrackLog.w(
             "Audify",
@@ -4095,7 +4095,7 @@ class PlaybackService : MediaLibraryService() {
         // more full walks for an answer already in hand — and in the report they
         // were exactly that, at roughly seventeen youtubei requests each.
         val verdict = permanentReason(error)
-        val givingUp = verdict != null || attempts > MAX_RECOVERIES
+        val givingUp = PlaybackRecoveryPolicy.shouldGiveUp(attempts, verdict, MAX_RECOVERIES)
         // A track that has never made a sound has *failed to start*, whatever
         // the error was, and the queue should move past it once the attempts are
         // spent — see [skipReason]. Read here rather than after the delay below,
@@ -4194,7 +4194,9 @@ class PlaybackService : MediaLibraryService() {
             }
             withContext(Dispatchers.Main) {
                 val player = this@PlaybackService.player ?: return@withContext
-                if (player.currentMediaItem?.mediaId != mediaId) return@withContext
+                if (!PlaybackRecoveryPolicy.isCurrentItem(mediaId, player.currentMediaItem?.mediaId)) {
+                    return@withContext
+                }
                 TrackLog.d("Audify", "retrying $mediaId from ${position}ms")
                 // Claimed before the seek, so the transition it may fire is
                 // recognised as this retry rather than read as a fresh start and
@@ -4247,7 +4249,9 @@ class PlaybackService : MediaLibraryService() {
             withContext(Dispatchers.IO) { AudioCache.discard(playbackUri, keepComplete = networkFault) }
             withContext(Dispatchers.Main) {
                 val live = this@PlaybackService.player ?: return@withContext
-                if (live.currentMediaItem?.mediaId != mediaId) return@withContext
+                if (!PlaybackRecoveryPolicy.isCurrentItem(mediaId, live.currentMediaItem?.mediaId)) {
+                    return@withContext
+                }
                 swappingMediaId = mediaId
                 live.replaceMediaItem(live.currentMediaItemIndex, fallback)
                 live.seekTo(live.currentMediaItemIndex, position)
@@ -4443,18 +4447,22 @@ class PlaybackService : MediaLibraryService() {
         neverStarted: Boolean,
         attempts: Int,
     ): String? {
-        if (verdict != null) return verdict
-        if (!neverStarted) return null
-        if (consecutiveErrorSkips >= MAX_CONSECUTIVE_SKIPS) {
+        val decision = PlaybackRecoveryPolicy.skipDecision(
+            verdict = verdict,
+            neverStarted = neverStarted,
+            consecutiveSkips = consecutiveErrorSkips,
+            maxConsecutiveSkips = MAX_CONSECUTIVE_SKIPS,
+            genericFailureReason = "failed to start after $attempts attempts (${error.errorCodeName})",
+        )
+        if (decision.reachedConsecutiveSkipCap) {
             TrackLog.w(
                 "Audify",
                 "$MAX_CONSECUTIVE_SKIPS tracks in a row failed to start; " +
                     "this is the queue or the connection, not the track — stopping here",
             )
-            return null
         }
-        consecutiveErrorSkips++
-        return "failed to start after $attempts attempts (${error.errorCodeName})"
+        consecutiveErrorSkips = decision.nextConsecutiveSkips
+        return decision.reason
     }
 
     /**
@@ -7616,7 +7624,6 @@ class PlaybackService : MediaLibraryService() {
             // joined string so two different settings can't stringify alike.
             combine<Any, List<Any>>(
                 AppSettings.discordUseDetails,
-                AppSettings.discordActivityType,
                 AppSettings.discordButton1Text,
                 AppSettings.discordButton1Visible,
                 AppSettings.discordButton2Text,
@@ -7679,7 +7686,14 @@ class PlaybackService : MediaLibraryService() {
                     if (metered == null) return@collect
                     val rpc = discordRpc ?: return@collect
                     if (discordPresenceUp) {
-                        player?.takeIf { p -> p.isPlaying }?.let(::pushDiscordPresence)
+                        player?.let { activePlayer ->
+                            when {
+                                activePlayer.isPlaying -> pushDiscordPresence(activePlayer)
+                                activePlayer.currentMediaItem != null && !AppSettings.discordHideWhenPaused.value ->
+                                    pushDiscordPresence(activePlayer, paused = true)
+                                else -> clearDiscordPresence()
+                            }
+                        }
                     }
                 }
         }
@@ -7728,7 +7742,6 @@ class PlaybackService : MediaLibraryService() {
                 button1Visible = AppSettings.discordButton1Visible.value,
                 button2Text = AppSettings.discordButton2Text.value,
                 button2Visible = AppSettings.discordButton2Visible.value,
-                activityType = AppSettings.discordActivityType.value,
                 audioQuality = audioQuality,
                 showArtwork = AppSettings.discordShowArtwork.value,
                 showElapsedTime = AppSettings.discordShowElapsedTime.value && !paused,

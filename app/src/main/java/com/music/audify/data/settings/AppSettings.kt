@@ -437,7 +437,7 @@ enum class ThemeMode(val label: String) {
 
 /** Built-in app-wide backgrounds; a custom photo takes precedence. */
 enum class AppBackgroundStyle(val label: String) {
-    PLAIN("Plain"), AURORA("Aurora"), OCEAN("Ocean"), SUNSET("Sunset"), NEBULA("Nebula")
+    PLAIN("Plain"), AURORA("Aurora"), OCEAN("Ocean"), SUNSET("Sunset"), NEBULA("Prism")
 }
 
 /**
@@ -517,6 +517,7 @@ object AppSettings {
     private val startupIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var wallpaperPrefs: SharedPreferences
 
     /** Only for the Discord, WebDAV and SMB secrets — everything else on here is plain prefs. */
     private lateinit var authStore: AuthStore
@@ -1228,7 +1229,9 @@ object AppSettings {
 
     fun profileOwnerOf(email: String?): String = email.orEmpty().ifBlank { "default" }
 
-    val discordRpcEnabled = MutableStateFlow(true)
+    // Rich Presence publishes listening activity outside Audify, so it is an
+    // explicit opt-in on new installs. A previously saved user choice still wins.
+    val discordRpcEnabled = MutableStateFlow(false)
 
     /** Put the track title on the bold profile line, in place of the artist. */
     val discordUseDetails = MutableStateFlow(false)
@@ -1384,12 +1387,27 @@ object AppSettings {
         val currentPrefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         migrateAudifyPreferences(context, currentPrefs)
         prefs = currentPrefs
+        wallpaperPrefs = context.getSharedPreferences("audify_wallpaper", Context.MODE_PRIVATE)
+        // Move any pre-existing wallpaper URI out of the general settings file.
+        // The dedicated preferences file is excluded from Android backup/transfer.
+        if (!wallpaperPrefs.contains(KEY_THEME_BACKGROUND_URI) && currentPrefs.contains(KEY_THEME_BACKGROUND_URI)) {
+            wallpaperPrefs.edit { putString(KEY_THEME_BACKGROUND_URI, currentPrefs.getString(KEY_THEME_BACKGROUND_URI, null)) }
+        }
+        currentPrefs.edit { remove(KEY_THEME_BACKGROUND_URI) }
         seedFirstInstallDefaults(context)
         this.authStore = authStore
         // Publish the complete settings snapshot before stores and schedulers
         // consult their switches. Migration apply() has already updated the
         // in-memory preference map atomically, so this read sees the full copy.
         readAll()
+        startupIoScope.launch {
+            runCatching {
+                ThemeBackgroundStorage.removeOrphans(
+                    java.io.File(context.noBackupFilesDir, "theme-backgrounds"),
+                    themeBackgroundUri.value,
+                )
+            }.onFailure { android.util.Log.w("Audify", "Wallpaper orphan cleanup failed", it) }
+        }
         com.music.audify.data.spotify.LocalPlaylistStore.init(context)
         com.music.audify.data.playlist.SmartPlaylistStore.init(context)
         com.music.audify.data.stats.LocalLibraryStore.init(context)
@@ -1633,7 +1651,7 @@ object AppSettings {
         selectedThemePackId.value = prefs.getString(KEY_THEME_PALETTE, ThemePacks.CLASSIC_ID)
             ?.takeIf { id -> ThemePacks.builtIns.any { it.id == id } || customThemePacks.value.any { it.id == id } }
             ?: ThemePacks.CLASSIC_ID
-        themeBackgroundUri.value = prefs.getString(KEY_THEME_BACKGROUND_URI, null)
+        themeBackgroundUri.value = wallpaperPrefs.getString(KEY_THEME_BACKGROUND_URI, null)
         backgroundStyle.value = runCatching {
             AppBackgroundStyle.valueOf(
                 prefs.getString(KEY_BACKGROUND_STYLE, AppBackgroundStyle.PLAIN.name)
@@ -1824,7 +1842,7 @@ object AppSettings {
             name = prefs.getString(KEY_PROFILE_NAME, "").orEmpty(),
             photoPath = prefs.getString(KEY_PROFILE_PHOTO, "").orEmpty(),
         )
-        discordRpcEnabled.value = prefs.getBoolean(KEY_DISCORD_RPC_ENABLED, true)
+        discordRpcEnabled.value = prefs.getBoolean(KEY_DISCORD_RPC_ENABLED, false)
         discordUseDetails.value = prefs.getBoolean(KEY_DISCORD_USE_DETAILS, false)
         discordShowAudioQuality.value = prefs.getBoolean(KEY_DISCORD_SHOW_AUDIO_QUALITY, true)
         discordShowTrackTitle.value = prefs.getBoolean(KEY_DISCORD_SHOW_TRACK_TITLE, true)
@@ -2222,7 +2240,7 @@ object AppSettings {
 
     fun setThemeBackgroundUri(uri: String?) {
         themeBackgroundUri.value = uri
-        prefs.edit {putString(KEY_THEME_BACKGROUND_URI, uri)}
+        wallpaperPrefs.edit {putString(KEY_THEME_BACKGROUND_URI, uri)}
     }
 
     fun setBackgroundStyle(value: AppBackgroundStyle) {
@@ -3266,6 +3284,9 @@ object AppSettings {
         "downloaded_collections",
         KEY_LOCAL_MUSIC_FOLDER_URI,
         KEY_DOWNLOAD_FOLDER_URI,
+        // A wallpaper points to a provider grant or a file in this install's
+        // private storage; neither URI is portable in a user-exported backup.
+        KEY_THEME_BACKGROUND_URI,
         KEY_LAST_VERSION_CODE,
         KEY_ONBOARDING_COMPLETE,
     )

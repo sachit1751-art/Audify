@@ -3097,7 +3097,11 @@ private fun AudifyApp(
     Box(
         Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            // AudifyTheme owns the app-wide wallpaper layer. Painting an
+            // opaque page root here covered both built-in gradients and
+            // custom photos on every tab, making the wallpaper picker appear
+            // ineffective even though its setting and image were saved.
+            .background(Color.Transparent),
     ) {
         // A pushed page replaces the tab content but leaves the tab bar and
         // mini player in place.

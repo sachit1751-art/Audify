@@ -8,11 +8,9 @@ import android.content.pm.PackageManager
  * The home-screen icon choices. Each is an `<activity-alias>` in the manifest
  * carrying the launcher intent filter; exactly one is enabled at a time.
  *
- * The glass icons are adaptive icons whose foreground already holds the finished
- * icon in its own shape (Apple squircle, Samsung squircle or Pixel circle), so
- * [previewRes] — that foreground — shows the variant as designed rather than
- * through the device's launcher mask. The first two keep yesterday's alias
- * names so a choice made before the update stays enabled.
+ * Settings previews each adaptive launcher resource at a larger tile size, so
+ * the user sees the actual installed icon variant. The first two keep yesterday's
+ * alias names so a choice made before the update stays enabled.
  */
 enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val previewRes: Int? = null) {
     Default("LauncherDefault", R.mipmap.ic_launcher, R.string.app_icon_default),
@@ -20,6 +18,10 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
     Ocean("LauncherOcean", R.mipmap.ic_launcher_ocean, R.string.app_icon_ocean),
     Sunset("LauncherSunset", R.mipmap.ic_launcher_sunset, R.string.app_icon_sunset),
     Violet("LauncherViolet", R.mipmap.ic_launcher_violet, R.string.app_icon_violet),
+    Emerald("LauncherEmerald", R.mipmap.ic_launcher_emerald, R.string.app_icon_emerald),
+    Coral("LauncherCoral", R.mipmap.ic_launcher_coral, R.string.app_icon_coral),
+    Amber("LauncherAmber", R.mipmap.ic_launcher_amber, R.string.app_icon_amber),
+    Arctic("LauncherArctic", R.mipmap.ic_launcher_arctic, R.string.app_icon_arctic),
     Previous("LauncherPrevious", R.mipmap.ic_launcher_previous, R.string.app_icon_previous);
 
     private fun component(context: Context) =
@@ -33,23 +35,16 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
          */
         fun repairLauncher(context: Context) {
             val pm = context.packageManager
-            val anyEnabled = entries.any {
-                pm.getComponentEnabledSetting(it.component(context)) ==
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            val enabled = entries.filter { icon ->
+                runCatching { pm.getActivityInfo(icon.component(context), 0).enabled }.getOrDefault(false)
             }
-            val defaultOff = pm.getComponentEnabledSetting(Default.component(context)) in setOf(
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER,
-                PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED,
-            )
-            if (!anyEnabled && defaultOff) apply(context, Default)
+            if (enabled.size != 1) apply(context, enabled.firstOrNull() ?: Default)
         }
 
         fun current(context: Context): AppIcon {
             val pm = context.packageManager
-            return entries.firstOrNull {
-                pm.getComponentEnabledSetting(it.component(context)) ==
-                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            return entries.firstOrNull { icon ->
+                runCatching { pm.getActivityInfo(icon.component(context), 0).enabled }.getOrDefault(false)
             } ?: Default
         }
 

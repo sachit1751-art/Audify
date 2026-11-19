@@ -1334,4 +1334,6 @@
 <string name="backup_error_invalid">유효한 Audify 백업 파일이 아니거나 크기가 32MB 제한을 초과합니다.</string>
 <string name="backup_error_restore_rollback">복원에 실패했고 Audify가 이전 데이터를 완전히 복구하지 못했습니다. 앱을 종료하지 마세요. 다시 복원하기 전에 현재 상태를 별도 파일로 내보내세요.</string>
 <string name="backup_error_generic">백업 처리 중 문제가 발생했습니다. 다시 시도하거나 다른 파일을 선택하세요.</string>
+  <string name="haptic_feedback">햅틱 피드백</string>
+  <string name="haptic_feedback_subtitle">탭, 선택 및 재생 컨트롤을 사용할 때 진동합니다</string>
 </resources>

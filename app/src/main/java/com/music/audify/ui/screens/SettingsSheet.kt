@@ -470,6 +470,8 @@ fun SettingsScreen(
     var showPerformanceWarning by remember { mutableStateOf(false) }
     var showPerformanceConfirmation by remember { mutableStateOf(false) }
     val backupScope = rememberCoroutineScope()
+    val wallpaperMutex = remember { kotlinx.coroutines.sync.Mutex() }
+    var wallpaperSelectionGeneration by remember { mutableStateOf(0) }
     val backupTimestamps by produceState(
         initialValue = Backup.lastAutomaticBackupAt(context) to Backup.lastExternalBackupAt(context),
         context,
@@ -595,11 +597,94 @@ fun SettingsScreen(
         ActivityResultContracts.OpenDocument(),
     ) { imageUri ->
         if (imageUri != null) {
-            val granted = runCatching {
-                context.contentResolver.takePersistableUriPermission(imageUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }.isSuccess
-            if (granted) AppSettings.setThemeBackgroundUri(imageUri.toString())
-            else Toast.makeText(context, "Couldn't keep access to that image", Toast.LENGTH_SHORT).show()
+            val generation = ++wallpaperSelectionGeneration
+            backupScope.launch {
+                wallpaperMutex.lock()
+                try {
+                    var storedFile: java.io.File? = null
+                    try {
+                        val resolver = context.contentResolver
+                        val persistable = runCatching {
+                            resolver.takePersistableUriPermission(
+                                imageUri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                            )
+                        }.isSuccess
+                        try {
+                            val wallpaperDirectory = java.io.File(context.noBackupFilesDir, "theme-backgrounds")
+                            withContext(Dispatchers.IO) {
+                                val input = resolver.openInputStream(imageUri)
+                                    ?: error("Unable to open the selected image")
+                                // Copy once into a bounded staging file, then
+                                // inspect that exact file. This avoids relying
+                                // on provider reopen/mark/reset semantics.
+                                val saved = try {
+                                    com.music.audify.data.settings.ThemeBackgroundStorage
+                                        .copyToPrivateStorage(input, wallpaperDirectory)
+                                } catch (failure: Throwable) {
+                                    runCatching { input.close() }
+                                    throw failure
+                                }
+                                // Assign before any dispatcher hand-off so the
+                                // outer cancellation handler can always clean it.
+                                storedFile = saved
+                                val bounds = android.graphics.BitmapFactory.Options().apply {
+                                    inJustDecodeBounds = true
+                                }
+                                try {
+                                    android.graphics.BitmapFactory.decodeFile(saved.absolutePath, bounds)
+                                    com.music.audify.data.settings.ThemeBackgroundStorage
+                                        .validateImageDimensions(bounds.outWidth, bounds.outHeight)
+                                    saved
+                                } catch (failure: Throwable) {
+                                    com.music.audify.data.settings.ThemeBackgroundStorage.removeIfOwned(
+                                        saved,
+                                        wallpaperDirectory,
+                                    )
+                                    storedFile = null
+                                    throw failure
+                                }
+                            }
+                        } finally {
+                            if (persistable) runCatching {
+                                resolver.releasePersistableUriPermission(
+                                    imageUri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                                )
+                            }
+                        }
+                        val savedFile = checkNotNull(storedFile)
+                        if (generation == wallpaperSelectionGeneration) {
+                            val previousUri = AppSettings.themeBackgroundUri.value
+                            AppSettings.setThemeBackgroundUri(savedFile.toUri().toString())
+                            if (!previousUri.isNullOrBlank() && previousUri != savedFile.toUri().toString()) {
+                                releaseThemeBackground(context, previousUri)
+                            }
+                        } else {
+                            com.music.audify.data.settings.ThemeBackgroundStorage.removeIfOwned(
+                                savedFile,
+                                java.io.File(context.noBackupFilesDir, "theme-backgrounds"),
+                            )
+                        }
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        storedFile?.let {
+                            com.music.audify.data.settings.ThemeBackgroundStorage.removeIfOwned(
+                                it,
+                                java.io.File(context.noBackupFilesDir, "theme-backgrounds"),
+                            )
+                        }
+                        throw cancelled
+                    } catch (failure: Throwable) {
+                        Toast.makeText(
+                            context,
+                            failure.message ?: "Couldn't save that image",
+                            Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                } finally {
+                    wallpaperMutex.unlock()
+                }
+            }
         }
     }
     val themeImportPicker = rememberLauncherForActivityResult(
@@ -1442,9 +1527,15 @@ fun SettingsScreen(
             }
             row("Background", "built-in background", "aurora", "ocean", "sunset", "nebula", "custom background", "wallpaper", "image") {
                 Text(
-                    "Built-in backgrounds",
+                    "Animated wallpaper",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, top = 8.dp, bottom = 8.dp),
+                )
+                Text(
+                    "Fluid gradients that move gently behind every screen",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 10.dp),
                 )
                 SegmentedControl(
                     options = AppBackgroundStyle.entries.map { it.label },
@@ -1470,7 +1561,12 @@ fun SettingsScreen(
                             .clip(RoundedCornerShape(14.dp)),
                     )
                     TextButton(
-                        onClick = { AppSettings.setThemeBackgroundUri(null) },
+                        onClick = {
+                            wallpaperSelectionGeneration++
+                            val previousUri = themeBackgroundUri
+                            AppSettings.setThemeBackgroundUri(null)
+                            releaseThemeBackground(context, previousUri)
+                        },
                         modifier = Modifier.padding(start = ROW_INSET),
                     ) { Text("Remove background") }
                 }
@@ -2515,6 +2611,11 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .width(84.dp)
                                 .clip(RoundedCornerShape(16.dp))
+                                .border(
+                                    width = if (selected) 2.dp else 0.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    shape = RoundedCornerShape(16.dp),
+                                )
                                 .clickable {
                                     selectedIcon = option
                                     AppIcon.apply(context, option)
@@ -2555,6 +2656,13 @@ fun SettingsScreen(
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                 modifier = Modifier.padding(top = 6.dp),
                             )
+                            if (selected) {
+                                Text(
+                                    text = stringResource(R.string.audify_selected),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
                 }
@@ -4861,6 +4969,29 @@ internal fun <T> ChoiceGroup(
                     )
                 }
             }
+        }
+    }
+}
+
+private fun releaseThemeBackground(context: Context, uriString: String?) {
+    if (uriString.isNullOrBlank()) return
+    val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return
+    if (uri.scheme == "file") {
+        runCatching {
+            val file = java.io.File(uri.path ?: return)
+            val newStorage = java.io.File(context.noBackupFilesDir, "theme-backgrounds")
+            val legacyStorage = context.filesDir
+            if (!com.music.audify.data.settings.ThemeBackgroundStorage.removeIfOwned(file, newStorage) &&
+                file.canonicalFile.parentFile == legacyStorage.canonicalFile &&
+                file.name.startsWith("audify-wallpaper-") && file.extension == "img"
+            ) file.delete()
+        }
+    } else if (uri.scheme == "content") {
+        runCatching {
+            context.contentResolver.releasePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
         }
     }
 }

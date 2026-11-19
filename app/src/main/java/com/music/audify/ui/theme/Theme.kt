@@ -25,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
@@ -46,6 +45,7 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
 import com.music.audify.data.settings.ThemeSurfaceStyle
+import com.music.audify.ui.components.OrganicFluidBackground
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFFA243C),
@@ -337,37 +337,24 @@ fun AudifyTheme(
         )
     }
     val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
-    // Keep a subtle theme tint at the bottom edge. Fading every dark gradient
-    // all the way to pure black created a visible black band behind the gesture
-    // navigation area, even though the rest of the screen used the active pack.
-    val bottomBackgroundColor = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, darkTheme) {
+    val reduceMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    // Reuse the app's lifecycle-aware fluid renderer for the wallpaper. It
+    // pauses off-screen, honours system animation scale, and has a Canvas
+    // fallback for devices without AGSL support (API < 33 / shader failures).
+    val wallpaperPalette = remember(backgroundStyle) {
         when (backgroundStyle) {
-            AppBackgroundStyle.PLAIN -> scheme.background
-            AppBackgroundStyle.AURORA -> scheme.background.withAccent(scheme.primary, if (darkTheme) .10f else .34f)
-            AppBackgroundStyle.OCEAN -> scheme.background.withAccent(scheme.secondary, if (darkTheme) .12f else .38f)
-            AppBackgroundStyle.SUNSET -> scheme.background.withAccent(scheme.secondary, if (darkTheme) .12f else .30f)
-            AppBackgroundStyle.NEBULA -> scheme.background.withAccent(scheme.primary, if (darkTheme) .12f else .32f)
-        }
-    }
-    val appBackgroundBrush = remember(backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme) {
-        val base = scheme.background
-        when (backgroundStyle) {
-            AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
-            AppBackgroundStyle.AURORA -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), bottomBackgroundColor)
-                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), bottomBackgroundColor),
+            AppBackgroundStyle.PLAIN -> emptyList()
+            AppBackgroundStyle.AURORA -> listOf(
+                Color(0xFF00D68F), Color(0xFF00B8D9), Color(0xFF6C63FF), Color(0xFF173B79), Color(0xFF8BE9C7),
             )
-            AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), bottomBackgroundColor)
-                else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), bottomBackgroundColor),
+            AppBackgroundStyle.OCEAN -> listOf(
+                Color(0xFF00C2FF), Color(0xFF0066FF), Color(0xFF00D6B5), Color(0xFF143A75), Color(0xFF8CEBFF),
             )
-            AppBackgroundStyle.SUNSET -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), bottomBackgroundColor)
-                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), bottomBackgroundColor),
+            AppBackgroundStyle.SUNSET -> listOf(
+                Color(0xFFFF4D6D), Color(0xFFFF8A3D), Color(0xFFFFC857), Color(0xFF9B3D9A), Color(0xFFFFB3C1),
             )
-            AppBackgroundStyle.NEBULA -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), bottomBackgroundColor)
-                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), bottomBackgroundColor),
+            AppBackgroundStyle.NEBULA -> listOf(
+                Color(0xFF7B2FF7), Color(0xFFB5179E), Color(0xFF4361EE), Color(0xFF2EC4B6), Color(0xFFE0AAFF),
             )
         }
     }
@@ -396,14 +383,26 @@ fun AudifyTheme(
             LocalTextSelectionColors provides selection,
             LocalContentColor provides scheme.onBackground,
         ) {
-            Box(Modifier.fillMaxSize().background(appBackgroundBrush)) {
+            Box(Modifier.fillMaxSize().background(scheme.background)) {
+                if (backgroundStyle != AppBackgroundStyle.PLAIN) {
+                    OrganicFluidBackground(
+                        modifier = Modifier.fillMaxSize(),
+                        colors = wallpaperPalette,
+                        animationSpeed = if (reduceMotion) 0f else 0.32f,
+                    )
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            Color.Black.copy(alpha = if (darkTheme) 0.30f else 0.10f),
+                        ),
+                    )
+                }
                 if (!backgroundUri.isNullOrBlank()) {
                     AsyncImage(
                         model = backgroundUri,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
-                        alpha = 0.22f,
+                        alpha = 1f,
                     )
                 }
                 content()

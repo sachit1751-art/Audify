@@ -4,6 +4,14 @@ import com.music.audify.data.model.Song
 import com.music.audify.data.model.artworkAt
 import java.util.Locale
 
+internal data class DiscordPresenceFields(val details: String?, val state: String?)
+
+internal fun discordPresenceFields(text: String?, useDetails: Boolean): DiscordPresenceFields {
+    val value = text?.takeIf { it.length >= 2 }
+    return if (useDetails) DiscordPresenceFields(details = value, state = null)
+    else DiscordPresenceFields(details = null, state = value)
+}
+
 /** Rich Presence publisher backed by Discord's official unauthenticated Android RPC. */
 class DiscordRPC {
 
@@ -17,7 +25,6 @@ class DiscordRPC {
         button1Visible: Boolean = true,
         button2Text: String = "",
         button2Visible: Boolean = true,
-        activityType: String = "listening",
         audioQuality: String? = null,
         showArtwork: Boolean = true,
         showElapsedTime: Boolean = true,
@@ -44,15 +51,16 @@ class DiscordRPC {
         // Keep the music metadata on one compact line, with comma-separated
         // fields, rather than splitting title, artist and album across lines.
         // The Social SDK uses Playing for third-party app presence.
-        val activityDetails = buildList {
+        val activityText = buildList {
             if (showTrackTitle) title.takeIf(String::isNotBlank)?.let(::add)
             if (showArtist) song.artist.takeIf(String::isNotBlank)?.let(::add)
             if (showAlbum) song.albumName?.takeIf(String::isNotBlank)?.let(::add)
-        }.joinToString(", ").take(128).takeIf { it.length >= 2 }
+        }.joinToString(", ").take(128)
+        val fields = discordPresenceFields(activityText, useDetails)
 
         DiscordSocialPresence.update(
-            details = activityDetails,
-            state = null,
+            details = fields.details,
+            state = fields.state,
             imageUrl = song.artworkAt(ART_PX)?.takeIf { showArtwork && (it.startsWith("https://") || it.startsWith("http://")) },
             imageTooltip = audioQuality?.take(128),
             detailsUrl = watchUrl(song),
@@ -67,7 +75,7 @@ class DiscordRPC {
             // Discord's Social SDK documents Playing as the supported
             // Rich Presence activity type for third-party app integrations.
             activityType = 0,
-            useDetails = true,
+            useDetails = useDetails,
             button1Label = button1?.first?.take(32),
             button1Url = button1?.second,
             button2Label = button2?.first?.take(32),

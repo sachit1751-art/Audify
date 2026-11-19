@@ -21,4 +21,7 @@ Project: AUDIFY
     <exclude domain="sharedpref" path="audify_last_played.xml" />
     <exclude domain="sharedpref" path="audify_bounded_context.xml" />
     <exclude domain="sharedpref" path="audify_party_queue_stash.xml" />
+    <exclude domain="sharedpref" path="audify_wallpaper.xml" />
+    <!-- Custom wallpapers are local media; persisted document grants and copied images are device-local. -->
+    <exclude domain="file" path="theme-backgrounds/" />
 </full-backup-content>

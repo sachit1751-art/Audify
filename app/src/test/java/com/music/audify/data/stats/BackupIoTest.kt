@@ -10,6 +10,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class BackupIoTest {
     @Test
@@ -51,5 +57,29 @@ class BackupIoTest {
         } finally {
             directory.deleteRecursively()
         }
+    }
+
+    @Test
+    fun rollbackCompletesEveryStepEvenWhenTheImportJobIsCancelled() = runBlocking {
+        val parent = Job()
+        val scope = CoroutineScope(Dispatchers.Unconfined + parent)
+        val completed = mutableListOf<String>()
+        var failures: List<Throwable> = emptyList()
+
+        scope.launch {
+            failures = Backup.runBackupRollback(
+                {
+                    completed += "favorites"
+                    parent.cancel()
+                    throw IllegalStateException("first rollback store failed")
+                },
+                { completed += "playlists" },
+                { completed += "settings" },
+            )
+        }.join()
+
+        assertEquals(listOf("favorites", "playlists", "settings"), completed)
+        assertEquals(1, failures.size)
+        assertEquals("first rollback store failed", failures.single().message)
     }
 }

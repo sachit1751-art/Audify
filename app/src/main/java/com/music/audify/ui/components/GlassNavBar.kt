@@ -298,7 +298,7 @@ val haptics = rememberHaptics()
                         PillTinted(isSelected, selectedColor, unselectedColor) { tint ->
                             Icon(
                                 imageVector = tab.icon,
-                                contentDescription = tab.label,
+                                contentDescription = null,
                                 tint = tint,
                                 modifier = Modifier.size(TAB_ICON_SIZE),
                             )
@@ -310,7 +310,7 @@ val haptics = rememberHaptics()
                                 text = tab.label,
                                 style = tabLabelStyle(),
                                 color = tint,
-                                maxLines = 1,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             // The library's Tab stacks the glyph and the label
                             // with nothing between them; the plain bar spaces

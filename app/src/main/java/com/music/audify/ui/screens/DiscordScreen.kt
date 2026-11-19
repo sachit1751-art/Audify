@@ -30,7 +30,6 @@ import androidx.compose.material.icons.rounded.SmartButton
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
 import com.music.audify.ui.components.IosSwitch
 import androidx.compose.material3.Text
@@ -62,29 +61,17 @@ import com.music.audify.data.model.CARD_ART_PX
 import com.music.audify.data.model.Song
 import com.music.audify.data.model.artworkAt
 import com.music.audify.data.settings.AppSettings
-import com.music.audify.ui.components.ChoiceAlert
 import com.music.audify.ui.components.TextValueAlert
 import com.music.audify.ui.components.thumbnailBorder
 import dev.chrisbanes.haze.HazeState
 import java.util.Locale
 
 /**
- * The verb on the profile. All four render the same card; only the line above it
- * changes, so this is purely how you'd rather have it read.
- */
-enum class DiscordActivityKind(val value: String, val verb: String, val label: String) {
-    LISTENING("listening", "Listening to", "Listening"),
-    PLAYING("playing", "Playing", "Playing"),
-    WATCHING("watching", "Watching", "Watching"),
-    COMPETING("competing", "Competing in", "Competing"),
-}
-
-/**
  * The dialogs the Discord screen opens. Hoisted out to an enum because they are
  * rendered by the activity, above the tab bar and mini player, rather than
  * inside the scrolling screen where a full-screen scrim would be trapped.
  */
-enum class DiscordDialog { ACTIVITY_TYPE, BUTTON_1, BUTTON_2 }
+enum class DiscordDialog { BUTTON_1, BUTTON_2 }
 
 private enum class DiscordSettingsPage(val title: String) {
     OVERVIEW("Discord Rich Presence"),
@@ -93,33 +80,6 @@ private enum class DiscordSettingsPage(val title: String) {
     ACTIVITY("Activity Style"),
     PRIVACY("Privacy Controls"),
 }
-
-private fun kindOf(value: String) =
-    DiscordActivityKind.entries.firstOrNull { it.value == value } ?: DiscordActivityKind.LISTENING
-
-@Composable
-private fun localizedActivityCopy(): Map<DiscordActivityKind, Pair<String, String>> = mapOf(
-    DiscordActivityKind.LISTENING to (
-        stringResource(R.string.activity_listening) to stringResource(R.string.verb_listening)
-        ),
-    DiscordActivityKind.PLAYING to (
-        stringResource(R.string.activity_playing) to stringResource(R.string.verb_playing)
-        ),
-    DiscordActivityKind.WATCHING to (
-        stringResource(R.string.activity_watching) to stringResource(R.string.verb_watching)
-        ),
-    DiscordActivityKind.COMPETING to (
-        stringResource(R.string.activity_competing) to stringResource(R.string.verb_competing)
-        ),
-)
-
-@Composable
-private fun DiscordActivityKind.localizedLabel(): String =
-    localizedActivityCopy().getValue(this).first
-
-@Composable
-private fun DiscordActivityKind.localizedVerb(): String =
-    localizedActivityCopy().getValue(this).second
 
 /**
  * Discord Rich Presence: the account it posts as, what the card says, and a
@@ -153,7 +113,6 @@ fun DiscordScreen(
     val showArtwork by AppSettings.discordShowArtwork.collectAsStateWithLifecycle()
     val showElapsedTime by AppSettings.discordShowElapsedTime.collectAsStateWithLifecycle()
     val hideWhenPaused by AppSettings.discordHideWhenPaused.collectAsStateWithLifecycle()
-    val activityType by AppSettings.discordActivityType.collectAsStateWithLifecycle()
     val button1Text by AppSettings.discordButton1Text.collectAsStateWithLifecycle()
     val button1Visible by AppSettings.discordButton1Visible.collectAsStateWithLifecycle()
     val button2Text by AppSettings.discordButton2Text.collectAsStateWithLifecycle()
@@ -199,7 +158,7 @@ fun DiscordScreen(
                     RichPresencePreview(
                         song = song, positionMs = positionMs, durationMs = durationMs,
                         heading = appName(), verb = "Playing",
-                        trackVerb = kindOf(activityType).localizedVerb(),
+                        trackVerb = stringResource(R.string.verb_playing),
                         useDetails = useDetails,
                         audioQuality = discordAudioQualityLine(nerdStats).takeIf { showAudioQuality },
                         showTrackTitle = showTrackTitle, showArtist = showArtist,
@@ -219,14 +178,14 @@ fun DiscordScreen(
                 SettingsGroup(header = "Presence Settings") {
                     SettingsRow(
                         icon = discordIcon, title = "Enable Rich Presence",
-                        subtitle = "Broadcast current playback to your Discord status",
+                        subtitle = "When enabled, track details may be visible to people viewing your Discord profile",
                         trailing = { IosSwitch(checked = rpcEnabled, onCheckedChange = AppSettings::setDiscordRpcEnabled) },
                         onClick = { AppSettings.setDiscordRpcEnabled(!rpcEnabled) },
                     )
                     RowDivider()
                     SettingsRow(icon = SfIcons.Tune, title = "Display Preferences", subtitle = "Track details, artwork and buttons", onClick = { page = DiscordSettingsPage.DISPLAY })
                     RowDivider()
-                    SettingsRow(icon = SfIcons.RadioButtonChecked, title = "Activity Style", subtitle = "Listening, Playing or Watching", onClick = { page = DiscordSettingsPage.ACTIVITY })
+                    SettingsRow(icon = SfIcons.RadioButtonChecked, title = "Activity Type", subtitle = "Discord displays third-party apps as Playing", onClick = { page = DiscordSettingsPage.ACTIVITY })
                     RowDivider()
                     SettingsRow(icon = SfIcons.GraphicEq, title = "Privacy Controls", subtitle = "Control what remains visible when playback stops", onClick = { page = DiscordSettingsPage.PRIVACY })
                 }
@@ -289,29 +248,21 @@ fun DiscordScreen(
             }
 
             DiscordSettingsPage.ACTIVITY -> {
-                SettingsGroup(header = "Presence Type", footer = "Choose how your playback status is labelled across Discord.") {
-                    DiscordActivityKind.entries.forEach { kind ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                                .background(if (activityType == kind.value) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
-                                .clickable(enabled = rpcEnabled) { AppSettings.setDiscordActivityType(kind.value) }
-                                .padding(horizontal = 14.dp, vertical = 13.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(kind.localizedLabel(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
-                                Text("${kind.localizedVerb()} ${appName()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            RadioButton(selected = activityType == kind.value, onClick = { AppSettings.setDiscordActivityType(kind.value) }, enabled = rpcEnabled)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
+                SettingsGroup(
+                    header = "Supported activity type",
+                    footer = "This is a Discord Social SDK limitation, not an Audify account or permission setting.",
+                ) {
+                    Text(
+                        "Discord's Android Social SDK publishes third-party app activity as Playing. Listening, Watching and Competing are not supported for this integration, so Audify reports Playing and does not offer a selector that would misrepresent the result.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                Text("The selected style is applied immediately to the next presence update.", modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             DiscordSettingsPage.PRIVACY -> {
-                SettingsGroup(header = "Playback Privacy", footer = "These controls affect whether playback details remain visible when audio is paused.") {
+                SettingsGroup(header = "Playback Privacy", footer = "Discord status is visible to people who can view your profile. Turn Rich Presence off to stop publishing playback; Hide when paused clears the card while playback is paused.") {
                     SettingsRow(icon = SfIcons.RadioButtonChecked, title = "Hide when paused", subtitle = "Clear Discord activity instead of showing a paused indicator", enabled = rpcEnabled, trailing = { IosSwitch(checked = hideWhenPaused, onCheckedChange = AppSettings::setDiscordHideWhenPaused) }, onClick = { AppSettings.setDiscordHideWhenPaused(!hideWhenPaused) })
                 }
                 SettingsGroup(header = "Privacy Status") {
@@ -605,26 +556,6 @@ fun DiscordDialogHost(
     onDismiss: () -> Unit,
 ) {
     when (which) {
-        DiscordDialog.ACTIVITY_TYPE -> {
-            val current by AppSettings.discordActivityType.collectAsStateWithLifecycle()
-            val copy = localizedActivityCopy()
-            val applicationName = appName()
-            ChoiceAlert(
-                hazeState = hazeState,
-                title = stringResource(R.string.activity),
-                message = stringResource(R.string.activity_dialog_message),
-                options = DiscordActivityKind.entries,
-                selected = kindOf(current),
-                label = { copy.getValue(it).first },
-                detail = { "\"${copy.getValue(it).second} $applicationName\"" },
-                onSelect = {
-                    AppSettings.setDiscordActivityType(it.value)
-                    onDismiss()
-                },
-                onDismiss = onDismiss,
-            )
-        }
-
         DiscordDialog.BUTTON_1, DiscordDialog.BUTTON_2 -> {
             val first = which == DiscordDialog.BUTTON_1
             val flow = if (first) AppSettings.discordButton1Text else AppSettings.discordButton2Text

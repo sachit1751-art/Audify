@@ -106,7 +106,7 @@ fun OnboardingScreen(
     initialName: String,
     /** Saves the party name. Called on Next, before the second page. */
     onNameChosen: (String) -> Unit,
-    /** Opens the Google sign-in. The caller finishes onboarding once it lands. */
+    /** Opens the Google sign-in; a successful return advances to the music setup page. */
     onSignIn: () -> Unit,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,

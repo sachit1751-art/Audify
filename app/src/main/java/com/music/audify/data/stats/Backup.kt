@@ -24,6 +24,7 @@ import java.io.InputStream
 import java.io.IOException
 import java.io.FileNotFoundException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 
 /**
  * The whole of what this app knows about you, as one JSON file you own.
@@ -179,14 +180,17 @@ object Backup {
             } catch (restoreFailure: Throwable) {
                 // A failed rollback is materially different from a rejected
                 // restore: some of the previous data may not have been put back.
-                val rollbackFailures = listOf(
-                    runCatching { LocalLibraryStore.importLibrary(oldFavorites, oldHistory) },
-                    runCatching { LocalPlaylistStore.importSnapshot(oldPlaylists) },
-                    runCatching { LocalPlaylistStore.syncFavorites(oldFavorites) },
-                    runCatching { ListeningStats.importAll(oldListening) },
-                    runCatching { AppSettings.importPrefs(oldSettings) },
-                    runCatching { SearchHistory.reload() },
-                ).mapNotNull { it.exceptionOrNull() }
+                // A cancelled import still has to finish compensating writes.
+                // Without NonCancellable, every suspend rollback immediately
+                // rethrows the same cancellation and leaves mixed store state.
+                val rollbackFailures = runBackupRollback(
+                    { LocalLibraryStore.importLibrary(oldFavorites, oldHistory) },
+                    { LocalPlaylistStore.importSnapshot(oldPlaylists) },
+                    { LocalPlaylistStore.syncFavorites(oldFavorites) },
+                    { ListeningStats.importAll(oldListening) },
+                    { AppSettings.importPrefs(oldSettings) },
+                    { SearchHistory.reload() },
+                )
                 if (rollbackFailures.isNotEmpty()) {
                     if (restoreFailure is CancellationException) {
                         rollbackFailures.forEach(restoreFailure::addSuppressed)
@@ -229,6 +233,19 @@ object Backup {
     } catch (failure: Exception) {
         Result.failure(failure)
     }
+
+    /** Run every compensating write even if the import coroutine was cancelled. */
+    internal suspend fun runBackupRollback(vararg steps: suspend () -> Unit): List<Throwable> =
+        withContext(NonCancellable) {
+            steps.mapNotNull { step ->
+                try {
+                    step()
+                    null
+                } catch (failure: Throwable) {
+                    failure
+                }
+            }
+        }
 
     private const val APP_TAG = "audify"
     private const val BACKUP_PREFS = "audify_backup_state"

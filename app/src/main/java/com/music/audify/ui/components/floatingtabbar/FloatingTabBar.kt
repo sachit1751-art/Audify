@@ -60,6 +60,7 @@ import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -873,7 +874,9 @@ private fun SharedTransitionScope.StandaloneTabBody(
                     )
                     .clip(shapes.standaloneTabShape)
                     .then(tabBarContentModifier())
-                    .clickable(
+                    .selectable(
+                        selected = false,
+                        role = androidx.compose.ui.semantics.Role.Tab,
                         onClick = standaloneTab.onClick,
                         indication = standaloneTab.indication?.invoke(),
                         interactionSource = interactionSource
@@ -1355,7 +1358,9 @@ private fun SharedTransitionScope.ExpandedTabs(
                                 .weight(1f)
                                 .skipToLookaheadSize()
                                 .clip(shapes.tabShape)
-                                .clickable(
+                                .selectable(
+                                    selected = isSelected,
+                                    role = androidx.compose.ui.semantics.Role.Tab,
                                     onClick = tab.onClick,
                                     indication = tab.indication?.invoke(),
                                     interactionSource = remember { MutableInteractionSource() }

@@ -61,6 +61,10 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        // A removed or duplicated launcher alias must not leave the user with
+        // no icon (or several); normalise the effective package-manager state.
+        runCatching { AppIcon.repairLauncher(this) }
+            .onFailure { android.util.Log.w("Audify", "Launcher icon state repair failed", it) }
         // The player is drawn by the shared UI module; this is what it reads
         // underneath — settings, the Canvas decoder, outputs, the party.
         AndroidStreamHooks.installEarly()

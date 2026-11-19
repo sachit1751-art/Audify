@@ -1682,4 +1682,6 @@
 <string name="backup_error_invalid">File ini bukan cadangan Audify yang valid atau ukurannya melebihi batas 32 MB.</string>
 <string name="backup_error_restore_rollback">Pemulihan gagal dan Audify tidak dapat sepenuhnya mengembalikan data sebelumnya. Biarkan aplikasi tetap terbuka. Ekspor keadaan saat ini ke file terpisah sebelum mencoba pemulihan lagi.</string>
 <string name="backup_error_generic">Terjadi kesalahan saat menangani cadangan. Coba lagi atau pilih file lain.</string>
+  <string name="haptic_feedback">Umpan balik haptik</string>
+  <string name="haptic_feedback_subtitle">Bergetar saat mengetuk, memilih, dan menggunakan kontrol pemutaran</string>
 </resources>
