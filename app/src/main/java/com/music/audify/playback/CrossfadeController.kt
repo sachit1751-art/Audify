@@ -843,11 +843,16 @@ class CrossfadeController(
      * queue yet, so that skip is carried out plainly here rather than lost.
      */
     fun onSkipRequested() {
-        if (manualFade && phase == Phase.ARMING) {
-            abandonManual()
+        if (phase == Phase.IDLE) return
+        if (phase == Phase.LOOP_ARMING || phase == Phase.LOOP_RUNNING) {
+            loopBail("listener skipped track", settle = false)
             return
         }
-        if (phase != Phase.IDLE) bail()
+        // A manual transport command is not a DJ transition. Retire the spare
+        // deck immediately, then let the caller move the queue exactly once.
+        // In particular, do not run abandonManual(): it advances the queue
+        // itself and would make a wrapped Next command skip two items.
+        finish()
     }
 
     /**

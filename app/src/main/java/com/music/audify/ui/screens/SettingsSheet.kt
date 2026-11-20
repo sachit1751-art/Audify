@@ -307,7 +307,6 @@ fun SettingsScreen(
     val metered by AppSettings.meteredConnection.collectAsStateWithLifecycle()
     val crossfade by AppSettings.crossfadeSeconds.collectAsStateWithLifecycle()
     val smartFade by AppSettings.smartFadeEnabled.collectAsStateWithLifecycle()
-    val crossfadeOnSkip by AppSettings.crossfadeOnSkip.collectAsStateWithLifecycle()
     val automixPerformance by AppSettings.automixPerformanceMode.collectAsStateWithLifecycle()
     val skipSilence by AppSettings.skipSilence.collectAsStateWithLifecycle()
     val pauseOnMute by AppSettings.pauseOnMute.collectAsStateWithLifecycle()
@@ -1145,23 +1144,6 @@ fun SettingsScreen(
                         onSliderValue = { AppSettings.setCrossfadeSeconds(it.roundToInt()) },
                         valueRange = 0f..12f,
                         steps = 11,
-                    )
-                }
-            }
-            val crossfadeOnSkipTitle = stringResource(R.string.crossfade_on_skip)
-            row(crossfadeOnSkipTitle, "crossfade", "skip", "next", "previous", "cover") {
-                BypassedByBitPerfect(bitPerfectReady) {
-                    SettingsRow(
-                        icon = SfIcons.Waves,
-                        title = crossfadeOnSkipTitle,
-                        subtitle = stringResource(R.string.crossfade_on_skip_subtitle),
-                        trailing = {
-                            IosSwitch(
-                                checked = crossfadeOnSkip,
-                                onCheckedChange = AppSettings::setCrossfadeOnSkip,
-                            )
-                        },
-                        onClick = { AppSettings.setCrossfadeOnSkip(!crossfadeOnSkip) },
                     )
                 }
             }

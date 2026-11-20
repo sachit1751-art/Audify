@@ -597,13 +597,8 @@ object AppSettings {
 
     val crossfadeSeconds = MutableStateFlow(0)
 
-    /**
-     * Crossfade juga saat pendengar menekan next/previous: lagu yang ditinggalkan
-     * memudar sementara lagu tujuan naik, dan cover ikut melebur dari gambar
-     * terakhir ke gambar lagu baru. Berdiri sendiri, tidak bergantung pada
-     * [crossfadeSeconds] (kalau 0, skip memakai durasi bawaan).
-     */
-    val crossfadeOnSkip = MutableStateFlow(true)
+    /** Legacy preference retained for migration compatibility; manual skips are always immediate. */
+    val crossfadeOnSkip = MutableStateFlow(false)
 
     /**
      * Lama crossfade skip yang sedang berjalan, dalam ms; 0 selain saat itu.
@@ -1591,7 +1586,7 @@ object AppSettings {
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
         syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
-        crossfadeOnSkip.value = prefs.getBoolean(KEY_CROSSFADE_ON_SKIP, true)
+        crossfadeOnSkip.value = false
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
         automixPerformanceMode.value = runCatching {
             AutomixPerformanceMode.valueOf(

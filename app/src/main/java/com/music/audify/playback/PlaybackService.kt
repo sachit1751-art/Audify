@@ -4209,7 +4209,22 @@ class PlaybackService : MediaLibraryService() {
             // Long enough for the released source to let go of the cache keys
             // about to be removed, short enough to read as a stutter.
             delay(RECOVERY_DELAY_MS)
-            uri?.let { withContext(Dispatchers.IO) { AudioCache.discard(it, keepComplete = networkFault) } }
+            uri?.let { failedUri ->
+                withContext(Dispatchers.IO) {
+                    runCatching { AudioCache.discard(failedUri, keepComplete = networkFault) }
+                        .onFailure { cleanupError ->
+                            // Cache cleanup is best-effort. A filesystem/cache
+                            // failure must not prevent the stream from being
+                            // resolved and prepared again.
+                            TrackLog.w(
+                                "Audify",
+                                "could not clear failed audio cache entry: ${cleanupError.message}",
+                                cleanupError,
+                                about = mediaId,
+                            )
+                        }
+                }
+            }
             // The bytes go even when nothing is going to be prepared after
             // them. A half-filled entry whose owner has just been forgotten is
             // the seam this file's [StreamChoice] note is about: the next play
@@ -4283,7 +4298,17 @@ class PlaybackService : MediaLibraryService() {
         val networkFault = isNetworkFault(error)
         scope.launch(TrackLog.about(mediaId)) {
             delay(RECOVERY_DELAY_MS)
-            withContext(Dispatchers.IO) { AudioCache.discard(playbackUri, keepComplete = networkFault) }
+            withContext(Dispatchers.IO) {
+                runCatching { AudioCache.discard(playbackUri, keepComplete = networkFault) }
+                    .onFailure { cleanupError ->
+                        TrackLog.w(
+                            "Audify",
+                            "could not clear failed alternative cache entry: ${cleanupError.message}",
+                            cleanupError,
+                            about = mediaId,
+                        )
+                    }
+            }
             withContext(Dispatchers.Main) {
                 val live = this@PlaybackService.player ?: return@withContext
                 if (!PlaybackRecoveryPolicy.isCurrentItem(mediaId, live.currentMediaItem?.mediaId)) {
@@ -8504,7 +8529,7 @@ class PlaybackService : MediaLibraryService() {
                 castPrevious()
                 return
             }
-            if (crossfade.trySkipWithCrossfade(forward = false)) return
+            crossfade.onSkipRequested()
             super.seekToPrevious()
         }
 
@@ -8648,7 +8673,6 @@ class PlaybackService : MediaLibraryService() {
                 castPrevious()
                 return
             }
-            if (crossfade.trySkipWithCrossfade(forward = false)) return
             wrappedPlayer.seekToPrevious()
         }
 
@@ -8656,7 +8680,6 @@ class PlaybackService : MediaLibraryService() {
             if (locked()) return
             onUserIntent()
             crossfade.onSkipRequested()
-            if (crossfade.trySkipWithCrossfade(forward = true)) return
             wrappedPlayer.seekToNextMediaItem()
         }
 
@@ -8664,7 +8687,6 @@ class PlaybackService : MediaLibraryService() {
             if (locked()) return
             onUserIntent()
             crossfade.onSkipRequested()
-            if (crossfade.trySkipWithCrossfade(forward = true)) return
             wrappedPlayer.seekToNext()
         }
     }
