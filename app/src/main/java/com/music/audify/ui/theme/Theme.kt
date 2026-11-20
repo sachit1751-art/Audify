@@ -363,56 +363,30 @@ fun AudifyTheme(
         )
     }
     val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
-    // Built-in wallpapers remain fully theme-derived, but need enough colour
-    // separation to read as distinct choices on real devices. Each preset gets
-    // its own accent ordering, stronger tonal stops, and two soft colour blooms.
-    // The colours always come from the selected theme pack; no fixed palette is
-    // baked into the wallpaper renderer.
-    val appBackgroundPalette = remember(
-        backgroundStyle, scheme.background, scheme.primary, scheme.secondary,
-        scheme.tertiary, darkTheme,
+    // Match the original 1.9.3 built-in wallpaper treatment: restrained,
+    // theme-derived vertical gradients without the later radial bloom overlays.
+    val appBackgroundBrush = remember(
+        backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme,
     ) {
         val base = scheme.background
-        val strength = if (darkTheme) 0.52f else 0.64f
-        val mid = if (darkTheme) 0.43f else 0.54f
-        val low = if (darkTheme) 0.31f else 0.40f
         when (backgroundStyle) {
-            AppBackgroundStyle.PLAIN -> listOf(base, base)
-            AppBackgroundStyle.AURORA -> listOf(
-                base.withAccent(scheme.primary, strength),
-                base.withAccent(scheme.secondary, mid),
-                base.withAccent(scheme.tertiary, low),
-                base,
+            AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
+            AppBackgroundStyle.AURORA -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), base)
+                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), base),
             )
-            AppBackgroundStyle.OCEAN -> listOf(
-                base.withAccent(scheme.secondary, strength),
-                base.withAccent(scheme.primary, mid),
-                base.withAccent(scheme.tertiary, low),
-                base,
+            AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), base)
+                else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), base),
             )
-            AppBackgroundStyle.SUNSET -> listOf(
-                base.withAccent(scheme.tertiary, strength),
-                base.withAccent(scheme.secondary, mid),
-                base.withAccent(scheme.primary, low),
-                base,
+            AppBackgroundStyle.SUNSET -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), base)
+                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), base),
             )
-            AppBackgroundStyle.NEBULA -> listOf(
-                base.withAccent(scheme.tertiary, strength),
-                base.withAccent(scheme.primary, mid),
-                base.withAccent(scheme.secondary, low),
-                base,
+            AppBackgroundStyle.NEBULA -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), base)
+                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), base),
             )
-        }
-    }
-    val appBackgroundGlows = remember(
-        backgroundStyle, scheme.primary, scheme.secondary, scheme.tertiary,
-    ) {
-        when (backgroundStyle) {
-            AppBackgroundStyle.PLAIN -> emptyList()
-            AppBackgroundStyle.AURORA -> listOf(scheme.primary, scheme.secondary)
-            AppBackgroundStyle.OCEAN -> listOf(scheme.secondary, scheme.primary)
-            AppBackgroundStyle.SUNSET -> listOf(scheme.tertiary, scheme.secondary)
-            AppBackgroundStyle.NEBULA -> listOf(scheme.tertiary, scheme.primary)
         }
     }
     MaterialTheme(
@@ -445,26 +419,7 @@ fun AudifyTheme(
             // this wallpaper into a second GraphicsLayer caused it to be
             // composited over the live wallpaper when Liquid Glass was enabled.
             Box(
-                Modifier.fillMaxSize().drawBehind {
-                    drawRect(Brush.verticalGradient(appBackgroundPalette))
-                    if (appBackgroundGlows.size == 2) {
-                        val glowAlpha = if (darkTheme) 0.30f else 0.34f
-                        drawRect(
-                            Brush.radialGradient(
-                                colors = listOf(appBackgroundGlows[0].copy(alpha = glowAlpha), Color.Transparent),
-                                center = Offset(size.width * 0.12f, size.height * 0.16f),
-                                radius = size.maxDimension * 0.88f,
-                            ),
-                        )
-                        drawRect(
-                            Brush.radialGradient(
-                                colors = listOf(appBackgroundGlows[1].copy(alpha = glowAlpha * 0.82f), Color.Transparent),
-                                center = Offset(size.width * 0.92f, size.height * 0.56f),
-                                radius = size.maxDimension * 0.76f,
-                            ),
-                        )
-                    }
-                },
+                Modifier.fillMaxSize().drawBehind { drawRect(appBackgroundBrush) },
             ) {
                 if (!backgroundUri.isNullOrBlank()) {
                     AsyncImage(
