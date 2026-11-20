@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -82,6 +83,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -153,7 +155,15 @@ private fun List<HomeShelf>.withoutSpeedDial(): List<HomeShelf> =
     filterNot { shelf -> SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
 private const val RECENT_TRACKS_PER_COLUMN = 4
 private const val QUICK_PICKS_ROWS = 3
-private val QUICK_PICKS_COLUMN_WIDTH = 264.dp
+private val QUICK_PICK_MIN_COLUMN_WIDTH = 208.dp
+private val QUICK_PICK_COLUMN_SPACING = 18.dp
+
+/** The 1.9.3 Home grid: fit as many readable track columns as the content pane allows. */
+private fun quickPickColumns(available: Dp): Int {
+    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
+    return ((usable + QUICK_PICK_COLUMN_SPACING) /
+        (QUICK_PICK_MIN_COLUMN_WIDTH + QUICK_PICK_COLUMN_SPACING)).toInt().coerceIn(1, 5)
+}
 
 internal fun quickPicksColumns(items: List<ShelfItem>): List<List<ShelfItem>> =
     items.chunked(QUICK_PICKS_ROWS)
@@ -233,7 +243,7 @@ private fun SpeedDialShelf(
     onPlaySongs: ((List<Song>) -> Unit)? = null,
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
-        SectionHeader(shelf.title, shelf.subtitle)
+        HomeSectionHeader(shelf.title, shelf.subtitle)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         val shuffleSongs = remember(shelf.items) {
             shelf.items.mapNotNull { item ->
@@ -394,14 +404,14 @@ private fun SpeedDialBadge(modifier: Modifier = Modifier) {
         modifier = modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.35f))
-            .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.35f))
+            .border(0.5.dp, MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.3f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = AudifyIcons.ChevronRight,
             contentDescription = null,
-            tint = Color.White,
+            tint = MaterialTheme.colorScheme.inverseOnSurface,
             modifier = Modifier.size(12.dp),
         )
     }
@@ -475,7 +485,7 @@ private fun SpeedDialTile(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))))
+                .background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.72f))))
                 .padding(
                     start = 8.dp,
                     end = if (isBrowse) 32.dp else 8.dp,
@@ -486,14 +496,14 @@ private fun SpeedDialTile(
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = localizeCardSubtitle(item.subtitle),
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.75f),
+                color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -579,31 +589,29 @@ private fun QuickPicksShelf(
     isPlaying: Boolean,
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
-        SectionHeader(shelf.title, shelf.subtitle)
+        HomeSectionHeader(shelf.title, shelf.subtitle)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
-        val columns = remember(shelf.items) { quickPicksColumns(shelf.items) }
-        ShelfRow(
-            state = rememberShelfListState("home-quick-picks:${shelf.title}"),
-            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            items(
-                columns,
-                key = { column -> column.joinToString("|") { it.videoId ?: it.browseId ?: it.title } },
-                contentType = { "quick-picks-column" },
-            ) { column ->
-                Column(
-                    modifier = Modifier.width(QUICK_PICKS_COLUMN_WIDTH),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    column.forEach { item ->
-                        QuickPickTrackRow(
-                            item = item,
-                            onClick = { onItemClick(item) },
-                            onLongPress = onItemLongPress?.let { { it(item) } },
-                            isCurrent = isCurrentItem(item),
-                            isPlaying = isCurrentItem(item) && isPlaying,
-                        )
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val columns = quickPickColumns(maxWidth)
+            val rows = shelf.items.take(if (columns >= 3) columns * 4 else 4).chunked(columns)
+            Column(Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER)) {
+                rows.forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(QUICK_PICK_COLUMN_SPACING),
+                    ) {
+                        rowItems.forEach { item ->
+                            Column(Modifier.weight(1f)) {
+                                QuickPickTrackRow(
+                                    item = item,
+                                    onClick = { onItemClick(item) },
+                                    onLongPress = onItemLongPress?.let { { it(item) } },
+                                    isCurrent = isCurrentItem(item),
+                                    isPlaying = isCurrentItem(item) && isPlaying,
+                                )
+                            }
+                        }
+                        repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
@@ -815,6 +823,7 @@ fun HomeScreen(
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,
                         isPlaying = isPlaying,
+                        homeStyle = true,
                     )
                 }
             }
@@ -826,6 +835,7 @@ fun HomeScreen(
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,
                         isPlaying = isPlaying,
+                        homeStyle = true,
                     )
                 }
             }
@@ -1094,6 +1104,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                     onItemLongPress = onItemLongPress,
                     currentSong = currentSong,
                     isPlaying = isPlaying,
+                    homeStyle = true,
                 )
             }
         }
@@ -1150,7 +1161,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
 @Composable
 private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?) {
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-        SectionHeader("Listen together")
+        HomeSectionHeader("Listen together")
         ShelfRow(
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -1168,12 +1179,12 @@ private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?)
                     }
                     Box(
                         Modifier.fillMaxSize().background(
-                            Brush.horizontalGradient(listOf(Color.Black.copy(alpha = .86f), Color.Black.copy(alpha = .28f))),
+                            Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.scrim.copy(alpha = .86f), MaterialTheme.colorScheme.scrim.copy(alpha = .28f))),
                         ),
                     )
                     Column(Modifier.align(Alignment.CenterStart).padding(18.dp)) {
-                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .78f))
-                        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
+                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = .78f))
+                        Text(label, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.inverseOnSurface)
                     }
                 }
             }
@@ -1191,7 +1202,7 @@ private fun HomePodcastsShelf(
             modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Podcasts", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            Text("Podcasts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
             Text(
                 "See all",
                 style = MaterialTheme.typography.labelLarge,
@@ -1570,6 +1581,57 @@ private const val LOGO_ASPECT = 730f / 484f
  * Home and Explore never pass it, so their heading is unchanged.
  */
 @Composable
+private fun HomeSectionHeader(
+    title: String,
+    subtitle: String = "",
+    onShowAll: (() -> Unit)? = null,
+    actionLabel: String? = null,
+    emphasized: Boolean = false,
+) {
+    val displayTitle = localizeShelfTitle(title)
+    val displaySubtitle = localizeShelfSubtitle(subtitle)
+    Row(
+        modifier = Modifier
+            .padding(horizontal = PAGE_GUTTER, vertical = if (emphasized) 8.dp else 10.dp)
+            .fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = displayTitle,
+                style = if (emphasized) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (displaySubtitle.isNotBlank()) {
+                Text(
+                    text = displaySubtitle,
+                    style = if (emphasized) MaterialTheme.typography.labelMedium else MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (onShowAll != null) {
+            Box(
+                modifier = Modifier
+                    .defaultMinSize(minHeight = 48.dp)
+                    .clickable(role = Role.Button, onClick = onShowAll)
+                    .padding(start = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = actionLabel ?: stringResource(Res.string.show_all),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+@Composable
 internal fun SectionHeader(title: String, subtitle: String = "", onShowAll: (() -> Unit)? = null) {
     val displayTitle = localizeShelfTitle(title)
     val displaySubtitle = localizeShelfSubtitle(subtitle)
@@ -1864,7 +1926,7 @@ private fun HeroShelf(
     isPlaying: Boolean = false,
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
-        SectionHeader(shelf.title, shelf.subtitle)
+        HomeSectionHeader(shelf.title, shelf.subtitle, emphasized = true)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         // Measured rather than taken as a share of the parent, because the card
@@ -1939,7 +2001,7 @@ private fun HeroCard(
                 .align(Alignment.BottomStart)
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.78f)),
+                    listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.78f)),
                     ),
                 )
                 .padding(start = 16.dp, end = 16.dp, top = 34.dp, bottom = 14.dp),
@@ -1947,7 +2009,7 @@ private fun HeroCard(
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1956,7 +2018,7 @@ private fun HeroCard(
                 Text(
                     text = displaySubtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.72f),
+                    color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.72f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1981,9 +2043,10 @@ internal fun Shelf(
     leadingCard: (@Composable () -> Unit)? = null,
     currentSong: Song? = null,
     isPlaying: Boolean = false,
+    homeStyle: Boolean = false,
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
-        SectionHeader(shelf.title, shelf.subtitle)
+        if (homeStyle) HomeSectionHeader(shelf.title, shelf.subtitle) else SectionHeader(shelf.title, shelf.subtitle)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         ShelfRow(
@@ -2013,6 +2076,7 @@ internal fun Shelf(
                             onLongPress = onItemLongPress?.let { { it(item) } },
                             isCurrent = isCurrentItem(item),
                             isPlaying = isCurrentItem(item) && isPlaying,
+                            homeStyle = homeStyle,
                         )
                     }
                 }
@@ -2157,6 +2221,7 @@ private fun ServiceCard(
     colors: List<Color>,
     trackKey: String,
     icon: ImageVector,
+    iconTint: Color = Color.White,
     /** How much of the card's own colours is laid back over the mesh on a light theme. */
     lightLift: Float = 0f,
 ) {
@@ -2190,7 +2255,7 @@ private fun ServiceCard(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color.White,
+            tint = iconTint,
             modifier = Modifier.size(40.dp),
         )
     }
@@ -2207,7 +2272,9 @@ internal fun ShelfCard(
     isPinned: Boolean = false,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    homeStyle: Boolean = false,
 ) {
+    val scheme = MaterialTheme.colorScheme
     val coverToken = remember { Any() }
     val openWithCover = rememberCoverFlightTap(item.browseId, coverToken, onClick)
     Column(
@@ -2220,7 +2287,9 @@ internal fun ShelfCard(
     ) {
         when (item.browseId) {
             "local:downloads" -> {
-                val palette = remember { MeshPalette(listOf(Color(0xFF1E3C72), Color(0xFF2A5298))) }
+                val palette = remember(homeStyle, scheme.primary, scheme.tertiary) {
+                    MeshPalette(if (homeStyle) listOf(scheme.primary, scheme.tertiary) else listOf(Color(0xFF1E3C72), Color(0xFF2A5298)))
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2237,36 +2306,41 @@ internal fun ShelfCard(
                     Icon(
                         imageVector = AudifyIcons.Download,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (homeStyle) scheme.onPrimary else Color.White,
                         modifier = Modifier.size(40.dp),
                     )
                 }
             }
             "local:all" -> ServiceCard(
-                colors = listOf(Color(0xFF134E5E), Color(0xFF71B280)),
+                colors = if (homeStyle) listOf(scheme.secondary, scheme.tertiary) else listOf(Color(0xFF134E5E), Color(0xFF71B280)),
                 trackKey = "local:all",
                 icon = Icons.Rounded.LibraryMusic,
+                iconTint = if (homeStyle) scheme.onSecondary else Color.White,
             )
             YtMusicRepository.LIKED_MUSIC -> ServiceCard(
-                colors = listOf(Color(0xFFFF7AB8), Color(0xFF9B6CFF)),
+                colors = if (homeStyle) listOf(scheme.primary, scheme.tertiary) else listOf(Color(0xFFFF7AB8), Color(0xFF9B6CFF)),
                 trackKey = YtMusicRepository.LIKED_MUSIC,
                 icon = Icons.Rounded.Favorite,
                 lightLift = 0.6f,
+                iconTint = if (homeStyle) scheme.onPrimary else Color.White,
             )
             "local:cache" -> ServiceCard(
-                colors = listOf(Color(0xFF42275A), Color(0xFF734B6D)),
+                colors = if (homeStyle) listOf(scheme.primaryContainer, scheme.secondaryContainer) else listOf(Color(0xFF42275A), Color(0xFF734B6D)),
                 trackKey = "local:cache",
                 icon = Icons.Rounded.Cached,
+                iconTint = if (homeStyle) scheme.onPrimaryContainer else Color.White,
             )
             "local:webdav" -> ServiceCard(
-                colors = listOf(Color(0xFF3A1C71), Color(0xFFD76D77)),
+                colors = if (homeStyle) listOf(scheme.tertiaryContainer, scheme.primaryContainer) else listOf(Color(0xFF3A1C71), Color(0xFFD76D77)),
                 trackKey = "local:webdav",
                 icon = Icons.Rounded.Folder,
+                iconTint = if (homeStyle) scheme.onTertiaryContainer else Color.White,
             )
             "local:smb" -> ServiceCard(
-                colors = listOf(Color(0xFF0F2027), Color(0xFF2C5364)),
+                colors = if (homeStyle) listOf(scheme.secondaryContainer, scheme.surfaceVariant) else listOf(Color(0xFF0F2027), Color(0xFF2C5364)),
                 trackKey = "local:smb",
                 icon = Icons.Rounded.Storage,
+                iconTint = if (homeStyle) scheme.onSecondaryContainer else Color.White,
             )
             else -> {
                 Box(
@@ -2275,7 +2349,10 @@ internal fun ShelfCard(
                         .fillMaxWidth()
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(12.dp))
-                        .thumbnailBorder(RoundedCornerShape(12.dp))
+                        .then(
+                            if (!homeStyle || item.videoId == null) Modifier.thumbnailBorder(RoundedCornerShape(12.dp))
+                            else Modifier,
+                        )
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
                     AsyncImage(
