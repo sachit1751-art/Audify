@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use gpui::prelude::*;
-use gpui::{App, Entity, SharedString};
+use gpui::{App, Entity, EntityId, SharedString};
 use i18n::t;
 use music::equalizer::{Curve, Preset};
 use state::{AppSettings, Equalizer, Sound};
@@ -32,6 +32,7 @@ pub(crate) fn sound_picker(
     popovers: &Popovers,
     equalizer: &Entity<Equalizer>,
     settings: &Entity<AppSettings>,
+    view: EntityId,
     cx: &App,
 ) -> Picker {
     let height = cx.theme().metrics.cover * SOUND_MENU_HEIGHT;
@@ -73,7 +74,7 @@ pub(crate) fn sound_picker(
     Picker::new(key, popovers, current)
         .name(t!("equalizer-sound"))
         .leading(face)
-        .scroll_after(height)
+        .scroll_after(height, view)
         .items(custom_item)
         .items(sounds)
 }

@@ -109,6 +109,7 @@ fun SongActionsMenu(
     onAddToQueue: () -> Unit,
     onStartRadio: () -> Unit,
     onDownload: () -> Unit,
+    modifier: Modifier = Modifier,
     /**
      * Copies this track to the WebDAV server. Null hides the row — the caller
      * passes one only for a readable device file while a server is
@@ -121,7 +122,6 @@ fun SongActionsMenu(
     onAddToPlaylist: () -> Unit,
     onOpenAlbum: (String) -> Unit,
     onOpenArtist: (String) -> Unit,
-    modifier: Modifier = Modifier,
     onRemoveFromPlaylist: (() -> Unit)? = null,
     /**
      * Takes this track out of the song cache. Null hides the row — the caller

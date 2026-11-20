@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{
-    Animation, AnimationExt as _, AnyElement, App, Div, ElementId, Pixels, ScrollHandle,
+    Animation, AnimationExt as _, AnyElement, App, Div, ElementId, EntityId, Pixels, ScrollHandle,
     ScrollWheelEvent, SharedString, StyleRefinement, Window, div, point, px, relative, svg,
 };
 
@@ -39,6 +39,7 @@ pub struct Rail {
     base: Div,
     children: Vec<AnyElement>,
     arrows_at: Option<Pixels>,
+    view: EntityId,
 }
 
 /// What a rail keeps between frames: where it is scrolled to, the glide that eases the wheel and
@@ -51,12 +52,13 @@ struct RailState {
 
 impl Rail {
     #[track_caller]
-    pub fn new(id: impl Into<ElementId>) -> Self {
+    pub fn new(id: impl Into<ElementId>, view: EntityId) -> Self {
         Self {
             id: id.into(),
             base: div(),
             children: Vec::new(),
             arrows_at: None,
+            view,
         }
     }
 
@@ -88,9 +90,8 @@ impl RenderOnce for Rail {
             mut base,
             children,
             arrows_at,
+            view,
         } = self;
-
-        let view = window.current_view();
         let state = window.use_keyed_state((id.clone(), "rail"), cx, |_, _| {
             let mut glide = Glide::default();
             glide.watch(view);

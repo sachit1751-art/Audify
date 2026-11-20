@@ -3,6 +3,7 @@
 package com.music.audify.data.feedback
 
 import android.content.Context
+import androidx.core.content.edit
 import android.os.Build
 import com.music.audify.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +45,7 @@ object FeedbackRepository {
         val all = (listOf(issue) + trackedIssues(context).filterNot { it.number == issue.number }).take(30)
         val array = JSONArray()
         all.forEach { array.put(JSONObject().put("number", it.number).put("url", it.url).put("title", it.title.take(200))) }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(TRACKED, array.toString()).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString(TRACKED, array.toString()) }
     }
 
     suspend fun fetchIssue(number: Int): IssueDetail = withContext(Dispatchers.IO) {

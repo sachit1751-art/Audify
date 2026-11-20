@@ -255,7 +255,7 @@ object AudioCache {
             cache.keys.toList().forEach { runCatching { cache.removeResource(it) } }
             TrackLog.d(TAG, "cleared the song cache for cache format $CACHE_FORMAT")
         }
-        if (format != CACHE_FORMAT) state.edit().putInt(KEY_CACHE_FORMAT, CACHE_FORMAT).apply()
+        if (format != CACHE_FORMAT) state.edit { putInt(KEY_CACHE_FORMAT, CACHE_FORMAT) }
         if (state.getInt(KEY_MATCHING_SCHEMA, 0) < MATCHING_SCHEMA) {
             val stale = cache.keys.filter { it.endsWith(ALT_SUFFIX) }
             stale.forEach { runCatching { cache.removeResource(it) } }

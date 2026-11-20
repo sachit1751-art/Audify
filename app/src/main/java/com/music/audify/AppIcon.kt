@@ -22,6 +22,10 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
     Coral("LauncherCoral", R.mipmap.ic_launcher_coral, R.string.app_icon_coral),
     Amber("LauncherAmber", R.mipmap.ic_launcher_amber, R.string.app_icon_amber),
     Arctic("LauncherArctic", R.mipmap.ic_launcher_arctic, R.string.app_icon_arctic),
+    Rose("LauncherRose", R.mipmap.ic_launcher_rose, R.string.app_icon_rose),
+    Mint("LauncherMint", R.mipmap.ic_launcher_mint, R.string.app_icon_mint),
+    Lavender("LauncherLavender", R.mipmap.ic_launcher_lavender, R.string.app_icon_lavender),
+    Ruby("LauncherRuby", R.mipmap.ic_launcher_ruby, R.string.app_icon_ruby),
     Previous("LauncherPrevious", R.mipmap.ic_launcher_previous, R.string.app_icon_previous);
 
     private fun component(context: Context) =

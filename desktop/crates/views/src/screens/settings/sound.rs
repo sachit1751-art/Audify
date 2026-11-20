@@ -214,9 +214,16 @@ impl SettingsView {
     pub(super) fn equalizer_row(&self, cx: &mut Context<Self>) -> AnyElement {
         let theme = *cx.theme();
         let on = self.equalizer.read(cx).enabled();
-        let sound = sound_picker(SOUND, &self.popovers, &self.equalizer, &self.settings, cx)
-            .width(Picker::REGULAR)
-            .name(t!("equalizer-sound"));
+        let sound = sound_picker(
+            SOUND,
+            &self.popovers,
+            &self.equalizer,
+            &self.settings,
+            cx.entity_id(),
+            cx,
+        )
+        .width(Picker::REGULAR)
+        .name(t!("equalizer-sound"));
 
         div()
             .id("open-equalizer")

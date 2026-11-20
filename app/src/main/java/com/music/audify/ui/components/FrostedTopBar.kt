@@ -653,10 +653,10 @@ private fun Modifier.artworkPageSurface(
 fun TopBarAccountButton(
     account: Account?,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onSwipeProfile: ((forward: Boolean) -> Boolean)? = null,
     /** True while the account popup is up: the button steps aside for the card that grows out of it. */
     hidden: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     val translation = remember { Animatable(0f) }
     // Gone at once as the card opens over it; back with a short fade as the card leaves.

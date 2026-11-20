@@ -1,5 +1,7 @@
 use gpui::prelude::*;
-use gpui::{AnyElement, App, ClickEvent, Hsla, Pixels, SharedString, StyleRefinement, Window, px};
+use gpui::{
+    AnyElement, App, ClickEvent, EntityId, Hsla, Pixels, SharedString, StyleRefinement, Window, px,
+};
 
 use crate::button::Button;
 use crate::menu::{Menu, MenuItem, TRIGGER_GAP};
@@ -39,7 +41,7 @@ pub struct Picker {
     items: Vec<MenuItem>,
     menu: Option<Menu>,
     /// How tall the menu grows before it scrolls, unbounded when `None`.
-    scroll_after: Option<Pixels>,
+    scroll_after: Option<(Pixels, EntityId)>,
     on_open: Option<Open>,
 }
 
@@ -189,8 +191,8 @@ impl Picker {
 
     /// Caps the menu at `height` and scrolls what does not fit. Ignored when a whole `menu` is
     /// given, which brings its own.
-    pub fn scroll_after(mut self, height: Pixels) -> Self {
-        self.scroll_after = Some(height);
+    pub fn scroll_after(mut self, height: Pixels, view: EntityId) -> Self {
+        self.scroll_after = Some((height, view));
         self
     }
 }
@@ -261,8 +263,7 @@ impl RenderOnce for Picker {
         let menu = menu.unwrap_or_else(|| {
             let menu = Menu::new(SharedString::from(format!("{key}-menu"))).w(width);
             match scroll_after {
-                Some(height) => {
-                    let view = window.current_view();
+                Some((height, view)) => {
                     let scrollbar = window.use_keyed_state(
                         SharedString::from(format!("{key}-menu-scroll")),
                         cx,

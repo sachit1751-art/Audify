@@ -1435,3 +1435,5 @@ response-graph-readout = { $frequency } · { $direction ->
        *[flat] { $gain }
     } dB
 toast-session-server-unavailable = Sessions are disabled until an Audify server is available. Configure your own server in Settings to use this feature.
+
+nav-podcasts = Podcasts

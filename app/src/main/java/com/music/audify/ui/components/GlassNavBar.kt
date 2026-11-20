@@ -111,6 +111,7 @@ fun GlassNavBar(
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onExpand: () -> Unit,
+    modifier: Modifier = Modifier,
     /** @see com.music.audify.data.listentogether.ListenTogether.State.controlsLocked */
     controlsLocked: Boolean = false,
     onBlockedControl: () -> Unit = {},
@@ -120,7 +121,6 @@ fun GlassNavBar(
     pull: MiniPlayerPull? = null,
     /** true = Search a circle of its own beside the pill; false = the last of the pill's tabs. */
     searchSeparate: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     // Held for the same reason [tabs] is. The glass factory below closes over
     // this shape, and a fresh RoundedCornerShape each pass means a fresh factory
@@ -355,8 +355,8 @@ private fun GlassNowPlaying(
     onBlockedControl: () -> Unit,
     dock: PlayerDock?,
     pull: MiniPlayerPull?,
-    jellyPush: JellyPush? = null,
     modifier: Modifier = Modifier,
+    jellyPush: JellyPush? = null,
 ) {
     val haptics = rememberHaptics()
     val pressSource = remember { MutableInteractionSource() }

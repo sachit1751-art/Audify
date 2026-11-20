@@ -127,6 +127,7 @@ internal fun ServerUrlError.toMessageRes(): Int = when (this) {
 @Composable
 fun ListenTogetherScreen(
     signedIn: Boolean,
+    modifier: Modifier = Modifier,
     inviteCode: String? = null,
     inviteServer: String? = null,
     onInviteHandled: () -> Unit = {},
@@ -138,7 +139,6 @@ fun ListenTogetherScreen(
      * @see PartyServerEditor for why it cannot live on this screen.
      */
     onEditServer: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current

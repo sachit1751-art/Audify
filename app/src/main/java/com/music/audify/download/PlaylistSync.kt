@@ -327,6 +327,7 @@ object PlaylistSync {
             .onFailure { Log.w(TAG, "playlist update not posted: ${it.message}") }
     }
 
+    @android.annotation.SuppressLint("LaunchActivityFromNotification")
     private fun askNotification(context: Context, id: Int, playlist: String, count: Int): Notification {
         val approve = PendingIntent.getBroadcast(
             context,
@@ -334,10 +335,14 @@ object PlaylistSync {
             Intent(context, PlaylistSyncApproval::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val openApp = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            PendingIntent.getActivity(context, id xor 0x40000000, it, PendingIntent.FLAG_IMMUTABLE)
+        }
         return builder(context)
             .setContentTitle(context.getString(R.string.playlist_sync_ask_title, playlist, count))
             .setContentText(context.getString(R.string.playlist_sync_ask_text))
-            .setContentIntent(approve)
+            .setContentIntent(openApp)
+            .addAction(0, context.getString(R.string.playlist_sync_ask_text), approve)
             .build()
     }
 

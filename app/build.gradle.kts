@@ -171,6 +171,15 @@ android {
 
     buildTypes {
         debug {
+            // Debug-named variants are performance-test builds. AGP disables
+            // R8 optimisation on debuggable variants, so keep this non-debuggable.
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
         }
         release {
@@ -344,7 +353,9 @@ dependencies {
     implementation("androidx.palette:palette-ktx:1.1.0")
 
     // ---- Frosted glass / progressive blur (Telegram-style bars) ----
+    //noinspection NewerVersionAvailable -- 2.x removes HazeStyle used by the app's shared glass API.
     implementation("dev.chrisbanes.haze:haze:1.3.1")
+    //noinspection NewerVersionAvailable -- keep materials aligned with the pinned 1.3.1 Haze API.
     implementation("dev.chrisbanes.haze:haze-materials:1.3.1")
 
 
@@ -370,7 +381,7 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.6.1")
     implementation("io.ktor:ktor-client-content-negotiation:3.6.1")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
 
     // ---- Discord Rich Presence: the gateway is a WebSocket, so Ktor needs the plugin ----
     implementation("io.ktor:ktor-client-websockets:3.6.1")
@@ -413,7 +424,7 @@ dependencies {
 
     // ---- JS module execution: QuickJS VM for style source plugins ----
     // Held at InnerTubeX's version; the same VM runs QuickJsExecutor's module sources.
-    implementation("io.github.dokar3:quickjs-kt-android:1.0.15")
+    implementation("io.github.dokar3:quickjs-kt-android:1.0.18")
 
     // ---- SMB file shares: pure-Java SMB2/3 client (listing + streaming) ----
     implementation("com.hierynomus:smbj:0.15.0")
@@ -422,7 +433,7 @@ dependencies {
     // The full android artifact, not onnxruntime-mobile: mobile only loads .ort
     // files, which would put an offline conversion step between the model and
     // the app for a saving that does not matter in a self-distributed APK.
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
 
     // ---- Casting: Google Cast sender + the route discovery it sits on ----
     // The framework and the router only. media3-cast is left out on purpose:
@@ -430,7 +441,7 @@ dependencies {
     // ours are `audify://` addresses that only the service's resolver can
     // turn into a real stream — see [com.music.audify.playback.cast.CastPlayback].
     implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
-    implementation("androidx.mediarouter:mediarouter:1.8.1")
+    implementation("androidx.mediarouter:mediarouter:1.9.0")
 
     // ---- The watch app (wearos/): Data Layer state out, commands in ----
     // See com.music.audify.wear.WearBridge. Rides on the Play services base
@@ -448,8 +459,8 @@ dependencies {
     implementation("com.github.MuntashirAkon:libadb-android:3.1.1") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("org.conscrypt:conscrypt-android:2.8.0")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.conscrypt:conscrypt-android:2.9.0")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.87")
 
     testImplementation("junit:junit:4.13.2")
     // A real HTTP server for the addon tests. The addon protocol is entirely

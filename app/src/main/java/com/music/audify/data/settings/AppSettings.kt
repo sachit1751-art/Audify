@@ -437,7 +437,7 @@ enum class ThemeMode(val label: String) {
 
 /** Built-in app-wide backgrounds; a custom photo takes precedence. */
 enum class AppBackgroundStyle(val label: String) {
-    PLAIN("Plain"), AURORA("Aurora"), OCEAN("Ocean"), SUNSET("Sunset"), NEBULA("Prism")
+    PLAIN("Plain"), AURORA("Aurora"), OCEAN("Ocean"), SUNSET("Sunset"), NEBULA("Nebula")
 }
 
 /**
@@ -3149,7 +3149,7 @@ object AppSettings {
             else -> current + browseId
         }
         pinnedPlaylists.value = updated
-        prefs.edit().putString(KEY_PINNED_PLAYLISTS, updated.joinToString(",")).apply()
+        prefs.edit { putString(KEY_PINNED_PLAYLISTS, updated.joinToString(",")) }
         val pinned = browseId in updated
         val cards = pinnedCards.value
         val nextCards = when {

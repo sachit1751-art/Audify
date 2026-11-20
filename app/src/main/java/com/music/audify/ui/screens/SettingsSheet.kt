@@ -113,6 +113,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -239,6 +240,7 @@ fun SettingsScreen(
     onAccountScrobbling: () -> Unit,
     onEqualizer: () -> Unit,
     onOpenReplay: () -> Unit,
+    modifier: Modifier = Modifier,
     onWearOs: () -> Unit = {},
     youtubeSyncStatus: String? = null,
     onRefreshYouTubeSync: () -> Unit = {},
@@ -257,7 +259,6 @@ fun SettingsScreen(
     /** Asks before a DAC with no settable volume may play at full scale. */
     onConfirmFixedVolume: () -> Unit,
     contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
     /**
      * The category this page is, or null for the main page â€” which lists the
      * categories rather than their rows, until something is typed into its
@@ -436,7 +437,7 @@ fun SettingsScreen(
     var confirmClearSongCache by remember { mutableStateOf(false) }
     // Popup konfirmasi unduh model Automix: 0 tidak tampil, 1 tanya.
     // Unduhannya berjalan di AutomixModelService dan tampil di manager unduhan.
-    var automixModelStep by remember { mutableStateOf(0) }
+    var automixModelStep by remember { mutableIntStateOf(0) }
     val automixDownloading by AutomixModels.downloading.collectAsStateWithLifecycle()
     val startAutomixDownload: () -> Unit = {
         automixModelStep = 0
@@ -472,7 +473,7 @@ fun SettingsScreen(
     var showPerformanceConfirmation by remember { mutableStateOf(false) }
     val backupScope = rememberCoroutineScope()
     val wallpaperMutex = remember { kotlinx.coroutines.sync.Mutex() }
-    var wallpaperSelectionGeneration by remember { mutableStateOf(0) }
+    var wallpaperSelectionGeneration by remember { mutableIntStateOf(0) }
     val backupTimestamps by produceState(
         initialValue = Backup.lastAutomaticBackupAt(context) to Backup.lastExternalBackupAt(context),
         context,
@@ -1436,44 +1437,46 @@ fun SettingsScreen(
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
                 )
             }
-            Text(
-                text = "Colour themes",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 8.dp),
-            )
-            val previewDarkTheme = when (theme) {
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = ROW_INSET),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                (ThemePacks.builtIns + customThemePacks).forEach { pack ->
-                    val selected = selectedThemePackId == pack.id
-                    Column(
-                        modifier = Modifier.width(112.dp).clip(RoundedCornerShape(18.dp))
-                            .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) else Color.Transparent)
-                            .clickable { AppSettings.setThemePack(pack.id) }
-                            .padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
-                                .background(Color((if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
-                                    else ThemePacks.lightBackgroundHex(pack)).toColorInt()))
+            row("Colour themes", "theme packs", "palette", "colours") {
+                Text(
+                    text = "Colour themes",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = ROW_INSET, top = 8.dp, bottom = 8.dp),
+                )
+                val previewDarkTheme = when (theme) {
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = ROW_INSET),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    (ThemePacks.builtIns + customThemePacks).forEach { pack ->
+                        val selected = selectedThemePackId == pack.id
+                        Column(
+                            modifier = Modifier.width(112.dp).clip(RoundedCornerShape(18.dp))
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) else Color.Transparent)
+                                .clickable { AppSettings.setThemePack(pack.id) }
+                                .padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Box(Modifier.fillMaxWidth().height(10.dp).background(Color(pack.primaryHex.toColorInt())))
-                            Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { hex ->
-                                    Box(Modifier.size(18.dp).clip(CircleShape).background(Color(hex.toColorInt())))
+                            Box(
+                                Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
+                                    .background(Color((if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
+                                        else ThemePacks.lightBackgroundHex(pack)).toColorInt()))
+                            ) {
+                                Box(Modifier.fillMaxWidth().height(10.dp).background(Color(pack.primaryHex.toColorInt())))
+                                Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { hex ->
+                                        Box(Modifier.size(18.dp).clip(CircleShape).background(Color(hex.toColorInt())))
+                                    }
                                 }
                             }
+                            Text(pack.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                            if (selected) Text("Selected", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                         }
-                        Text(pack.name, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
-                        if (selected) Text("Selected", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -1509,12 +1512,12 @@ fun SettingsScreen(
             }
             row("Background", "built-in background", "aurora", "ocean", "sunset", "nebula", "custom background", "wallpaper", "image") {
                 Text(
-                    "Animated wallpaper",
+                    "Built-in background",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, top = 8.dp, bottom = 8.dp),
                 )
                 Text(
-                    "Fluid gradients that move gently behind every screen",
+                    "Choose a gradient wallpaper for the whole app",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 10.dp),
@@ -1527,8 +1530,8 @@ fun SettingsScreen(
                 )
                 SettingsRow(
                     icon = SfIcons.Folder,
-                    title = "Custom photo",
-                    subtitle = if (themeBackgroundUri.isNullOrBlank()) "No custom background selected" else "Custom background active",
+                    title = "Custom background",
+                    subtitle = if (themeBackgroundUri.isNullOrBlank()) "Use a photo behind app surfaces" else "A custom photo is active",
                     onClick = { themeBackgroundPicker.launch(arrayOf("image/*")) },
                 )
                 if (!themeBackgroundUri.isNullOrBlank()) {
@@ -4686,10 +4689,10 @@ fun SettingsChoicePage(
     onChosen: () -> Unit,
     /** Asks before a bit-perfect mode is turned on â€” see [SettingsScreen]. */
     onConfirmBitPerfect: (BitPerfectMode) -> Unit,
+    modifier: Modifier = Modifier,
     /** Opens the Spotify Canvas sign-in, from the Cover animation page. */
     onSpotifyCanvasAuth: () -> Unit = {},
     contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier
@@ -4972,7 +4975,7 @@ internal fun <T> ChoiceGroup(
 
 private fun releaseThemeBackground(context: Context, uriString: String?) {
     if (uriString.isNullOrBlank()) return
-    val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return
+    val uri = runCatching { uriString.toUri() }.getOrNull() ?: return
     if (uri.scheme == "file") {
         runCatching {
             val file = java.io.File(uri.path ?: return)

@@ -510,18 +510,25 @@ impl EqualizerView {
         let (undo, redo) = self.equalizer.read(cx).history();
         let width = theme.metrics.cover * SOUND_WIDTH;
 
-        let picker = sound_picker(SOUND, &self.popovers, &self.equalizer, &self.settings, cx)
-            .large()
-            .left()
-            .width(width)
-            .map(|picker| match room {
-                Room::Wide | Room::Vast => picker.w(width),
-                Room::Roomy => picker.flex_1().min_w_0(),
-                Room::Tight | Room::Snug => match advanced {
-                    true => picker.w_full(),
-                    false => picker.flex_1().min_w_0(),
-                },
-            });
+        let picker = sound_picker(
+            SOUND,
+            &self.popovers,
+            &self.equalizer,
+            &self.settings,
+            cx.entity_id(),
+            cx,
+        )
+        .large()
+        .left()
+        .width(width)
+        .map(|picker| match room {
+            Room::Wide | Room::Vast => picker.w(width),
+            Room::Roomy => picker.flex_1().min_w_0(),
+            Room::Tight | Room::Snug => match advanced {
+                true => picker.w_full(),
+                false => picker.flex_1().min_w_0(),
+            },
+        });
         let action = |id: &'static str, icon: &'static str, tooltip: &'static str| {
             Button::new(id).ghost().icon(icon).tooltip(tooltip)
         };

@@ -1679,10 +1679,10 @@ private fun PageBackground(
     canvas: CanvasArtwork?,
     artHeight: Dp,
     listState: LazyListState,
+    modifier: Modifier = Modifier,
     heroUrl: String? = null,
     /** How far the list is pulled past its top right now, in px; the photo zooms by it. */
     pull: () -> Float = { 0f },
-    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     // Not under a canvas: a still blurred over the foot of a moving clip would
@@ -3557,10 +3557,10 @@ private fun LikedMusicHero(
 @Composable
 private fun LikedArt(
     covers: List<String>,
+    modifier: Modifier = Modifier,
     // Bagian seni yang menjulur di atas tepi hero; icon digeser turun setengahnya
     // supaya tetap di tengah area yang terlihat.
     topInset: Dp = 0.dp,
-    modifier: Modifier = Modifier,
 ) {
     // Mosaic yang sudah tampil di kartu lalu terbang tidak mengulang fade-in.
     val settled = LocalSettledMosaic.current

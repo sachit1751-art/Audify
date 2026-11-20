@@ -314,7 +314,7 @@ impl EqualizerView {
         .left()
         .width(Picker::REGULAR)
         .w(Picker::NARROW)
-        .scroll_after(height)
+        .scroll_after(height, cx.entity_id())
         .items(sounds);
 
         let ready = self.rule_device.is_some() && self.rule_sound.is_some();

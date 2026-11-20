@@ -59,7 +59,7 @@ fn catch_panics() {
     std::panic::set_hook(Box::new(move |panic| {
         let thread = std::thread::current();
         let name = thread.name().unwrap_or("unnamed");
-        let backtrace = std::backtrace::Backtrace::capture();
+        let backtrace = std::backtrace::Backtrace::force_capture();
         match backtrace.status() {
             std::backtrace::BacktraceStatus::Captured => {
                 log::error!("panic: {panic} on the {name} thread\n{backtrace}")

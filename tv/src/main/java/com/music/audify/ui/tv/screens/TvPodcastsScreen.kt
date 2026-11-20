@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,7 +44,7 @@ fun TvPodcastsScreen(
     var savedError by remember { mutableStateOf<String?>(null) }
     var discoveryLoading by remember { mutableStateOf(true) }
     var savedLoading by remember { mutableStateOf(true) }
-    var refreshKey by remember { mutableStateOf(0) }
+    var refreshKey by remember { mutableIntStateOf(0) }
     LaunchedEffect(refreshKey) {
         // Keep the last successful catalogue visible while refreshing. A
         // transient failure must not turn a populated page into an empty one.

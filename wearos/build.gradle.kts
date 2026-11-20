@@ -104,14 +104,13 @@ android {
          * signs with the debug key — that is the part pairing depends on — but a
          * debuggable, un-R8'd Compose app is the slow kind, and on a watch CPU
          * that is the difference between a smooth crown and a stuttering one.
-         * Pass -Paudify.wearDebuggable=true to get a debugger back.
+         * All Wear OS variants remain optimized; use a separate tooling variant for debugging.
          */
         debug {
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
-            val debuggable = providers.gradleProperty("audify.wearDebuggable").orNull == "true"
-            isDebuggable = debuggable
-            isMinifyEnabled = !debuggable
-            isShrinkResources = !debuggable
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

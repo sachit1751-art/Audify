@@ -69,11 +69,11 @@ fun isGlassSupported(sdkInt: Int = Build.VERSION.SDK_INT): Boolean = sdkInt >= B
 
 /** Apple-matched defaults (Echo's GlassEffectConfig()), fixed rather than user sliders. */
 private const val VIBRANCY = 1f
-private const val BLUR_RADIUS_DP = 10f
+private const val BLUR_RADIUS_DP = 8f
 private const val LENS_HEIGHT = 0.5f
 private const val LENS_AMOUNT = 0.5f
 private const val LENS_MAX_DP = 48f
-private const val SURFACE_OPACITY = 0.30f
+private const val SURFACE_OPACITY = 0.4f
 
 /**
  * Resolution fraction the glass surface records and processes its backdrop at.
@@ -250,15 +250,10 @@ fun Modifier.liquidGlass(
         val base = if (isLightTheme) 0.18f else 0.1f
         Shadow.Default.copy(color = Color.Black.copy(alpha = (base * custom.shadow).coerceIn(0f, 1f)))
     }
-    val themeTint = if (isLightTheme) {
-        Color(0xFFF2F2F7)
-    } else {
-        Color(0xFF121212)
-    }
+    // Use the selected theme surface as the light-glass tint rather than a generic white wash.
+    val themeTint = if (isLightTheme) MaterialTheme.colorScheme.surface else Color(0xFF121212)
     val tintAlpha = (clarity.tintAlpha * custom.tint).coerceIn(0f, 1f)
-    // White glass over a white page is invisible, so light theme keeps a minimum fill.
-    val surfaceTintColor = surfaceTint
-        ?: themeTint.copy(alpha = if (isLightTheme) maxOf(tintAlpha, 0.6f) else tintAlpha)
+    val surfaceTintColor = surfaceTint ?: themeTint.copy(alpha = tintAlpha)
     // White 10% vanishes against a light page; use a dark hairline there.
     val edgeColor = if (isLightTheme) {
         Color.Black.copy(alpha = 0.12f)

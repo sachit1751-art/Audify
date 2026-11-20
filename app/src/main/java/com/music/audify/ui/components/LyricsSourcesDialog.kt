@@ -34,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -329,10 +330,10 @@ private fun ReorderableSourceList(
     var draggedSource by remember { mutableStateOf<LyricsSource?>(null) }
 
     /** Distance the finger has covered since this gesture began, in pixels. */
-    var totalDrag by remember { mutableStateOf(0f) }
+    var totalDrag by remember { mutableFloatStateOf(0f) }
 
     /** Which slot of [liveOrder] it began on. */
-    var startIndex by remember { mutableStateOf(0) }
+    var startIndex by remember { mutableIntStateOf(0) }
 
     // The distance from one row's top to the next one's — which is the row
     // *plus* the hairline above it, not the row alone. Measured off a wrapper
@@ -344,11 +345,11 @@ private fun ReorderableSourceList(
     // any other; [lockedPitchPx] then freezes it for the duration of a
     // gesture, so a relayout mid-drag can't move the boundaries the drag is
     // being measured against underneath it.
-    var pitchPx by remember { mutableStateOf(0f) }
-    var lockedPitchPx by remember { mutableStateOf(0f) }
+    var pitchPx by remember { mutableFloatStateOf(0f) }
+    var lockedPitchPx by remember { mutableFloatStateOf(0f) }
 
     val scrollState = rememberScrollState()
-    var viewportHeightPx by remember { mutableStateOf(0f) }
+    var viewportHeightPx by remember { mutableFloatStateOf(0f) }
     val autoScroll = remember { SourceDragAutoScroll() }
     val density = LocalDensity.current
     val edgeZonePx = with(density) { SOURCE_EDGE_SCROLL_ZONE.toPx() }

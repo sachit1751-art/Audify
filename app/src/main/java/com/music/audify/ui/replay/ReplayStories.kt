@@ -66,6 +66,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -176,8 +178,8 @@ fun ReplayStories(
     val current by remember { derivedStateOf { pagerState.settledPage } }
     val dragging by pagerState.interactionSource.collectIsDraggedAsState()
     val moving by remember { derivedStateOf { pagerState.targetPage != pagerState.settledPage } }
-    var nudge by remember { mutableStateOf(0) }
-    var restart by remember { mutableStateOf(0) }
+    var nudge by remember { mutableIntStateOf(0) }
+    var restart by remember { mutableIntStateOf(0) }
     val transition = remember { arrayOfNulls<Job>(1) }
     val seen = remember { intArrayOf(-1, -1) }
     val clockStopped = held || paused || dragging || moving
@@ -1367,7 +1369,7 @@ private fun MinutesStats(
 private fun MinutesStat(value: String, label: String, compact: Boolean, modifier: Modifier = Modifier) {
     val base = if (compact) 24f else 30f
     // Nilai panjang (mis. "5 November") mengecil sampai muat, bukan terpotong.
-    var size by remember(value) { mutableStateOf(base) }
+    var size by remember(value) { mutableFloatStateOf(base) }
     Column(modifier) {
         Box(Modifier.fillMaxWidth().height(0.7.dp).background(Color.White.copy(alpha = 0.26f)))
         Spacer(Modifier.height(10.dp))

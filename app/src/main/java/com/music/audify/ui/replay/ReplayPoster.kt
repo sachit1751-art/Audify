@@ -555,8 +555,7 @@ private fun drawPolaroid(
 ) {
     val pad = cover * 0.07f
     val frame = RectF(x, y, x + cover + pad * 2f, y + cover + pad * 4.2f)
-    canvas.save()
-    canvas.rotate(tilt, frame.centerX(), frame.centerY())
+    canvas.withRotation(tilt, frame.centerX(), frame.centerY()) {
     val paper = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = PAPER
         setShadowLayer(42f, 0f, 16f, 0x80000000.toInt())
@@ -575,7 +574,7 @@ private fun drawPolaroid(
             )
         }
     }
-    canvas.restore()
+    }
 }
 
 /** A record: grooves, a sheen that stays put, and the cover as its label. */

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="playback_channel_name">지금 재생 중</string>
-    <string name="download_channel_name">다운로드</string>
-    <string name="download_channel_description">음악 폴더에 저장 중인 곡</string>
+    
+    
     <string name="download_notification_title">다운로드 중</string>
     <string name="download_notification_starting">시작 중</string>
-    <string name="download_notification_queued">%1$s · %2$d개 더 대기 중</string>
+    
     <string name="upload_channel_name">업로드</string>
     <string name="upload_channel_description">WebDAV 서버로 전송 중인 곡</string>
     <string name="upload_notification_title">업로드 중</string>
@@ -40,7 +40,7 @@
     <string name="on_device">기기 내</string>
     <string name="playlists">재생목록</string>
     <string name="new_playlist">새 재생목록</string>
-    <string name="saved_to_youtube_music">YouTube Music에 저장됨</string>
+    
     <string name="sign_in">로그인</string>
     <string name="sign_out">로그아웃</string>
     <string name="signed_in">로그인됨</string>
@@ -74,34 +74,30 @@
     <string name="download_all">모두 다운로드</string>
     <string name="top_songs">인기 곡</string>
     <string name="suggested">추천</string>
-    <string name="song_count">곡 %1$d개</string>
+    
     <plurals name="song_count_plural">
         <item quantity="other">곡 %1$d개</item>
     </plurals>
     <plurals name="track_count_plural">
         <item quantity="other">트랙 %1$d개</item>
     </plurals>
-    <plurals name="artist_count">
-        <item quantity="other">아티스트 %1$d명</item>
-    </plurals>
-    <plurals name="album_count">
-        <item quantity="other">앨범 %1$d개</item>
-    </plurals>
+    
+    
     <string name="songs">곡</string>
     <string name="artists">아티스트</string>
     <string name="albums">앨범</string>
-    <string name="no_album_metadata">이 트랙들 중 어떤 앨범에 속하는지 알려 주는 곡이 없어요.</string>
-    <string name="search_empty">YouTube Music에서 수백만 곡을 검색하세요.</string>
-    <string name="recent_searches">최근 검색어</string>
+    
+    
+    
     <string name="clear">지우기</string>
-    <string name="search_hint">아티스트, 곡, 가사 등</string>
+    
     <string name="settings_search_hint">설정 검색</string>
     <string name="settings_search_empty">“%1$s”와(과) 일치하는 설정이 없어요</string>
-    <string name="recent_search_edit">“%1$s” 수정</string>
-    <string name="recent_search_remove">최근 검색어에서 “%1$s” 삭제</string>
+    
+    
     <string name="storage_required_save">곡을 저장하려면 저장소 접근 권한이 필요해요</string>
     <string name="storage_required_read">로컬 오디오 파일을 읽으려면 저장소 권한이 필요해요</string>
-    <string name="sharing_coming_soon">공유 기능이 곧 제공돼요</string>
+    
     <string name="already_downloaded">이미 다운로드됨</string>
     <plurals name="downloading_song_count">
         <item quantity="other">곡 %1$d개 다운로드 중</item>
@@ -109,11 +105,11 @@
     <string name="source">소스</string>
     <string name="direct_source_stream">직접 소스 스트림</string>
     <string name="direct_source_stream_in_party">함께 듣기 파티 중에는 꺼져 있어요</string>
-    <string name="lossless_audio">무손실 오디오</string>
-    <string name="prefer_lossless">무손실 우선</string>
-    <string name="lossless_source_subtitle">소스에서 바로 FLAC 및 ALAC</string>
-    <string name="overridden">재정의됨</string>
-    <string name="add_module_source">모듈 소스 추가</string>
+    
+    
+    
+    
+    
     <string name="remove_source">이 소스 삭제</string>
     <string name="test">테스트</string>
     <string name="testing">테스트 중…</string>
@@ -125,7 +121,7 @@
     <string name="spotify_disconnect">연결 해제</string>
     <string name="spotify_empty_playlists">이 계정에는 재생목록이 없어요</string>
     <string name="spotify_empty_tracks">이 재생목록에는 트랙이 없어요</string>
-    <string name="spotify_track_unavailable">YouTube Music에서 해당 곡을 찾을 수 없어요</string>
+    
     <string name="account_scrobbling">계정 &amp; 스크로블링</string>
     <string name="scrobbling">스크로블링</string>
     <string name="now_playing">지금 재생 중</string>
@@ -136,8 +132,8 @@
     <string name="song_cache_cleared">곡 캐시를 삭제했어요</string>
     <string name="image_cache_cleared">이미지 캐시를 삭제했어요</string>
     <string name="no_equalizer">이 기기에는 시스템 이퀄라이저가 없어요</string>
-    <string name="no_dolby_atmos">이 기기에는 Dolby Atmos 패널이 없어요</string>
-    <string name="dolby_atmos_open_failed">Dolby Atmos 설정을 열 수 없어요</string>
+    
+    
     <string name="update_available">업데이트 가능: v%1$s</string>
     <string name="software_update">소프트웨어 업데이트</string>
     <string name="update_available_body">Audify %1$s을(를) 다운로드할 수 있어요.</string>
@@ -151,14 +147,14 @@
     <string name="try_again">다시 시도</string>
     <string name="open_releases_page">릴리스 페이지 열기</string>
     <string name="whats_new">새로운 기능</string>
-    <string name="log_copied">로그를 복사했어요 · %1$d줄</string>
+    
     <string name="sign_in_youtube_music">YouTube Music에 로그인</string>
-    <string name="choose_a_channel">채널 선택</string>
-    <string name="channel_session_unavailable">이 페이지에 아직 세션이 없어요 — 먼저 YouTube Music을 여세요</string>
-    <string name="channel_switch_instructions">아바타로 전환한 후 ‘이 채널 사용’을 탭하세요</string>
-    <string name="use_this_channel">이 채널 사용</string>
-    <string name="sign_in_discord">Discord에 로그인</string>
-    <string name="personalized_recommendations">맞춤 추천 받기</string>
+    
+    
+    
+    
+    
+    
     <string name="play_next">다음에 재생</string>
     <string name="queue">대기열</string>
     <string name="source_unrecognised">Audify가 해당 링크가 무엇인지 알 수 없어요</string>
@@ -178,7 +174,7 @@
     <string name="widget_previous">이전</string>
     <string name="widget_artwork">앨범 아트</string>
     <string name="widget_nothing_played">아직 재생한 곡이 없어요</string>
-    <string name="widget_open_audify">Audify 열기</string>
+    
     <string name="widget_preview_title">곡 제목</string>
     <string name="widget_preview_artist">아티스트</string>
     <string name="widget_pill_label">지금 재생 중 4×1</string>
@@ -195,7 +191,7 @@
     <string name="playback_tempo">템포</string>
     <string name="playback_tempo_hint">빠르게 또는 느리게, 음높이는 유지돼요</string>
     <string name="playback_reset">기본값으로 재설정</string>
-    <string name="converting_to_audio">오디오로 변환 중…</string>
+    
     <string name="revert_to_original">원본으로 되돌리기</string>
     <string name="upgrade_quality">음질 업그레이드</string>
     <string name="dolby_atmos_subtitle">있을 때 곡의 더 몰입감 있는 서라운드 버전을 재생해요.</string>
@@ -223,36 +219,36 @@
     <string name="app_language">앱 언어</string>
     <string name="app_language_description">Audify에서 사용할 언어를 선택해 주세요.</string>
     <string name="english">영어</string>
-    <string name="spanish">스페인어</string>
-    <string name="french">프랑스어</string>
-    <string name="german">독일어</string>
-    <string name="polish">폴란드어</string>
-    <string name="portuguese">포르투갈어</string>
+    
+    
+    
+    
+    
     <string name="indonesian">인도네시아어</string>
-    <string name="hindi">힌디어</string>
-    <string name="russian">러시아어</string>
-    <string name="chinese">중국어(간체)</string>
-    <string name="chinese_simplified">중국어(간체)</string>
-    <string name="chinese_traditional">중국어(번체)</string>
-    <string name="hebrew">히브리어</string>
-    <string name="italian">이탈리아어</string>
-    <string name="turkish">튀르키예어</string>
-    <string name="thai">태국어</string>
+    
+    
+    
+    
+    
+    
+    
+    
+    
     <string name="korean">한국어</string>
     <string name="show_all">모두 보기</string>
-    <string name="grid_view">그리드</string>
-    <string name="list_view">목록</string>
+    
+    
     <string name="switch_to_grid_view">그리드 보기로 전환</string>
     <string name="switch_to_list_view">목록 보기로 전환</string>
     <string name="audio_quality">음질</string>
-    <string name="settings_header_account">계정</string>
-    <string name="settings_header_general">일반</string>
+    
+    
     <string name="playback">재생</string>
     <string name="appearance">화면</string>
     <string name="storage">저장 공간</string>
-    <string name="your_data">내 데이터</string>
+    
     <string name="miscellaneous">기타</string>
-    <string name="lossless_hq_audio">무손실 / 고음질 오디오</string>
+    
     <string name="on_wifi">Wi-Fi 사용 시</string>
     <string name="on_mobile_data">모바일 데이터 사용 시</string>
     <string name="in_use">사용 중</string>
@@ -278,16 +274,16 @@
     <string name="auto_music_only">비디오보다 오디오</string>
     <string name="auto_music_only_subtitle">뮤직비디오를 자동으로 오디오로 재생해요</string>
     <string name="content_feed">콘텐츠 및 피드</string>
-    <string name="hide_home_recents">최근 재생 숨기기</string>
-    <string name="hide_home_recents_subtitle">홈에서 최근 재생 줄을 없애요. 기록은 그대로 남아요</string>
+    
+    
     <string name="hide_home_videos">홈에서 비디오 숨기기</string>
     <string name="hide_home_videos_subtitle">비디오로만 된 줄도 함께 사라져요. 검색, 아티스트, 플레이리스트에는 계속 표시돼요</string>
     <string name="hide_home_branding">홈 브랜딩 숨기기</string>
     <string name="hide_home_branding_subtitle">로고 없이 홈 제목만 표시해요</string>
-    <string name="hide_home_top_picks">추천 선곡 숨기기</string>
-    <string name="hide_home_top_picks_subtitle">홈에서 나를 위한 추천 선곡 줄을 없애요</string>
-    <string name="hide_home_moods">무드 숨기기</string>
-    <string name="hide_home_moods_subtitle">홈에서 무드 줄을 없애요. 탐색의 무드는 그대로 쓸 수 있어요</string>
+    
+    
+    
+    
     <string name="customize_home">홈 구성 맞추기</string>
     <string name="customize_home_subtitle">줄 순서를 바꾸고 보일 줄을 골라요</string>
     <string name="home_layout_description">손잡이를 끌어 줄을 옮겨요. 체크를 해제하면 홈에서 숨겨져요.</string>
@@ -356,8 +352,8 @@
     <string name="clear_image_cache_warning">저장된 앨범 아트가 모두 삭제돼요. 필요할 때 다시 다운로드돼요.</string>
     <string name="show_listen_together_tab">함께 듣기 탭 표시</string>
     <string name="show_listen_together_tab_subtitle">내비게이션 바의 탐색 오른쪽에 “함께” 탭을 추가해요</string>
-    <string name="search_tab_separate">검색 탭 분리</string>
-    <string name="search_tab_separate_subtitle">켜면 검색이 탭 바 옆의 별도 원형 버튼이 돼요. 끄면 iOS처럼 바 안의 네 번째 탭이 돼요</string>
+    
+    
     <string name="show_listen_together_button_subtitle">끄면 플레이어의 가사와 대기열 사이에 오디오 출력 버튼만 표시돼요</string>
     <string name="app_icon">앱 아이콘</string>
     <string name="app_icon_default">기본</string>
@@ -401,10 +397,10 @@
     <string name="glass_footer_ready_presets">여러 값을 한 번에 바꿔요. 아래 슬라이더로 더 다듬을 수 있어요.</string>
     <string name="glass_preset_default">기본</string>
     <string name="glass_preset_default_subtitle">Audify 기본 글래스</string>
-    <string name="glass_preset_liquid">리퀴드 글래스</string>
-    <string name="glass_preset_liquid_subtitle">Kyant0 backdrop 스타일: 진한 컨테이너, 선명한 굴절, 무지개 없음</string>
-    <string name="glass_preset_bottom_bar">글래스 바텀 바</string>
-    <string name="glass_preset_bottom_bar_subtitle">Kyant0 튜토리얼 스타일: 약한 블러, 강하게 휘는 가장자리, 표면 50%</string>
+    
+    
+    
+    
     <string name="glass_section_color">블러 &amp; 색상</string>
     <string name="glass_section_refraction">굴절</string>
     <string name="glass_section_edge">테두리 &amp; 그림자</string>
@@ -512,7 +508,7 @@
     <string name="high_performance_mode">고성능 모드</string>
     <string name="high_performance_subtitle">모든 애니메이션과 블러를 사용하고 더 높은 화면 주사율을 요청해요</string>
     <string name="high_performance_active">%1$d Hz를 요청했어요. 필요하면 Android가 낮출 수 있어요.</string>
-    <string name="beta">베타</string>
+    
     <string name="refresh_rate">주사율</string>
     <string name="high_performance_before_enabling">켜기 전에 확인하세요</string>
     <string name="high_performance_battery_warning">먼저 Audify의 배터리 사용을 “제한 없음”으로 설정하세요. 주사율이 높으면 배터리, CPU, GPU를 더 많이 사용하고 기기가 따뜻해질 수 있어요.</string>
@@ -521,13 +517,13 @@
     <string name="enable_high_performance_confirmation">Audify의 배터리 사용이 “제한 없음”으로 설정된 경우에만 켜세요. 기기가 뜨겁거나 전원이 부족하면 Android가 주사율을 제한할 수 있어요.</string>
     <string name="enable">켜기</string>
     <string name="not_yet">나중에</string>
-    <string name="activity">활동</string>
-    <string name="activity_competing">경쟁 중</string>
-    <string name="activity_dialog_message">카드 위에 표시되는 동사예요.</string>
-    <string name="activity_listening">듣는 중</string>
-    <string name="activity_name_message">프로필에서 동사 뒤에 오는 문구예요. 비워 두면 기본값(%1$s)을 사용해요.</string>
-    <string name="activity_playing">하는 중</string>
-    <string name="activity_watching">시청 중</string>
+    
+    
+    
+    
+    
+    
+    
     <string name="add_addon">애드온 추가</string>
     <string name="add_addon_detail">직접 호스팅하거나 링크를 받은 애드온 서버를 Audify에 연결해요</string>
     <string name="add_to_queue">대기열에 추가</string>
@@ -536,7 +532,7 @@
     <string name="api_token">API 토큰</string>
     <string name="audio_quality_connection">%1$s 연결 시</string>
     <string name="back_in_future_version">향후 버전에서 다시 제공돼요</string>
-    <string name="buttons">버튼</string>
+    
     <string name="clear_name">이름 지우기</string>
     <string name="translation_language">번역 언어</string>
     <string name="translation_language_description">번역 버튼이 가사를 변환할 언어예요.</string>
@@ -544,20 +540,20 @@
     <string name="translation_language_subtitle">앱 언어를 따라요</string>
     <string name="search_languages">언어 검색</string>
     <string name="no_languages_match">일치하는 언어가 없어요</string>
-    <string name="connect_account_first">먼저 계정을 연결하세요</string>
-    <string name="connected_presence_off">연결됨, 프레즌스 꺼짐</string>
+    
+    
     <string name="copy_log">로그 복사</string>
     <string name="couldnt_find">%1$s 항목을 찾을 수 없어요</string>
     <string name="couldnt_open_link">링크를 열 수 없어요</string>
     <string name="create_playlist">플레이리스트 만들기</string>
-    <string name="customize_card">카드 맞춤 설정</string>
-    <string name="customize_card_subtitle">상태, 문구, 두 버튼</string>
+    
+    
     <string name="delete">삭제</string>
-    <string name="disconnect">연결 해제</string>
+    
     <string name="discord_button_variables">다음 항목은 현재 트랙 정보로 대체돼요: {song_name}, {artist_name}, {album_name}</string>
     <string name="discord_buttons_footer">다음 항목은 트랙 정보로 대체돼요: {song_name}, {artist_name}, {album_name}. 첫 번째 버튼은 YouTube Music에서 곡을 열고 두 번째 버튼은 이 프로젝트를 열어요.</string>
-    <string name="discord_presence_footer">트랙, 재생 위치 또는 재생 상태가 바뀌면 카드가 업데이트돼요. 재생이 멈추면 카드가 사라져요.</string>
-    <string name="discord_show_audio_quality">오디오 품질 표시</string>
+    
+    
     <string name="discord_show_audio_quality_subtitle">프레즌스 카드에 Hi-Res, 무손실, Dolby 사양을 표시해요</string>
     <string name="dislike">싫어요</string>
     <string name="done">완료</string>
@@ -568,7 +564,7 @@
     <string name="enabled">사용 중</string>
     <string name="enter_token_to_enable">토큰을 입력하면 켤 수 있어요</string>
     <string name="first_button">첫 번째 버튼</string>
-    <string name="got_it">확인</string>
+    
     <string name="pause">일시정지</string>
     <string name="shuffle_on">셔플 켬</string>
     <string name="shuffle_off">셔플 끔</string>
@@ -613,7 +609,7 @@
     <string name="wifi_only_download_refusal">다운로드는 Wi-Fi로만 가능해요. 모바일 데이터를 사용하려면 설정에서 이 옵션을 끄세요.</string>
     <string name="pinned_playlist_limit">플레이리스트는 %1$d개까지만 고정할 수 있어요</string>
     <string name="downloaded_playlist">다운로드한 플레이리스트</string>
-    <string name="library_sign_in_description">Google 계정에 로그인하면 좋아요 표시한 곡, 플레이리스트, YouTube Music 기록을 볼 수 있어요.</string>
+    
     <string name="downloads_progress">다운로드 · %1$d%%</string>
     <string name="downloads_finished">다운로드 · 완료</string>
     <string name="downloading_progress">다운로드 중 · %1$d%%</string>
@@ -625,7 +621,7 @@
     <string name="saved_to_audify_folder">Music/Audify에 저장했어요</string>
     <string name="nothing_downloading">다운로드 중인 항목이 없어요</string>
     <string name="nothing_to_explore">지금은 둘러볼 항목이 없어요</string>
-    <string name="no_youtube_music_results">YouTube Music 결과가 없어요</string>
+    
     <string name="library_empty">보관함이 비어 있어요</string>
     <string name="history_sign_in_required">로그인하면 들은 기록을 볼 수 있어요</string>
     <string name="history_empty">아직 재생한 곡이 없어요</string>
@@ -661,12 +657,10 @@
     <string name="nothing_matches">“%1$s”에 해당하는 항목이 없어요</string>
     <string name="close_search">검색 닫기</string>
     <string name="less">간략히</string>
-    <string name="song_count_with_minutes">%1$s, %2$d분</string>
-    <string name="song_count_with_duration">%1$s, %2$s</string>
-    <string name="song_count_with_hours_minutes">%1$s, %2$s %3$d분</string>
-    <plurals name="hour_count">
-        <item quantity="other">%1$d시간</item>
-    </plurals>
+    
+    
+    
+    
     <plurals name="songs_will_play_next">
         <item quantity="other">곡 %1$d개를 다음에 재생해요</item>
     </plurals>
@@ -693,7 +687,7 @@
     <string name="lastfm_now_playing_subtitle">지금 듣는 곡을 Last.fm에 업데이트해요</string>
     <string name="scrobble_primary_artist_only">대표 아티스트만 스크로블</string>
     <string name="scrobble_primary_artist_only_subtitle">한 트랙에 아티스트가 여러 명일 때 첫 번째 아티스트를 사용해요</string>
-    <string name="lead_with_song">곡 제목 먼저 표시</string>
+    
     <string name="lead_with_song_subtitle">굵은 줄에 아티스트 대신 제목을 표시해요</string>
     <string name="like">좋아요</string>
     <string name="listenbrainz_token">ListenBrainz 토큰</string>
@@ -709,17 +703,17 @@
     <string name="min_song_duration_subtitle">이보다 짧은 곡은 스크로블하지 않아요</string>
     <string name="addon_url_description">애드온의 URL(루트 또는 manifest.json)을 붙여넣으세요. Audify가 검색 및 스트리밍 가능한 항목을 읽은 뒤 일반 HTTP로 트랙을 요청해요.</string>
     <string name="monthly_listeners">월간 청취자 %1$s명</string>
-    <string name="name">이름</string>
+    
     <string name="no_playlists_yet">아직 플레이리스트가 없어요. 위의 행을 눌러 만들어 보세요.</string>
     <string name="no_tracks_here">이곳에 트랙이 없어요</string>
-    <string name="not_connected">연결되지 않음</string>
+    
     <string name="one_hour">1시간</string>
     <string name="open_album">앨범 열기</string>
     <string name="open_artist">아티스트 열기</string>
     <string name="pause_after_a_while">잠시 후 재생 일시정지</string>
     <string name="pause_after_song">이 곡이 끝나면 일시정지해요</string>
     <string name="pause_countdown">재생 일시정지까지 %1$s</string>
-    <string name="play_to_preview">미리보기를 채우려면 무언가 재생해 보세요.</string>
+    
     <string name="playlist_name">플레이리스트 이름</string>
     <string name="playlist_cover_add">커버 추가</string>
     <string name="playlist_cover_change">커버 변경</string>
@@ -729,15 +723,15 @@
     <string name="playlist_privacy_public_hint">누구나 찾을 수 있어요</string>
     <string name="add_songs_to_playlist">플레이리스트에 곡 추가</string>
     <string name="playlist_add_songs">곡 추가</string>
-    <string name="presence">프레즌스</string>
-    <string name="preview">미리보기</string>
+    
+    
     <string name="prioritize_syllable_lyrics">음절 가사 우선</string>
     <string name="prioritize_syllable_lyrics_subtitle">줄 단위 싱크 결과를 찾은 뒤에도 단어 단위 가사를 계속 검색해요</string>
     <string name="quality_per_track">%1$s · 트랙당 %2$s</string>
     <string name="queued">대기 중</string>
     <string name="remove">삭제</string>
     <string name="remove_from_liked">좋아요 표시한 음악에서 삭제</string>
-    <string name="liked_music">좋아요 표시한 음악</string>
+    
     <string name="remove_from_playlist">이 플레이리스트에서 삭제</string>
     <string name="rename_playlist">플레이리스트 편집</string>
     <string name="reorder_songs">곡 순서 변경</string>
@@ -756,13 +750,13 @@
     <string name="scrobble_tracks_subtitle">재생 기록을 Last.fm 타임라인에 남겨요</string>
     <string name="scrobbling_footer">청취 기록을 Last.fm과 ListenBrainz에 스크로블해요.</string>
     <string name="scrobbling_paused_footer">이번 릴리스에서는 Last.fm과 ListenBrainz가 일시 중지되며 나중에 다시 제공돼요. 기존 연결은 그대로 유지돼요.</string>
-    <string name="search_this_folder">이 폴더에서 검색</string>
+    
     <string name="search_this_list">이 목록에서 검색</string>
     <string name="second_button">두 번째 버튼</string>
     <string name="share">공유</string>
-    <string name="sharing_as">공유 계정: @%1$s</string>
+    
     <string name="sharing_listens">청취 기록 공유 중</string>
-    <string name="show_what_playing">재생 중인 곡 표시</string>
+    
     <string name="signed_in_as">로그인한 계정: %1$s</string>
     <string name="signing_in">로그인 중…</string>
     <string name="sleep_timer">수면 타이머</string>
@@ -789,25 +783,25 @@
     <string name="spotify_canvas_auto_hide_subtitle">Spotify Canvas 재생 중 5초 후 하프 플레이어를 접어요</string>
     <string name="prioritize_spotify_canvas">Spotify Canvas 우선 사용</string>
     <string name="prioritize_spotify_canvas_subtitle">Apple Music 및 다른 움직이는 커버 제공처보다 Spotify를 먼저 시도해요</string>
-    <string name="status">상태</string>
-    <string name="status_dialog_message">프레즌스가 켜져 있는 동안 내 계정에 표시되는 상태예요.</string>
-    <string name="status_dnd">방해 금지</string>
-    <string name="status_dnd_detail">빨간 대시. 알림도 차단해요.</string>
-    <string name="status_idle">자리 비움</string>
-    <string name="status_idle_detail">노란 초승달, 자리 비움으로 표시돼요</string>
-    <string name="status_online">온라인</string>
-    <string name="status_online_detail">초록 점</string>
+    
+    
+    
+    
+    
+    
+    
+    
     <string name="subscribers">구독자 %1$s명</string>
     <string name="tap_to_connect">탭하여 연결</string>
     <string name="tap_to_sign_in">탭하여 로그인</string>
-    <string name="tap_to_sign_in_discord">탭하여 Discord로 로그인</string>
-    <string name="token">토큰</string>
+    
+    
     <string name="turn_off_timer">타이머 끄기</string>
-    <string name="undo_dislike">싫어요 취소</string>
-    <string name="verb_competing">경쟁 중</string>
-    <string name="verb_listening">듣는 중</string>
+    
+    
+    
     <string name="verb_playing">하는 중</string>
-    <string name="verb_watching">시청 중</string>
+    
     <plurals name="minute_count">
         <item quantity="other">%1$d분</item>
     </plurals>
@@ -836,7 +830,7 @@
     <string name="not_enough_listening">아직 청취 기록이 부족해요</string>
     <string name="not_enough_this_month">이번 달에 몇 곡 더 재생하면 Replay가 열려요.</string>
     <string name="not_enough_this_week">이번 주에 몇 곡 더 재생하면 Replay가 열려요.</string>
-    <string name="pinned">고정됨</string>
+    
     <string name="replay_across">총</string>
     <string name="replay_empty_description">조금 더 들으면 Audify가 청취 기록을 Replay로 만들어 드려요.</string>
     <string name="replay_habits_middle">·</string>
@@ -856,7 +850,7 @@
     <string name="top_song">인기 곡</string>
     <string name="when_you_listen_the_most">가장 많이 듣는 시간대</string>
     <string name="your_biggest_day">가장 많이 들은 날: %1$s</string>
-    <string name="your_listening_experience">나의 청취 경험</string>
+    
     <string name="your_lyrics_card">나의 가사 카드</string>
     <string name="your_replay">나의 Replay</string>
     <plurals name="replay_artist_count">
@@ -888,7 +882,7 @@
     <string name="webdav_not_configured">소스에서 서버를 연결하세요</string>
     <string name="webdav_empty">WebDAV 서버에서 오디오 파일을 찾지 못했어요. 설정에서 URL을 확인하세요.</string>
     <string name="webdav_description">Audify를 WebDAV 음악 폴더(Nextcloud Music 디렉터리 또는 WebDAV를 지원하는 서버)에 연결하세요.</string>
-    <string name="webdav_server_url">서버 URL</string>
+    
     <string name="webdav_disconnect">연결 해제</string>
     <string name="webdav_test_failed">연결할 수 없어요: %1$s</string>
     <string name="upload_to_webdav">WebDAV에 업로드</string>
@@ -909,7 +903,7 @@
     <string name="smb_disconnect">연결 해제</string>
     <string name="smb_test_failed">연결할 수 없어요: %1$s</string>
     <string name="playlist">플레이리스트</string>
-    <string name="playlist_action">플레이리스트</string>
+    
     <string name="open">열기</string>
     <string name="open_playlist">플레이리스트 열기</string>
     <string name="pin">고정</string>
@@ -920,24 +914,24 @@
     <string name="delete_download">다운로드 삭제</string>
     <string name="delete_playlist_confirmation">“%1$s” 삭제할까요? 확인하려면 다시 탭하세요.</string>
     <string name="delete_download_confirmation">이 기기에서 “%1$s” 삭제할까요? 확인하려면 다시 탭하세요.</string>
-    <string name="running">실행 중</string>
-    <string name="version_cut_not_fetched">가져오지 않음</string>
-    <string name="version_cut_fetching">가져오는 중</string>
-    <string name="version_cut_measuring">분석 중</string>
-    <string name="version_cut_aligned">정렬됨</string>
+    
+    
+    
+    
+    
     <string name="automix_enabled_subtitle">곡 자체를 분석해 모든 전환의 타이밍과 블렌딩을 맞춰요. 기기가 뜨거워지거나 재생이 끊기면 꺼 주세요.</string>
     <string name="automix_model_title">Automix 모델 다운로드</string>
     <string name="automix_model_message">Automix에는 작은 분석 모델 두 개(약 30MB)가 필요해요. 한 번만 다운로드하며 이 기기에 저장돼요.</string>
     <string name="automix_model_download">다운로드</string>
-    <string name="automix_model_downloading_title">모델 다운로드 중…</string>
-    <string name="automix_model_downloading_message">%1$d%% 완료</string>
-    <string name="automix_model_hide">숨기기</string>
-    <string name="automix_model_failed_title">다운로드 실패</string>
-    <string name="automix_model_failed_message">Automix 모델을 다운로드하지 못했어요. 연결을 확인하고 다시 시도하세요.</string>
-    <string name="automix_model_retry">다시 시도</string>
+    
+    
+    
+    
+    
+    
     <string name="automix_disabled_subtitle">슬라이더 없이 전환의 타이밍과 블렌딩을 자동으로 맞춰요. 느린 기기에서는 성능이 달라질 수 있어요.</string>
-    <string name="advanced_automix">고급 Automix</string>
-    <string name="advanced_automix_subtitle">DJ처럼 믹스해요: 비트를 맞추고, 비트에 맞춰 전환하며, 어울리지 않는 곡 사이는 컷으로 이어요. 추가 처리는 없어요.</string>
+    
+    
     <string name="no_lyrics_sources_enabled">없음. 가사를 가져오지 않아요.</string>
     <string name="song_cache_large_subtitle">다운로드한 오디오를 디스크에 최대 %1$s까지 보관해요. 여유 공간을 상당히 차지할 수 있어요.</string>
     <string name="song_cache_limit_subtitle">다운로드한 오디오를 디스크에 보관해 즉시 탐색하고 다시 재생할 수 있어요</string>
@@ -970,13 +964,13 @@
     <string name="all_time">전체 기간</string>
     <string name="switch_account">계정 전환</string>
     <string name="accounts">계정</string>
-    <string name="profiles">프로필</string>
+    
     <string name="personal">개인</string>
     <string name="brand_account">브랜드 계정</string>
     <string name="add_account">계정 추가</string>
     <string name="manage_accounts">계정 관리</string>
-    <string name="current_account">현재 계정</string>
-    <string name="current_profile">현재 프로필</string>
+    
+    
     <string name="selected_account">선택한 계정</string>
     <string name="listen_as">청취 프로필</string>
     <string name="edit_profile">프로필 편집</string>
@@ -994,22 +988,22 @@
     <string name="listen_together_subtitle">코드를 공유해 같은 음악을 동시에 재생해요</string>
     <string name="listen_together_in_party">파티 참여 중 · %1$s</string>
     <string name="listen_together_sign_in_footer">함께 듣기에는 계정이 필요해요. 파티의 모든 사람이 누가 참여 중인지 볼 수 있어요.</string>
-    <string name="listen_together_server">파티 서버</string>
+    
     <string name="listen_together_server_online">온라인 · %1$d ms</string>
-    <string name="listen_together_server_online_fallback">온라인 (기본 서버로 대체) · %1$d ms</string>
+    
     <string name="listen_together_server_offline">지금은 연결할 수 없어요</string>
     <string name="listen_together_server_checking">확인 중…</string>
-    <string name="listen_together_server_unknown">탭하여 확인</string>
+    
     <string name="listen_together_custom_server">내 서버 사용</string>
     <string name="listen_together_custom_server_footer">기본 서버를 사용하려면 비워 두세요. 직접 운영하는 서버를 쓴다면 파티의 모든 사람이 같은 서버를 지정해야 해요.</string>
     <string name="listen_together_using_default">기본 서버 사용 중</string>
     <string name="listen_together_remove_server">서버 삭제</string>
     <string name="listen_together_switched_to_default">기본 서버로 전환했어요</string>
-    <string name="listen_together_custom_server_saved">사용자 지정 서버를 저장했어요</string>
+    
     <string name="listen_together_create">파티 만들기</string>
-    <string name="listen_together_create_subtitle">친구와 공유할 코드를 받아요</string>
-    <string name="listen_together_create_footer">6자리 코드가 발급돼요. 코드가 있는 사람은 누구나 참여할 수 있으며, 내 기기를 포함해 최대 %1$d대까지 가능해요.</string>
-    <string name="listen_together_profile">내 파티 프로필</string>
+    
+    
+    
     <string name="listen_together_nickname_hint">이 파티에서 쓸 닉네임</string>
     <string name="listen_together_party_size">파티 인원</string>
     <string name="listen_together_party_size_subtitle">2~10명의 청취자를 선택하세요</string>
@@ -1017,18 +1011,18 @@
     <string name="listen_together_remove">삭제</string>
     <string name="listen_together_activity">최근 활동</string>
     <string name="listen_together_activity_footer">이번 세션만 · 최신순 · 최대 100개 작업</string>
-    <string name="listen_together_activity_played">재생을 시작했어요</string>
-    <string name="listen_together_activity_paused">재생을 일시정지했어요</string>
-    <string name="listen_together_activity_seeked">트랙에서 위치를 이동했어요</string>
-    <string name="listen_together_activity_skipped">앞으로 건너뛰었어요</string>
-    <string name="listen_together_activity_went_back">뒤로 돌아갔어요</string>
-    <string name="listen_together_activity_added">대기열에 추가했어요</string>
-    <string name="listen_together_activity_removed_track">대기열의 트랙을 삭제했어요</string>
-    <string name="listen_together_activity_cleared">다음 트랙을 비웠어요</string>
-    <string name="listen_together_activity_reordered">대기열 순서를 바꿨어요</string>
-    <string name="listen_together_activity_removed_member">청취자를 내보냈어요</string>
-    <string name="listen_together_activity_changed_size">파티 인원을 변경했어요</string>
-    <string name="listen_together_activity_updated">파티를 업데이트했어요</string>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     <string name="listen_together_join">파티 참여</string>
     <string name="listen_together_join_action">참여</string>
     <string name="listen_together_code_hint">6자리 영문 또는 숫자</string>
@@ -1059,7 +1053,7 @@
     <string name="listen_together_share_link">링크 공유</string>
     <string name="listen_together_scan_qr">QR 코드 스캔</string>
     <string name="listen_together_scan_qr_subtitle">친구가 이 코드를 스캔하면 참여할 수 있어요.</string>
-    <string name="listen_together_invite">초대</string>
+    
     <string name="listen_together_host_only">나만 음악 제어</string>
     <string name="listen_together_host_only_subtitle">다른 사람은 함께 듣고, 자신의 기기에서 일시정지할 수 있어요</string>
     <string name="listen_together_host_only_notice">호스트만 음악을 제어할 수 있어요</string>
@@ -1073,8 +1067,8 @@
     <string name="listen_together_custom_server_switch_and_join">전환 후 참여</string>
     <string name="listen_together_official_server_dialog_title">공식 서버로 전환할까요?</string>
     <string name="listen_together_official_server_dialog_message">이 파티는 공식 Audify 서버에서 호스팅돼요.\n\n공식 서버로 다시 전환하고 파티 %1$s에 참여할까요?</string>
-    <string name="listen_together_switch_failed_stayed_in_party">파티에 참여할 수 없어요: %1$s. 파티 %2$s에 계속 남아 있어요.</string>
-    <string name="listen_together_switch_failed">파티에 참여할 수 없어요: %1$s.</string>
+    
+    
     <string name="listen_together_invalid_server_url">서버 URL이 올바르지 않아요. 올바른 주소를 입력하세요 (예: https://your-server.com)</string>
     <string name="listen_together_err_whitespace">서버 URL에는 공백을 넣을 수 없어요</string>
     <string name="listen_together_err_invalid_path">서버 URL에 올바르지 않은 경로가 있어요</string>
@@ -1089,7 +1083,7 @@
     <string name="listen_together_status_all_offline">사용자 지정 서버와 기본 서버가 모두 오프라인이에요</string>
     <string name="listen_together_top_bar_fallback">대체 · %1$s</string>
     <string name="vietnamese">베트남어</string>
-    <string name="miscellaneous_footer">켜면 최근 앱 화면에서 앱을 닫을 때 음악 재생도 중지돼요.</string>
+    
     <string name="export_compatible_downloads">호환되는 다운로드 내보내기</string>
     <string name="sync_downloaded_playlists">플레이리스트 최신 상태 유지</string>
     <string name="sync_downloaded_playlists_subtitle">하루에 두 번 확인해 다운로드한 플레이리스트에 새로 추가된 곡을 다운로드해요</string>
@@ -1102,7 +1096,7 @@
     <string name="bit_perfect_output">비트 퍼펙트 출력</string>
     <string name="bit_perfect_bypassed_footer">비트 퍼펙트 출력이 준비되어 흐리게 표시된 설정은 우회되고 Dolby Atmos 버전은 요청되지 않아요. DAC를 분리하거나 모드를 끄면 다시 작동해요.</string>
     <string name="rich_presence">리치 프레즌스</string>
-    <string name="japanese">일본어</string>
+    
     <string name="bit_perfect_sheet_warning">트랙을 변환 없이 DAC로 보내요. 이퀄라이저, 음량 평준화, 크로스페이드, Automix, 재생 속도, Audify 볼륨은 적용되지 않아요.</string>
     <string name="bit_perfect_mode_off_subtitle">오디오가 Android 믹서와 Audify 효과를 거쳐요.</string>
     <string name="bit_perfect_mode_usb_android_subtitle">Android 14는 믹싱이나 리샘플링 없이 각 트랙의 샘플레이트와 비트 심도로 DAC를 열어요.</string>
@@ -1129,22 +1123,22 @@
     <string name="loudness_normalization">음량 평준화</string>
     <string name="loudness_normalization_subtitle">모든 트랙을 같은 음량으로 맞춰요</string>
     <string name="loudness_off_on_speaker">휴대폰 스피커에서 끄기</string>
-    <string name="loudness_target">목표 음량</string>
-    <string name="loudness_target_subtitle">낮은 값은 헤드폰에, 높은 값은 자동차나 휴대폰 스피커에 적합해요</string>
-    <string name="pipeline_loudness">음량</string>
+    
+    
+    
     <string name="pipeline_loudness_gain">게인</string>
     <string name="pipeline_loudness_measured">측정값</string>
     <string name="pipeline_bit_exact">비트 정확</string>
-    <string name="loudness_measuring">측정 중…</string>
+    
     <string name="blur_unfocused_lyrics">비활성 가사 흐리게</string>
     <string name="blur_unfocused_lyrics_subtitle">현재 줄에 집중할 수 있게 해요</string>
     <string name="liquid_flow_subtitle">모션 가사 효과와 함께 부드럽게 단어가 흐르듯 표시돼요. 끄면 기본 가사 효과를 사용해요</string>
     <string name="lyrics_sparkle">가사 반짝임</string>
     <string name="lyrics_sparkle_subtitle">LiquidFlow에서 길게 끄는 글자 주변에 작은 반짝임을 표시해요</string>
     <string name="advanced_options">고급 및 실험 옵션</string>
-    <string name="lyrics_debug_logs">가사 디버그 로그</string>
-    <string name="lyrics_debug_logs_subtitle">가사 패널에 실시간 API 쿼리와 스크레이퍼 활동을 표시해요</string>
-    <string name="subscriptions">구독</string>
+    
+    
+    
     <string name="source_needs_lossless_output">무손실 출력이 필요해요 · 무손실을 지원하는 기기를 사용하세요</string>
     <string name="source_needs_lossless_bt_codec">무손실 출력이 필요해요 · Bluetooth가 %1$s를 사용 중이에요. 무손실을 지원하는 기기를 사용하세요</string>
     <string name="source_needs_lossless_bt_unknown">무손실 출력이 필요해요 · 사용 중인 Bluetooth 코덱을 알 수 없어요</string>
@@ -1154,8 +1148,8 @@
     <string name="lossless_output_permission_denied">근처 기기 권한이 꺼져 있어요</string>
     <string name="lossless_output_permission_denied_detail">탭하여 설정을 열고 근처 기기를 허용하세요. 허용하지 않으면 Bluetooth 코덱을 읽을 수 없어요</string>
     <string name="lossless_output_permission_detail">근처 기기를 허용하면 LDAC, LHDC, Samsung UHQ 헤드폰에서 무손실 전용 애드온을 사용할 수 있어요</string>
-    <string name="cached_songs">캐시된 노래</string>
-    <string name="cached_songs_subtitle">노래 캐시에 있는 YouTube 및 JioSaavn 노래</string>
+    
+    
     <string name="cached_songs_empty">아직 캐시된 노래가 없어요. YouTube나 JioSaavn에서 재생한 노래가 여기에 표시돼요.</string>
     <string name="cached_song_partial">일부</string>
     <string name="remove_from_cache">캐시에서 삭제</string>
@@ -1163,14 +1157,14 @@
     <string name="remove_from_history_failed">기록에서 삭제하지 못했어요</string>
     <string name="cached_song_remove">삭제</string>
     <string name="removed_from_cache">노래 캐시에서 삭제했어요</string>
-    <string name="show_cache_folder">캐시된 노래 폴더 표시</string>
-    <string name="show_cache_folder_subtitle">노래 캐시에 보관된 YouTube 및 JioSaavn 노래가 담긴 캐시된 노래 폴더를 보관함에 추가해요</string>
+    
+    
     <string name="song_cache_unlimited">무제한</string>
     <string name="song_cache_unlimited_subtitle">제한이 없어요. 저장 공간이 가득 찰 때까지 캐시된 오디오가 계속 늘어날 수 있어요.</string>
     <string name="clear_song_cache_title">노래 캐시를 지울까요?</string>
     <string name="clear_song_cache_warning">캐시된 노래가 모두 삭제되고 캐시된 노래 폴더가 비워져요. 다음에 재생할 때 다시 스트리밍돼요.</string>
-    <string name="import_spotify">Spotify 가져오기</string>
-    <string name="import_spotify_subtitle">플레이리스트 링크에서</string>
+    
+    
     <string name="spotify_import_title">Spotify 플레이리스트 가져오기</string>
     <string name="spotify_import_description">공개 플레이리스트 링크를 붙여넣으세요. 노래는 YouTube Music에서 찾아 연결해요.</string>
     <string name="spotify_import_description_local">공개 플레이리스트 링크를 붙여넣으세요. 노래는 YouTube Music에서 찾아 연결하고 이 기기에 저장해요.</string>
@@ -1197,9 +1191,9 @@
     <string name="onboarding_name_hint">이름</string>
     <string name="onboarding_name_footer">함께 듣기를 할 때 친구에게 이 이름이 표시돼요. 나중에 설정에서 바꿀 수 있어요.</string>
     <string name="onboarding_next">다음</string>
-    <string name="onboarding_connect_title">YouTube 계정 연결</string>
-    <string name="onboarding_connect_body">보관함, 플레이리스트, 믹스를 가져오고 친구들과 함께 듣기 파티를 시작하세요.</string>
-    <string name="onboarding_sign_in_google">Google로 로그인</string>
+    
+    
+    
     <string name="onboarding_skip_sign_in">로그인 건너뛰기</string>
     <string name="onboarding_back">뒤로</string>
     <string name="song_info">노래 정보</string>
@@ -1256,84 +1250,84 @@
     <string name="no_audio_version">이 동영상의 오디오 버전을 찾지 못했어요</string>
     <string name="no_video_version">이 노래의 동영상 버전을 찾지 못했어요</string>
     <string name="version_switch_in_party">함께 듣기 중인 모든 사람이 같은 버전을 들어요</string>
-    <string name="accent_color">강조 색상</string>
-    <string name="accent_color_footer">탭 바, 버튼, 슬라이더, 선택 항목의 강조 색상을 설정합니다. 하트와 Replay 배지는 빨간색으로 유지됩니다.</string>
-    <string name="accent_red">빨강</string>
-    <string name="accent_orange">주황</string>
-    <string name="accent_yellow">노랑</string>
-    <string name="accent_green">초록</string>
-    <string name="accent_teal">청록</string>
-    <string name="accent_blue">파랑</string>
-    <string name="accent_indigo">남색</string>
-    <string name="accent_purple">보라</string>
-    <string name="accent_pink">분홍</string>
-    <string name="accent_gray">회색</string>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     <string name="pipeline_pcm_data_rate">PCM 데이터 전송률</string>
     <string name="spotify_import_language_preference">언어 선호도</string>
     <string name="spotify_import_language_hint">예: 펀자브어, 마라티어, 한국어…</string>
-<string name="playlist_saved_to_account">Saved to your YouTube Music account</string><string name="playlist_saved_on_device_subtitle">Saved on this device Â· No account needed</string><string name="auto_empty_albums_title">No albums available</string><string name="auto_empty_albums_subtitle">Check your connection and try again</string><string name="update_manual_migration_body">Important: Audifyâ€™s signing certificate changed. If you have Audify 1.8.7 or older, a normal in-app update will not install. First back up any important data stored only in Audify. Open the v1.8.9 release below, download the correct APK for your device, uninstall your existing Audify app, then install the APK you downloaded. Do not try to install it over the old app. Release: https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9</string><string name="update_migration_complete_body">The signing certificate changed in v1.8.9, so Audify 1.8.7 and older had to be uninstalled before this version could be installed. Data stored only inside the old installation may not have carried over. If you made a backup, restore it from Audifyâ€™s backup tools. You can find this version and its downloads at: https://github.com/sachit1751-art/Audify/releases/tag/v1.8.9</string><string name="update_manual_migration_title">Youâ€™re using the new Audify installation.</string><string name="open_v189_release">Open v1.8.9 release</string><string name="check_for_updates">Check for updates</string><string name="check_for_updates_subtitle">Check GitHub for the latest Audify version</string><string name="app_is_up_to_date">Audify is up to date.</string><string name="update_check_failed">Couldnâ€™t check for updates. Check your internet connection.</string><string name="latest_version">Latest version</string><string name="latest_version_checking">Checking for the latest versionâ€¦</string><string name="latest_version_unavailable">Latest version information is unavailable.</string><string name="latest_version_current">Youâ€™re on the latest version.</string><string name="latest_version_update_available">An update is available.</string><plurals name="latest_version_behind"><item quantity="other">Youâ€™re %1$d versions behind.</item></plurals><string name="latest_version_number">Latest release Â· v%1$s</string><string name="download_latest_version">Download latest version</string><string name="smart_playlists">Smart Playlists</string><string name="backup_reminder_due">No external backup in 30 days Â· Export a copy now</string><string name="backup_automatic_enabled">Weekly automatic device backups enabled Â· External copy recommended</string><string name="restore_preview_title">Review backup before restoring</string><string name="restore_preview_body">Favorites: %1$d\nListening history: %2$d\nPlaylists: %3$d\nListening-stat months: %4$d\nSettings: %5$d\n\nBackup version: %6$s\nCreated: %7$s\n\nRestoring replaces this deviceâ€™s backed-up data.</string><string name="restore_backup">Restore backup</string><string name="youtube_sync_status">YouTube Music sync</string><string name="youtube_sync_complete">Everything queued for this device is synchronized</string><string name="youtube_sync_pending">%1$d changes waiting to synchronize</string><string name="youtube_sync_needs_review">%1$d pending Â· %2$d conflicts need review</string><string name="backup">Backup</string><string name="updates">Updates</string><string name="pause_on_mute">Pause on mute</string><string name="pause_on_mute_subtitle">Automatically pause when music volume reaches zero</string><string name="resume_on_bluetooth">Resume on Bluetooth</string><string name="resume_on_bluetooth_subtitle">Resume if Bluetooth headphones reconnect after disconnecting</string><string name="prefer_music_only">Prefer music-only version</string><string name="prefer_music_only_subtitle">For music videos, show the video details while finding and loading the catalogue audio version</string><string name="liquid_glass_lightweight">Better Performance for Glass</string><string name="liquid_glass_lightweight_subtitle">Use a lighter frost without backdrop blur or lens refraction. Recommended for slower phones.</string><string name="liquid_glass_transparency">Glass transparency</string><string name="direct_source_stream_matching">Direct Source Stream matching</string><string name="direct_source_stream_matching_subtitle">Check artist and full-track length before accepting a catalogue match. Short previews and different recordings are rejected when metadata is available.</string><string name="addon_quality">Addon quality</string><string name="addon_quality_subtitle">Choose the preferred quality for addons that expose quality options. The active connection limit still applies.</string><string name="addon_quality_auto">Automatic</string><string name="addon_quality_low">Low</string><string name="addon_quality_high">High</string><string name="addon_quality_lossless">Lossless</string><string name="replay_album_end"> held your attention.</string><string name="replay_album_focus">One album</string><string name="replay_album_start">This time, </string><string name="replay_artist_end"> kept coming back.</string><string name="replay_artist_focus">One artist</string><string name="replay_artist_start">All month, </string><string name="replay_artist_start_week">This week, </string><string name="replay_genre_end"> shaped your sound.</string><string name="replay_genre_focus">Your genres</string><string name="replay_genre_start">Together, </string><string name="replay_intro_end"> is ready.</string><string name="replay_intro_start">Your </string><string name="replay_minutes_end"> with music.</string><string name="replay_minutes_start">You spent </string><plurals name="replay_minutes_unit"><item quantity="other">%1$s minutes</item></plurals><string name="replay_songs_end"> filled your month.</string><string name="replay_songs_end_week"> filled your week.</string><string name="replay_songs_start">In total, </string><string name="replay_summary_start">Your </string><string name="replay_summary_end_week">week</string><string name="tap_share_for_picture">Tap Share to create a picture.</string><string name="good_morning">Good morning</string><string name="good_afternoon">Good afternoon</string><string name="good_evening">Good evening</string><string name="audify_selected">선택됨</string><string name="hide_explicit_content">Hide explicit content</string><string name="hide_explicit_content_subtitle">Exclude catalogue-marked explicit songs and albums from discovery and recommendations. Unlabelled items remain visible.</string><string name="app_name">Audify</string><string name="search_source_youtube">YouTube</string><string name="spotify">Spotify</string><string name="dolby_atmos">Dolby Atmos</string><string name="automix">Automix [BETA]</string><string name="bar_title_automix">Automix</string><string name="equalizer_balance_left">L</string><string name="equalizer_balance_right">R</string><string name="app_icon_monochrome">Monochrome</string><string name="app_icon_liquid_glass">Liquid Glass</string><string name="app_icon_liquid_glass_dark">Liquid Glass Dark</string><string name="app_icon_liquid_glass_clear">Liquid Glass Clear</string><string name="app_icon_liquid_glass_clear_dark">Liquid Glass Clear Dark</string><string name="app_icon_samsung_glass">Samsung Glass</string><string name="app_icon_samsung_glass_dark">Samsung Glass Dark</string><string name="app_icon_samsung_glass_clear">Samsung Glass Clear</string><string name="app_icon_samsung_glass_clear_dark">Samsung Glass Clear Dark</string><string name="app_icon_pixel_glass">Pixel Glass</string><string name="app_icon_pixel_glass_dark">Pixel Glass Dark</string><string name="app_icon_pixel_glass_clear">Pixel Glass Clear</string><string name="app_icon_pixel_glass_clear_dark">Pixel Glass Clear Dark</string><string name="app_icon_neon_silver">Neon Silver</string><string name="app_icon_neon_cyan">Neon Cyan</string><string name="app_icon_neon_violet">Neon Violet</string><string name="app_icon_samsung_neon_silver">Samsung Neon Silver</string><string name="app_icon_samsung_neon_cyan">Samsung Neon Cyan</string><string name="app_icon_samsung_neon_violet">Samsung Neon Violet</string><string name="app_icon_pixel_neon_silver">Pixel Neon Silver</string><string name="app_icon_pixel_neon_cyan">Pixel Neon Cyan</string><string name="app_icon_pixel_neon_violet">Pixel Neon Violet</string><string name="cover_section_spotify">Spotify Canvas</string><string name="artist_signatures_url_hint">https://signatures.example.com</string><string name="discord">Discord</string><string name="pipeline_dsp">DSP</string><string name="wifi">Wi-Fi</string><string name="quality_hourly">%1$s Â· %2$s</string><string name="replay_brand">Audify Replay</string><string name="replay_story_intro_a">Your year\n</string><string name="replay_story_intro_b">in music.</string><string name="replay_story_intro_sub">A year filled with the music you love.</string><string name="replay_cta_relive">Relive your year</string><string name="replay_cta_again">Replay again</string><string name="replay_story_minutes_a">Music was always </string><string name="replay_story_minutes_b">there.</string><string name="replay_story_artist_a">Your year had a </string><string name="replay_story_artist_b">favorite voice.</string><string name="replay_story_songs_a">These songs </string><string name="replay_story_songs_b">stayed with you.</string><string name="replay_story_albums_a">Albums that became </string><string name="replay_story_albums_b">part of your story.</string><string name="replay_story_personality_a">Your music </string><string name="replay_story_personality_b">personality.</string><string name="replay_story_final_a">Every song </string><string name="replay_story_final_b">tells a story.</string><string name="replay_story_final_sub">This was yours.</string><string name="replay_total_minutes">Total listening minutes</string><string name="replay_stat_hours">Hours</string><string name="replay_stat_per_day">Per day</string><string name="replay_stat_busiest">Busiest day</string><string name="replay_kicker_top_artist">Your top artist</string><string name="replay_kicker_personality">Your music personality</string><string name="replay_share_of_listening">%1$d%% of everything you played</string><string name="replay_persona_night_title">The Night Explorer</string><string name="replay_persona_night_desc">Your best listening happens after dark, when the world goes quiet and the music gets louder.</string><string name="replay_persona_dreamer_title">The Melodic Dreamer</string><string name="replay_persona_dreamer_desc">You drift through songs that feel like a place, steady and full of feeling.</string><string name="replay_persona_adventurer_title">The Sonic Adventurer</string><string name="replay_persona_adventurer_desc">You keep wandering to new artists, and no two stretches of your year sound the same.</string><string name="replay_persona_rhythm_title">The Rhythm Seeker</string><string name="replay_persona_rhythm_desc">When you find a groove, you stay in it, and your favorites earned every replay.</string><string name="replay_behavior_peak">Most active around %1$s</string><string name="replay_behavior_night">%1$d%% of your listening happens after dark</string><string name="replay_behavior_repeat">%1$s plays per song on average</string><string name="replay_behavior_day">Your biggest day was %1$s</string><string name="replay_kicker_habits">Your listening habits</string><string name="replay_stat_peak">Peak hour</string><string name="replay_stat_plays">Plays</string><string name="replay_stat_songs">Songs</string><string name="replay_stat_artists">Artists</string><string name="replay_stat_albums">Albums</string><string name="replay_stat_night">After dark</string><string name="replay_stat_repeat">Plays / song</string><string name="webdav">WebDAV</string><string name="webdav_server_url_hint">https://cloud.example.com/remote.php/dav/files/user/Music</string><string name="smb">SMB</string><string name="version_alignment_status">%1$s Â· %2$s</string><string name="listen_together_ping">%1$d ms</string><string name="listen_together_server_offline_dash">â€”</string><string name="bit_perfect_mode_usb_android">USB DAC</string><string name="bit_perfect_status_active">%1$s Â· %2$s kHz Â· %3$d-bit</string><string name="loudness_target_value">%1$s LUFS</string><string name="loudness_gain_db">%1$s dB</string><string name="loudness_lufs">%1$s LUFS</string><string name="shelf_trending_community_playlists">Trending community playlists</string><string name="shelf_featured_playlists_for_you">Featured playlists for you</string><string name="shelf_quick_picks">Quick picks</string><string name="shelf_listen_again">Listen again</string><string name="shelf_mixed_for_you">Mixed for you</string><string name="shelf_similar_to">Similar to %1$s</string><string name="shelf_forgotten_favorites">Forgotten favorites</string><string name="shelf_recommended_music_videos">Recommended music videos</string><string name="shelf_from_your_library">From your library</string><string name="shelf_charts">Charts</string><string name="shelf_new_releases">New releases</string><string name="shelf_top_music_videos">Top music videos</string><string name="shelf_for_you">For you</string><string name="shelf_energy_boosters">Energy boosters</string><string name="shelf_feel_good">Feel good</string><string name="shelf_commute">Commute</string><string name="shelf_workout">Workout</string><string name="shelf_focus">Focus</string><string name="shelf_relax">Relax</string><string name="shelf_sleep">Sleep</string><string name="shelf_party">Party</string><string name="shelf_romance">Romance</string><string name="shelf_sad">Sad</string><string name="shelf_100_on_repeat" formatted="false">100% on repeat</string><string name="shelf_new_albums_singles">New albums &amp; singles</string><string name="shelf_hits_today">Hits today</string><string name="shelf_artists_on_the_rise">Artists on the rise</string><string name="shelf_top_tunes_right_now">Top tunes right now</string><string name="shelf_concerts">Concerts</string><string name="shelf_shorts">Shorts</string><string name="shelf_single">Single</string><string name="shelf_chart">Chart</string><string name="shelf_song_item">Song</string><string name="shelf_from_the_community">From the community</string><string name="shelf_youtube_charts">YouTube Charts</string><string name="shelf_trending">Trending</string><string name="shelf_recents">Recents</string><string name="card_views_format">%1$s views</string><string name="card_plays_format">%1$s plays</string><string name="card_songs_format">%1$s songs</string><string name="spotify_import_hint">open.spotify.com/playlist/â€¦</string><string name="pinned_playlists">Pinned Playlists</string><string name="weekly_recap_setting">주간 홈 요약</string>
-<string name="weekly_recap_setting_subtitle">홈에 이번 주 청취 기록의 비공개 요약을 표시합니다.</string>
-<string name="download_file_check_action">다운로드한 파일 확인</string>
-<string name="download_file_check_note">파일 접근 권한과 헤더를 읽을 수 있는지 확인합니다. 오디오 재생 여부는 테스트하지 않습니다.</string>
-<string name="download_file_check_unchecked">저장됨 · 파일 검사 안 함</string>
-<string name="download_file_check_available">파일 검사 통과 · 파일을 읽을 수 있음</string>
-<string name="download_file_check_unavailable">파일 검사 실패 · 파일을 읽을 수 없음</string>
+<string name="smart_playlists">Smart Playlists</string><string name="restore_preview_body">Favorites: %1$d\nListening history: %2$d\nPlaylists: %3$d\nListening-stat months: %4$d\nSettings: %5$d\n\nBackup version: %6$s\nCreated: %7$s\n\nRestoring replaces this deviceâ€™s backed-up data.</string><string name="backup">Backup</string><string name="updates">Updates</string><string name="audify_selected">선택됨</string><string name="app_name">Audify</string><string name="search_source_youtube">YouTube</string><string name="spotify">Spotify</string><string name="dolby_atmos">Dolby Atmos</string><string name="automix">Automix [BETA]</string><string name="bar_title_automix">Automix</string><string name="equalizer_balance_left">L</string><string name="equalizer_balance_right">R</string><string name="app_icon_liquid_glass">Liquid Glass</string><string name="cover_section_spotify">Spotify Canvas</string><string name="artist_signatures_url_hint">https://signatures.example.com</string><string name="discord">Discord</string><string name="pipeline_dsp">DSP</string><string name="wifi">Wi-Fi</string><string name="quality_hourly">%1$s Â· %2$s</string><string name="replay_brand">Audify Replay</string><string name="replay_story_intro_a">Your year\n</string><string name="replay_story_intro_b">in music.</string><string name="replay_story_intro_sub">A year filled with the music you love.</string><string name="replay_cta_relive">Relive your year</string><string name="replay_cta_again">Replay again</string><string name="replay_story_minutes_a">Music was always </string><string name="replay_story_minutes_b">there.</string><string name="replay_story_artist_a">Your year had a </string><string name="replay_story_artist_b">favorite voice.</string><string name="replay_story_songs_a">These songs </string><string name="replay_story_songs_b">stayed with you.</string><string name="replay_story_albums_a">Albums that became </string><string name="replay_story_albums_b">part of your story.</string><string name="replay_story_personality_a">Your music </string><string name="replay_story_personality_b">personality.</string><string name="replay_story_final_a">Every song </string><string name="replay_story_final_b">tells a story.</string><string name="replay_story_final_sub">This was yours.</string><string name="replay_total_minutes">Total listening minutes</string><string name="replay_stat_hours">Hours</string><string name="replay_stat_per_day">Per day</string><string name="replay_stat_busiest">Busiest day</string><string name="replay_kicker_top_artist">Your top artist</string><string name="replay_kicker_personality">Your music personality</string><string name="replay_share_of_listening">%1$d%% of everything you played</string><string name="replay_persona_night_title">The Night Explorer</string><string name="replay_persona_night_desc">Your best listening happens after dark, when the world goes quiet and the music gets louder.</string><string name="replay_persona_dreamer_title">The Melodic Dreamer</string><string name="replay_persona_dreamer_desc">You drift through songs that feel like a place, steady and full of feeling.</string><string name="replay_persona_adventurer_title">The Sonic Adventurer</string><string name="replay_persona_adventurer_desc">You keep wandering to new artists, and no two stretches of your year sound the same.</string><string name="replay_persona_rhythm_title">The Rhythm Seeker</string><string name="replay_persona_rhythm_desc">When you find a groove, you stay in it, and your favorites earned every replay.</string><string name="replay_behavior_peak">Most active around %1$s</string><string name="replay_behavior_night">%1$d%% of your listening happens after dark</string><string name="replay_behavior_repeat">%1$s plays per song on average</string><string name="replay_behavior_day">Your biggest day was %1$s</string><string name="replay_kicker_habits">Your listening habits</string><string name="replay_stat_peak">Peak hour</string><string name="replay_stat_plays">Plays</string><string name="replay_stat_songs">Songs</string><string name="replay_stat_artists">Artists</string><string name="replay_stat_albums">Albums</string><string name="replay_stat_night">After dark</string><string name="replay_stat_repeat">Plays / song</string><string name="webdav">WebDAV</string><string name="webdav_server_url_hint">https://cloud.example.com/remote.php/dav/files/user/Music</string><string name="smb">SMB</string><string name="listen_together_ping">%1$d ms</string><string name="listen_together_server_offline_dash">â€”</string><string name="bit_perfect_mode_usb_android">USB DAC</string><string name="bit_perfect_status_active">%1$s Â· %2$s kHz Â· %3$d-bit</string><string name="loudness_gain_db">%1$s dB</string><string name="loudness_lufs">%1$s LUFS</string><string name="spotify_import_hint">open.spotify.com/playlist/â€¦</string>
+
+
+
+
+
+
 <string name="sachit_listening_summary_save">청취 요약 저장(CSV)</string>
 <string name="sachit_listening_summary_share">청취 요약 공유(CSV)</string>
 <string name="sachit_listening_summary_note">곡별로 보관된 월간 재생 합계입니다. 개별 재생 시각은 저장되지 않습니다.</string>
 <string name="sachit_listening_summary_chooser">청취 요약 공유</string>
 <string name="sachit_listening_summary_saved">청취 요약을 저장했습니다.</string>
 <string name="sachit_listening_summary_save_failed">청취 요약을 저장하지 못했습니다.</string>
-<string name="sachit_spotify_import_file_button">Spotify CSV/TSV 파일 선택</string>
-<string name="sachit_spotify_import_file_note">Track Name 및 Artist 열이 포함된 Spotify CSV 또는 TSV 내보내기 파일도 가져올 수 있습니다.</string>
-<string name="sachit_spotify_import_file_read_failed">선택한 파일을 읽을 수 없습니다.</string>
-<string name="sachit_spotify_import_json_unsupported">Spotify JSON 내보내기는 아직 지원되지 않습니다.</string>
-<string name="sachit_spotify_import_file_unsupported">지원하지 않는 파일입니다. Spotify CSV 또는 TSV 내보내기를 선택하세요.</string>
-<string name="sachit_spotify_import_file_default_title">가져온 Spotify 재생목록</string>
-<string name="download_storage_budget">다운로드 저장 공간 한도</string>
-<string name="download_storage_unknown_title">다운로드 차단됨 · 크기 알 수 없음</string>
-<string name="download_storage_budget_title">다운로드 저장 공간 한도 도달</string>
-<string name="download_storage_review_delete">삭제 항목 검토</string>
-<string name="download_storage_confirm_title">다운로드 삭제 확인</string>
-<string name="download_storage_delete_files">이 파일 삭제</string>
-<string name="download_storage_delete_warning">선택한 파일만 영구 삭제됩니다. 여기서 확인하기 전에는 아무것도 삭제되지 않습니다.</string>
-<string name="download_storage_budget_detail">사용량 %1$s · 예상 원본 크기 %2$s · 한도 %3$s</string>
-<string name="download_storage_estimate_note">원본 길이를 기준으로 추정합니다. 태그와 앨범 아트가 포함되면 최종 파일이 더 커질 수 있습니다.</string>
-<string name="download_storage_free_detail">가장 오래된 다운로드를 삭제해 최소 %1$s의 공간을 확보하세요:</string>
-<string name="download_storage_unknown_size">원본에서 신뢰할 수 있는 파일 크기를 제공하지 않았습니다. 저장 공간 한도가 켜져 있어 다운로드가 차단되었습니다.</string>
-<string name="download_storage_actual_size_unknown">저장된 파일 크기를 읽을 수 없습니다. 추정값을 사용하는 대신 다운로드를 차단했습니다.</string>
-<string name="download_storage_no_evictable_space">모든 다운로드를 삭제해도 이 파일은 현재 한도에 맞지 않습니다. 계속하려면 한도를 늘리세요.</string>
-<string name="download_storage_changed_review">목록을 만든 후 저장 공간이 변경되었습니다. 파일은 삭제되지 않았습니다. 다운로드를 다시 시도해 가장 오래된 파일 목록을 새로 고치세요.</string>
-<string name="download_storage_total_unknown">전체 저장 공간 요구량을 안전하게 측정할 수 없습니다. 다운로드가 차단되었습니다.</string>
-<string name="download_storage_budget_reached">다운로드 저장 공간 한도에 도달했습니다. 다시 시도하기 전에 가장 오래된 파일을 검토하세요.</string>
-<string name="download_storage_delete_failed">선택한 파일을 삭제하지 못했습니다. 파일은 삭제되지 않았습니다. 파일 접근 권한을 확인한 후 다시 시도하세요.</string>
-<string name="download_storage_partial_delete">선택한 파일 중 일부는 삭제했지만 나머지는 삭제하지 못했습니다. 다운로드를 다시 시도해 저장 공간 사용량을 새로 고치세요.</string>
-<string name="liquid_flow">LiquidFlow 가사</string>    <string name="glass_preset_performance">성능</string>
-    <string name="glass_preset_performance_subtitle">렌즈 굴절 없이 블러와 그림자를 줄인 가벼운 반투명 효과입니다. 부드러운 스크롤과 구형 기기에 적합합니다.</string>
-    <string name="glass_preset_best_experience">최상의 Liquid Glass</string>
-    <string name="glass_preset_best_experience_subtitle">더 강한 굴절, 깊이감, 색상과 가장자리 하이라이트를 사용하는 전체 유리 효과입니다. 그래픽 처리량이 더 많이 필요합니다.</string>
-<string name="discord_social_sdk_title">Discord Rich Presence</string>
-<string name="discord_app_detected">Discord 앱이 감지되었습니다</string>
-<string name="discord_app_required">청취 활동을 공유하려면 Discord를 설치하고 로그인하세요.</string>
-<string name="discord_presence_off">상태 표시 꺼짐</string>
-<string name="backup_exporting">백업을 만드는 중…</string>
-<string name="backup_exported_timestamp_warning">파일은 생성되었지만 Audify가 설정에 내보내기 날짜를 저장하지 못했습니다.</string>
-<string name="backup_checking_file">백업 파일 확인 중…</string>
-<string name="backup_restoring">백업 복원 중…</string>
-<string name="backup_last_automatic">기기 복구 사본: %1$s</string>
-<string name="backup_last_external">외부 백업 내보냄: %1$s</string>
-<string name="backup_automatic_scope">자동 백업은 이 기기에만 저장됩니다. 다른 휴대전화로 데이터를 옮기려면 별도로 내보내세요.</string>
-<string name="backup_automatic_not_created">기기 복구 사본: 아직 생성되지 않음</string>
-<string name="backup_external_not_created">외부 백업: 아직 내보내지 않음</string>
-<string name="backup_unknown_version">알 수 없음</string>
-<string name="backup_unknown_date">알 수 없음</string>
-<string name="backup_restore_scope">복원하면 이 기기의 즐겨찾기, 청취 기록, 로컬 재생목록, 청취 통계 및 백업된 설정이 대체됩니다. 로그인 정보, 다운로드한 오디오와 캐시는 포함되지 않습니다. 필요할 수 있는 현재 데이터는 먼저 내보내세요.</string>
-<string name="backup_error_access">이 파일에 대한 접근이 거부되었습니다. 파일 제공 앱을 다시 열고 Audify에 접근 권한을 부여한 뒤 다시 시도하세요.</string>
-<string name="backup_error_missing">선택한 파일을 더 이상 사용할 수 없습니다. 백업 파일을 다시 선택하세요.</string>
-<string name="backup_error_io">Audify가 해당 위치를 읽거나 쓸 수 없습니다. 저장 공간과 파일 제공 앱의 접근 권한을 확인한 뒤 다른 위치를 선택하세요.</string>
-<string name="backup_error_invalid">유효한 Audify 백업 파일이 아니거나 크기가 32MB 제한을 초과합니다.</string>
-<string name="backup_error_restore_rollback">복원에 실패했고 Audify가 이전 데이터를 완전히 복구하지 못했습니다. 앱을 종료하지 마세요. 다시 복원하기 전에 현재 상태를 별도 파일로 내보내세요.</string>
-<string name="backup_error_generic">백업 처리 중 문제가 발생했습니다. 다시 시도하거나 다른 파일을 선택하세요.</string>
-  <string name="haptic_feedback">햅틱 피드백</string>
-  <string name="haptic_feedback_subtitle">탭, 선택 및 재생 컨트롤을 사용할 때 진동합니다</string>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<string name="liquid_flow">LiquidFlow 가사</string>    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
 </resources>

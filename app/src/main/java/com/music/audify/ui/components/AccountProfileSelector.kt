@@ -79,9 +79,9 @@ fun AccountProfileSelector(
     onRemoveAccount: (GoogleAccountSession) -> Unit,
     onOpenSettings: () -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     /** Called the moment the exit starts, so what the card covered can come back with it. */
     onClosing: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     var managing by remember { mutableStateOf(false) }
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()

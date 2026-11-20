@@ -7,9 +7,9 @@ import org.junit.Test
 
 class ThemePackTest {
     @Test
-    fun allEighteenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
-        assertEquals(18, ThemePacks.builtIns.size)
-        assertEquals(18, ThemePacks.builtIns.map { it.id }.distinct().size)
+    fun allTenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
+        assertEquals(10, ThemePacks.builtIns.size)
+        assertEquals(10, ThemePacks.builtIns.map { it.id }.distinct().size)
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { color ->
                 assertTrue(color.matches(Regex("^#[0-9A-Fa-f]{6}$")))
@@ -66,8 +66,6 @@ class ThemePackTest {
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.AMOLED })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.MIDNIGHT })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.GRAPHITE })
-        assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.DEEP_PURPLE })
-        assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.WARM })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.SLATE })
     }
 
@@ -84,9 +82,7 @@ class ThemePackTest {
         assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "classic" }))
         assertEquals("#080D18", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "midnight" }))
         assertEquals("#15171B", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "graphite" }))
-        assertEquals("#120D1D", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "sakura" }))
-        assertEquals("#19130F", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "ember" }))
-        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
+                        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
         val rose = ThemePacks.builtIns.first { it.id == "rose" }
         assertNotEquals("#FFFFFF", ThemePacks.lightBackgroundHex(rose))
         assertTrue(ThemePacks.lightBackgroundHex(rose).startsWith("#F"))

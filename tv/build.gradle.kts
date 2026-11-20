@@ -195,6 +195,14 @@ android {
 
     buildTypes {
         debug {
+            // AGP disables R8 optimisation on debuggable variants.
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "../app/proguard-rules.pro"
+            )
             if (betaSuffix.isNotEmpty()) versionNameSuffix = "-$betaSuffix"
         }
         release {
@@ -371,7 +379,9 @@ dependencies {
     }
 
     // The TV compiles the phone UI source tree, so it must use the same Haze API.
+    //noinspection NewerVersionAvailable -- 2.x removes HazeStyle used by the app's shared glass API.
     implementation("dev.chrisbanes.haze:haze:1.3.1")
+    //noinspection NewerVersionAvailable -- keep materials aligned with the pinned 1.3.1 Haze API.
     implementation("dev.chrisbanes.haze:haze-materials:1.3.1")
 
     // ---- QR encoding, for the party invite ----
@@ -396,7 +406,7 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.6.1")
     implementation("io.ktor:ktor-client-content-negotiation:3.6.1")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.6.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
 
     // ---- Discord Rich Presence: the gateway is a WebSocket, so Ktor needs the plugin ----
     implementation("io.ktor:ktor-client-websockets:3.6.1")
@@ -430,7 +440,7 @@ dependencies {
 
     // ---- JS module execution: QuickJS VM for style source plugins ----
     // Held at InnerTubeX's version; the same VM runs QuickJsExecutor's module sources.
-    implementation("io.github.dokar3:quickjs-kt-android:1.0.15")
+    implementation("io.github.dokar3:quickjs-kt-android:1.0.18")
 
     // ---- SMB file shares: pure-Java SMB2/3 client (listing + streaming) ----
     implementation("com.hierynomus:smbj:0.15.0")
@@ -439,7 +449,7 @@ dependencies {
     // The full android artifact, not onnxruntime-mobile: mobile only loads .ort
     // files, which would put an offline conversion step between the model and
     // the app for a saving that does not matter in a self-distributed APK.
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.32.0")
 
     // ---- Casting: Google Cast sender + the route discovery it sits on ----
     // The framework and the router only. media3-cast is left out on purpose:
@@ -447,7 +457,7 @@ dependencies {
     // ours are `audify://` addresses that only the service's resolver can
     // turn into a real stream — see [com.music.audify.playback.cast.CastPlayback].
     implementation("com.google.android.gms:play-services-cast-framework:23.0.0")
-    implementation("androidx.mediarouter:mediarouter:1.8.1")
+    implementation("androidx.mediarouter:mediarouter:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
     // A real HTTP server for the addon tests. The addon protocol is entirely

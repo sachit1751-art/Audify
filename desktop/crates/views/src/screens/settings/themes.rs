@@ -115,7 +115,7 @@ impl SettingsView {
 
         // the ring around the chosen card stands outside it, so the rail leaves it room
         let room = theme.metrics.pad;
-        Rail::new("theme-cards")
+        Rail::new("theme-cards", cx.entity_id())
             .py(room)
             .arrows_at(room + THUMB / 2.)
             .children(cards)

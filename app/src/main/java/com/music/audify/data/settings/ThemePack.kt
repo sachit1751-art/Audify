@@ -40,15 +40,7 @@ object ThemePacks {
         ThemePack("sunset", "Sunset", "#FFAD78", "#F47D9A", "#B77CFF"),
         ThemePack("rose", "Rose", "#F48FB1", "#E6A6D8", "#B58CFF"),
         ThemePack("violet", "Violet", "#B7A1FF", "#83B8FF", "#E5A0E8"),
-        ThemePack("arctic", "Arctic", "#7DD3FC", "#A7F3D0", "#C4B5FD", ThemeSurfaceStyle.MIDNIGHT),
         ThemePack("jade", "Jade", "#6EE7B7", "#A3E635", "#67E8F9", ThemeSurfaceStyle.SLATE),
-        ThemePack("sakura", "Sakura", "#FDA4AF", "#F9A8D4", "#C4B5FD", ThemeSurfaceStyle.DEEP_PURPLE),
-        ThemePack("ember", "Ember", "#FDBA74", "#FCA5A5", "#FDE68A", ThemeSurfaceStyle.WARM),
-        ThemePack("citrus", "Citrus", "#FDE047", "#BEF264", "#67E8F9", ThemeSurfaceStyle.GRAPHITE),
-        ThemePack("lagoon", "Lagoon", "#5EEAD4", "#7DD3FC", "#A5B4FC", ThemeSurfaceStyle.MIDNIGHT),
-        ThemePack("orchid", "Orchid", "#D8B4FE", "#F0ABFC", "#A5B4FC", ThemeSurfaceStyle.DEEP_PURPLE),
-        ThemePack("copper", "Copper", "#FDBA74", "#D6A58A", "#F0C987", ThemeSurfaceStyle.WARM),
-        ThemePack("monochrome", "Monochrome", "#E5E7EB", "#A1A1AA", "#93C5FD", ThemeSurfaceStyle.GRAPHITE),
     )
 
     fun isValidHex(value: String): Boolean = value.matches(Regex("^#[0-9A-Fa-f]{6}$"))
@@ -57,7 +49,7 @@ object ThemePacks {
     private fun backgroundAccentHex(pack: ThemePack): String =
         if (pack.id == CLASSIC_ID) pack.tertiaryHex else pack.primaryHex
 
-    fun lightBackgroundHex(pack: ThemePack): String = blendHex("#FFFCFE", backgroundAccentHex(pack), 0.055)
+    fun lightBackgroundHex(pack: ThemePack): String = blendHex("#F8F5FA", backgroundAccentHex(pack), 0.11)
 
     /**
      * Dark canvas tokens from the original theme implementation. Palette accents

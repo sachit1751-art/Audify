@@ -37,6 +37,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
@@ -45,6 +46,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -113,6 +117,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -270,6 +275,8 @@ import com.music.audify.ui.MainViewModel
 import com.music.audify.ui.SearchSource
 import com.music.audify.ui.components.BottomFadeScrim
 import com.music.audify.ui.components.ProgressiveScrollEdgeBlur
+import com.music.audify.ui.components.TopFadeBlur
+import com.music.audify.ui.components.TopBarContentGap
 import com.music.audify.ui.components.ScrollBlurEdge
 import com.music.audify.ui.components.FloatingBarsTapGuard
 import com.music.audify.ui.components.BottomTab
@@ -285,6 +292,7 @@ import com.music.audify.ui.components.LocalLiquidGlassEnabled
 import com.music.audify.ui.components.LocalSegmentedControlStyle
 import com.music.audify.ui.components.backdrop.backdrops.LayerBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.layerBackdrop
+import androidx.compose.ui.graphics.layer.drawLayer
 import com.music.audify.ui.components.backdrop.backdrops.rememberLayerBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.rememberSnapshotBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.snapshotBackdropSource
@@ -442,6 +450,7 @@ class MainActivity : AppCompatActivity() {
             val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
             val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
             val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
+            val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
             val selectedThemePack = remember(selectedThemePackId, customThemePacks) {
                 ThemePacks.resolve(selectedThemePackId, customThemePacks)
             }
@@ -468,19 +477,16 @@ class MainActivity : AppCompatActivity() {
                 themePack = selectedThemePack,
                 backgroundUri = themeBackgroundUri,
             ) {
-                // The glass surfaces sample this layer, and a layer records only
-                // what is drawn into it — which, for Audify, is a page that
-                // paints no background of its own. Everywhere a page is not
-                // showing artwork the recording is transparent, so the glass had
-                // nothing to blur there and you saw straight through it to the
-                // sharp page underneath: album art came through the bar blurred
-                // and text came through it untouched. The window's background is
-                // the floor the pages have always been drawn against, so it is
-                // laid down here too and the recording is opaque like the screen.
-                val windowBackground = MaterialTheme.colorScheme.background
-                val paintBackdrop: ContentDrawScope.() -> Unit = remember(windowBackground) {
+                // 1.9.3 backdrop model: record the page once, with a restrained
+                // theme-colour floor. The wallpaper stays behind the page in the
+                // normal window composition; it is not captured and replayed as
+                // a second full-screen layer by Liquid Glass.
+                val backdropBaseColor = MaterialTheme.colorScheme.background
+                val hasWallpaper = !themeBackgroundUri.isNullOrBlank() ||
+                    backgroundStyle != com.music.audify.data.settings.AppBackgroundStyle.PLAIN
+                val paintBackdrop: ContentDrawScope.() -> Unit = remember(backdropBaseColor, hasWallpaper) {
                     {
-                        drawRect(windowBackground)
+                        drawRect(backdropBaseColor.copy(alpha = if (hasWallpaper) .24f else 1f))
                         drawContent()
                     }
                 }
@@ -626,6 +632,7 @@ private fun AudifyApp(
     viewModel: MainViewModel = viewModel(),
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val webdavUploadSummaryTemplate = stringResource(R.string.webdav_upload_summary)
     val noAudioVersionMessage = stringResource(R.string.no_audio_version)
     val noVideoVersionMessage = stringResource(R.string.no_video_version)
@@ -2216,7 +2223,7 @@ private fun AudifyApp(
                             ).asQueueEntry(QueueTier.USER_QUEUE).toMediaItem()
                         },
                     )
-                    val message = context.resources.getQuantityString(
+                    val message = resources.getQuantityString(
                         if (next) R.plurals.songs_will_play_next else R.plurals.songs_added_to_queue,
                         toAdd.size,
                         toAdd.size,
@@ -2635,7 +2642,7 @@ private fun AudifyApp(
                 val message = if (songs.isEmpty()) {
                     alreadyDownloadedMessage
                 } else {
-                    context.resources.getQuantityString(
+                    resources.getQuantityString(
                         R.plurals.downloading_song_count,
                         songs.size,
                         songs.size,
@@ -2692,9 +2699,17 @@ private fun AudifyApp(
     // under the status bar inset, and that inset varies by device and by window,
     // so a fixed number only ever lines up on the one device it was picked on.
     // See [topBarContentPadding].
+    // The page scrolls behind fixed bottom chrome. Reserve the actual measured
+    // height of that chrome, not a phone-specific dp guess: landscape windows,
+    // tablets, player visibility and the glass single-bar layout all differ.
+    // Include the gesture/navigation inset plus a small visual breathing gap.
+    val floatingBarsHeight = remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val bottomChromeSpace = with(density) { floatingBarsHeight.intValue.toDp() } +
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
     val listPadding = PaddingValues(
         top = topBarContentPadding(),
-        bottom = if (player.song != null) 210.dp else 140.dp,
+        bottom = bottomChromeSpace,
     )
 
     // What colour the page currently under the bars is. The fades either end
@@ -3188,32 +3203,71 @@ private fun AudifyApp(
                         val libraryShowAllSwap = (initial.isShowAll() && target == libraryTab) ||
                             (target.isShowAll() && initial == libraryTab)
                         val releaseMove = initial is AppDestination.Release || target is AppDestination.Release
-                        if (tabSwap || libraryShowAllSwap) {
-                            if (reducePlayerMotion) {
-                                EnterTransition.None togetherWith ExitTransition.None
-                            } else {
-                                val forward = when {
-                                    tabSwap -> (target as AppDestination.Tab).index >= (initial as AppDestination.Tab).index
-                                    else -> target.isShowAll()
-                                }
-                                val direction = if (forward) 1 else -1
-                                (fadeIn(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
-                                    slideInHorizontally(
-                                        animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
-                                    ) { direction * (it / 28) }) togetherWith
-                                    (fadeOut(tween(MotionTokens.NAVIGATION_FADE_MS, easing = MotionTokens.STANDARD_EASING)) +
-                                        slideOutHorizontally(
-                                            animationSpec = tween(MotionTokens.NAVIGATION_TRANSITION_MS, easing = MotionTokens.STANDARD_EASING),
-                                        ) { -direction * (it / 28) })
+                        val routeMove = initial is AppDestination.Route || target is AppDestination.Route
+                        val bloomReveal = (target as? AppDestination.Route)?.entry?.route is AppRoute.LibraryShowAll
+                        if (reducePlayerMotion) {
+                            EnterTransition.None togetherWith ExitTransition.None
+                        } else if (tabSwap || libraryShowAllSwap) {
+                            // Restore the original AUDIFY page-to-page motion:
+                            // the new tab moves in from its direction while the
+                            // previous page moves out in the opposite direction.
+                            // A small travel distance keeps it fluid and light.
+                            val forward = when {
+                                tabSwap -> (target as AppDestination.Tab).index >=
+                                    (initial as AppDestination.Tab).index
+                                else -> target.isShowAll()
                             }
+                            val direction = if (forward) 1 else -1
+                            (fadeIn(tween(
+                                MotionTokens.NAVIGATION_FADE_MS,
+                                easing = MotionTokens.STANDARD_EASING,
+                            )) + slideInHorizontally(
+                                animationSpec = tween(
+                                    MotionTokens.NAVIGATION_TRANSITION_MS,
+                                    easing = MotionTokens.STANDARD_EASING,
+                                ),
+                            ) { direction * (it / 28) }) togetherWith
+                                (fadeOut(tween(
+                                    MotionTokens.NAVIGATION_FADE_MS,
+                                    easing = MotionTokens.STANDARD_EASING,
+                                )) + slideOutHorizontally(
+                                    animationSpec = tween(
+                                        MotionTokens.NAVIGATION_TRANSITION_MS,
+                                        easing = MotionTokens.STANDARD_EASING,
+                                    ),
+                                ) { -direction * (it / 28) })
+                        } else if (bloomReveal) {
+                            // A restrained Bloom-style reveal for a shelf opened
+                            // from its tab. Keep this to one page-scale layer; do
+                            // not animate every grid tile or allocate per-card blur.
+                            (fadeIn(tween(180)) + scaleIn(
+                                initialScale = 0.94f,
+                                animationSpec = spring(dampingRatio = 0.86f, stiffness = 420f),
+                            )) togetherWith fadeOut(tween(120))
                         } else if (releaseMove) {
                             // A release page brings its own colour: let it come in over
                             // the cover's flight instead of snapping, while the page it
                             // replaces clears a little faster so the two don't ghost.
-                            fadeIn(tween(620, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) togetherWith
-                                fadeOut(tween(340))
-                        } else if (reducePlayerMotion) {
-                            EnterTransition.None togetherWith ExitTransition.None
+                            (fadeIn(tween(260, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
+                                scaleIn(initialScale = 0.965f, animationSpec = tween(300, easing = MotionTokens.STANDARD_EASING))) togetherWith
+                                (fadeOut(tween(170)) + scaleOut(targetScale = 1.015f, animationSpec = tween(220)))
+                        } else if (routeMove) {
+                            // Native NavigationStack-style Push for deeper pages.
+                            // Full-width translation is limited to actual routes;
+                            // tab changes and release artwork use their own motion.
+                            val forward = when {
+                                initial is AppDestination.Route && target is AppDestination.Route ->
+                                    target.entry.id >= initial.entry.id
+                                target is AppDestination.Route -> true
+                                else -> false
+                            }
+                            val direction = if (forward) 1 else -1
+                            (fadeIn(tween(170)) + slideInHorizontally(
+                                animationSpec = tween(260, easing = MotionTokens.STANDARD_EASING),
+                            ) { direction * it }) togetherWith
+                                (fadeOut(tween(150)) + slideOutHorizontally(
+                                    animationSpec = tween(230, easing = MotionTokens.STANDARD_EASING),
+                                ) { -direction * (it / 4) })
                         } else {
                             fadeIn(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING)) togetherWith
                                 fadeOut(tween(MotionTokens.SHORT_FADE_MS, easing = MotionTokens.STANDARD_EASING))
@@ -4225,8 +4279,14 @@ private fun AudifyApp(
                 val artistListState = detail
                     ?.takeIf { isDetailVisible && it.type == BrowseType.ARTIST }
                     ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
+                // Playlist artwork begins below the floating bar. Its top fade
+                // waits until scrolling brings that sleeve up underneath it.
+                val playlistListState = detail
+                    ?.takeIf { isDetailVisible && it.type == BrowseType.PLAYLIST }
+                    ?.let { detailListStates.getOrPut(it.browseId) { LazyListState() } }
                 val homeHeadingVisible = route == null && detail == null && selectedTab == TAB_HOME
-                val headerListState = artistListState ?: homeListState.takeIf { homeHeadingVisible }
+                val headerListState = artistListState ?: playlistListState
+                    ?: homeListState.takeIf { homeHeadingVisible }
                 // Header (foto profil + pill) turun/naik antara posisi Home dan tab lain
                 // dengan spring sedikit membal, bukan loncat saat tab berpindah.
                 val homeHeaderBlend = animateFloatAsState(
@@ -4238,49 +4298,39 @@ private fun AudifyApp(
                     label = "homeHeaderBlend",
                 )
                 val fadeStart = if (artistListState != null) TOP_FADE_START else 0f
-                val fadeRamp = if (artistListState != null) TOP_FADE_RAMP else 1f
-                val topFadeAlpha by remember(headerListState, fadeStart, fadeRamp) {
+                val fadeRamp = if (artistListState != null || playlistListState != null) TOP_FADE_RAMP else 1f
+                val playlistFadeStartPx = with(LocalDensity.current) { TopBarContentGap.toPx() }
+                val topFadeAlpha by remember(
+                    headerListState, fadeStart, fadeRamp, playlistListState, playlistFadeStartPx,
+                ) {
                     derivedStateOf {
                         val list = headerListState ?: return@derivedStateOf 1f
                         if (list.firstVisibleItemIndex > 0) return@derivedStateOf 1f
                         val header = list.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.index == 0 }?.size?.toFloat()
                             ?: return@derivedStateOf 0f
-                        ((list.firstVisibleItemScrollOffset - header * fadeStart) /
+                        val startPx = if (playlistListState != null) playlistFadeStartPx else header * fadeStart
+                        ((list.firstVisibleItemScrollOffset - startPx) /
                             (header * fadeRamp)).coerceIn(0f, 1f)
                     }
                 }
-                // Keep the original two-layer crossfade: the top blur ramps in
-                // as the heading clears the bar, while the inverted page-colour
-                // fade fills the gap at rest. The conditional replacement had
-                // removed the resting top treatment, leaving the edge one-sided.
-                if (reduceDynamicBlur || !progressiveBlur) {
-                    BottomFadeScrim(
-                        pageColor = chromePageColor,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .rotate(180f)
-                            .graphicsLayer { alpha = 1f },
-                    )
-                } else {
-                    ProgressiveScrollEdgeBlur(
-                        hazeState = hazeState,
-                        pageColor = chromePageColor,
-                        edge = ScrollBlurEdge.Top,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .graphicsLayer { alpha = topFadeAlpha },
-                    )
-                }
-                if (!reduceDynamicBlur && progressiveBlur) {
-                    BottomFadeScrim(
-                        pageColor = chromePageColor,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .rotate(180f)
-                            .graphicsLayer { alpha = 1f - topFadeAlpha },
-                    )
-                }
+                // 1.9.3 top treatment: progressive Haze blur and its matching
+                // readability scrim cross-fade against the page-colour floor.
+                // The two ramps meet at zero so neither leaves a hard band.
+                TopFadeBlur(
+                    hazeState = hazeState,
+                    pageColor = chromePageColor,
+                    scrimColor = chromePageColor,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    alpha = topFadeAlpha,
+                )
+                BottomFadeScrim(
+                    pageColor = chromePageColor,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .rotate(180f)
+                        .graphicsLayer { alpha = 1f - topFadeAlpha },
+                )
 
                 // Home: the account pill sits level with the wordmark and rides up
                 // with the feed for that short distance, then stays pinned in the bar.
@@ -4653,7 +4703,6 @@ private fun AudifyApp(
 
                 // Whichever bar is drawing reports its height here, for the
                 // guard to read at layout — never in composition, see the guard.
-                val floatingBarsHeight = remember { mutableIntStateOf(0) }
                 FloatingBarsTapGuard(
                     barsHeight = { floatingBarsHeight.intValue },
                     modifier = Modifier.align(Alignment.BottomCenter),
@@ -5179,7 +5228,7 @@ private fun AudifyApp(
                             // outcome worth seeing rather than a silent one.
                             Toast.makeText(
                                 context,
-                                context.resources.getQuantityString(
+                                resources.getQuantityString(
                                     R.plurals.log_copied_line_count,
                                     text.lineSequence().count(),
                                     text.lineSequence().count(),
@@ -5451,7 +5500,7 @@ private fun AudifyApp(
                     UserPlaylist(
                         playlistId = lp.id,
                         title = lp.title,
-                        subtitle = context.resources.getQuantityString(
+                        subtitle = resources.getQuantityString(
                             R.plurals.song_count_plural,
                             lp.songs.size,
                             lp.songs.size,
@@ -5474,7 +5523,7 @@ private fun AudifyApp(
                             // all there already, else that it didn't work.
                             showQueueNotice(
                                 when {
-                                    added > 1 -> context.resources.getQuantityString(
+                                    added > 1 -> resources.getQuantityString(
                                         R.plurals.added_to_playlists_notice, added, added,
                                     )
                                     added == 1 -> songAddedToPlaylistMessage
@@ -5520,7 +5569,7 @@ private fun AudifyApp(
                     UserPlaylist(
                         playlistId = playlist.id,
                         title = playlist.title,
-                        subtitle = context.resources.getQuantityString(
+                        subtitle = resources.getQuantityString(
                             R.plurals.song_count_plural,
                             playlist.songs.size,
                             playlist.songs.size,
@@ -5542,7 +5591,7 @@ private fun AudifyApp(
                         val result = OfflinePlaylists.add(picked.mapTo(HashSet()) { it.playlistId }, listOf(song))
                         showQueueNotice(
                             when {
-                                result.added > 1 -> context.resources.getQuantityString(
+                                result.added > 1 -> resources.getQuantityString(
                                     R.plurals.added_to_playlists_notice, result.added, result.added,
                                 )
                                 result.added == 1 -> songAddedToPlaylistMessage
@@ -5957,7 +6006,9 @@ private fun AudifyApp(
         AnimatedVisibility(
             visibleState = onboardingShown,
             enter = EnterTransition.None,
-            exit = slideOutVertically(
+            exit = fadeOut(
+                animationSpec = tween(durationMillis = 360, easing = MotionTokens.STANDARD_EASING),
+            ) + slideOutVertically(
                 tween<IntOffset>(durationMillis = 560, easing = OnboardingDismissEasing),
             ) { it },
         ) {

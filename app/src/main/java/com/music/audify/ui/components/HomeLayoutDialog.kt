@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -80,10 +81,10 @@ import dev.chrisbanes.haze.materials.HazeMaterials
 fun HomeLayoutDialog(
     hazeState: HazeState,
     shelves: List<HomeShelf>,
+    modifier: Modifier = Modifier,
     /** The account's library shelves, for the Library tab of the dialog. */
     libraryShelves: List<HomeShelf> = emptyList(),
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val layout by AppSettings.homeLayout.collectAsStateWithLifecycle()
@@ -303,13 +304,13 @@ private fun ReorderableHomeSlotList(
 ) {
     var liveOrder by remember(order) { mutableStateOf(order) }
     var draggedSlot by remember { mutableStateOf<String?>(null) }
-    var totalDrag by remember { mutableStateOf(0f) }
-    var startIndex by remember { mutableStateOf(0) }
-    var pitchPx by remember { mutableStateOf(0f) }
-    var lockedPitchPx by remember { mutableStateOf(0f) }
+    var totalDrag by remember { mutableFloatStateOf(0f) }
+    var startIndex by remember { mutableIntStateOf(0) }
+    var pitchPx by remember { mutableFloatStateOf(0f) }
+    var lockedPitchPx by remember { mutableFloatStateOf(0f) }
 
     val scrollState = rememberScrollState()
-    var viewportHeightPx by remember { mutableStateOf(0f) }
+    var viewportHeightPx by remember { mutableFloatStateOf(0f) }
     val autoScroll = remember { HomeDragAutoScroll() }
     val density = LocalDensity.current
     val edgeZonePx = with(density) { HOME_EDGE_SCROLL_ZONE.toPx() }

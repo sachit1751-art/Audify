@@ -2,6 +2,7 @@
 // Project: AUDIFY
 package com.music.audify.ui.tv.theme
 
+import androidx.core.graphics.toColorInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
@@ -552,7 +553,7 @@ fun AudifyTvTheme(
     }
     val primaryHex = if (themePack.id == ThemePacks.CLASSIC_ID) themePack.tertiaryHex else themePack.primaryHex
     val tertiaryHex = if (themePack.id == ThemePacks.CLASSIC_ID) themePack.primaryHex else themePack.tertiaryHex
-    fun parse(hex: String) = Color(android.graphics.Color.parseColor(hex))
+    fun parse(hex: String) = Color(hex.toColorInt())
     val primary = parse(primaryHex)
     val secondary = parse(themePack.secondaryHex)
     val tertiary = parse(tertiaryHex)

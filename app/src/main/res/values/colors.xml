@@ -12,4 +12,8 @@ Project: AUDIFY
     <color name="launcher_coral_background">#A8324A</color>
     <color name="launcher_amber_background">#80520A</color>
     <color name="launcher_arctic_background">#164A78</color>
+    <color name="launcher_rose_background">#8B315F</color>
+    <color name="launcher_mint_background">#0B665A</color>
+    <color name="launcher_lavender_background">#6652A5</color>
+    <color name="launcher_ruby_background">#9C2945</color>
 </resources>
