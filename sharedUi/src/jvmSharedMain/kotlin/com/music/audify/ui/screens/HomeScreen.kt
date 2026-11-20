@@ -155,15 +155,8 @@ private fun List<HomeShelf>.withoutSpeedDial(): List<HomeShelf> =
     filterNot { shelf -> SPEED_DIAL_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) } }
 private const val RECENT_TRACKS_PER_COLUMN = 4
 private const val QUICK_PICKS_ROWS = 3
-private val QUICK_PICK_MIN_COLUMN_WIDTH = 208.dp
+private val QUICK_PICK_COLUMN_WIDTH = 286.dp
 private val QUICK_PICK_COLUMN_SPACING = 18.dp
-
-/** The 1.9.3 Home grid: fit as many readable track columns as the content pane allows. */
-private fun quickPickColumns(available: Dp): Int {
-    val usable = (available - PAGE_GUTTER * 2).coerceAtLeast(0.dp)
-    return ((usable + QUICK_PICK_COLUMN_SPACING) /
-        (QUICK_PICK_MIN_COLUMN_WIDTH + QUICK_PICK_COLUMN_SPACING)).toInt().coerceIn(1, 5)
-}
 
 internal fun quickPicksColumns(items: List<ShelfItem>): List<List<ShelfItem>> =
     items.chunked(QUICK_PICKS_ROWS)
@@ -600,27 +593,25 @@ private fun QuickPicksShelf(
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle)
         val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns = quickPickColumns(maxWidth)
-            val rows = shelf.items.take(if (columns >= 3) columns * 4 else 4).chunked(columns)
-            Column(Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER)) {
-                rows.forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(QUICK_PICK_COLUMN_SPACING),
-                    ) {
-                        rowItems.forEach { item ->
-                            Column(Modifier.weight(1f)) {
-                                QuickPickTrackRow(
-                                    item = item,
-                                    onClick = { onItemClick(item) },
-                                    onLongPress = onItemLongPress?.let { { it(item) } },
-                                    isCurrent = isCurrentItem(item),
-                                    isPlaying = isCurrentItem(item) && isPlaying,
-                                )
-                            }
-                        }
-                        repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
+        ShelfRow(
+            state = rememberShelfListState("quick-picks:${shelf.title}"),
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(QUICK_PICK_COLUMN_SPACING),
+        ) {
+            itemsIndexed(
+                quickPicksColumns(shelf.items),
+                key = { index, column -> "quick-picks:${column.firstOrNull()?.videoId ?: index}" },
+                contentType = { _, _ -> "quick-picks-column" },
+            ) { _, column ->
+                Column(Modifier.width(QUICK_PICK_COLUMN_WIDTH)) {
+                    column.forEach { item ->
+                        QuickPickTrackRow(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onLongPress = onItemLongPress?.let { { it(item) } },
+                            isCurrent = isCurrentItem(item),
+                            isPlaying = isCurrentItem(item) && isPlaying,
+                        )
                     }
                 }
             }
@@ -2094,10 +2085,7 @@ internal fun Shelf(
     }
 }
 
-/**
- * A music video uses a portrait 9:16 frame, with the original thumbnail fitted
- * inside it rather than resized or cropped to fill the frame.
- */
+/** Music-video cards follow the landscape thumbnail format used by the feed. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoShelfCard(
@@ -2152,8 +2140,8 @@ fun VideoShelfCard(
     }
 }
 
-/** A music video's portrait thumbnail frame, or a square one when square covers are on. */
-val VIDEO_ASPECT: Float get() = if (VideoThumbnails.square) 1f else 9f / 16f
+/** Music videos use landscape thumbnails by default; the explicit square preference remains respected. */
+val VIDEO_ASPECT: Float get() = if (VideoThumbnails.square) 1f else 16f / 9f
 
 /** Keep video and square cards on the same shelf width; the image keeps its own ratio. */
 val VIDEO_CARD_WIDTH: Dp get() = SHELF_CARD_WIDTH

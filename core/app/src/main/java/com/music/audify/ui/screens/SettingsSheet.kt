@@ -743,6 +743,14 @@ fun SettingsScreen(
     // What is left after a keystroke is a different list, and the offset the
     // last one was scrolled to means nothing in it.
     val scrollState = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    // Scroll offsets change on every frame. Only the scrollability boundary matters
+    // here, so derive the boolean and avoid recomposing the entire settings tree
+    // while the user is dragging through the long page.
+    val settingsCanScroll by remember(scrollState) {
+        androidx.compose.runtime.derivedStateOf {
+            scrollState.canScrollForward || scrollState.canScrollBackward
+        }
+    }
     var isFirstSearchComposition by remember { mutableStateOf(true) }
     LaunchedEffect(searchQuery) {
         if (isFirstSearchComposition) {
@@ -767,7 +775,7 @@ fun SettingsScreen(
             // otherwise the rubber band pulls it off its place for no reason.
             .verticalScroll(
                 scrollState,
-                enabled = scrollState.canScrollForward || scrollState.canScrollBackward,
+                enabled = settingsCanScroll,
             )
             .padding(contentPadding),
     ) {
