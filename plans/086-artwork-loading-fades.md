@@ -1,4 +1,4 @@
-﻿# 086 — Make artwork loading fades responsive and consistent
+# 086 — Make artwork loading fades responsive and consistent
 
 - **Status**: TODO
 - **Commit**: ba5d080d
@@ -10,7 +10,7 @@
 
 Artwork appears throughout the application, but loading fades use inconsistent and slow ease-in timing.
 
-Current shared artwork class at `web/app/src/components/music/Artwork.tsx:38-40`:
+Current shared artwork class at `platforms/web/core/app/src/components/music/Artwork.tsx:38-40`:
 
 ```tsx
 <img
@@ -18,7 +18,7 @@ Current shared artwork class at `web/app/src/components/music/Artwork.tsx:38-40`
   className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-250 ease-in data-loaded:opacity-100"
 ```
 
-Artist hero replacement at `web/app/src/pages/ArtistPage.tsx:86-94`:
+Artist hero replacement at `platforms/web/core/app/src/pages/ArtistPage.tsx:86-94`:
 
 ```tsx
 {apple && (
@@ -40,9 +40,9 @@ The hero replacement is a 400ms ease-in fade; the shared artwork fade is 250ms e
 
 ## Repo conventions to follow
 
-- Artwork presentation is centralized in `web/app/src/components/music/Artwork.tsx`.
-- Hero replacement is owned by `web/app/src/pages/ArtistPage.tsx`.
-- Easing tokens are defined in `web/app/src/styles/tokens.css`; use the shared ease-out token from plan 085 once it exists, otherwise use the exact CSS curve `cubic-bezier(0.23, 1, 0.32, 1)`.
+- Artwork presentation is centralized in `platforms/web/core/app/src/components/music/Artwork.tsx`.
+- Hero replacement is owned by `platforms/web/core/app/src/pages/ArtistPage.tsx`.
+- Easing tokens are defined in `platforms/web/core/app/src/styles/tokens.css`; use the shared ease-out token from plan 085 once it exists, otherwise use the exact CSS curve `cubic-bezier(0.23, 1, 0.32, 1)`.
 
 ## Steps
 

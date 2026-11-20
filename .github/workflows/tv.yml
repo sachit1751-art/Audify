@@ -2,18 +2,18 @@
 # Project: AUDIFY
 name: TV
 
-# The Android TV app builds from the phone app's sources (see tv/README.md), so
-# a change under app/, shared/, sharedUi/ or native/ can break it as easily as
-# one under tv/.
+# The Android TV app builds from the phone app's sources (see platforms/tv/README.md), so
+# a change under core/app/, shared/, sharedUi/ or core/native/ can break it as easily as
+# one under platforms/tv/.
 on:
   push:
     branches: [main]
     paths:
-      - 'tv/**'
-      - 'app/**'
+      - 'platforms/tv/**'
+      - 'core/app/**'
       - 'shared/**'
       - 'sharedUi/**'
-      - 'native/**'
+      - 'core/native/**'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
@@ -21,11 +21,11 @@ on:
       - '.github/workflows/tv.yml'
   pull_request:
     paths:
-      - 'tv/**'
-      - 'app/**'
+      - 'platforms/tv/**'
+      - 'core/app/**'
       - 'shared/**'
       - 'sharedUi/**'
-      - 'native/**'
+      - 'core/native/**'
       - 'build.gradle.kts'
       - 'settings.gradle.kts'
       - 'gradle.properties'
@@ -80,11 +80,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: audify-tv-dev-release
-          path: tv/build/outputs/apk/dev/release/*universal*.apk
+          path: platforms/tv/build/outputs/apk/dev/release/*universal*.apk
 
       - name: Upload build reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: tv-build-reports
-          path: tv/build/reports/
+          path: platforms/tv/build/reports/

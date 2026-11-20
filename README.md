@@ -153,7 +153,7 @@ The current stable release is **Audify 1.9.0**. Download the build for your devi
 | Wear OS | [Universal Wear OS APK](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/AudifyWear-prod-universal-release.apk) | Companion app; requires a compatible phone app. |
 | Windows x64 | [Audify Setup](https://github.com/sachit1751-art/Audify/releases/download/v1.9.1/Audify-Setup.exe) | Windows installer; currently unsigned. |
 
-For installation notes and platform-specific requirements, see the [Android TV guide](tv/README.md), [Wear OS guide](wearos/README.md), and [Desktop guide](desktop/README.md). Linux and macOS desktop downloads are not available in 1.9.0.
+For installation notes and platform-specific requirements, see the [Android TV guide](platforms/tv/README.md), [Wear OS guide](platforms/wearos/README.md), and [Desktop guide](desktop/README.md). Linux and macOS desktop downloads are not available in 1.9.0.
 ## Community
 
 - **Questions and ideas:** [GitHub Discussions](https://github.com/sachit1751-art/Audify/discussions)
@@ -165,7 +165,7 @@ For installation notes and platform-specific requirements, see the [Android TV g
 
 When reporting an issue, include clear reproduction steps and relevant app details. Remove personal information from screenshots and logs. Never share account credentials, tokens, or private listening data.
 
-The Android app also supports direct anonymous bug reports and feature suggestions from Settings → About. These are published as public GitHub issues. The in-app submission service requires the one-time Worker secret described in [the feedback setup guide](backend/cloudflare/FEEDBACK_SETUP.md).
+The Android app also supports direct anonymous bug reports and feature suggestions from Settings → About. These are published as public GitHub issues. The in-app submission service requires the one-time Worker secret described in [the feedback setup guide](core/backend/cloudflare/FEEDBACK_SETUP.md).
 
 ## Build from source
 

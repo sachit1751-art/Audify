@@ -8,7 +8,7 @@
 
 ## Problem
 
-Detail content already uses `animateContentSize()` in `app/src/main/java/com/music/audify/ui/screens/DetailScreen.kt:1886`, while the same screen uses a 220ms/180ms fade for shelf replacement at `:504-510`. The codebase therefore has local expansion and content-transition patterns that must be audited for consistency and interruptibility rather than replaced wholesale.
+Detail content already uses `animateContentSize()` in `core/app/src/main/java/com/music/audify/ui/screens/DetailScreen.kt:1886`, while the same screen uses a 220ms/180ms fade for shelf replacement at `:504-510`. The codebase therefore has local expansion and content-transition patterns that must be audited for consistency and interruptibility rather than replaced wholesale.
 
 ## Target
 
@@ -21,8 +21,8 @@ Detail content already uses `animateContentSize()` in `app/src/main/java/com/mus
 ## Repo conventions to follow
 
 - Shared tokens: `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/motion/MotionTokens.kt:10-20`.
-- Existing content-size animation: `app/src/main/java/com/music/audify/ui/screens/DetailScreen.kt:1886`.
-- Existing settings owner and controls should be discovered in `app/src/main/java/com/music/audify/ui/screens/SettingsSheet.kt`; do not assume every setting belongs to the same component.
+- Existing content-size animation: `core/app/src/main/java/com/music/audify/ui/screens/DetailScreen.kt:1886`.
+- Existing settings owner and controls should be discovered in `core/app/src/main/java/com/music/audify/ui/screens/SettingsSheet.kt`; do not assume every setting belongs to the same component.
 
 ## Steps
 

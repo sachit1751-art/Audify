@@ -13,8 +13,8 @@ This document records decisions that were already made. Don't reopen them; where
 ## 0. Ground rules
 
 - **Where the code goes:** this repo, under `web/`:
-  - `web/app`: the Vite + React site.
-  - `web/extension`: the browser extension.
+  - `platforms/web/app`: the Vite + React site.
+  - `platforms/web/extension`: the browser extension.
   - `web/shared`: TypeScript types and protocol code used by both.
   - Use one package manager (pnpm workspaces) across all three.
 - **The Kotlin code is the specification.** Every feature below has a working implementation in `shared/`, `app/` or `backend/`. Read it before writing the TypeScript version.
@@ -105,7 +105,7 @@ Write the findings to `web/docs/apple-music-dom.md` **before** building componen
 - Lockup and artwork sizes per breakpoint, and grid column counts.
 - Scroll behaviour (sticky headers, shelf scroll-snap).
 
-Build the design tokens in `web/app/src/styles/tokens.css` from this document.
+Build the design tokens in `platforms/web/core/app/src/styles/tokens.css` from this document.
 
 ### 2.2 What not to copy
 
@@ -218,7 +218,7 @@ Use Manifest V3 and build with WXT (or a Vite-based MV3 setup) to get Chrome and
 ### 5.3 YouTube Music sign-in (Integration 1)
 
 - There's no login screen. The extension reads the user's existing Google session cookies for `music.youtube.com`/`.youtube.com` with the `cookies` API.
-  - The Android equivalent is `app/src/main/java/com/music/audify/auth/{YtMusicLoginScreen.kt,WebSession.kt,AuthStore.kt}`.
+  - The Android equivalent is `core/app/src/main/java/com/music/audify/auth/{YtMusicLoginScreen.kt,WebSession.kt,AuthStore.kt}`.
   - The **closest analogue** is the desktop app, which already reads cookies from installed browsers: `desktopApp/src/main/kotlin/com/music/audify/desktop/{DesktopBrowserCookies.kt,DesktopYouTubeAuth.kt,DesktopWebSignIn.kt}`.
 - Signed-in requests run in the background worker:
   - Cookie header from the jar.
@@ -233,10 +233,10 @@ Use Manifest V3 and build with WXT (or a Vite-based MV3 setup) to get Chrome and
 ## 6. Addons (same protocol as the app)
 
 Reference implementation:
-- `app/src/main/java/com/music/audify/data/sources/addon/AddonClient.kt`
+- `core/app/src/main/java/com/music/audify/data/sources/addon/AddonClient.kt`
 - `…/addon/AddonModels.kt`
 - `…/addon/SourceFormats.kt`
-- `app/src/main/java/com/music/audify/data/sources/AddonSource.kt`
+- `core/app/src/main/java/com/music/audify/data/sources/AddonSource.kt`
 
 Port the request and response shapes, caching (shared calls with manifest and stream time-to-live caches), and matching **exactly**.
 
@@ -270,8 +270,8 @@ Port the request and response shapes, caching (shared calls with manifest and st
 ### 7.1 Spotify (Integration 2)
 
 - Reference implementation:
-  - `app/src/main/java/com/music/audify/auth/SpotifyLoginScreen.kt`: captures the `sp_dc` cookie.
-  - `app/src/main/java/com/music/audify/data/canvas/{SpotifyToken.kt,SpotifyCanvas.kt}`: token from `sp_dc` (TOTP-based, via `open.spotify.com`/`accounts.spotify.com`) and a client token from `clienttoken.spotify.com/v1/clienttoken`.
+  - `core/app/src/main/java/com/music/audify/auth/SpotifyLoginScreen.kt`: captures the `sp_dc` cookie.
+  - `core/app/src/main/java/com/music/audify/data/canvas/{SpotifyToken.kt,SpotifyCanvas.kt}`: token from `sp_dc` (TOTP-based, via `open.spotify.com`/`accounts.spotify.com`) and a client token from `clienttoken.spotify.com/v1/clienttoken`.
   - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/canvas/SpotifyCanvasQuery.kt`
   - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/spotify/{SpotifyImporter.kt,SpotifyLibrary.kt}`: `api-partner.spotify.com/pathfinder` queries.
   - Desktop: `desktopApp/.../DesktopSpotifyCanvas.kt` and `DesktopIntegrationsUi.kt`.
@@ -284,7 +284,7 @@ Port the request and response shapes, caching (shared calls with manifest and st
 ### 7.2 Discord, setup
 
 - Reference implementation:
-  - `app/src/main/java/com/music/audify/auth/DiscordLoginScreen.kt`: token from discord.com `localStorage`.
+  - `core/app/src/main/java/com/music/audify/auth/DiscordLoginScreen.kt`: token from discord.com `localStorage`.
   - `shared/src/jvmSharedMain/kotlin/com/my/kizzy/{gateway,rpc,utils}`: gateway at `wss://gateway.discord.gg/?v=9&encoding=json`, external assets via `discord.com/api/v9/applications/{id}/external-assets`.
   - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/discord/DiscordApplication.kt`: application id.
   - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/presence/Presence.kt`: what the activity shows.
@@ -319,7 +319,7 @@ Server: `https://api.bitchord.kushagrasingh.in`, the Go server in `backend/`. Re
 - Frame types (defined in `backend/protocol/protocol.go`): `welcome`, `state`, `sync`, `members`, `queue`, `control` (`play`, `pause`, `seek`, `next`, `previous`), `ping`/`pong`, `activity`, `kick`, `bye`, `error`, `report`. Copy the field names from the Go structs.
 
 ### 8.2 Client
-- Port `app/src/main/java/com/music/audify/data/listentogether/{ListenTogether.kt,JamInviteLink.kt}`, `app/src/main/java/com/music/audify/playback/PartySync.kt` and `shared/src/jvmSharedMain/kotlin/com/music/audify/playback/QueueTimeline.kt` (the shared queue model).
+- Port `core/app/src/main/java/com/music/audify/data/listentogether/{ListenTogether.kt,JamInviteLink.kt}`, `core/app/src/main/java/com/music/audify/playback/PartySync.kt` and `shared/src/jvmSharedMain/kotlin/com/music/audify/playback/QueueTimeline.kt` (the shared queue model).
   - The memory index lists sync and queue bugs that were already fixed (the AutoPlay double-send and the duplicate-track index). Port the fixed behaviour.
 - **Clock:**
   - Time readings come from `performance.timeOrigin + performance.now()`.
@@ -340,8 +340,8 @@ Server: `https://api.bitchord.kushagrasingh.in`, the Go server in `backend/`. Re
 ## 9. Replay
 
 - Reference implementation:
-  - `app/src/main/java/com/music/audify/data/stats/{ListeningRecorder.kt,ListeningStats.kt,ArtistFacts.kt,Backup.kt}`
-  - `app/src/main/java/com/music/audify/ui/replay/{ReplayModel.kt,ReplayScreen.kt,ReplayStories.kt,ReplayPoster.kt,ReplayShareSheet.kt}`
+  - `core/app/src/main/java/com/music/audify/data/stats/{ListeningRecorder.kt,ListeningStats.kt,ArtistFacts.kt,Backup.kt}`
+  - `core/app/src/main/java/com/music/audify/ui/replay/{ReplayModel.kt,ReplayScreen.kt,ReplayStories.kt,ReplayPoster.kt,ReplayShareSheet.kt}`
 - **Storage:** IndexedDB (via `idb`), with the same bucket model the phone keeps as JSON files: per-period buckets with track, artist and album entries, hourly and daily counters, and per-day stats (`StoredBucket`, `TrackEntry`, `NameEntry`, `DayStats`).
 - **Recording rules** (what counts as a play, minimum listened time, skips, seeks): copy `ListeningRecorder.kt` exactly.
 - **Import:** accept the phone's backup file (`Backup.kt` format) so a user's existing history comes with them.

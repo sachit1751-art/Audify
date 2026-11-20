@@ -2,18 +2,18 @@
 # Project: AUDIFY
 name: Web
 
-# The web player (web/app), its browser extension (web/extension) and the code
-# they share (web/shared): typecheck, test and build all three, so a change
+# The web player (platforms/web/app), its browser extension (platforms/web/extension) and the code
+# they share (platforms/web/shared): typecheck, test and build all three, so a change
 # that only breaks the production build (Vite, WXT) is caught before it ships.
 on:
   push:
     branches: [main]
     paths:
-      - 'web/**'
+      - 'platforms/web/**'
       - '.github/workflows/web.yml'
   pull_request:
     paths:
-      - 'web/**'
+      - 'platforms/web/**'
       - '.github/workflows/web.yml'
 
 concurrency:
@@ -26,20 +26,20 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: web
+        working-directory: platforms/web
     steps:
       - uses: actions/checkout@v4
 
-      # The pnpm version comes from web/package.json's packageManager.
+      # The pnpm version comes from platforms/web/package.json's packageManager.
       - uses: pnpm/action-setup@v4
         with:
-          package_json_file: web/package.json
+          package_json_file: platforms/web/package.json
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+          cache-dependency-path: platforms/web/pnpm-lock.yaml
 
       - name: Install
         run: pnpm install --frozen-lockfile

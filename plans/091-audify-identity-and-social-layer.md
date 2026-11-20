@@ -35,8 +35,8 @@ The goal is a small, reliable social foundation—not a second Instagram. Ship i
 
 The repository audit recorded in Plan 075 found:
 
-- `app/src/main/java/com/music/audify/auth/AccountSessions.kt` models Google/YouTube provider sessions and account metadata.
-- `app/src/main/java/com/music/audify/auth/AuthStore.kt` stores provider credentials and selects an active provider account. These are not first-party AUDIFY identities.
+- `core/app/src/main/java/com/music/audify/auth/AccountSessions.kt` models Google/YouTube provider sessions and account metadata.
+- `core/app/src/main/java/com/music/audify/auth/AuthStore.kt` stores provider credentials and selects an active provider account. These are not first-party AUDIFY identities.
 - `backend/` contains a Go Listen Together service. Its join protocol accepts client-supplied user identity fields; the recorded audit found that the service validates field shape but does not independently prove that the caller owns the submitted identity.
 - The Listen Together party token is scoped to a live party/device membership. It is not a durable AUDIFY user credential.
 - Plan 075 already identifies verified AUDIFY identity, durable transactional storage, and provider-independent track references as blockers for shared playlists.

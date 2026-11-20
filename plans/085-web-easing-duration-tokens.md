@@ -1,4 +1,4 @@
-﻿# 085 — Normalize web UI easing and duration tokens
+# 085 — Normalize web UI easing and duration tokens
 
 - **Status**: TODO
 - **Commit**: ba5d080d
@@ -8,7 +8,7 @@
 
 ## Problem
 
-The shared token `--global-transition` in `web/app/src/styles/tokens.css:61` uses `ease-in`, and recurring UI controls also use `ease-in`. The audit playbook treats `ease-in` on UI as a finding because it delays the response at the moment the user is watching. Enter/exit should use ease-out; hover and colour changes should use ease; on-screen movement should use ease-in-out. UI animations should remain under 300ms.
+The shared token `--global-transition` in `platforms/web/core/app/src/styles/tokens.css:61` uses `ease-in`, and recurring UI controls also use `ease-in`. The audit playbook treats `ease-in` on UI as a finding because it delays the response at the moment the user is watching. Enter/exit should use ease-out; hover and colour changes should use ease; on-screen movement should use ease-in-out. UI animations should remain under 300ms.
 
 Current token:
 
@@ -19,7 +19,7 @@ Current token:
 --duration-arrow: 0.25s;
 ```
 
-Other confirmed call sites include `web/app/src/shell/FullScreenPlayer.tsx:57-63`, `:79`, `:121`, `web/app/src/components/music/Lockups.tsx:74,81,148,171`, `web/app/src/components/music/SearchField.tsx:166`, and `web/app/src/shell/Lcd.tsx:138,204`.
+Other confirmed call sites include `platforms/web/core/app/src/shell/FullScreenPlayer.tsx:57-63`, `:79`, `:121`, `platforms/web/core/app/src/components/music/Lockups.tsx:74,81,148,171`, `platforms/web/core/app/src/components/music/SearchField.tsx:166`, and `platforms/web/core/app/src/shell/Lcd.tsx:138,204`.
 
 ## Target
 
@@ -39,7 +39,7 @@ Add or reuse shared tokens matching the audit playbook exactly:
 
 ## Repo conventions to follow
 
-- Motion tokens belong in `web/app/src/styles/tokens.css`.
+- Motion tokens belong in `platforms/web/core/app/src/styles/tokens.css`.
 - Existing `--ease-out-panel` and `--duration-panel` are established conventions; preserve them unless a deliberate migration is required. Avoid duplicate near-identical curves.
 - Tailwind arbitrary easing/duration classes are already used in component class strings.
 
@@ -60,7 +60,7 @@ Add or reuse shared tokens matching the audit playbook exactly:
 
 ## Verification
 
-- **Mechanical**: inspect `web/app/package.json`, run the existing lint, typecheck and test scripts, plus the new motion-token assertion.
+- **Mechanical**: inspect `platforms/web/app/package.json`, run the existing lint, typecheck and test scripts, plus the new motion-token assertion.
 - **Feel check**: test hover, focus, pressed, selected and menu open/close states with DevTools at 10% playback. Hover feedback should start promptly; entrances should start quickly and settle without bounce.
 - Spam reversible controls and open/close menus mid-transition; CSS transitions must retarget from the current visual state.
 - **Done when**: interactive web motion follows the shared curve/duration rules and no unreviewed `ease-in` remains in frequent UI.

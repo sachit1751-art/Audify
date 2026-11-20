@@ -23,18 +23,18 @@ Audit performed against GitHub main at 2ac1c21eff38f718ab5127b6e99a42e4656d68ca 
 
 | Existing source | Current behavior | Consequence for this feature |
 |---|---|---|
-| app/src/main/java/com/music/audify/data/spotify/LocalPlaylistStore.kt | Device-local playlists are persisted in SharedPreferences JSON. The store exposes create, add, remove, reorder, rename, delete, import/export and a StateFlow. Mutations serialize through a Mutex and commit before publishing. | Reuse its user-facing concepts only. Do not use this store as the canonical shared database. Device-local URIs and SharedPreferences cannot provide cross-user persistence. |
-| app/src/main/java/com/music/audify/ui/PlaylistCreation.kt | Creation tries the signed-in YouTube Music remote API and falls back to a local playlist on remote failure; guests save locally. Song additions are chunked in batches of 50 and report failed IDs. | Existing creation fallback is provider-specific. A failed shared-playlist request must not silently become a private local playlist, because that would falsely imply collaboration succeeded. |
-| app/src/main/java/com/music/audify/ui/components/PlaylistPickerSheet.kt | Picker receives UserPlaylist values, supports multi-select, creates a playlist in the current account/local destination, and shows provider/local privacy choices. | Add an explicit Shared Playlists destination/section without conflating its permissions with YouTube privacy. Preserve current multi-select behavior for personal playlists. |
+| core/app/src/main/java/com/music/audify/data/spotify/LocalPlaylistStore.kt | Device-local playlists are persisted in SharedPreferences JSON. The store exposes create, add, remove, reorder, rename, delete, import/export and a StateFlow. Mutations serialize through a Mutex and commit before publishing. | Reuse its user-facing concepts only. Do not use this store as the canonical shared database. Device-local URIs and SharedPreferences cannot provide cross-user persistence. |
+| core/app/src/main/java/com/music/audify/ui/PlaylistCreation.kt | Creation tries the signed-in YouTube Music remote API and falls back to a local playlist on remote failure; guests save locally. Song additions are chunked in batches of 50 and report failed IDs. | Existing creation fallback is provider-specific. A failed shared-playlist request must not silently become a private local playlist, because that would falsely imply collaboration succeeded. |
+| core/app/src/main/java/com/music/audify/ui/components/PlaylistPickerSheet.kt | Picker receives UserPlaylist values, supports multi-select, creates a playlist in the current account/local destination, and shows provider/local privacy choices. | Add an explicit Shared Playlists destination/section without conflating its permissions with YouTube privacy. Preserve current multi-select behavior for personal playlists. |
 | shared/src/commonMain/kotlin/com/music/audify/data/model/Models.kt | UserPlaylist contains a raw playlist ID, title, subtitle and thumbnail; browseId adds the YouTube VL prefix for remote IDs and preserves local browse IDs. PlaylistPrivacy represents YouTube PRIVATE/UNLISTED/PUBLIC values. | Do not overload UserPlaylist or PlaylistPrivacy to represent collaboration. Introduce a distinct shared-playlist domain model and AUDIFY access policy. |
-| app/src/test/java/com/music/audify/PlaylistOwnershipTest.kt | Tests distinguish owned YouTube playlists from saved/foreign playlists using Innertube response evidence. | Keep provider ownership detection separate from AUDIFY collaborative membership/ownership. |
+| core/app/src/test/java/com/music/audify/PlaylistOwnershipTest.kt | Tests distinguish owned YouTube playlists from saved/foreign playlists using Innertube response evidence. | Keep provider ownership detection separate from AUDIFY collaborative membership/ownership. |
 
 ### Identity and account audit
 
-- app/src/main/java/com/music/audify/auth/AccountSessions.kt models Google login sessions, YouTube profiles, cookies, profile IDs and account metadata.
-- app/src/main/java/com/music/audify/auth/AuthStore.kt stores provider credentials encrypted at rest and selects an active Google account/profile.
+- core/app/src/main/java/com/music/audify/auth/AccountSessions.kt models Google login sessions, YouTube profiles, cookies, profile IDs and account metadata.
+- core/app/src/main/java/com/music/audify/auth/AuthStore.kt stores provider credentials encrypted at rest and selects an active Google account/profile.
 - These are provider sessions, not a first-party AUDIFY account identity service or a backend-issued user access token.
-- app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt documents that the client requires a signed-in account, but also explicitly notes that the party server cannot verify the submitted identity claim.
+- core/app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt documents that the client requires a signed-in account, but also explicitly notes that the party server cannot verify the submitted identity claim.
 - backend/protocol/protocol.go accepts userId, deviceId, displayName and avatarUrl in JoinRequest. Validation checks shape and size, not that userId belongs to the caller.
 - backend/main.go mints a party membership token after create/join. That token authenticates a device's membership in one live party; it is not a durable user identity credential.
 - Do not use a Google cookie, YouTube dataSyncId, Discord bearer token, display name, avatar URL, device ID, or existing party token as the authorization identity for shared playlists.
@@ -55,9 +55,9 @@ Audit performed against GitHub main at 2ac1c21eff38f718ab5127b6e99a42e4656d68ca 
 ### Library, playback and product-design audit
 
 - sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/screens/LibraryScreen.kt already owns the Library composition and renders the provider Playlists shelf, device items, replay and library links. This is the correct discovery/entry surface; a new bottom-navigation destination is not justified.
-- app/src/main/java/com/music/audify/ui/components/PlaylistPickerSheet.kt is the existing add-to-playlist interaction. It is the natural integration point for a distinct Shared Playlist destination after the backend contract exists.
-- app/src/main/java/com/music/audify/playback/PlayerConnection.kt and PlaybackService.kt own the Media3 playback boundary and service behavior. Shared playlists must resolve to the existing playable Song/media path; do not introduce another player or mutate the playback engine to implement playlist collaboration.
-- app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt and app/src/main/java/com/music/audify/playback/PartySync.kt implement synchronized party playback. This is a separate transient room feature and must remain separate from persistent playlist collaboration.
+- core/app/src/main/java/com/music/audify/ui/components/PlaylistPickerSheet.kt is the existing add-to-playlist interaction. It is the natural integration point for a distinct Shared Playlist destination after the backend contract exists.
+- core/app/src/main/java/com/music/audify/playback/PlayerConnection.kt and PlaybackService.kt own the Media3 playback boundary and service behavior. Shared playlists must resolve to the existing playable Song/media path; do not introduce another player or mutate the playback engine to implement playlist collaboration.
+- core/app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt and core/app/src/main/java/com/music/audify/playback/PartySync.kt implement synchronized party playback. This is a separate transient room feature and must remain separate from persistent playlist collaboration.
 - docs/PRODUCT.md establishes current product/module ownership and hard project rules. docs/DESIGN.md establishes dark-first, artwork-led, compact hierarchy, progressive disclosure, existing Compose/Material 3 components, motion tokens, accessibility and adaptive-form-factor requirements.
 - Existing design guidance requires explicit empty/loading/error/unavailable/permission states, stable keys for repeated media occurrences, destructive-action confirmation, system font scaling, TalkBack semantics and reduced-motion support.
 
@@ -413,14 +413,14 @@ This is a candidate inventory, not blanket authorization to modify every file. R
 ### Existing integration points
 
 - sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/screens/LibraryScreen.kt — Library entry point and shelf layout.
-- app/src/main/java/com/music/audify/ui/components/PlaylistPickerSheet.kt — add-to-playlist destination.
-- app/src/main/java/com/music/audify/ui/PlaylistCreation.kt — provider/local creation policy; do not reuse its fallback semantics for shared creation.
-- app/src/main/java/com/music/audify/data/spotify/LocalPlaylistStore.kt — preserve as device-local storage; do not repurpose.
+- core/app/src/main/java/com/music/audify/ui/components/PlaylistPickerSheet.kt — add-to-playlist destination.
+- core/app/src/main/java/com/music/audify/ui/PlaylistCreation.kt — provider/local creation policy; do not reuse its fallback semantics for shared creation.
+- core/app/src/main/java/com/music/audify/data/spotify/LocalPlaylistStore.kt — preserve as device-local storage; do not repurpose.
 - shared/src/commonMain/kotlin/com/music/audify/data/model/Models.kt — existing Song/UserPlaylist/PlaylistPrivacy; add separate domain types only if their semantics are truly cross-platform.
-- app/src/main/java/com/music/audify/playback/PlayerConnection.kt — existing media identity conversion boundary.
-- app/src/main/java/com/music/audify/playback/PlaybackService.kt — existing playback ownership; shared playlist should feed existing queue only.
-- app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt and app/src/main/java/com/music/audify/playback/PartySync.kt — inspect for separation; do not couple persistent playlists to party membership.
-- app/src/main/java/com/music/audify/auth/ — identity integration only after a supported issuer is selected; provider credentials are not first-party identity.
+- core/app/src/main/java/com/music/audify/playback/PlayerConnection.kt — existing media identity conversion boundary.
+- core/app/src/main/java/com/music/audify/playback/PlaybackService.kt — existing playback ownership; shared playlist should feed existing queue only.
+- core/app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt and core/app/src/main/java/com/music/audify/playback/PartySync.kt — inspect for separation; do not couple persistent playlists to party membership.
+- core/app/src/main/java/com/music/audify/auth/ — identity integration only after a supported issuer is selected; provider credentials are not first-party identity.
 - backend/main.go — route registration and HTTP middleware.
 - backend/config/config.go — durable database and identity configuration, after approved deployment design.
 - backend/protocol/ — only if a shared API DTO genuinely belongs here; avoid changing the party wire protocol.
@@ -494,7 +494,7 @@ The feature is not done until all are true:
 - This plan is product/architecture planning only. It does not authorize implementation.
 - Explicit approval is required before adding a database schema, Room migration, new database service, identity provider, paid infrastructure, or changing account/authentication behavior.
 - Never bump app versionCode/versionName as part of this feature unless separately authorized.
-- English Android strings go only in app/src/main/res/values/sachit_strings.xml; do not edit translated resources.
+- English Android strings go only in core/app/src/main/res/values/sachit_strings.xml; do not edit translated resources.
 - Preserve all existing personal/provider/local playlist data and behavior.
 - Do not alter signing assets, keystore properties or release credentials.
 - No unrelated UI redesign, party rewrite, playback-engine rewrite, release workflow changes or deployment activation.

@@ -10,7 +10,7 @@
 
 The album/playlist card-to-detail navigation is a spatial seam: the destination currently rebuilds its own hero artwork rather than proving that the selected cover became the detail-page cover. The detail page's internal shelf change is an `AnimatedContent` fade, not a card-to-hero transition.
 
-Evidence: `app/src/main/java/com/music/audify/ui/screens/DetailScreen.kt:504-512`:
+Evidence: `core/app/src/main/java/com/music/audify/ui/screens/DetailScreen.kt:504-512`:
 
 ```kotlin
 AnimatedContent(
@@ -24,7 +24,7 @@ AnimatedContent(
 ) { targetShelf ->
 ```
 
-The player already has a measured artwork-docking abstraction. `app/src/main/java/com/music/audify/ui/components/MiniPlayer.kt:327-340` reports the mini artwork's `LayoutCoordinates` to `PlayerDock` and hides the mini artwork while the player cover travels. Reuse that architectural principle; do not create a competing global transition coordinator.
+The player already has a measured artwork-docking abstraction. `core/app/src/main/java/com/music/audify/ui/components/MiniPlayer.kt:327-340` reports the mini artwork's `LayoutCoordinates` to `PlayerDock` and hides the mini artwork while the player cover travels. Reuse that architectural principle; do not create a competing global transition coordinator.
 
 ## Target
 
@@ -39,7 +39,7 @@ The player already has a measured artwork-docking abstraction. `app/src/main/jav
 
 - Shared durations/easing live in `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/motion/MotionTokens.kt` (current values: `CONTENT_TRANSITION_MS = 220`, `SHORT_FADE_MS = 180`, `STANDARD_EASING = FastOutSlowInEasing`). Extend tokens only when a genuinely distinct curve is required.
 - Detail artwork is selected around `DetailScreen.kt:462-470` and rendered in the hero around `DetailScreen.kt:888-946` / `1378-1415`.
-- Existing player artwork coordinate reporting: `app/src/main/java/com/music/audify/ui/components/MiniPlayer.kt:327-340`.
+- Existing player artwork coordinate reporting: `core/app/src/main/java/com/music/audify/ui/components/MiniPlayer.kt:327-340`.
 
 ## Steps
 

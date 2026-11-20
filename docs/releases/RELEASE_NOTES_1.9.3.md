@@ -1,4 +1,4 @@
-﻿# Audify 1.9.3
+# Audify 1.9.3
 
 Audify 1.9.3 focuses on a more responsive, personal playback experience, with Home customization and controls adapted to the capabilities of each supported Android form factor.
 

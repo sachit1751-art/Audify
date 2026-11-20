@@ -30,7 +30,7 @@ The descriptor is a projection of durable domain data, not the canonical podcast
 
 ## Proposed domain and adapter types
 
-Create `app/src/main/java/com/music/audify/playback/model/PlayableMedia.kt` (or the nearest existing playback-model package after checking current package conventions):
+Create `core/app/src/main/java/com/music/audify/playback/model/PlayableMedia.kt` (or the nearest existing playback-model package after checking current package conventions):
 
 ```kotlin
 sealed interface PlayableMedia {

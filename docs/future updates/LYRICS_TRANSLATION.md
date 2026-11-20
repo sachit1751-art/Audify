@@ -128,11 +128,11 @@ settings.
 
 ## Files
 
-- `app/src/main/java/com/music/audify/data/lyrics/LyricsTranslation.kt`
+- `core/app/src/main/java/com/music/audify/data/lyrics/LyricsTranslation.kt`
   contains batching, source detection, timing reconstruction and bounded caching.
-- `app/src/main/java/com/music/audify/ui/player/NowPlayingScreen.kt`
+- `core/app/src/main/java/com/music/audify/ui/player/NowPlayingScreen.kt`
   contains the toggle, state handling and motion response.
-- `app/src/main/res/values-*/strings.xml` localizes the new UI messages for every
+- `core/app/src/main/res/values-*/strings.xml` localizes the new UI messages for every
   language currently offered by Audify.
 
 ## Manual verification checklist

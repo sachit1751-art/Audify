@@ -18,7 +18,7 @@ The existing Spotify CSV/TSV SAF flow is only one format and matching failures n
 
 - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/spotify/SpotifyPlaylistFileParser.kt` and its JVM tests parse Spotify exports.
 - `shared/src/jvmSharedMain/kotlin/com/music/audify/data/spotify/SpotifyImporter.kt` handles matching/import logic.
-- `app/src/main/java/com/music/audify/ui/components/SpotifyImportAlert.kt` and `MainActivity.kt` contain Android import integration.
+- `core/app/src/main/java/com/music/audify/ui/components/SpotifyImportAlert.kt` and `MainActivity.kt` contain Android import integration.
 - Plan 038 documents partial support. Re-read it and tests before changing parser contracts.
 
 ## Scope
@@ -37,7 +37,7 @@ The existing Spotify CSV/TSV SAF flow is only one format and matching failures n
 | `shared/src/jvmTest/.../SpotifyLibraryTest.kt` | Matching regressions where applicable |
 | `app/.../SpotifyImportAlert.kt` | Preview, match confidence, unmatched review |
 | `MainActivity.kt` | SAF routing and confirmed import callback |
-| `app/src/main/res/values/sachit_strings.xml` | English-only import labels and errors |
+| `core/app/src/main/res/values/sachit_strings.xml` | English-only import labels and errors |
 
 ## Implementation
 

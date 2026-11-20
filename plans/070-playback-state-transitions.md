@@ -24,8 +24,8 @@ The shared motion tokens currently define 160ms control state, 180ms short fade 
 ## Repo conventions to follow
 
 - Motion tokens: `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/motion/MotionTokens.kt:10-20`.
-- Mini-player API and state inputs: `app/src/main/java/com/music/audify/ui/components/MiniPlayer.kt:342-360`; its visual controls continue below this range.
-- Shared player UI is decomposed by player components; inspect `app/src/main/java/com/music/audify/ui/player/` and `sharedUi/` before selecting the actual owner. Do not duplicate state in a leaf composable.
+- Mini-player API and state inputs: `core/app/src/main/java/com/music/audify/ui/components/MiniPlayer.kt:342-360`; its visual controls continue below this range.
+- Shared player UI is decomposed by player components; inspect `core/app/src/main/java/com/music/audify/ui/player/` and `sharedUi/` before selecting the actual owner. Do not duplicate state in a leaf composable.
 
 ## Steps
 

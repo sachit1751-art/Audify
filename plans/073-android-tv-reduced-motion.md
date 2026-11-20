@@ -8,7 +8,7 @@
 
 ## Problem
 
-TV Settings exposes the app-level Reduce Motion preference (`tv/src/main/java/com/music/audify/ui/tv/screens/TvSettingsScreen.kt:91`, `:298-301`), but multiple TV transitions shown in `TvApp.kt` are hard-coded and do not read it:
+TV Settings exposes the app-level Reduce Motion preference (`platforms/tv/src/main/java/com/music/audify/ui/tv/screens/TvSettingsScreen.kt:91`, `:298-301`), but multiple TV transitions shown in `TvApp.kt` are hard-coded and do not read it:
 
 ```kotlin
 AnimatedContent(
@@ -37,10 +37,10 @@ Artwork tint and bottom-bar movement also animate independently: `TvApp.kt:272` 
 
 ## Repo conventions to follow
 
-- TV motion token helpers: `tv/src/main/java/com/music/audify/ui/tv/theme/TvMotion.kt`.
+- TV motion token helpers: `platforms/tv/src/main/java/com/music/audify/ui/tv/theme/TvMotion.kt`.
 - Preference source: `AppSettings.reduceAnimation` (observed in `TvSettingsScreen.kt:91`).
-- Transition owners: `tv/src/main/java/com/music/audify/ui/tv/TvApp.kt:196-226`, `:266-272`, `:411-413`.
-- Settings toggle: `tv/src/main/java/com/music/audify/ui/tv/screens/TvSettingsScreen.kt:296-302`.
+- Transition owners: `platforms/tv/src/main/java/com/music/audify/ui/tv/TvApp.kt:196-226`, `:266-272`, `:411-413`.
+- Settings toggle: `platforms/tv/src/main/java/com/music/audify/ui/tv/screens/TvSettingsScreen.kt:296-302`.
 
 ## Steps
 

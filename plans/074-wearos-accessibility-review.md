@@ -11,11 +11,11 @@
 Wear OS uses custom watch-sized controls and list cells, so semantics and hit targets need explicit review rather than inheriting phone assumptions.
 
 Evidence:
-- `wearos/src/main/java/com/music/audify/wear/ui/NowPlayingScreen.kt:542-559` scales a control to 0.88 while pressed and exposes a button click label; actual hit bounds and TalkBack action descriptions need verification.
+- `platforms/wearos/src/main/java/com/music/audify/wear/ui/NowPlayingScreen.kt:542-559` scales a control to 0.88 while pressed and exposes a button click label; actual hit bounds and TalkBack action descriptions need verification.
 - `NowPlayingScreen.kt:393-399` exposes the central playback control through custom semantics.
-- `wearos/src/main/java/com/music/audify/wear/ui/ListScreens.kt:255-269` makes a whole row clickable with button role, but selected toggle state is rendered as text/color rather than explicit selected/toggle semantics.
+- `platforms/wearos/src/main/java/com/music/audify/wear/ui/ListScreens.kt:255-269` makes a whole row clickable with button role, but selected toggle state is rendered as text/color rather than explicit selected/toggle semantics.
 - Queue rows use `items(live.rows, key = { it.index })` at `ListScreens.kt:81-87`; index is mutable and should be reviewed against queue occurrence identity.
-- Ambient display intentionally removes controls and uses minimal black/text content (`wearos/src/main/java/com/music/audify/wear/ui/Ambient.kt:47-56`); ensure accessibility behavior is intentional in ambient mode.
+- Ambient display intentionally removes controls and uses minimal black/text content (`platforms/wearos/src/main/java/com/music/audify/wear/ui/Ambient.kt:47-56`); ensure accessibility behavior is intentional in ambient mode.
 
 ## Target
 
@@ -28,14 +28,14 @@ Evidence:
 
 ## Repo conventions to follow
 
-- Now-playing controls and custom central semantics: `wearos/src/main/java/com/music/audify/wear/ui/NowPlayingScreen.kt:320-410`, `:530-569`.
-- Queue and toggle cells: `wearos/src/main/java/com/music/audify/wear/ui/ListScreens.kt:65-133`, `:200-273`.
-- Ambient implementation: `wearos/src/main/java/com/music/audify/wear/ui/Ambient.kt:30-117`.
+- Now-playing controls and custom central semantics: `platforms/wearos/src/main/java/com/music/audify/wear/ui/NowPlayingScreen.kt:320-410`, `:530-569`.
+- Queue and toggle cells: `platforms/wearos/src/main/java/com/music/audify/wear/ui/ListScreens.kt:65-133`, `:200-273`.
+- Ambient implementation: `platforms/wearos/src/main/java/com/music/audify/wear/ui/Ambient.kt:30-117`.
 - Watch app theme/type and navigation should remain Wear Compose-native; do not transplant phone Material components.
 
 ## Steps
 
-1. Run a source audit of every interactive composable in `wearos/src/main/java/com/music/audify/wear/ui/` and map each action to its spoken label, role, state and bounds.
+1. Run a source audit of every interactive composable in `platforms/wearos/src/main/java/com/music/audify/wear/ui/` and map each action to its spoken label, role, state and bounds.
 2. Inspect Wear Compose and Compose semantics APIs available in the resolved dependency versions. Use toggle semantics/state descriptions for shuffle, repeat, like and output selection where appropriate.
 3. Verify play/pause, previous/next, seek/scrub, volume/crown, queue row and output row hit targets. Expand clickable bounds without overlapping adjacent actions or distorting the watch layout.
 4. Check TalkBack traversal order, custom action announcements, disabled controls, queue current/past indication and dynamic title/artist changes. Keep progress announcements throttled to meaningful state transitions.

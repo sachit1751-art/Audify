@@ -26,7 +26,7 @@ plugins {
 /*
  * The version of the phone app and of the watch app that ships inside it, in
  * one place. The watch has to move with the phone: it is installed and updated
- * from the phone's own APK (see app/build.gradle.kts), and Android refuses an
+ * from the phone's own APK (see core/app/build.gradle.kts), and Android refuses an
  * update whose versionCode is lower than the one installed.
  *
  * No "v" in the name — the in-app updater reads it as a number; the "v" is the

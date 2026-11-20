@@ -2,7 +2,7 @@
 
 ##  MOTION lyrics renderer
 
-The `app/src/main/java/com/motion/lyrics/` renderer is adapted from the
+The `core/app/src/main/java/com/motion/lyrics/` renderer is adapted from the
 project: <https://github.com/rezapranata089-bit/>.
 
 The upstream repository and this project are licensed under GNU GPL version 3.

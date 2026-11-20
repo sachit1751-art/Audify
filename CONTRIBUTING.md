@@ -29,8 +29,8 @@ For a fresh machine, use the [cross-platform environment setup guide](docs/DEVEL
 The project requires the following tools:
 - **JDK**: JDK 21 to run the current Gradle/Kotlin build. The Android app's Java/Kotlin bytecode target remains JVM 17; that is not the required Gradle runtime JDK.
 - **Android SDK**: phone and TV use `compileSdk = 37`, `targetSdk = 36`, `minSdk = 26`; Wear OS uses `compileSdk = 37`, `targetSdk = 36`, `minSdk = 30`.
-- **C/C++ NDK & CMake**: CMake 3.22.1+ and Android NDK (for native audio DSP components configured under `app/src/main/cpp`).
-- **Listen Together Backend (Optional)**: Go 1.27.3 or compatible toolchain support for the version declared in `backend/go.mod`.
+- **C/C++ NDK & CMake**: CMake 3.22.1+ and Android NDK (for native audio DSP components configured under `core/app/src/main/cpp`).
+- **Listen Together Backend (Optional)**: Go 1.27.3 or compatible toolchain support for the version declared in `core/backend/go.mod`.
 
 ## Build and Test Commands
 Run Gradle commands from the repository root.

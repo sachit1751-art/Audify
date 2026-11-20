@@ -1,4 +1,4 @@
-﻿# 088 — Add origin-aware motion to desktop popovers
+# 088 — Add origin-aware motion to desktop popovers
 
 - **Status**: TODO
 - **Commit**: ba5d080d

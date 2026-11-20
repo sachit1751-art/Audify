@@ -105,9 +105,9 @@ Do not reimplement existing playback features merely to make them appear customi
 
 ## Likely code areas to inspect
 
-- `app/src/main/java/com/music/audify/data/settings/AppSettings.kt`
-- `app/src/main/java/com/music/audify/ui/screens/SettingsSheet.kt`
-- `app/src/main/java/com/music/audify/MainActivity.kt`
+- `core/app/src/main/java/com/music/audify/data/settings/AppSettings.kt`
+- `core/app/src/main/java/com/music/audify/ui/screens/SettingsSheet.kt`
+- `core/app/src/main/java/com/music/audify/MainActivity.kt`
 - `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/screens/HomeScreen.kt`
 - Shared and app-module player/mini-player components.
 - Existing preference backup/import implementation and tests.

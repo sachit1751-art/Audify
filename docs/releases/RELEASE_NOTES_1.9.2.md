@@ -1,4 +1,4 @@
-﻿# Audify 1.9.2
+# Audify 1.9.2
 
 Audify 1.9.2 is an Android-focused maintenance release that improves adaptive navigation and layout behavior across phones, tablets, and landscape windows, while strengthening the Listen Together service path.
 

@@ -1,4 +1,4 @@
-﻿# 084 — Preserve useful feedback under reduced motion
+# 084 — Preserve useful feedback under reduced motion
 
 - **Status**: TODO
 - **Commit**: ba5d080d
@@ -8,7 +8,7 @@
 
 ## Problem
 
-The global reduced-motion rule in `web/app/src/styles/global.css:398-407` collapses every animation and transition to 0.01ms. This removes useful opacity and colour state feedback as well as nonessential movement.
+The global reduced-motion rule in `platforms/web/core/app/src/styles/global.css:398-407` collapses every animation and transition to 0.01ms. This removes useful opacity and colour state feedback as well as nonessential movement.
 
 Current code:
 
@@ -37,7 +37,7 @@ The audit playbook explicitly says reduced motion means fewer and gentler animat
 
 ## Repo conventions to follow
 
-- Global CSS and motion tokens live in `web/app/src/styles/global.css` and `web/app/src/styles/tokens.css`.
+- Global CSS and motion tokens live in `platforms/web/core/app/src/styles/global.css` and `platforms/web/core/app/src/styles/tokens.css`.
 - Use the existing CSS custom-property and Tailwind conventions; do not add a motion dependency.
 - The desktop motion system already exposes a platform reduced-motion preference in `desktop/crates/ui/src/motion.rs`; do not change that subsystem in this plan.
 
@@ -59,7 +59,7 @@ The audit playbook explicitly says reduced motion means fewer and gentler animat
 
 ## Verification
 
-- **Mechanical**: run the web app's existing typecheck, lint and test scripts after inspecting `web/app/package.json`; add and run the focused reduced-motion regression test.
+- **Mechanical**: run the web app's existing typecheck, lint and test scripts after inspecting `platforms/web/app/package.json`; add and run the focused reduced-motion regression test.
 - **Feel check**: in browser DevTools emulate `prefers-reduced-motion: reduce`; toggle buttons, open menus, load artwork, change routes and scroll. State changes must remain perceivable without spatial travel or continuous decorative movement.
 - Compare normal and reduced modes at 100% and 10% animation playback. Confirm no component becomes visually stuck or loses focus/state indication.
 - **Done when**: reduced-motion mode suppresses nonessential movement, retains useful opacity/colour feedback, and automated checks cover the global policy.

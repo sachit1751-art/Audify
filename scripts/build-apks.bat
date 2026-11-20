@@ -38,9 +38,9 @@ if errorlevel 1 goto failed
 
 set COPIED=0
 for %%D in (
-  "app\build\outputs\apk\prod\release"
-  "wearos\build\outputs\apk\prod\release"
-  "tv\build\outputs\apk\prod\release"
+  "core\app\build\outputs\apk\prod\release"
+  "platforms\wearos\build\outputs\apk\prod\release"
+  "platforms\tv\build\outputs\apk\prod\release"
 ) do (
   if exist "%%D\" (
     for %%F in (%%D\*.apk) do (

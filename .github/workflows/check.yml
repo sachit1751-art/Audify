@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: audify-dev-release
-          path: app/build/outputs/apk/dev/release/*.apk
+          path: core/app/build/outputs/apk/dev/release/*.apk
           if-no-files-found: error
           retention-days: 7
 
@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: audify-tv-dev-release
-          path: tv/build/outputs/apk/dev/release/*.apk
+          path: platforms/tv/build/outputs/apk/dev/release/*.apk
           if-no-files-found: error
           retention-days: 7
 
@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: audify-wear-dev-release
-          path: wearos/build/outputs/apk/dev/release/*.apk
+          path: platforms/wearos/build/outputs/apk/dev/release/*.apk
           if-no-files-found: error
           retention-days: 7
 
@@ -95,13 +95,13 @@ jobs:
         with:
           name: android-diagnostics
           path: |
-            app/build/reports/
-            app/build/intermediates/lint_intermediate_text_report/
-            tv/build/reports/
-            tv/build/intermediates/lint_intermediate_text_report/
-            wearos/build/reports/
-            wearos/build/intermediates/lint_intermediate_text_report/
-            app/build/test-results/
+            core/app/build/reports/
+            core/app/build/intermediates/lint_intermediate_text_report/
+            platforms/tv/build/reports/
+            platforms/tv/build/intermediates/lint_intermediate_text_report/
+            platforms/wearos/build/reports/
+            platforms/wearos/build/intermediates/lint_intermediate_text_report/
+            core/app/build/test-results/
             shared/build/reports/
             sharedUi/build/reports/
           if-no-files-found: warn
@@ -113,14 +113,14 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: backend
+        working-directory: core/backend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
+          go-version-file: core/backend/go.mod
+          cache-dependency-path: core/backend/go.sum
 
       - run: go build ./...
       - run: go vet ./...

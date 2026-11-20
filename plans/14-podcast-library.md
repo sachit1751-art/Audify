@@ -60,7 +60,7 @@ This expanded scope supersedes the original phone-only approval. Implement in ve
 - The phone Library tab is assembled in `MainActivity.kt`; `LibraryPhoneParts.kt` owns phone-specific library links and device shelves.
 - `AppNavigator` owns non-detail routes. `MainViewModel` owns the current music library and album/artist/playlist detail stack.
 - `DetailScreen` and `BrowseType` are designed around music release pages and `List<Song>`. Podcast show/episode pages should be separate typed screens/state, not forced into a music release page.
-- English Android strings belong only in `app/src/main/res/values/sachit_strings.xml`. Do not edit translated resource files as part of this plan.
+- English Android strings belong only in `core/app/src/main/res/values/sachit_strings.xml`. Do not edit translated resource files as part of this plan.
 
 ## Product boundaries
 
@@ -138,11 +138,11 @@ Do not store feed credentials or arbitrary authorization headers in v1. If authe
 Do not skip the gates or combine all steps into one large change.
 
 1. **Lock product scope and playback design.** Record approval for the phone-only RSS/Atom MVP above. Build a no-UI playback spike for typed episode identity, direct enclosure playback, MediaItem round-trip, and music-only feature exclusions. Stop if the spike requires a broad player rewrite.
-2. **Implement pure feed parsing.** Add `app/src/main/java/com/music/audify/data/podcasts/PodcastFeedParser.kt` and focused parser models. Parse RSS 2.0 and Atom with secure XML settings, strict size/count bounds, safe dates/durations, GUID/ID fallback, artwork selection, and enclosure validation. Keep parser logic independently testable.
-3. **Implement the podcast store.** Add `PodcastStore.kt` and `PodcastRepository.kt` under `app/src/main/java/com/music/audify/data/podcasts/`. Use the atomic versioned file format, bounded state, serialized writes, safe corruption handling, canonical feed URL deduplication, and feed refresh validators. Initialize from `AudifyApplication` only after verifying startup ordering.
+2. **Implement pure feed parsing.** Add `core/app/src/main/java/com/music/audify/data/podcasts/PodcastFeedParser.kt` and focused parser models. Parse RSS 2.0 and Atom with secure XML settings, strict size/count bounds, safe dates/durations, GUID/ID fallback, artwork selection, and enclosure validation. Keep parser logic independently testable.
+3. **Implement the podcast store.** Add `PodcastStore.kt` and `PodcastRepository.kt` under `core/app/src/main/java/com/music/audify/data/podcasts/`. Use the atomic versioned file format, bounded state, serialized writes, safe corruption handling, canonical feed URL deduplication, and feed refresh validators. Initialize from `AudifyApplication` only after verifying startup ordering.
 4. **Implement manual feed management.** Add add/remove/refresh operations, URL validation, duplicate detection, cancellation, and observable repository state. Do not add background workers or credential handling.
 5. **Implement typed playback integration.** Complete the spike design in the canonical playback model/conversion path. Update `PlayerConnection.kt`, `PlaybackService.kt`, and `LastPlayed.kt` only as required. Preserve the podcast content type, feed/episode identity, enclosure URL, and progress through queue snapshots and restoration. Keep music code paths unchanged for ordinary `Song` items.
-6. **Add the phone Library entry and show/episode screens.** Extend `LibraryPhoneParts.kt`, `MainActivity.kt`, and `AppNavigator.kt`; add dedicated podcast screen components under `app/src/main/java/com/music/audify/ui/screens/`. Keep show/episode state separate from `MainViewModel`'s music `LibraryPage` and `DetailPage` unless a narrow integration is demonstrably cleaner. Provide URL-add, show list, show detail, episode list, refresh status, and actionable empty/error states.
+6. **Add the phone Library entry and show/episode screens.** Extend `LibraryPhoneParts.kt`, `MainActivity.kt`, and `AppNavigator.kt`; add dedicated podcast screen components under `core/app/src/main/java/com/music/audify/ui/screens/`. Keep show/episode state separate from `MainViewModel`'s music `LibraryPage` and `DetailPage` unless a narrow integration is demonstrably cleaner. Provide URL-add, show list, show detail, episode list, refresh status, and actionable empty/error states.
 7. **Add player and progress behavior.** Render podcast show/episode identity on the player and system media surfaces. Save and restore position and played state using bounded checkpoints. Mark an episode played only at a documented completion threshold; seeking to the end must not falsely mark it played until playback completion is confirmed.
 8. **Harden and validate.** Add parser, store, URL policy, refresh, playback round-trip, restoration, and regression tests. Test real-world public feeds only after the parser and URL safety tests pass. Verify interrupted playback, duplicate GUIDs, feed edits, 304 responses, oversized/malformed feeds, redirects, offline refresh, and unsupported enclosure formats.
 9. **Device QA and handoff.** Verify on a physical Android phone: add/remove feed, refresh, queue, background playback, notification metadata, seek/resume after process death, offline error states, TalkBack, large font, and dark/light themes. Record any unverified provider/feed limitations. Update this plan's status only after acceptance criteria pass.
@@ -151,25 +151,25 @@ Do not skip the gates or combine all steps into one large change.
 
 ### New files
 
-- `app/src/main/java/com/music/audify/data/podcasts/PodcastModels.kt`
-- `app/src/main/java/com/music/audify/data/podcasts/PodcastFeedParser.kt`
-- `app/src/main/java/com/music/audify/data/podcasts/PodcastUrlPolicy.kt`
-- `app/src/main/java/com/music/audify/data/podcasts/PodcastStore.kt`
-- `app/src/main/java/com/music/audify/data/podcasts/PodcastRepository.kt`
-- Dedicated phone podcast screen/component files under `app/src/main/java/com/music/audify/ui/screens/`.
-- Focused tests under `app/src/test/java/com/music/audify/podcasts/` and playback regression tests under the existing playback test package.
+- `core/app/src/main/java/com/music/audify/data/podcasts/PodcastModels.kt`
+- `core/app/src/main/java/com/music/audify/data/podcasts/PodcastFeedParser.kt`
+- `core/app/src/main/java/com/music/audify/data/podcasts/PodcastUrlPolicy.kt`
+- `core/app/src/main/java/com/music/audify/data/podcasts/PodcastStore.kt`
+- `core/app/src/main/java/com/music/audify/data/podcasts/PodcastRepository.kt`
+- Dedicated phone podcast screen/component files under `core/app/src/main/java/com/music/audify/ui/screens/`.
+- Focused tests under `core/app/src/test/java/com/music/audify/podcasts/` and playback regression tests under the existing playback test package.
 
 ### Existing files likely to change
 
-- `app/src/main/java/com/music/audify/AudifyApplication.kt` â€” repository initialization, only if required.
-- `app/src/main/java/com/music/audify/MainActivity.kt` â€” Library entry and route/screen composition.
-- `app/src/main/java/com/music/audify/ui/screens/LibraryPhoneParts.kt` â€” podcast Library link/shelf.
-- `app/src/main/java/com/music/audify/ui/navigation/AppNavigator.kt` â€” dedicated show/episode routes.
-- `app/src/main/res/values/sachit_strings.xml` â€” English UI strings only.
-- `app/src/main/java/com/music/audify/playback/PlayerConnection.kt` â€” typed MediaItem conversion and round-trip.
-- `app/src/main/java/com/music/audify/playback/PlaybackService.kt` â€” direct enclosure playback branch and music-feature exclusions.
-- `app/src/main/java/com/music/audify/playback/LastPlayed.kt` â€” backwards-compatible queue snapshot fields if podcast items share the session queue.
-- `app/src/test/java/com/music/audify/` â€” parser/store/playback tests.
+- `core/app/src/main/java/com/music/audify/AudifyApplication.kt` â€” repository initialization, only if required.
+- `core/app/src/main/java/com/music/audify/MainActivity.kt` â€” Library entry and route/screen composition.
+- `core/app/src/main/java/com/music/audify/ui/screens/LibraryPhoneParts.kt` â€” podcast Library link/shelf.
+- `core/app/src/main/java/com/music/audify/ui/navigation/AppNavigator.kt` â€” dedicated show/episode routes.
+- `core/app/src/main/res/values/sachit_strings.xml` â€” English UI strings only.
+- `core/app/src/main/java/com/music/audify/playback/PlayerConnection.kt` â€” typed MediaItem conversion and round-trip.
+- `core/app/src/main/java/com/music/audify/playback/PlaybackService.kt` â€” direct enclosure playback branch and music-feature exclusions.
+- `core/app/src/main/java/com/music/audify/playback/LastPlayed.kt` â€” backwards-compatible queue snapshot fields if podcast items share the session queue.
+- `core/app/src/test/java/com/music/audify/` â€” parser/store/playback tests.
 
 This list is a starting scope, not authorization to edit every file. Reconfirm each call site during implementation and keep the diff narrow.
 
@@ -236,7 +236,7 @@ Remove the podcast Library entry, screens, repository initialization, and playba
 - Follow `plans/README.md`, `docs/PRODUCT.md`, and `docs/DESIGN.md`.
 - Never change `versionCode` or `versionName`.
 - No Room/database schema or migration changes without a separate explicit approval; this plan's proposed v1 uses a dedicated atomic JSON store instead.
-- English Android strings only in `app/src/main/res/values/sachit_strings.xml`; no translated string edits.
+- English Android strings only in `core/app/src/main/res/values/sachit_strings.xml`; no translated string edits.
 - No README/release-note edits, commits, pushes, tags, or releases as part of this plan.
 - Preserve all unrelated working-tree changes. Inspect `git status` and `git diff` before every implementation batch.
 - Build with JDK 21 and test the exact Android variant/module affected. Physical-device playback validation is mandatory.

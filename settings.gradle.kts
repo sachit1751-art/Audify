@@ -21,5 +21,8 @@ rootProject.name = "Audify"
 include(":shared")
 include(":sharedUi")
 include(":app")
+project(":app").projectDir = file("core/app")
 include(":tv")
+project(":tv").projectDir = file("platforms/tv")
 include(":wearos")
+project(":wearos").projectDir = file("platforms/wearos")

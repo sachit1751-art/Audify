@@ -1,4 +1,4 @@
-﻿# Audify Competitor Feature Audit
+# Audify Competitor Feature Audit
 
 **Prepared:** 2 November 2026
 **Scope:** Feature comparison of Audify against InterTune, AsterTune, Metrolist, and ArchiveTune.

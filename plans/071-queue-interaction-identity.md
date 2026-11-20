@@ -8,7 +8,7 @@
 
 ## Problem
 
-Queue reordering currently keys rows by `song.setVideoId ?: song.videoId` at `app/src/main/java/com/music/audify/ui/components/ReorderPlaylistPage.kt:260-262`:
+Queue reordering currently keys rows by `song.setVideoId ?: song.videoId` at `core/app/src/main/java/com/music/audify/ui/components/ReorderPlaylistPage.kt:260-262`:
 
 ```kotlin
 itemsIndexed(order, key = { _, song -> song.setVideoId ?: song.videoId }) { _, song ->
@@ -30,8 +30,8 @@ This key is media identity, not necessarily queue-occurrence identity. The produ
 
 ## Repo conventions to follow
 
-- Reorder list and gesture owner: `app/src/main/java/com/music/audify/ui/components/ReorderPlaylistPage.kt:260-366`.
-- Queue feedback: `app/src/main/java/com/music/audify/ui/components/QueueActionNotice.kt:42-55`.
+- Reorder list and gesture owner: `core/app/src/main/java/com/music/audify/ui/components/ReorderPlaylistPage.kt:260-366`.
+- Queue feedback: `core/app/src/main/java/com/music/audify/ui/components/QueueActionNotice.kt:42-55`.
 - Shared motion tokens: `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/motion/MotionTokens.kt:10-20`.
 - Design rule: queue rows represent queue occurrences, not just media IDs (`docs/DESIGN.md`, Audio/player-specific design rules).
 

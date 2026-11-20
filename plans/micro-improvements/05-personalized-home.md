@@ -284,7 +284,7 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Follow `plans/README.md` and the repository's actual agent instructions.
 - Never bump `versionCode` or `versionName`.
 - Never modify database schema or Room migrations under this plan.
-- String edits go only in `app/src/main/res/values/sachit_strings.xml`; do not edit translated resources.
+- String edits go only in `core/app/src/main/res/values/sachit_strings.xml`; do not edit translated resources.
 - No commits, pushes or merges unless the user explicitly authorizes them for this work.
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:

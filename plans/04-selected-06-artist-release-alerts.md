@@ -35,7 +35,7 @@ Release alerts are useful discovery, but false matches, duplicate notifications,
 | `AudifyApplication.kt` / worker package | Background scheduling |
 | Android notification channel/receiver files | Permission-aware release notifications |
 | artist screen and settings UI | Follow/unfollow and alert preferences |
-| `app/src/main/res/values/sachit_strings.xml` | English-only copy |
+| `core/app/src/main/res/values/sachit_strings.xml` | English-only copy |
 
 ## Implementation
 

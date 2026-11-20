@@ -15,7 +15,7 @@ The visual direction is premium and editorial without sacrificing scanability or
 ## Current foundations (source-backed)
 
 - **UI framework:** Jetpack Compose / Compose Multiplatform, Material 3 foundations, shared UI in `sharedUi/` and Android-specific UI in `app/`.
-- **Android theme:** `app/src/main/java/com/music/audify/ui/theme/Theme.kt` defines light and dark Material color schemes, SF Pro Display font resources, and a compact, weight-forward typography scale.
+- **Android theme:** `core/app/src/main/java/com/music/audify/ui/theme/Theme.kt` defines light and dark Material color schemes, SF Pro Display font resources, and a compact, weight-forward typography scale.
 - **Typography:** SF Pro Display is bundled for weights 400, 500, 600, 700, and 800. Existing type styles use strong headlines, tight negative tracking on display/headline/title styles, and conventional body sizes. Preserve system font scaling and avoid hard-coded pixel typography.
 - **Color:** the base dark scheme uses near-black backgrounds/surfaces, white primary text, and muted gray secondary text; the light scheme uses white/off-white surfaces and black text. `AccentRed` is retained for specific legacy/rank emphasis, not as the general primary accent.
 - **Artwork theming:** artwork palette utilities and the artwork-mesh player backdrop are existing visual capabilities. Dynamic artwork colors must not reduce text/control contrast.

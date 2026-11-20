@@ -95,7 +95,7 @@ The selected feature expansions are tracked in `plans/README.md` as plans 051–
 
 ## Architecture and implementation constraints
 
-- Main Android application code: `app/src/main/java/com/music/audify/`.
+- Main Android application code: `core/app/src/main/java/com/music/audify/`.
 - Shared domain logic: `shared/`.
 - Shared Compose UI: `sharedUi/`, with `jvmSharedMain`, platform-specific source sets, and tests.
 - Dedicated device applications: `tv/` and `wearos/`.
@@ -107,7 +107,7 @@ The selected feature expansions are tracked in `plans/README.md` as plans 051–
 
 - Never change app `versionCode` or `versionName` unless specifically authorized.
 - Never change Room/database schemas or migrations without explicit human approval.
-- English Android string edits belong only in `app/src/main/res/values/sachit_strings.xml`; do not edit translated resource files unless specifically authorized.
+- English Android string edits belong only in `core/app/src/main/res/values/sachit_strings.xml`; do not edit translated resource files unless specifically authorized.
 - Do not commit, push, merge, or rewrite history unless explicitly authorized.
 - Preserve unrelated working-tree changes. Inspect `git status` and current HEAD before implementation.
 - Build with JDK 21. Use the current repository task names and verify the actual variant/module affected.

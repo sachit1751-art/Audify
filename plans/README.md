@@ -23,9 +23,9 @@ of blindly applying.
 
 Scope rules that apply to **every** plan (from the repo's AGENTS.md and project rules):
 
-- Never bump the app version (`versionCode` / `versionName` in `app/build.gradle.kts`).
+- Never bump the app version (`versionCode` / `versionName` in `core/app/build.gradle.kts`).
 - Never touch the database schema or Room migrations.
-- String edits go only in `app/src/main/res/values/sachit_strings.xml` (English). Never edit translated resources in `values-*`.
+- String edits go only in `core/app/src/main/res/values/sachit_strings.xml` (English). Never edit translated resources in `values-*`.
 - No commits, pushes, or merges unless a human explicitly authorized them per-plan.
 - No changes to README/markdown files except inside `plans/` and the top-level planning docs.
 - Build/verify with JDK 21:

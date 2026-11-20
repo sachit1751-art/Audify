@@ -34,7 +34,7 @@ Filters reduce repeated query refinement for large libraries and mixed local/str
 | search repository/provider layer | Capability-aware filter mapping |
 | `data/settings/SearchHistory.kt` | Only if filter persistence is explicitly desired and compatible |
 | `MainActivity.kt` | Search state ownership/navigation as required |
-| `app/src/main/res/values/sachit_strings.xml` | English-only labels |
+| `core/app/src/main/res/values/sachit_strings.xml` | English-only labels |
 
 ## Implementation
 

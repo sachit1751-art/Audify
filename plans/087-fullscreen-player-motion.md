@@ -1,4 +1,4 @@
-﻿# 087 — Refine full-screen player artwork motion
+# 087 — Refine full-screen player artwork motion
 
 - **Status**: TODO
 - **Commit**: ba5d080d
@@ -8,7 +8,7 @@
 
 ## Problem
 
-`web/app/src/shell/FullScreenPlayer.tsx:293-297` scales artwork between playing and paused states over 450ms with an overshooting curve. The transition is long for a frequently visited player surface.
+`platforms/web/core/app/src/shell/FullScreenPlayer.tsx:293-297` scales artwork between playing and paused states over 450ms with an overshooting curve. The transition is long for a frequently visited player surface.
 
 Current code:
 
@@ -31,7 +31,7 @@ The same file has 600ms ease-in motion-artwork opacity at `:327`, 120ms ease-in 
 
 ## Repo conventions to follow
 
-- Shared web curves belong in `web/app/src/styles/tokens.css`; see plan 085 for the exact token values.
+- Shared web curves belong in `platforms/web/core/app/src/styles/tokens.css`; see plan 085 for the exact token values.
 - `FullScreenPlayer.tsx` already uses Tailwind arbitrary property and easing classes and includes a reduced-motion variant.
 - Keep motion artwork as an overlay; preserve `MotionArtwork` readiness and playback gating.
 
@@ -52,7 +52,7 @@ The same file has 600ms ease-in motion-artwork opacity at `:327`, 120ms ease-in 
 
 ## Verification
 
-- **Mechanical**: run the existing web lint, typecheck and tests after inspecting `web/app/package.json`.
+- **Mechanical**: run the existing web lint, typecheck and tests after inspecting `platforms/web/app/package.json`.
 - **Feel check**: toggle play/pause rapidly, switch tracks, enter/exit theater mode, enable lyrics column, and test video and static artwork. The latest state must win without overshoot or delayed transport response.
 - At 10% playback, confirm the scale settles in 220ms and motion artwork fades in no slower than 250ms.
 - Emulate reduced motion: no scale travel, but state remains perceivable through opacity/colour.

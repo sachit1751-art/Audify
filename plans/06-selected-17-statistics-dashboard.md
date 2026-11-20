@@ -241,7 +241,7 @@ Estimates are rough development-session estimates, not delivery commitments. Ove
 - Follow repository-wide instructions in `AGENTS.md` and `plans/README.md`.
 - Never bump `versionCode` or `versionName`.
 - Do not modify database schema or Room migrations under this plan.
-- String edits go only in `app/src/main/res/values/sachit_strings.xml`; do not edit translated resource files.
+- String edits go only in `core/app/src/main/res/values/sachit_strings.xml`; do not edit translated resource files.
 - No commits, pushes, or merges unless explicitly authorized by the user for that work.
 - Preserve unrelated working-tree changes.
 - Use JDK 21 and repository-approved verification commands.

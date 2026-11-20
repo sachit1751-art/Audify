@@ -31,5 +31,5 @@ if [ "$WITH_DEBUG" = "true" ]; then
     -Paudify.bundleWear=false
 fi
 
-echo "=== Done. APKs are in app/build/outputs/apk/$FLAVOR/ ==="
-find app/build/outputs/apk -name "*.apk" -type f 2>/dev/null || true
+echo "=== Done. APKs are in core/app/build/outputs/apk/$FLAVOR/ ==="
+find core/app/build/outputs/apk -name "*.apk" -type f 2>/dev/null || true
