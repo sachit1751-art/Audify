@@ -1,11 +1,26 @@
 package com.music.audify.ui.screens
 
 import com.music.audify.data.model.ShelfItem
+import com.music.audify.data.model.HomeShelf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class QuickPicksLayoutTest {
+    @Test
+    fun quickPicksLeadTheDefaultHomeShelfOrder() {
+        val ordered = homeFeedShelves(
+            listOf(
+                HomeShelf(title = "Albums", items = emptyList()),
+                HomeShelf(title = "Recents", items = emptyList()),
+                HomeShelf(title = "Quick picks", items = emptyList()),
+            ),
+            dropEditorial = false,
+        )
+
+        assertEquals("Quick picks", ordered.first().title)
+    }
+
     @Test
     fun quickPicksKeepThreeTracksPerHorizontalColumnAndPreserveOrder() {
         (0..10).forEach { count ->

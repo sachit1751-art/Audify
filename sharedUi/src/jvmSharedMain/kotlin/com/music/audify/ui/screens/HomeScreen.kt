@@ -172,6 +172,15 @@ private val LISTEN_AGAIN_TITLES = listOf("Listen again", "Nghe lại", "もう�
 private val SPEED_DIAL_TITLES = listOf(LOCAL_SPEED_DIAL_TITLE, "Speed dial", "Panggilan cepat", "Quay số nhanh", "スピードダイヤル", "스피드 다이얼")
 private val QUICK_PICKS_TITLES = listOf("Quick picks", "Lựa chọn nhanh", "Chọn nhanh đài phát", "クイック ミックス", "Pilihan cepat", "Pilihan singkat", "빠른 선곡", "빠른 선택")
 
+/** Keep Quick picks as the first regular Home shelf, even while Recents is loading. */
+private fun List<HomeShelf>.withQuickPicksFirst(): List<HomeShelf> {
+    val quickPicks = indexOfFirst { shelf ->
+        QUICK_PICKS_TITLES.any { it.equals(shelf.title.trim(), ignoreCase = true) }
+    }
+    if (quickPicks <= 0) return this
+    return toMutableList().also { it.add(0, it.removeAt(quickPicks)) }
+}
+
 /**
  * Quick picks menempati slot Listen again (baris kartu persegi di depan),
  * dan Listen again pindah ke slot Quick picks (daftar berhalaman).
@@ -957,7 +966,7 @@ fun homeFeedShelves(shelves: List<HomeShelf>, dropEditorial: Boolean = true): Li
     val ordered = if (quickPicks >= 0 && albums >= 0 && albums < quickPicks) {
         kept.toMutableList().apply { add(quickPicks, removeAt(albums)) }
     } else kept
-    return ordered.withoutSpeedDial()
+    return ordered.withoutSpeedDial().withQuickPicksFirst()
 }
 
 /**
@@ -1027,7 +1036,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
         withRecentsSlot.toMutableList().apply { add(quickPicksIndex, removeAt(albumsIndex)) }.withoutSpeedDial()
     } else {
         withRecentsSlot.withoutSpeedDial()
-    }
+    }.let { if (homeLayout.isCustom) it else it.withQuickPicksFirst() }
     // 1.9.3 places Find Your Mood immediately after Quick Picks.
     val moodAt = ordered.indexOfFirst { it.title.equals("Quick picks", ignoreCase = true) }
         .takeIf { it >= 0 }?.plus(1) ?: ordered.size
@@ -1183,8 +1192,8 @@ private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?)
                         ),
                     )
                     Column(Modifier.align(Alignment.CenterStart).padding(18.dp)) {
-                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = .78f))
-                        Text(label, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.inverseOnSurface)
+                        Text("Listen together", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .82f))
+                        Text(label, style = MaterialTheme.typography.titleLarge, color = Color.White)
                     }
                 }
             }
