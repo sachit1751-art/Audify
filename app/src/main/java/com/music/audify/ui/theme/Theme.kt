@@ -1,6 +1,7 @@
 package com.music.audify.ui.theme
 
 import androidx.core.graphics.toColorInt
+import androidx.core.graphics.drawable.toDrawable
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -45,7 +47,9 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.ThemePack
 import com.music.audify.data.settings.ThemePacks
 import com.music.audify.data.settings.ThemeSurfaceStyle
-import com.music.audify.ui.components.OrganicFluidBackground
+import com.music.audify.ui.components.backdrop.backdrops.LayerBackdrop
+import com.music.audify.ui.components.backdrop.backdrops.layerBackdrop
+import com.music.audify.ui.components.backdrop.backdrops.rememberLayerBackdrop
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFFA243C),
@@ -234,7 +238,7 @@ fun AudifyTheme(
     font: AppFont = AppFont.DEFAULT,
     themePack: ThemePack? = null,
     backgroundUri: String? = null,
-    content: @Composable () -> Unit,
+    content: @Composable (LayerBackdrop) -> Unit,
 ) {
     val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
     val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
@@ -260,7 +264,7 @@ fun AudifyTheme(
         val baseColors = if (!darkTheme) {
             LightColors.copy(
                 background = ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor(),
-                surface = Color.White,
+                surface = Color(0xFFF7F3F8).withAccent(primary, 0.12f),
                 surfaceVariant = Color(0xFFF8F7FA).withAccent(primary, 0.075f),
                 outline = Color(0xFFE4E1E8).withAccent(secondary, 0.16f),
                 onSurfaceVariant = Color(0xFF55515C),
@@ -325,7 +329,7 @@ fun AudifyTheme(
         val themedSurfaces = if (activeThemePack.id == ThemePacks.CLASSIC_ID) {
             baseColors
         } else {
-            val lift = if (darkTheme) 0.045f else 0.025f
+            val lift = if (darkTheme) 0.045f else 0.075f
             baseColors.copy(
                 surface = baseColors.surface.withAccent(primary, lift),
                 surfaceVariant = baseColors.surfaceVariant.withAccent(primary, lift * 1.7f),
@@ -360,24 +364,31 @@ fun AudifyTheme(
         )
     }
     val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
-    val reduceMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
-    // Reuse the app's lifecycle-aware fluid renderer for the wallpaper. It
-    // pauses off-screen, honours system animation scale, and has a Canvas
-    // fallback for devices without AGSL support (API < 33 / shader failures).
-    val wallpaperPalette = remember(backgroundStyle) {
+    // Restore the original 1.9.3 built-in wallpaper treatment: each preset is
+    // a theme-aware vertical blend of the selected pack's own three accents.
+    // It is painted behind the app content, so it never participates in layout.
+    val appBackgroundBrush = remember(
+        backgroundStyle, scheme.background, scheme.primary, scheme.secondary,
+        scheme.tertiary, darkTheme,
+    ) {
+        val base = scheme.background
         when (backgroundStyle) {
-            AppBackgroundStyle.PLAIN -> emptyList()
-            AppBackgroundStyle.AURORA -> listOf(
-                Color(0xFF00D68F), Color(0xFF00B8D9), Color(0xFF6C63FF), Color(0xFF173B79), Color(0xFF8BE9C7),
+            AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
+            AppBackgroundStyle.AURORA -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), base)
+                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), base),
             )
-            AppBackgroundStyle.OCEAN -> listOf(
-                Color(0xFF00C2FF), Color(0xFF0066FF), Color(0xFF00D6B5), Color(0xFF143A75), Color(0xFF8CEBFF),
+            AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), base)
+                else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), base),
             )
-            AppBackgroundStyle.SUNSET -> listOf(
-                Color(0xFFFF4D6D), Color(0xFFFF8A3D), Color(0xFFFFC857), Color(0xFF9B3D9A), Color(0xFFFFB3C1),
+            AppBackgroundStyle.SUNSET -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), base)
+                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), base),
             )
-            AppBackgroundStyle.NEBULA -> listOf(
-                Color(0xFF7B2FF7), Color(0xFFB5179E), Color(0xFF4361EE), Color(0xFF2EC4B6), Color(0xFFE0AAFF),
+            AppBackgroundStyle.NEBULA -> Brush.verticalGradient(
+                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), base)
+                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), base),
             )
         }
     }
@@ -406,29 +417,41 @@ fun AudifyTheme(
             LocalTextSelectionColors provides selection,
             LocalContentColor provides scheme.onBackground,
         ) {
+            val liquidGlassEnabled by AppSettings.liquidGlass.collectAsStateWithLifecycle()
+            val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+            val backgroundBackdrop = rememberLayerBackdrop()
             Box(Modifier.fillMaxSize().background(scheme.background)) {
-                if (backgroundStyle != AppBackgroundStyle.PLAIN) {
-                    OrganicFluidBackground(
-                        modifier = Modifier.fillMaxSize(),
-                        colors = wallpaperPalette,
-                        animationSpeed = if (reduceMotion) 0f else 0.32f,
-                    )
-                    Box(
-                        Modifier.fillMaxSize().background(
-                            Color.Black.copy(alpha = if (darkTheme) 0.30f else 0.10f),
+                // Record only the wallpaper. Recording the entire theme root here
+                // made the page backdrop draw this same layer while it was being
+                // recorded, creating a recursive GraphicsLayer capture when Glass
+                // was enabled. The page gets composed as a sibling, not a child.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(appBackgroundBrush)
+                        .then(
+                            if (liquidGlassEnabled && !reduceDynamicBlur) Modifier.layerBackdrop(backgroundBackdrop)
+                            else Modifier
                         ),
-                    )
+                ) {
+                    if (!backgroundUri.isNullOrBlank()) {
+                        AsyncImage(
+                            model = backgroundUri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            alpha = 1f,
+                        )
+                        Box(
+                            Modifier.fillMaxSize().background(
+                                (if (darkTheme) Color.Black else Color.White).copy(
+                                    alpha = if (darkTheme) .44f else .70f,
+                                ),
+                            ),
+                        )
+                    }
                 }
-                if (!backgroundUri.isNullOrBlank()) {
-                    AsyncImage(
-                        model = backgroundUri,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                        alpha = 1f,
-                    )
-                }
-                content()
+                content(backgroundBackdrop)
             }
         }
     }
@@ -456,7 +479,7 @@ fun SystemBarIcons(dark: Boolean) {
         // and hides wallpapers/gradients. The theme XML background is only a
         // pre-content launch fallback, not the steady-state navigation surface.
         window.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT),
+            android.graphics.Color.TRANSPARENT.toDrawable(),
         )
         WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = dark
