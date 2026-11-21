@@ -4,8 +4,6 @@ import com.music.audify.data.webdav.update
 import android.app.ActivityManager
 import android.content.Context
 import android.content.SharedPreferences
-import android.media.AudioFormat
-import android.media.AudioTrack
 import android.os.Build
 import android.os.storage.StorageManager
 import android.net.ConnectivityManager
@@ -561,8 +559,7 @@ object AppSettings {
      * tethered hotspot is Wi-Fi that costs money, and an unmetered home
      * connection is worth using whether or not it arrives over Wi-Fi.
      *
-     * On by default, and that is a deliberate change of behaviour for anyone
-     * updating. [downloadQuality] defaulting to Lossless means a tap that used
+     * On by default for fresh installs. [downloadQuality] defaulting to Lossless means a tap that used
      * to spend four megabytes of mobile data can now spend thirty-five, and of
      * the two ways to get that wrong — silently overspending a data plan, or
      * refusing with a sentence naming the switch that would allow it — only the
@@ -580,8 +577,8 @@ object AppSettings {
 
     /**
      * Check the playlists downloaded whole for newly added songs and download
-     * them, in the background. Off by default: it spends data and storage
-     * without being asked each time. See [com.music.audify.download.PlaylistSync].
+     * them, in the background. On for fresh installs; users can disable it to
+     * avoid background data and storage use. See [com.music.audify.download.PlaylistSync].
      */
     val syncDownloadedPlaylists = MutableStateFlow(false)
 
@@ -623,8 +620,8 @@ object AppSettings {
      * from each track's tempo, energy and structure, replacing the fixed
      * [crossfadeSeconds] window rather than needing it set to anything first
      * — [crossfadeSeconds] only matters here as a fallback while a pair is
-     * still being analysed. Off by default: analysis costs a background
-     * decode per track.
+     * still being analysed. On for fresh installs; analysis costs a background
+     * decode per track and can be disabled in settings.
      *
      * See [com.music.audify.playback.smart.TransitionPlanner].
      */
@@ -1226,8 +1223,7 @@ object AppSettings {
 
     fun profileOwnerOf(email: String?): String = email.orEmpty().ifBlank { "default" }
 
-    // Rich Presence publishes listening activity outside Audify, so it is an
-    // explicit opt-in on new installs. A previously saved user choice still wins.
+    // Fresh-install default is seeded explicitly; legacy installs retain their saved/default state.
     val discordRpcEnabled = MutableStateFlow(false)
 
     /** Put the track title on the bold profile line, in place of the artist. */
@@ -1429,6 +1425,10 @@ object AppSettings {
         val legacy = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         val legacyValues = legacy.all
         if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) return
+        // A clean install has neither a target preference nor legacy values.
+        // Do not write the migration marker in that case: seedFirstInstallDefaults()
+        // must see an empty file and populate the complete first-run defaults.
+        if (target.all.isEmpty() && legacyValues.isEmpty()) return
 
         // SharedPreferences.apply() updates the in-memory map atomically before
         // returning and persists it on the framework's disk writer. readAll()
@@ -1490,9 +1490,9 @@ object AppSettings {
     }
 
     /**
-     * Setelan awal untuk instalasi baru: hanya saat file preferensi masih kosong,
-     * jadi pengguna lama dan hasil restore tidak pernah tertimpa. Nilai yang bergantung
-     * pada kemampuan HP diberi fallback ke nilai konservatif.
+     * First-run defaults for a genuinely empty preference store. Existing installs
+     * and restored backups are never seeded or overwritten. readAll() deliberately
+     * retains legacy fallbacks for keys absent from an older install's store.
      */
     private fun seedFirstInstallDefaults(context: Context) {
         if (prefs.all.isNotEmpty()) return
@@ -1501,14 +1501,6 @@ object AppSettings {
         }.getOrDefault(false)
         // HP kuat: cukup core dan RAM untuk analisis Automix di latar belakang.
         val capable = !lowRam && Runtime.getRuntime().availableProcessors() >= 6
-        // Output float 32-bit hanya jika AudioTrack perangkat benar-benar menerimanya.
-        val floatOk = runCatching {
-            AudioTrack.getMinBufferSize(
-                48000,
-                AudioFormat.CHANNEL_OUT_STEREO,
-                AudioFormat.ENCODING_PCM_FLOAT,
-            ) > 0
-        }.getOrDefault(false)
         // Cache 1 GB hanya jika penyimpanan lega; selain itu pakai batas bawaan.
         val roomy = runCatching {
             context.getSystemService(StorageManager::class.java)
@@ -1521,27 +1513,48 @@ object AppSettings {
             .takeIf { it.length in 2..3 }
             .orEmpty()
         prefs.edit {
-                putInt(KEY_CROSSFADE, 10)
-                // Selalu OFF di instalasi baru: model Automix belum ada dan baru diunduh saat saklar dinyalakan.
-                .putBoolean(KEY_SMART_FADE, false)
+                putInt(KEY_CROSSFADE, 3)
+                .putBoolean(KEY_SMART_FADE, true)
                 .putString(KEY_AUTOMIX_PERFORMANCE_MODE, if (capable) "PERFORMANCE" else "BALANCED")
-                .putBoolean(KEY_SKIP_SILENCE, true)
-                .putString(KEY_OUTPUT_PCM_MODE, if (floatOk) "FLOAT_32" else "PCM_16")
+                .putBoolean(KEY_SKIP_SILENCE, false)
+                .putString(KEY_OUTPUT_PCM_MODE, "PCM_16")
                 .putBoolean(KEY_DIRECT_SOURCE_STREAM, true)
                 .putBoolean(KEY_SPATIAL_AUDIO, true)
+                .putString(KEY_QUALITY_WIFI, "LOSSLESS")
                 .putString(KEY_QUALITY_CELLULAR, "LOSSLESS")
-                .putBoolean(KEY_WIFI_ONLY_DOWNLOADS, false)
+                .putBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
                 .putBoolean(KEY_EXPORT_DOWNLOADS, true)
+                .putBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, true)
                 .putBoolean(KEY_STOP_ON_TASK_REMOVED, false)
-                .putBoolean(KEY_HIDE_VOLUME_BAR, true)
+                .putBoolean(KEY_HIDE_VOLUME_BAR, false)
                 .putBoolean(KEY_HIDE_SONG_STATUS, true)
-                .putBoolean(KEY_SHOW_QUEUE_HISTORY, true)
-                .putBoolean(KEY_SWIPE_TO_PLAY_NEXT, true)
+                .putBoolean(KEY_SHOW_QUEUE_HISTORY, false)
+                .putBoolean(KEY_HAPTIC_FEEDBACK_ENABLED, true)
+                .putBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
                 .putBoolean(KEY_DONT_REPEAT_SUGGESTIONS, true)
+                .putBoolean(KEY_AUTO_MUSIC_ONLY, true)
+                .putBoolean(KEY_HIDE_HOME_RECENTS, false)
+                .putBoolean(KEY_HIDE_HOME_BRANDING, false)
+                .putBoolean(KEY_HIDE_HOME_VIDEOS, false)
+                .putBoolean(KEY_HIDE_HOME_TOP_PICKS, false)
+                .putBoolean(KEY_HIDE_HOME_MOODS, false)
+                .putBoolean(KEY_REPLAY_GENRES, true)
+                .putBoolean(KEY_SHOW_WEEKLY_RECAP_CARD, true)
+                .putBoolean(KEY_SHOW_TIME_AWARE_SHELF, true)
+                .putBoolean(KEY_FILTER_NON_MUSIC_AUDIO, true)
+                .putBoolean(KEY_HIDE_EXPLICIT_CONTENT, false)
+                .putBoolean(KEY_NERD_STATS, false)
+                .putBoolean(KEY_LISTEN_TOGETHER_BUTTON, false)
+                .putBoolean(KEY_LISTEN_TOGETHER_TAB, false)
+                .putBoolean(KEY_SIGNATURE_API_ENABLED, false)
+                .putBoolean(KEY_SHOW_CACHE_FOLDER, false)
+                .putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, false)
+                .putBoolean(KEY_DISCORD_RPC_ENABLED, true)
                 .putBoolean(KEY_LIQUID_GLASS, false)
-                .putBoolean(KEY_FULL_BLEED_ARTWORK, false)
-                .putBoolean(KEY_PRIORITIZE_SYLLABLE_SYNC, true)
-                .putBoolean(KEY_SHOW_CACHE_FOLDER, true)
+                .putBoolean(KEY_FULL_BLEED_ARTWORK, true)
+                .putBoolean(KEY_COVER_SLIDE_ANIMATION, true)
+                .putBoolean(KEY_COVER_FLUID_ANIMATION, false)
+                .putBoolean(KEY_COVER_MIX_ONLY_EFFECTS, false)
                 .putString(KEY_LOCAL_MUSIC_SORT, "DATE_ADDED")
                 .putLong(KEY_CACHE_LIMIT, if (roomy) 1024L * 1024 * 1024 else DEFAULT_CACHE_LIMIT_BYTES)
                 .putLong(KEY_CANVAS_CACHE_LIMIT, if (roomy) 1024L * 1024 * 1024 else DEFAULT_CANVAS_CACHE_LIMIT_BYTES)
@@ -1558,19 +1571,23 @@ object AppSettings {
                     "LRC_RED,BINI_LYRICS,BETTER_LYRICS,BETTER_LYRICS_PORTATO,PAXSENIX,PAXSENIX_SPOTIFY,PAXSENIX_MUSIXMATCH,LYRICS_PLUS,UNISON,YOUTUBE_TRANSCRIPT,YOUTUBE_MUSIC,KUGOU,LRCLIB,MUSIXMATCH,GENIUS",
                 )
                 .putString(KEY_TRANSLATION_LANGUAGE, language)
-                .putString(KEY_THEME, "DARK")
-                .putString(KEY_ACCENT_COLOR, "RED")
+                .putString(KEY_THEME, "SYSTEM")
+                .putString(KEY_THEME_PALETTE, "forest")
+                .putString(KEY_BACKGROUND_STYLE, "SUNSET")
+                .putString(KEY_ACCENT_COLOR, "GREEN")
                 .putString(KEY_APP_FONT, "DEFAULT")
                 .putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-                .putBoolean(KEY_REDUCE_ANIMATION, lowRam)
-                .putBoolean(KEY_REDUCE_BLUR, lowRam)
+                .putBoolean(KEY_REDUCE_ANIMATION, false)
+                .putBoolean(KEY_REDUCE_BLUR, false)
                 .putBoolean(KEY_PROGRESSIVE_BLUR, false)
                 .putBoolean(KEY_FROSTED_GLASS, lowRam)
                 .putBoolean(KEY_LEGACY_MESH_GRADIENT, false)
-                .putBoolean(KEY_LYRICS_BLUR, !lowRam)
-                .putBoolean(KEY_LIQUID_FLOW, !lowRam)
-                .putBoolean(KEY_LYRICS_SPARKLE, !lowRam)
-                .putBoolean(KEY_ANIMATED_CANVAS, !lowRam)
+                .putBoolean(KEY_LYRICS_BLUR, true)
+                .putBoolean(KEY_LIQUID_FLOW, true)
+                .putBoolean(KEY_LYRICS_SPARKLE, true)
+                .putBoolean(KEY_SYNCED_LYRICS, true)
+                .putBoolean(KEY_LYRIC_STRIP, true)
+                .putBoolean(KEY_ANIMATED_CANVAS, true)
             }
     }
 
@@ -1585,6 +1602,9 @@ object AppSettings {
         migrateDownloadQuality()
         downloadQuality.value = readDownloadQuality()
         wifiOnlyDownloads.value = prefs.getBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
+        // These fallback values are intentionally the pre-default-change values.
+        // New installs have explicit values from seedFirstInstallDefaults(); an
+        // upgrade with a missing key must not silently acquire a new preference.
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
         syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
@@ -1636,7 +1656,7 @@ object AppSettings {
         }
         playbackSpeed.value = effectivePlaybackSpeed()
         themeMode.value = runCatching {
-            ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: "DARK")
+            ThemeMode.valueOf(prefs.getString(KEY_THEME, null) ?: ThemeMode.DARK.name)
         }.getOrDefault(ThemeMode.DARK)
         appFont.value = runCatching {
             AppFont.valueOf(prefs.getString(KEY_APP_FONT, null) ?: AppFont.DEFAULT.name)
@@ -1685,13 +1705,13 @@ object AppSettings {
         hideHomeVideos.value = prefs.getBoolean(KEY_HIDE_HOME_VIDEOS, false)
         hideHomeTopPicks.value = prefs.getBoolean(KEY_HIDE_HOME_TOP_PICKS, false)
         hideHomeMoods.value = prefs.getBoolean(KEY_HIDE_HOME_MOODS, false)
-        // Earlier builds defaulted video thumbnails to square. Move existing
-        // installs to the portrait 9:16 default once, while preserving a later
-        // explicit choice made from the setting.
+        // Earlier builds defaulted video thumbnails to square. Move only installs
+        // with no saved choice to the portrait 9:16 default; an explicit value
+        // from an older build is still the user's preference and must win.
         if (!prefs.getBoolean(KEY_VIDEO_THUMBNAIL_RATIO_MIGRATED, false)) {
-            squareVideoCovers.value = false
+            squareVideoCovers.value = prefs.getBoolean(KEY_SQUARE_VIDEO_COVERS, false)
             prefs.edit {
-                putBoolean(KEY_SQUARE_VIDEO_COVERS, false)
+                if (!prefs.contains(KEY_SQUARE_VIDEO_COVERS)) putBoolean(KEY_SQUARE_VIDEO_COVERS, false)
                 putBoolean(KEY_VIDEO_THUMBNAIL_RATIO_MIGRATED, true)
             }
         } else {
