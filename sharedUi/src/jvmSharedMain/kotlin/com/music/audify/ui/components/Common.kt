@@ -195,13 +195,13 @@ val FLOATING_BAR_MAX_WIDTH = 440.dp
 val SHELF_CARD_WIDTH = 150.dp
 
 /**
- * A track's thumbnail box at [height]: square for a song, 9:16 at the same
- * height for a music video — its portrait thumbnail shape, rather than a still
- * cropped into a square. Square when the listener
+ * A track's thumbnail box at [height]: square for a catalogue song, 16:9 at
+ * the same height for a music video, preserving the actual YouTube video still
+ * instead of squeezing or cropping its landscape frame. Square when the listener
  * picked square video covers, see [VideoThumbnails].
  */
 fun Modifier.trackArtSize(height: Dp, isVideo: Boolean): Modifier =
-    if (isVideo && !VideoThumbnails.square) size(width = height * (9f / 16f), height = height) else size(height)
+    if (isVideo && !VideoThumbnails.square) size(width = height * (16f / 9f), height = height) else size(height)
 
 /**
  * The "Square video covers" setting as every surface that sizes a music video
@@ -766,9 +766,11 @@ private fun SongRowContent(
             Box(Modifier.trackArtSize(52.dp, song.isVideo)) {
                 val remoteArtwork = com.music.audify.ui.player.rememberRemoteArtworkUrl(song)
                 AsyncImage(
-                    model = remember(remoteArtwork) { remoteArtwork?.artworkAt(ROW_ART_PX) },
+                    model = remember(remoteArtwork, song.thumbnailUrl, song.isVideo) {
+                        if (song.isVideo) song.thumbnailUrl else remoteArtwork?.artworkAt(ROW_ART_PX)
+                    },
                     contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                    contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
                     modifier = Modifier
                         .matchParentSize()
                         .clip(RoundedCornerShape(8.dp))

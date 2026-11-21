@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -60,6 +61,7 @@ import com.music.audify.data.model.Song
 import com.music.audify.data.model.UiState
 import com.music.audify.data.model.UserPlaylist
 import com.music.audify.data.model.artworkAt
+import com.music.audify.ui.components.trackArtSize
 import com.music.audify.ui.theme.ArtworkPalette
 
 /** A playlist row is an occurrence, not merely a media ID. */
@@ -332,10 +334,11 @@ private fun ReorderRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
-            model = song.artworkAt(ROW_ART_PX),
+            model = if (song.isVideo) song.thumbnailUrl else song.artworkAt(ROW_ART_PX),
             contentDescription = null,
+            contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
             modifier = Modifier
-                .size(44.dp)
+                .trackArtSize(44.dp, song.isVideo)
                 .clip(RoundedCornerShape(7.dp))
                 .thumbnailBorder(RoundedCornerShape(7.dp))
                 .background(palette.elevated),

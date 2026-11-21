@@ -634,11 +634,11 @@ private fun QuickPickTrackRow(
             .padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(52.dp)) {
+        Box(Modifier.trackArtSize(52.dp, item.isVideo)) {
             AsyncImage(
-                model = item.thumbnailUrl.artworkAt(ROW_ART_PX),
+                model = if (item.isVideo) item.thumbnailUrl else item.thumbnailUrl.artworkAt(ROW_ART_PX),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (item.isVideo) ContentScale.Fit else ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -1388,9 +1388,9 @@ fun CompactTrackRow(
     ) {
         Box(Modifier.trackArtSize(48.dp, isVideo)) {
             AsyncImage(
-                model = thumbnailUrl.artworkAt(ROW_ART_PX),
+                model = if (isVideo) thumbnailUrl else thumbnailUrl.artworkAt(ROW_ART_PX),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (isVideo) ContentScale.Fit else ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
                     .clip(RoundedCornerShape(7.dp))

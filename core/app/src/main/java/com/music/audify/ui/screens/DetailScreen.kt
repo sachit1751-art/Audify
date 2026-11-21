@@ -2425,9 +2425,9 @@ private fun CompactSongRow(
     ) {
         Box(Modifier.trackArtSize(48.dp, song.isVideo)) {
             AsyncImage(
-                model = song.artworkAt(ROW_ART_PX),
+                model = if (song.isVideo) song.thumbnailUrl else song.artworkAt(ROW_ART_PX),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
                     .clip(RoundedCornerShape(7.dp))
@@ -2489,9 +2489,9 @@ private fun SuggestedSongRow(
     ) {
         Box(Modifier.trackArtSize(52.dp, song.isVideo)) {
             AsyncImage(
-                model = song.artworkAt(ROW_ART_PX),
+                model = if (song.isVideo) song.thumbnailUrl else song.artworkAt(ROW_ART_PX),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
                     .clip(RoundedCornerShape(8.dp))

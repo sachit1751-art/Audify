@@ -1121,9 +1121,9 @@ internal fun SheetTrackHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(
-            model = song.artworkAt(ROW_ART_PX),
+            model = if (song.isVideo) song.thumbnailUrl else song.artworkAt(ROW_ART_PX),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
             modifier = Modifier
                 .trackArtSize(52.dp, song.isVideo)
                 .clip(RoundedCornerShape(8.dp))

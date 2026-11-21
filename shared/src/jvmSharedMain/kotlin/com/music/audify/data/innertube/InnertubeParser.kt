@@ -1733,7 +1733,10 @@ object InnertubeParser {
         // playlist or artist; widescreen art on one of those means it's a
         // music-video upload rather than the catalogue track, which the
         // player can now show — same test as parseResponsiveListItem's.
-        val isVideo = resolvedBrowseId == null && videoId != null && (
+        // A playable video card can also carry its album / collection browse
+        // endpoint. The thumbnail geometry is the decisive signal; requiring
+        // a null browseId misclassified those videos as square catalogue art.
+        val isVideo = videoId != null && (
             thumbnails.isNotSquare() ||
                 renderer.s("aspectRatio")?.contains("16_9") == true
             )

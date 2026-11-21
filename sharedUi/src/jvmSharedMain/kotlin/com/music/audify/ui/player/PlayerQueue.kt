@@ -928,9 +928,9 @@ private fun InlineQueueRow(
             Spacer(Modifier.width(4.dp))
         }
         AsyncImage(
-            model = rememberRemoteArtworkUrl(song),
+            model = if (song.isVideo) song.thumbnailUrl else rememberRemoteArtworkUrl(song),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
             modifier = Modifier
                 .trackArtSize(44.dp, song.isVideo)
                 .clip(RoundedCornerShape(6.dp))

@@ -2,7 +2,6 @@ package com.music.audify.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -82,7 +81,9 @@ internal fun FeedbackWelcomeDialog(
                     .heightIn(max = 780.dp)
                     .padding(horizontal = 4.dp, vertical = 4.dp)
                     .align(Alignment.BottomCenter),
-                color = colors.surfaceContainerHigh,
+                // Use the theme's base surface, not the elevated grey container.
+                // This stays near-black in dark themes and near-white in light themes.
+                color = colors.surface,
                 shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp, bottomStart = 16.dp, bottomEnd = 16.dp),
                 tonalElevation = 8.dp,
             ) {
@@ -176,8 +177,6 @@ internal fun FeedbackWelcomeDialog(
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = colors.onSurfaceVariant.copy(alpha = 0.6f),
                     )
-                    Spacer(Modifier.height(10.dp))
-                    Box(Modifier.width(64.dp).height(4.dp).clip(CircleShape).background(colors.onSurface.copy(alpha = 0.22f)))
                 }
             }
         }
