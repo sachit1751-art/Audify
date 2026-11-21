@@ -242,7 +242,6 @@ fun SearchScreen(
             modifier = Modifier
                 .zIndex(1f)
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
                 .onSizeChanged { headerHeightPx = it.height }
                 .padding(top = topPadding),
         ) {
@@ -252,6 +251,9 @@ fun SearchScreen(
                     onQueryChange = onQueryChange,
                     onSubmit = onSubmit,
                     focusRequester = focusRequester,
+                    // The search control floats over the page backdrop; keep
+                    // only its content and fixed height, never an opaque pill.
+                    chrome = Modifier.height(46.dp),
                     placeholder = if (searchingLibrary) {
                         stringResource(Res.string.search_library_hint)
                     } else if (searchingAddons) {
@@ -342,27 +344,9 @@ fun SearchScreen(
                         )
                     }
                 }
-                results == null && !fieldFocused && query.isEmpty() &&
-                    exploreState != null && onCategoryClick != null -> moodGenreGrid(
-                    state = exploreState,
-                    columns = categoryColumns,
-                    onCategoryClick = onCategoryClick,
-                    onRetry = onExploreRetry,
-                )
-                results == null -> if (history.isEmpty()) {
-                    item { MessageState(stringResource(Res.string.search_empty)) }
-                } else {
-                    recentSearches(
-                        history = history,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        onClick = onHistoryClick,
-                        onSongLongPress = onSongLongPress,
-                        onRemove = onHistoryRemove,
-                        onClear = onHistoryClear,
-                        onSongSwipe = onSongSwipe,
-                    )
-                }
+                // Keep the initial Search canvas quiet: no mood tiles and no
+                // previous-query rows, regardless of focus or saved history.
+                results == null -> item { MessageState(stringResource(Res.string.search_empty)) }
                 results is UiState.Loading -> songListSkeleton(circular = filter == SearchFilter.ARTISTS)
                 results is UiState.Error -> item { MessageState(results.message) }
                 results is UiState.Success -> {
@@ -506,9 +490,7 @@ private fun LazyListScope.librarySearchResults(
     onBlockedSongClick: (Song) -> Unit,
 ) {
     when (results) {
-        null -> if (addons && query.isEmpty() && addonHistory.isNotEmpty()) {
-            recentAddonSearches(addonHistory, onAddonHistoryClick, onAddonHistoryRemove, onAddonHistoryClear)
-        } else item(key = "library:empty") {
+        null -> item(key = "library:empty") {
             MessageState(
                 stringResource(if (addons) Res.string.search_addons_empty else Res.string.search_library_empty),
             )
@@ -589,7 +571,6 @@ private fun TopResultCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
             .padding(start = PAGE_GUTTER, end = PAGE_GUTTER, top = 18.dp, bottom = 8.dp)
             .longPressMenuClickable(onClick = onPlay, onLongClick = onLongPress)
             .contextClick(onLongPress),
@@ -829,8 +810,6 @@ private fun TypeaheadSongRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // Opak agar latar swipe tidak tembus saat baris digeser.
-            .then(if (onSwipeToQueue != null) Modifier.background(MaterialTheme.colorScheme.background) else Modifier)
             .longPressMenuClickable(
                 onClick = onClick,
                 onLongClick = onLongPress,
@@ -1040,7 +1019,6 @@ private fun RecentSearchEntityRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
                 .longPressMenuClickable(
                     onClick = onClick,
                     onLongClick = onLongPress,
