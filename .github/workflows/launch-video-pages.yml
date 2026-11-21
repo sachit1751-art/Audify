@@ -1,4 +1,4 @@
-﻿name: Deploy launch video page
+name: Deploy launch video page
 
 on:
   push:
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v5`n        with:`n          enablement: true
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
