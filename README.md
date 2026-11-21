@@ -15,10 +15,10 @@ Project: AUDIFY
 </p>
 
 <p align="center">
-  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/github/v/release/sachit1751-art/Audify?label=latest%20stable" alt="Latest stable release"></a>
-  <a href="https://github.com/sachit1751-art/Audify/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sachit1751-art/Audify" alt="GPL-3.0 license"></a>
-  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/badge/downloads-27.5k-green" alt="GitHub downloads"></a>
-  <a href="https://github.com/sachit1751-art/Audify/actions/workflows/check.yml?query=branch%3Arelease%2F1.9.5-restored-launch"><img src="https://img.shields.io/github/actions/workflow/status/sachit1751-art/Audify/check.yml?branch=release%2F1.9.5-restored-launch&label=CI" alt="CI status for the active release branch"></a>
+  <a href="https://github.com/sachit1751-art/Audify/actions/workflows/check.yml"><img src="https://github.com/sachit1751-art/Audify/actions/workflows/check.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+">
+  <img src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin and Jetpack Compose">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="GPL-3.0"></a>
 </p>
 
 <p align="center">
