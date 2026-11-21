@@ -2,9 +2,6 @@
 # Project: AUDIFY
 name: Contributors Image
 
-# Redraws the README's contributor grid. The image lives on its own
-# `contributors` branch because main only takes pull requests, so a bot
-# commit there is rejected.
 on:
   workflow_dispatch:
   push:
@@ -30,24 +27,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-        run: |
-          mkdir out
-          python3 .github/scripts/contributors_svg.py out/contributors.svg
+        run: python3 .github/scripts/contributors_svg.py docs/contributors.svg
 
-      - name: Publish to the contributors branch if changed
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
+      - name: Commit updated contributor image to main
         run: |
-          if git fetch -q --depth=1 origin contributors 2>/dev/null \
-             && git show FETCH_HEAD:contributors.svg 2>/dev/null | cmp -s - out/contributors.svg; then
-            echo "Unchanged."
-            exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- docs/contributors.svg; then
+            git add docs/contributors.svg
+            git commit -m "chore: update contributors image [skip ci]"
+            git push origin HEAD:main
           fi
-          cd out
-          git init -q -b contributors
-          git add contributors.svg
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "Update contributors image"
-          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" contributors
