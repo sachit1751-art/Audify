@@ -54,6 +54,9 @@ import androidx.compose.ui.platform.LocalContext
 import com.music.audify.wear.data.PhoneLink
 import com.music.audify.wear.data.Queue
 import com.music.audify.wear.data.QueueRow
+import com.music.audify.wear.data.isCurrentFor
+import com.music.audify.wear.data.stableKey
+import com.music.audify.wear.data.safeJumpEntryId
 import com.music.audify.wear.data.PodcastShowRow
 import com.music.audify.wear.data.PodcastEpisodeRow
 import com.music.audify.wear.data.PodcastCatalogueState
@@ -68,12 +71,22 @@ import com.music.audify.wear.data.podcastCatalogueState
 fun QueueScreen(
     queue: Queue?,
     playingId: String?,
+    playingEntryId: String?,
+    playingIndex: Int?,
     onRequest: () -> Unit,
-    onPlay: (Int) -> Unit,
+    onPlay: (QueueRow) -> Unit,
 ) {
-    LaunchedEffect(playingId) { onRequest() }
+    LaunchedEffect(playingId, playingEntryId, playingIndex) { onRequest() }
     val state = rememberScalingLazyListState(initialCenterItemIndex = 1)
-    val live = queue?.takeIf { playingId == null || it.mediaId == playingId } ?: queue
+    val live = queue?.takeIf { it.isCurrentFor(playingId, playingEntryId, playingIndex) }
+    val duplicateEntryIds = remember(live?.rows) {
+        live?.rows.orEmpty()
+            .mapNotNull { it.queueEntryId?.takeIf(String::isNotBlank) }
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+    }
 
     ScreenScaffold(scrollState = state) { padding ->
         ScalingLazyColumn(
@@ -86,12 +99,12 @@ fun QueueScreen(
             when {
                 live == null -> item(key = "loading") { Hint(stringResource(R.string.loading)) }
                 live.rows.isEmpty() -> item(key = "empty") { Hint(stringResource(R.string.queue_empty)) }
-                else -> items(live.rows, key = { it.index }) { row ->
+                else -> items(live.rows, key = { it.stableKey(duplicateEntryIds) }) { row ->
                     QueueCell(
                         row = row,
                         isCurrent = row.index == live.currentIndex,
                         isPast = row.index < live.currentIndex,
-                    onClick = { onPlay(row.index) },
+                        onClick = { onPlay(row.copy(queueEntryId = row.safeJumpEntryId(duplicateEntryIds))) },
                     )
                 }
             }

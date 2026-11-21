@@ -97,9 +97,12 @@ fun WearApp(
                 QueueScreen(
                     queue = queue,
                     playingId = np?.mediaId,
+                    playingEntryId = np?.queueEntryId,
+                    playingIndex = np?.currentIndex,
                     onRequest = link::requestQueue,
-                    onPlay = { index ->
-                        link.skipTo(index)
+                    onPlay = { row ->
+                        val entryId = row.queueEntryId
+                        if (entryId.isNullOrBlank()) link.skipTo(row.index) else link.skipToEntry(entryId)
                         nav.popBackStack()
                     },
                 )

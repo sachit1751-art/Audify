@@ -57,11 +57,11 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions and playback | **Blocked - Plan 15 prerequisite** |
 | [15 - Typed playable-media boundary](15-typed-playable-media.md) | Multi-type Media3 identity foundation | **Designed - implementation not started** |
 | [069 - Artwork-to-detail continuity](069-artwork-to-detail-continuity.md) | Artwork-to-detail transition | **TODO - existing Android artwork continuity proposal; separate from page navigation** |
-| [070 - Playback-state transitions](070-playback-state-transitions.md) | Playback feedback | **TODO** |
-| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity | **TODO** |
+| [070 - Playback-state transitions](070-playback-state-transitions.md) | Playback feedback | **IN PROGRESS ? motion timing and reduced-motion transport fixes; lifecycle/device checks remain** |
+| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity | **IN PROGRESS ? reduced-motion placement and notice feedback; queue/device acceptance remains** |
 | [072 - Settings and expandable continuity](072-settings-expandable-continuity.md) | Settings state feedback | **TODO** |
 | [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | TV motion accessibility | **RECONCILE - current TvApp already wires reduced-motion transitions; inspect remaining TV call sites before changing** |
-| [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | Wear OS accessibility | **TODO - include reduced-motion audit for infinite buffering spinner and press feedback** |
+| [074 - Wear OS accessibility review](074-wearos-accessibility-review.md) | Wear OS accessibility | **IN PROGRESS ? optional queue occurrence IDs and stale-snapshot guards; device/rotary acceptance remains** |
 | [075 - Collaborative Playlists](075-collaborative-playlists.md) | Persistent shared playlists | **Planned - blocked on verified identity, durable storage and portable track IDs** |
 | [076 - Smart Playlists](076-smart-playlists.md) | Rule-based auto-updating playlists | **Implemented in v1.9.0** |
 | [077 - Android Auto](077-android-auto.md) | Car-safe browse and playback | **Media3 browse/playback integration in v1.9.0; real vehicle validation remains** |

@@ -295,7 +295,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val term = query.trim()
         when {
             term.isEmpty() -> null
-            state is UiState.Success -> UiState.Success(state.data.filter { it.matchesSearch(term) })
+            state is UiState.Success -> UiState.Success(state.data.filter { it.matchesSearch(term) }, warning = state.warning)
             else -> state
         }
     }.flowOn(Dispatchers.Default)
@@ -322,12 +322,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * to the prefix they ended on instead of being worked through a letter at
      * a time.
      */
-    private val suggestRequests = MutableSharedFlow<String>(
+    private val suggestRequests = MutableSharedFlow<SuggestRequest>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
     private val newestRequestId = AtomicLong(0L)
+    private val newestSuggestRequestId = AtomicLong(0L)
+    private val newestLibraryRequestId = AtomicLong(0L)
+    private var libraryLoadJob: Job? = null
 
     /**
      * Results of recent searches, so a query searched before is answered
@@ -2575,6 +2578,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * a blank placeholder.
      */
     fun searchFor(term: String) {
+        newestSuggestRequestId.incrementAndGet()
         _query.value = term
         searchSubmitted = true
         _suggestions.value = emptyList()
@@ -2591,6 +2595,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun clearSearchHistory() = SearchHistory.clear()
 
     fun onQueryChange(newValue: String) {
+        val requestId = newestSuggestRequestId.incrementAndGet()
         _query.value = newValue
         if (newValue.isBlank()) {
             searchSubmitted = false
@@ -2613,7 +2618,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (_searchSource.value != SearchSource.YOUTUBE) return
         // While typing, surface text completions — the pipeline already feeds
         // them through [suggestRequests] and publishes results via typeahead.
-        suggestRequests.tryEmit(newValue)
+        suggestRequests.tryEmit(SuggestRequest(newValue, requestId))
     }
 
     /**
@@ -2623,6 +2628,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun submitSearch() {
         val q = _query.value.trim()
         if (q.isEmpty() || _searchSource.value == SearchSource.LIBRARY) return
+        newestSuggestRequestId.incrementAndGet()
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
@@ -2678,6 +2684,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setSearchSource(source: SearchSource) {
         if (_searchSource.value == source) return
+        newestSuggestRequestId.incrementAndGet()
+        if (source != SearchSource.LIBRARY) {
+            newestLibraryRequestId.incrementAndGet()
+            libraryLoadJob?.cancel()
+            libraryLoadJob = null
+        }
         _searchSource.value = source
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
@@ -2695,19 +2707,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * are in the next answer; the last list stays up meanwhile.
      */
     fun loadLibrarySongs() {
-        viewModelScope.launch {
+        val requestId = newestLibraryRequestId.incrementAndGet()
+        libraryLoadJob?.cancel()
+        libraryLoadJob = viewModelScope.launch {
             val context = getApplication<Application>()
-            _librarySongs.value = if (!LocalMediaRepository.canReadLocalMusic(context)) {
+            val state = if (!LocalMediaRepository.canReadLocalMusic(context)) {
                 UiState.Error(text(R.string.storage_required_read))
             } else {
-                runCatching { LocalMediaRepository.getLocalMusic(context) }.fold(
-                    onSuccess = { songs ->
-                        if (songs.isEmpty()) UiState.Error(text(R.string.no_local_audio_found))
-                        else UiState.Success(songs)
-                    },
-                    onFailure = { UiState.Error(text(R.string.no_local_audio_found)) },
+                val scan = try {
+                    LocalMediaRepository.getLocalMusicScan(context)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    Log.w("Audify", "Local library scan failed: ${failure.javaClass.simpleName}")
+                    LocalMediaRepository.LocalMusicScanResult.Failed(
+                        LocalMediaRepository.LocalMusicScanIssue.QUERY_FAILED,
+                    )
+                }
+                localLibraryUiState(
+                    scan = scan,
+                    noAudioMessage = text(R.string.no_local_audio_found),
+                    partialMessage = text(R.string.local_library_scan_partial),
+                    failedMessage = text(R.string.local_library_scan_failed),
+                    accessMessage = text(R.string.storage_required_read),
                 )
             }
+            if (!shouldPublishLibrarySearch(requestId, newestLibraryRequestId.get(), _searchSource.value)) {
+                return@launch
+            }
+            _librarySongs.value = state
         }
     }
 
@@ -2721,6 +2749,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Cari query saat ini tanpa mencatat riwayat; dipakai popup Add Songs saat mengetik. */
     fun searchQuiet() {
         if (_query.value.isBlank() || _searchSource.value != SearchSource.YOUTUBE) return
+        newestSuggestRequestId.incrementAndGet()
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
@@ -2740,6 +2769,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val requestId: Long,
         val anonymous: Boolean = true,
     )
+
+    private data class SuggestRequest(val query: String, val requestId: Long)
 
     private fun cacheKey(query: String, filter: SearchFilter) = "${filter.name}:$query"
 
@@ -2875,24 +2906,29 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * "couldn't suggest anything" in a list of suggestions, and the typed text
      * is standing there as a working first row regardless.
      */
+    private fun isCurrentSuggestRequest(request: SuggestRequest): Boolean =
+        shouldPublishYouTubeTypeahead(
+            currentQuery = _query.value,
+            requestedQuery = request.query,
+            submitted = searchSubmitted,
+            source = _searchSource.value,
+            requestId = request.requestId,
+            currentRequestId = newestSuggestRequestId.get(),
+        )
+
     @OptIn(FlowPreview::class)
     private fun startSuggestPipeline() = viewModelScope.launch {
-        // Whether a list for [input] is still wanted. False once the field has
-        // moved on: typed further, or searched — which empties [_suggestions],
-        // and a late answer writing to it would reopen the suggestions over
-        // the results the user is by then reading.
-        fun stillWanted(input: String) = _query.value == input && !searchSubmitted
-
         suggestRequests
             .debounce(SUGGEST_DEBOUNCE_MS)
-            .collectLatest { input ->
-                if (!stillWanted(input)) return@collectLatest
-                val fetched = YtMusicRepository.searchSuggestions(input).getOrNull()
+            .collectLatest { request ->
+                if (!isCurrentSuggestRequest(request)) return@collectLatest
+                val fetched = YtMusicRepository.searchSuggestions(request.query).getOrNull()
                     ?: return@collectLatest
-                // Asked again on the way back; the field is live throughout.
-                if (!stillWanted(input)) return@collectLatest
-                _suggestions.value = listOf(input) +
-                    fetched.filterNot { it.equals(input, ignoreCase = true) }
+                // The text alone is insufficient: a query can be typed, changed,
+                // and typed again while an earlier request is still in flight.
+                if (!isCurrentSuggestRequest(request)) return@collectLatest
+                _suggestions.value = listOf(request.query) +
+                    fetched.filterNot { it.equals(request.query, ignoreCase = true) }
             }
     }
 
@@ -2905,27 +2941,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun startTypeaheadMediaPipeline() = viewModelScope.launch {
         suggestRequests
             .debounce(TYPEAHEAD_MEDIA_DEBOUNCE_MS)
-            .collectLatest { input ->
-                if (input.isBlank()) {
-                    _typeaheadResults.value = emptyList()
+            .collectLatest { request ->
+                if (request.query.isBlank()) {
+                    if (request.requestId == newestSuggestRequestId.get()) _typeaheadResults.value = emptyList()
                     return@collectLatest
                 }
-                // Only show media results while the user is still typing — not
-                // reading committed search results. The query-text check on its
-                // own isn't enough: a late suggestion callback can repopulate
-                // _suggestions after submission, and we must not re-open the
-                // typeahead dropdown under an already-committed search.
-                if (searchSubmitted) {
-                    _typeaheadResults.value = emptyList()
-                    return@collectLatest
-                }
-                val result = YtMusicRepository.searchTypeahead(input).getOrNull()
-                // If the field moved on, drop the result silently.
-                if (_query.value != input) {
-                    _typeaheadResults.value = emptyList()
-                    return@collectLatest
-                }
-                // Cap results so the dropdown doesn't grow unbounded.
+                if (!isCurrentSuggestRequest(request)) return@collectLatest
+                val result = YtMusicRepository.searchTypeahead(request.query).getOrNull()
+                if (!isCurrentSuggestRequest(request)) return@collectLatest
                 _typeaheadResults.value = filterExplicitSearchRows(result?.rows.orEmpty()).take(TYPEAHEAD_MAX_RESULTS)
             }
     }

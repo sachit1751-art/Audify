@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 10 — Consistent Status, Error and Recovery UX
 
-**Status: in-progress — playlist reorder load failure now has an explicit retry path and the production-variant regression suite passes; remaining recovery surfaces are not yet complete.**
+**Status: in-progress ? MediaStore download publication is now a commit gate, and local-library scan failures/partial results are no longer mislabeled as an empty library. Broader status/retry coverage remains.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Existing shared UI state patterns plus playback, search, provider, artwork, lyrics, sync and download owners.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

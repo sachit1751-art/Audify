@@ -1,8 +1,6 @@
 package com.music.audify.ui.components
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -27,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.settings.AppSettings
 
+internal fun queueNoticeTransitionDurationMs(reduceAnimation: Boolean): Int =
+    if (reduceAnimation) 120 else 200
+
 /** A unique queue result, so repeating the same action restarts its lifetime. */
 data class QueueActionNotice(
     val id: Int,
@@ -44,14 +45,11 @@ fun QueueActionNoticeHost(
     AnimatedContent(
         targetState = notice,
         transitionSpec = {
-            if (reduceAnimation) {
-                EnterTransition.None togetherWith ExitTransition.None
-            } else {
-                // Fade saja, tanpa geser. Ukuran tidak dianimasikan supaya
-                // muncul/hilang tidak terlihat memuai atau menyusut.
-                (fadeIn(tween(200)) togetherWith fadeOut(tween(200)))
-                    .using(SizeTransform(clip = false) { _, _ -> snap() })
-            }
+            // Reduced motion keeps a brief opacity cue but never moves the notice.
+            // Size remains snapped so the host layout does not expand or contract.
+            val duration = queueNoticeTransitionDurationMs(reduceAnimation)
+            (fadeIn(tween(duration)) togetherWith fadeOut(tween(duration)))
+                .using(SizeTransform(clip = false) { _, _ -> snap() })
         },
         contentKey = { it?.id },
         label = "queueActionNotice",

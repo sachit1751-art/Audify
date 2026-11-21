@@ -7,6 +7,7 @@ import com.music.audify.ui.components.ExplicitSongTitle
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -129,7 +130,8 @@ internal fun keepScrollInList(listState: LazyListState) = object : NestedScrollC
  * newly current row and the AutoPlay heading trade places, and a low-stiffness
  * spring is still visibly settling that trade long after the track changed.
  */
-private val QUEUE_ROW_MOTION = tween<IntOffset>(durationMillis = 200, easing = FastOutSlowInEasing)
+internal fun queueRowPlacementDurationMs(reduceAnimation: Boolean): Int =
+    if (reduceAnimation) 0 else 200
 
 /** Softens the list where it meets the header and the scrubber. */
 internal fun Modifier.fadingEdges(): Modifier = this
@@ -217,9 +219,16 @@ internal fun splitQueue(queue: List<Song>, currentIndex: Int, showHistory: Boole
     return QueueTracks(track(currentIndex, "np"), user, context, autoplay, history)
 }
 
-/** Placement-only item motion; see [QUEUE_ROW_MOTION]. */
-private fun LazyItemScope.queueMotion(): Modifier =
-    Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = QUEUE_ROW_MOTION)
+/** Placement-only item motion; structural changes snap when reduced animation is enabled. */
+private fun LazyItemScope.queueMotion(reduceAnimation: Boolean): Modifier =
+    Modifier.animateItem(
+        fadeInSpec = null,
+        fadeOutSpec = null,
+        placementSpec = if (reduceAnimation) snap() else tween(
+            durationMillis = queueRowPlacementDurationMs(reduceAnimation),
+            easing = FastOutSlowInEasing,
+        ),
+    )
 
 /** The live queue, in the player itself. */
 @Composable
@@ -261,6 +270,7 @@ internal fun InlineQueue(
         onHide = onHidePlayer,
     )
     val showHistory by PlayerSettings.showQueueHistory.collectAsStateWithLifecycle()
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val tracks = remember(queue, currentIndex, showHistory) { splitQueue(queue, currentIndex, showHistory) }
     val drag = rememberQueueDrag(listState, tracks, onMove, onDragActiveChange)
     val nowPlaying = tracks.nowPlaying
@@ -277,7 +287,7 @@ internal fun InlineQueue(
         val nowPlayingRow = if (tracks.history.isEmpty()) 0 else tracks.history.size + 1
         val scrolledAway = listState.firstVisibleItemIndex != nowPlayingRow || listState.firstVisibleItemScrollOffset != 0
         if (drag.held == null && nowPlaying != null && scrolledAway) {
-            if (hasScrolledOnce) {
+            if (hasScrolledOnce && !reduceAnimation) {
                 listState.animateScrollToItem(nowPlayingRow)
             } else {
                 listState.scrollToItem(nowPlayingRow)
@@ -346,7 +356,7 @@ internal fun InlineQueue(
                             onClick = { onJumpTo(track.timelineIndex) },
                             onRemove = { onRemove(track.timelineIndex) },
                             locked = controlsLocked,
-                            modifier = queueMotion(),
+                            modifier = queueMotion(reduceAnimation),
                         )
                     }
                 }
@@ -354,11 +364,11 @@ internal fun InlineQueue(
                 if (tracks.user.isNotEmpty()) {
                     // No heading of its own: the "Queue" title above already names
                     // this list and carries the Clear button.
-                    queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, onJumpTo, onRemove)
+                    queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, reduceAnimation, onJumpTo, onRemove)
                 }
                 if (!controlsLocked) {
                     item(key = "add-songs") {
-                        AddSongsRow(onClick = AddSongsRequest::show, modifier = queueMotion())
+                        AddSongsRow(onClick = AddSongsRequest::show, modifier = queueMotion(reduceAnimation))
                     }
                 }
                 if (tracks.context.isNotEmpty()) {
@@ -369,16 +379,16 @@ internal fun InlineQueue(
                             } else {
                                 stringResource(Res.string.queue)
                             },
-                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp).then(queueMotion()),
+                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp).then(queueMotion(reduceAnimation)),
                         )
                     }
-                    queueSection(tracks.context, QueueSection.CONTEXT, drag, controlsLocked, onJumpTo, onRemove)
+                    queueSection(tracks.context, QueueSection.CONTEXT, drag, controlsLocked, reduceAnimation, onJumpTo, onRemove)
                 }
                 if (autoplayEnabled || tracks.autoplay.isNotEmpty()) {
                     item(key = "autoplay-heading") {
-                        AutoplayHeading(hasTracks = tracks.autoplay.isNotEmpty(), modifier = queueMotion())
+                        AutoplayHeading(hasTracks = tracks.autoplay.isNotEmpty(), modifier = queueMotion(reduceAnimation))
                     }
-                    queueSection(tracks.autoplay, QueueSection.AUTOPLAY, drag, controlsLocked, onJumpTo, onRemove)
+                    queueSection(tracks.autoplay, QueueSection.AUTOPLAY, drag, controlsLocked, reduceAnimation, onJumpTo, onRemove)
                 }
             }
             // The held row, drawn over the list where the finger is. Positioned
@@ -412,6 +422,7 @@ private fun LazyListScope.queueSection(
     section: QueueSection,
     drag: QueueDrag,
     locked: Boolean,
+    reduceAnimation: Boolean,
     onJumpTo: (Int) -> Unit,
     onRemove: (Int) -> Unit,
 ) {
@@ -432,7 +443,7 @@ private fun LazyListScope.queueSection(
             onDragStart = { drag.start(track.key, section) },
             onDrag = drag::drag,
             onDragEnd = { drag.end(track.key) },
-            modifier = if (held) Modifier.alpha(0f) else queueMotion(),
+            modifier = if (held) Modifier.alpha(0f) else queueMotion(reduceAnimation),
         )
     }
 }

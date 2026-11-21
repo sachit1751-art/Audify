@@ -298,12 +298,13 @@ object DownloadStore {
             }
             // A file made in a folder the person chose has no pending row to clear.
             if (DocumentsContract.isDocumentUri(context, uri)) return uri
-            context.contentResolver.update(
+            val publishedRows = context.contentResolver.update(
                 uri,
                 ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
                 null,
                 null,
             )
+            requireMediaStorePublishSucceeded(publishedRows, name)
             return uri
         }
 

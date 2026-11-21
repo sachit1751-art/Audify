@@ -30,6 +30,8 @@ data class NowPlaying(
     val repeatMode: Int,
     val colors: List<Color>,
     val artId: String?,
+    val queueEntryId: String? = null,
+    val currentIndex: Int? = null,
 ) {
     /** Where the playhead is now, run on from the phone's last reading while it is moving. */
     fun positionAt(wallMs: Long): Long {
@@ -64,6 +66,8 @@ data class NowPlaying(
                 repeatMode = map.getInt(P.KEY_REPEAT),
                 colors = map.getIntegerArrayList(P.KEY_COLORS)?.map { Color(it) }.orEmpty(),
                 artId = map.getString(P.KEY_ART_ID),
+                queueEntryId = map.getString(P.KEY_CURRENT_ENTRY_ID),
+                currentIndex = if (map.containsKey(P.KEY_CURRENT_INDEX)) map.getInt(P.KEY_CURRENT_INDEX) else null,
             )
         }
     }
@@ -88,10 +92,37 @@ data class QueueRow(
     val title: String,
     val artist: String,
     val art: ImageBitmap?,
+    val queueEntryId: String? = null,
+    val queueEntryIdUnique: Boolean = false,
 )
 
 @Immutable
-data class Queue(val rows: List<QueueRow>, val currentIndex: Int, val mediaId: String)
+data class Queue(
+    val rows: List<QueueRow>,
+    val currentIndex: Int,
+    val mediaId: String,
+    val currentEntryId: String? = null,
+)
+
+internal fun QueueRow.stableKey(duplicateEntryIds: Set<String>): String =
+    queueEntryId?.takeIf { queueEntryIdUnique && it.isNotBlank() && it !in duplicateEntryIds }
+        ?.let { "entry:$it" }
+        ?: "index:$index"
+
+internal fun QueueRow.safeJumpEntryId(duplicateEntryIds: Set<String>): String? =
+    queueEntryId?.takeIf { queueEntryIdUnique && it.isNotBlank() && it !in duplicateEntryIds }
+
+internal fun Queue.isCurrentFor(
+    playingMediaId: String?,
+    playingEntryId: String?,
+    playingIndex: Int? = null,
+): Boolean =
+    (if (playingMediaId == null && playingEntryId == null && playingIndex == null) {
+        mediaId.isBlank() && currentIndex < 0
+    } else true) &&
+        (playingMediaId == null || mediaId == playingMediaId) &&
+        (playingEntryId == null || currentEntryId == playingEntryId) &&
+        (playingIndex == null || currentIndex == playingIndex)
 
 enum class Link {
     /** Looking for the phone, or waiting on its first answer. */

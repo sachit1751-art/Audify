@@ -1,6 +1,6 @@
 # 071 — Preserve track identity during queue edits
 
-- **Status**: TODO
+- **Status**: IN PROGRESS ? reduced-motion queue placement/notice feedback and backward-compatible Wear occurrence IDs with ID-validated jumps; device acceptance remains
 - **Commit**: dd97d775
 - **Severity**: HIGH
 - **Category**: Interruptibility; performance; physicality & origin

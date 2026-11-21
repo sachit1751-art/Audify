@@ -31,6 +31,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -852,9 +853,11 @@ private fun TransportGlyph(
     direction: Int = 0,
 ) {
     val haptics = rememberHaptics()
+    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     // Faded rather than hidden: the row keeps its shape at the ends of a queue.
     val alpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.3f,
+        animationSpec = tween(durationMillis = if (reduceAnimation) 120 else 300),
         label = "transportAlpha",
     )
     // Apple Music style press: the glyph shrinks under the finger and springs
@@ -864,13 +867,16 @@ private fun TransportGlyph(
     val pressed by interaction.collectIsPressedAsState()
     val pressScale = animateFloatAsState(
         targetValue = if (pressed && enabled) 0.72f else 1f,
-        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
+        animationSpec = if (reduceAnimation) snap() else spring(
+            dampingRatio = 0.45f,
+            stiffness = Spring.StiffnessMedium,
+        ),
         label = "transportPress",
     )
     // Soft disc under the finger while it is held.
     val pressDisc by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.18f else 0f,
-        animationSpec = tween(durationMillis = if (pressed) 70 else 260),
+        animationSpec = tween(durationMillis = if (reduceAnimation) 120 else if (pressed) 70 else 260),
         label = "transportDisc",
     )
     // On tap: the glyph is kicked the way it points and rebounds, with a ring.
@@ -893,7 +899,7 @@ private fun TransportGlyph(
                 enabled = enabled,
             ) {
                 haptics.play(haptic)
-                if (direction != 0) {
+                if (direction != 0 && !reduceAnimation) {
                     scope.launch {
                         kick.snapTo(0f)
                         kick.animateTo(direction.toFloat(), tween(durationMillis = 80, easing = FastOutSlowInEasing))
@@ -909,16 +915,20 @@ private fun TransportGlyph(
         AnimatedContent(
             targetState = icon,
             transitionSpec = {
-                (
-                    fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                        scaleIn(
-                            initialScale = 0.55f,
-                            animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow),
+                if (reduceAnimation) {
+                    fadeIn(tween(120)) togetherWith fadeOut(tween(120))
+                } else {
+                    (
+                        fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                            scaleIn(
+                                initialScale = 0.55f,
+                                animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow),
+                            )
+                        ) togetherWith (
+                        fadeOut(tween(90)) +
+                            scaleOut(targetScale = 0.55f, animationSpec = tween(120))
                         )
-                    ) togetherWith (
-                    fadeOut(tween(90)) +
-                        scaleOut(targetScale = 0.55f, animationSpec = tween(120))
-                    )
+                }
             },
             contentAlignment = Alignment.Center,
             label = "transportGlyph",
@@ -930,7 +940,7 @@ private fun TransportGlyph(
                 modifier = Modifier
                     .size(size)
                     .graphicsLayer {
-                        val k = kick.value
+                        val k = if (reduceAnimation) 0f else kick.value
                         translationX = k * 12.dp.toPx()
                         scaleX = pressScale.value * (1f + kotlin.math.abs(k) * 0.15f)
                         scaleY = pressScale.value * (1f - kotlin.math.abs(k) * 0.06f)

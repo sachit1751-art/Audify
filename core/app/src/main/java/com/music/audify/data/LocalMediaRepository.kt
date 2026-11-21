@@ -23,9 +23,12 @@ import com.music.audify.download.Downloads
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
+import kotlin.coroutines.cancellation.CancellationException
 import java.io.File
 import java.util.Locale
 
@@ -89,18 +92,50 @@ object LocalMediaRepository {
     fun canReadLocalMusic(context: Context): Boolean =
         hasStoragePermission(context) || hasFolderAccess(context)
 
+    /** Outcomes from a local-media scan; empty success is distinct from unreadable data. */
+    sealed interface LocalMusicScanResult {
+        data class Complete(val songs: List<Song>) : LocalMusicScanResult
+        data class Partial(val songs: List<Song>, val issue: LocalMusicScanIssue) : LocalMusicScanResult
+        data class Failed(val issue: LocalMusicScanIssue) : LocalMusicScanResult
+    }
+
+    enum class LocalMusicScanIssue {
+        QUERY_UNAVAILABLE,
+        QUERY_FAILED,
+        NESTING_LIMIT,
+        EXTRA_PROVIDER_FAILED,
+        ACCESS_UNAVAILABLE,
+    }
+
+    private fun scanResult(songs: List<Song>, issue: LocalMusicScanIssue?): LocalMusicScanResult = when {
+        issue == null -> LocalMusicScanResult.Complete(songs)
+        songs.isEmpty() -> LocalMusicScanResult.Failed(issue)
+        else -> LocalMusicScanResult.Partial(songs, issue)
+    }
+
     /**
      * Lists the audio files under the chosen folder through the Storage Access
-     * Framework, so no media permission is needed and nothing outside the
-     * granted tree can be reached.
+     * Framework. A provider error or depth cap is surfaced as Partial/Failed,
+     * never silently presented as a complete empty folder.
      */
-    private fun scanChosenFolder(context: Context): List<Song> {
-        val tree = AppSettings.localMusicFolderUri.value.toUri()
+    private suspend fun scanChosenFolder(context: Context): LocalMusicScanResult {
+        val scanContext = currentCoroutineContext()
+        val tree = try {
+            AppSettings.localMusicFolderUri.value.toUri()
+        } catch (failure: Exception) {
+            Log.w(TAG, "Could not open chosen music folder: ${failure.javaClass.simpleName}")
+            return LocalMusicScanResult.Failed(LocalMusicScanIssue.QUERY_FAILED)
+        }
         val filterNonMusic = AppSettings.filterNonMusicAudio.value
         val songs = mutableListOf<Song>()
+        var issue: LocalMusicScanIssue? = null
+        fun markIssue(value: LocalMusicScanIssue) { if (issue == null) issue = value }
 
         fun walk(documentId: String, depth: Int) {
-            if (depth > 12) return
+            if (depth > 12) {
+                markIssue(LocalMusicScanIssue.NESTING_LIMIT)
+                return
+            }
             val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, documentId)
             val projection = arrayOf(
                 DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -108,27 +143,61 @@ object LocalMediaRepository {
                 DocumentsContract.Document.COLUMN_MIME_TYPE,
                 DocumentsContract.Document.COLUMN_LAST_MODIFIED,
             )
-            context.contentResolver.query(children, projection, null, null, null)?.use { cursor ->
-                while (cursor.moveToNext()) {
-                    val childId = cursor.getString(0) ?: continue
-                    val name = cursor.getString(1).orEmpty()
-                    val mime = cursor.getString(2).orEmpty()
-                    val modified = cursor.getLong(3).takeIf { it > 0 }?.div(1_000)
-                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        val segment = "/${name.lowercase(Locale.ROOT)}/"
-                        if (filterNonMusic && nonMusicPathSegments.contains(segment)) continue
-                        walk(childId, depth + 1)
-                    } else if (isAudioFileName(name) || mime.startsWith("audio/")) {
-                        val uri = DocumentsContract.buildDocumentUriUsingTree(tree, childId).toString()
-                        songs.add(buildSongFromUri(context, uri, name, ScannedTags(null, null, modified, modified)))
+            val cursor = try {
+                context.contentResolver.query(children, projection, null, null, null)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Chosen music folder query failed: ${failure.javaClass.simpleName}")
+                markIssue(LocalMusicScanIssue.QUERY_FAILED)
+                return
+            }
+            if (cursor == null) {
+                markIssue(LocalMusicScanIssue.QUERY_UNAVAILABLE)
+                return
+            }
+            try {
+                cursor.use {
+                    while (it.moveToNext()) {
+                        scanContext.ensureActive()
+                        try {
+                            val childId = it.getString(0) ?: continue
+                            val name = it.getString(1).orEmpty()
+                            val mime = it.getString(2).orEmpty()
+                            val modified = it.getLong(3).takeIf { value -> value > 0 }?.div(1_000)
+                            if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                                val segment = "/${name.lowercase(Locale.ROOT)}/"
+                                if (filterNonMusic && nonMusicPathSegments.contains(segment)) continue
+                                walk(childId, depth + 1)
+                            } else if (isAudioFileName(name) || mime.startsWith("audio/")) {
+                                val uri = DocumentsContract.buildDocumentUriUsingTree(tree, childId).toString()
+                                songs.add(buildSongFromUri(context, uri, name, ScannedTags(null, null, modified, modified)))
+                            }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (failure: Exception) {
+                            Log.w(TAG, "Could not read a chosen-folder item: ${failure.javaClass.simpleName}")
+                            markIssue(LocalMusicScanIssue.QUERY_FAILED)
+                        }
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Log.w(TAG, "Chosen music folder traversal failed: ${failure.javaClass.simpleName}")
+                markIssue(LocalMusicScanIssue.QUERY_FAILED)
             }
         }
 
-        runCatching { walk(DocumentsContract.getTreeDocumentId(tree), 0) }
-            .onFailure { Log.w(TAG, "Failed scanning chosen music folder: ${it.message}") }
-        return songs.sortedBy { it.title.lowercase(Locale.ROOT) }
+        try {
+            walk(DocumentsContract.getTreeDocumentId(tree), 0)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Log.w(TAG, "Chosen music folder root failed: ${failure.javaClass.simpleName}")
+            markIssue(LocalMusicScanIssue.QUERY_FAILED)
+        }
+        return scanResult(songs.sortedBy { it.title.lowercase(Locale.ROOT) }, issue)
     }
 
     /**
@@ -377,35 +446,60 @@ object LocalMediaRepository {
     var extraLocalMusic: (suspend (Context, List<Song>) -> List<Song>)? = null
 
     /**
-     * Queries MediaStore for all audio files available on the device.
+     * Queries MediaStore for all audio files available on the device. The detailed
+     * API distinguishes an empty library from a provider failure or a partial scan.
      */
-    suspend fun getLocalMusic(context: Context): List<Song> = withContext(Dispatchers.IO) {
-        if (!hasStoragePermission(context)) {
-            val fromFolder = if (hasFolderAccess(context)) scanChosenFolder(context) else emptyList()
-            return@withContext extraLocalMusic?.invoke(context, fromFolder) ?: fromFolder
+    suspend fun getLocalMusicScan(context: Context): LocalMusicScanResult = withContext(Dispatchers.IO) {
+        val base = if (!hasStoragePermission(context)) {
+            if (hasFolderAccess(context)) scanChosenFolder(context)
+            else LocalMusicScanResult.Failed(LocalMusicScanIssue.ACCESS_UNAVAILABLE)
+        } else {
+            scanMediaStore(context)
         }
+        val extension = extraLocalMusic ?: return@withContext base
+        val baseSongs = when (base) {
+            is LocalMusicScanResult.Complete -> base.songs
+            is LocalMusicScanResult.Partial -> base.songs
+            is LocalMusicScanResult.Failed -> emptyList()
+        }
+        val expanded = try {
+            extension.invoke(context, baseSongs)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Log.w(TAG, "Additional local-media provider failed: ${failure.javaClass.simpleName}")
+            return@withContext when (base) {
+                is LocalMusicScanResult.Complete -> scanResult(baseSongs, LocalMusicScanIssue.EXTRA_PROVIDER_FAILED)
+                is LocalMusicScanResult.Partial -> LocalMusicScanResult.Partial(baseSongs, LocalMusicScanIssue.EXTRA_PROVIDER_FAILED)
+                is LocalMusicScanResult.Failed -> LocalMusicScanResult.Failed(LocalMusicScanIssue.EXTRA_PROVIDER_FAILED)
+            }
+        }
+        when (base) {
+            is LocalMusicScanResult.Complete -> LocalMusicScanResult.Complete(expanded)
+            is LocalMusicScanResult.Partial -> LocalMusicScanResult.Partial(expanded, base.issue)
+            is LocalMusicScanResult.Failed -> if (expanded.isEmpty()) base else LocalMusicScanResult.Partial(expanded, base.issue)
+        }
+    }
 
+    /**
+     * Compatibility API for existing playback, playlist and TV callers. It keeps
+     * the historical list contract; the Library search uses [getLocalMusicScan]
+     * so it can display partial and failed states honestly.
+     */
+    suspend fun getLocalMusic(context: Context): List<Song> = when (val scan = getLocalMusicScan(context)) {
+        is LocalMusicScanResult.Complete -> scan.songs
+        is LocalMusicScanResult.Partial -> scan.songs
+        is LocalMusicScanResult.Failed -> emptyList()
+    }
+
+    private suspend fun scanMediaStore(context: Context): LocalMusicScanResult {
+        val scanContext = currentCoroutineContext()
         val songs = mutableListOf<Song>()
-        // This scan runs over every audio file on the device, which includes
-        // whatever this app has downloaded into Music/BitChord alongside
-        // everything else — but by content URI, the only thing MediaStore
-        // offers here, that download is indistinguishable from a file the
-        // user copied on by hand. Reversing [Downloads.saved] hands a
-        // downloaded track its real YouTube id back, which is what lets
-        // PlaybackTracker recognise it as a video worth registering a play
-        // for — a content URI fails its id check on purpose, since most rows
-        // here really are just local files with nothing to sync.
         val videoIdByUri = Downloads.saved.value.entries.associate { (id, uri) -> uri to id }
-
         val filterNonMusic = AppSettings.filterNonMusicAudio.value
         val selection = if (filterNonMusic) {
             buildString {
                 append("${MediaStore.Audio.Media.IS_MUSIC} != 0")
-                // A duration of 0 or NULL is the scanner failing to read one,
-                // not a short clip — fragmented MP4 (how ALAC downloads often
-                // come) reads as 0, high-rate DSD as NULL — so it is let
-                // through to the extension and path checks rather than
-                // dropped as too short.
                 append(
                     " AND (${MediaStore.Audio.Media.DURATION} >= ?" +
                         " OR ${MediaStore.Audio.Media.DURATION} <= 0" +
@@ -421,39 +515,52 @@ object LocalMediaRepository {
         } else {
             "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         }
-        val selectionArgs = if (filterNonMusic) {
-            arrayOf(MIN_LOCAL_MUSIC_DURATION_MS.toString())
-        } else {
-            null
-        }
-        val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
-
-        runCatching {
+        val selectionArgs = if (filterNonMusic) arrayOf(MIN_LOCAL_MUSIC_DURATION_MS.toString()) else null
+        val cursor = try {
             context.contentResolver.query(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 AUDIO_PROJECTION,
                 selection,
                 selectionArgs,
-                sortOrder,
-            )?.use { cursor ->
-                val columns = AudioColumns(cursor)
-                // Parsed once for the scan rather than once per row.
+                "${MediaStore.Audio.Media.TITLE} ASC",
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Log.w(TAG, "Device local-media query failed: ${failure.javaClass.simpleName}")
+            return LocalMusicScanResult.Failed(LocalMusicScanIssue.QUERY_FAILED)
+        } ?: return LocalMusicScanResult.Failed(LocalMusicScanIssue.QUERY_UNAVAILABLE)
+
+        var issue: LocalMusicScanIssue? = null
+        try {
+            cursor.use {
+                val columns = AudioColumns(it)
                 val treeUri = AppSettings.localMusicFolderUri.value
                 val chosen = if (treeUri.isBlank()) null else selectedFolder(treeUri)
-                while (cursor.moveToNext()) {
-                    val displayName = cursor.getString(columns.displayName).orEmpty()
-                    val durationMs = cursor.getLong(columns.duration)
-                    val path = cursor.getString(columns.data)
-
-                    if (filterNonMusic && !isEligibleLocalMusic(durationMs, displayName, path)) continue
-                    if (treeUri.isNotBlank() && !isInFolder(path, chosen)) continue
-
-                    songs.add(columns.song(cursor, videoIdByUri))
+                while (it.moveToNext()) {
+                    scanContext.ensureActive()
+                    try {
+                        val displayName = it.getString(columns.displayName).orEmpty()
+                        val durationMs = it.getLong(columns.duration)
+                        val path = it.getString(columns.data)
+                        if (filterNonMusic && !isEligibleLocalMusic(durationMs, displayName, path)) continue
+                        if (treeUri.isNotBlank() && !isInFolder(path, chosen)) continue
+                        songs.add(columns.song(it, videoIdByUri))
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        Log.w(TAG, "Could not read a MediaStore audio row: ${failure.javaClass.simpleName}")
+                        if (issue == null) issue = LocalMusicScanIssue.QUERY_FAILED
+                    }
                 }
             }
-        }.onFailure { Log.w(TAG, "Failed scanning device local music: ${it.message}") }
-
-        extraLocalMusic?.invoke(context, songs) ?: songs
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Log.w(TAG, "Device local-media cursor failed: ${failure.javaClass.simpleName}")
+            if (issue == null) issue = LocalMusicScanIssue.QUERY_FAILED
+        }
+        return scanResult(songs, issue)
     }
 
     private val AUDIO_PROJECTION = arrayOf(

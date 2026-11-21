@@ -120,6 +120,9 @@ object WearProtocol {
     /** Payload: absolute queue index to jump to. */
     const val CMD_SKIP_TO = "skip_to"
 
+    /** Payload: immutable queue-occurrence ID; preferred over a stale absolute index. */
+    const val CMD_SKIP_TO_ENTRY = "skip_to_entry"
+
     /** Ask for a fresh [PATH_OUTPUTS]. */
     const val CMD_OUTPUTS = "outputs"
 
@@ -145,6 +148,8 @@ object WearProtocol {
     /** False when the phone has nothing queued; nothing below is set then. */
     const val KEY_HAS_TRACK = "has_track"
     const val KEY_MEDIA_ID = "media_id"
+    /** Optional current queue occurrence ID; absent on older phone builds. */
+    const val KEY_CURRENT_ENTRY_ID = "current_entry_id"
     const val KEY_TITLE = "title"
     const val KEY_ARTIST = "artist"
     const val KEY_ALBUM = "album"
@@ -233,6 +238,10 @@ object WearProtocol {
     /** DataMap list, one per row: [KEY_TITLE], [KEY_ARTIST], [KEY_INDEX], [KEY_ART]. */
     const val KEY_ITEMS = "items"
     const val KEY_INDEX = "index"
+    /** Optional immutable queue-occurrence ID for stable watch keys and safe jumps. */
+    const val KEY_QUEUE_ENTRY_ID = "queue_entry_id"
+    /** True only when this occurrence ID is unique across the phone's full queue. */
+    const val KEY_QUEUE_ENTRY_ID_UNIQUE = "queue_entry_id_unique"
 
     /** Absolute index of the playing item. */
     const val KEY_CURRENT_INDEX = "current_index"

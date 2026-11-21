@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicLong
 import com.music.audify.wear.playback.Speaker
 import com.music.audify.wear.WearProtocol as P
 import com.music.audify.wear.PodcastPlayRequest
@@ -77,6 +78,7 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     val volume: StateFlow<Volume?> = _volume.asStateFlow()
 
     private val _queue = MutableStateFlow<Queue?>(null)
+    private val queueSnapshotGeneration = AtomicLong(0L)
     val queue: StateFlow<Queue?> = _queue.asStateFlow()
 
     private val _podcasts = MutableStateFlow<List<PodcastShowRow>?>(null)
@@ -200,6 +202,10 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
 
     fun skipTo(index: Int) = send(P.CMD_SKIP_TO, index.toString())
 
+    fun skipToEntry(queueEntryId: String) {
+        if (queueEntryId.isNotBlank()) send(P.CMD_SKIP_TO_ENTRY, queueEntryId)
+    }
+
     fun requestQueue() = send(P.CMD_QUEUE)
 
     fun requestPodcasts() = send(P.CMD_PODCASTS)
@@ -255,9 +261,12 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
         // Copied out before returning: the buffer is released after this call.
         val changes = try {
             events.mapNotNull { event ->
-                if (event.type != DataEvent.TYPE_CHANGED) return@mapNotNull null
                 val item = event.dataItem
-                Triple(item.uri.path, item.uri.host, DataMapItem.fromDataItem(item).dataMap)
+                when (event.type) {
+                    DataEvent.TYPE_CHANGED -> Triple(item.uri.path, item.uri.host, DataMapItem.fromDataItem(item).dataMap)
+                    DataEvent.TYPE_DELETED -> Triple(item.uri.path, item.uri.host, null)
+                    else -> null
+                }
             }
         } finally {
             events.release()
@@ -267,10 +276,24 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
             if (host != null && phoneNode == null) phoneNode = host
             _link.value = Link.Connected
             when (path) {
-                P.PATH_NOW_PLAYING -> applyNowPlaying(map)
-                P.PATH_QUEUE -> applyQueue(map)
-                P.PATH_OUTPUTS -> applyOutputs(map)
-                P.PATH_PODCASTS -> applyPodcasts(map)
+                P.PATH_NOW_PLAYING -> if (map == null) {
+                    _nowPlaying.value = null
+                    holdPlaying = null
+                    holdLiked = null
+                    holdShuffle = null
+                    holdRepeat = null
+                    artId = null
+                    artJob?.cancel()
+                    _artwork.value = null
+                    queueSnapshotGeneration.incrementAndGet()
+                    _queue.value = null
+                } else applyNowPlaying(map)
+                P.PATH_QUEUE -> if (map == null) {
+                    queueSnapshotGeneration.incrementAndGet()
+                    _queue.value = null
+                } else applyQueue(map)
+                P.PATH_OUTPUTS -> map?.let(::applyOutputs)
+                P.PATH_PODCASTS -> map?.let(::applyPodcasts)
             }
         }
     }
@@ -390,7 +413,13 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
             secondary = Color(map.getInt(P.KEY_THEME_SECONDARY, 0xFFA1A1AA.toInt())),
         )
         val now = System.currentTimeMillis()
-        _nowPlaying.value = NowPlaying.from(map)?.let { merge(it, now) }
+        val incoming = NowPlaying.from(map)
+        _nowPlaying.value = incoming?.let { merge(it, now) }
+        if (incoming == null) {
+            // A no-track snapshot invalidates the previous queue, not just its title/art.
+            queueSnapshotGeneration.incrementAndGet()
+            _queue.value = null
+        }
 
         if (now >= holdVolumeUntil && map.containsKey(P.KEY_VOLUME)) {
             _volume.value = Volume(map.getInt(P.KEY_VOLUME), map.getInt(P.KEY_VOLUME_MAX))
@@ -426,27 +455,34 @@ class PhoneLink(context: Context, private val scope: CoroutineScope) :
     }
 
     private fun applyQueue(map: DataMap) {
+        val generation = queueSnapshotGeneration.incrementAndGet()
         val items = map.getDataMapArrayList(P.KEY_ITEMS).orEmpty()
         val current = map.getInt(P.KEY_CURRENT_INDEX)
         val mediaId = map.getString(P.KEY_QUEUE_MEDIA_ID).orEmpty()
+        val currentEntryId = map.getString(P.KEY_CURRENT_ENTRY_ID)
         val rows = items.map {
             QueueRow(
                 index = it.getInt(P.KEY_INDEX),
                 title = it.getString(P.KEY_TITLE).orEmpty(),
                 artist = it.getString(P.KEY_ARTIST).orEmpty(),
                 art = null,
+                queueEntryId = it.getString(P.KEY_QUEUE_ENTRY_ID),
+                queueEntryIdUnique = it.getBoolean(P.KEY_QUEUE_ENTRY_ID_UNIQUE),
             )
         }
-        _queue.value = Queue(rows, current, mediaId)
+        _queue.value = Queue(rows, current, mediaId, currentEntryId)
         // Thumbnails after the text, in one go, so the list is readable at once
         // and recomposes once more rather than once per row.
         scope.launch {
             val art = items.map { item ->
                 async { item.getAsset(P.KEY_ART)?.let { decode(it) } }
             }.awaitAll()
+            if (queueSnapshotGeneration.get() != generation) return@launch
             _queue.update { q ->
-                if (q == null || q.mediaId != mediaId) q
-                else q.copy(rows = q.rows.mapIndexed { i, row -> row.copy(art = art.getOrNull(i)) })
+                if (
+                    q == null || q.mediaId != mediaId || q.currentEntryId != currentEntryId ||
+                    queueSnapshotGeneration.get() != generation
+                ) q else q.copy(rows = q.rows.mapIndexed { i, row -> row.copy(art = art.getOrNull(i)) })
             }
         }
     }

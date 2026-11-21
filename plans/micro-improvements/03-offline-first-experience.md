@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 03 — Offline-First Library and Playback Experience
 
-**Status: planned — not started.**  
+**Status: in-progress ? local-library scans use latest-request/source guards and distinguish complete, partial and failed provider scans while preserving the legacy list API. Offline browse/play/reconnect coverage remains.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 081 — Library Backup and Restore plus existing local-media/download/provider boundaries.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

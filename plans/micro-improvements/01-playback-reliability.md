@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 01 — Playback Reliability and Recovery
 
-**Status: planned — not started.**  
+**Status: in-progress ? track identity transition reduced to 220 ms; reduced-motion transport feedback implemented. Playback lifecycle and recovery verification remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 070 and the existing Media3 playback/session architecture.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

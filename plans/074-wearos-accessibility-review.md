@@ -1,6 +1,6 @@
 # 074 — Harden Wear OS accessibility
 
-- **Status**: TODO
+- **Status**: IN PROGRESS ? queue snapshots carry optional occurrence identity, stale snapshots are rejected, duplicate row IDs fall back safely; device/rotary acceptance remains
 - **Commit**: dd97d775
 - **Severity**: HIGH
 - **Category**: Accessibility; purpose & frequency

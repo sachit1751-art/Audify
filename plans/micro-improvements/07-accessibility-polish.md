@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 07 — Cross-Platform Accessibility Audit and Remediation
 
-**Status: planned — not started.**  
+**Status: in-progress ? playback/queue/transport controls honor reduced motion; Wear OS queue rows use occurrence identity and reject stale snapshots. Screen-reader, focus, large-text and cross-platform verification remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plans 02, 073, 074, 084 and the existing design/accessibility system.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

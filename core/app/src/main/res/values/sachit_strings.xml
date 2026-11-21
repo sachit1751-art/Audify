@@ -76,4 +76,6 @@ Project: AUDIFY
     
     
     
+    <string name="local_library_scan_partial">Some local audio could not be read. Showing the available files.</string>
+    <string name="local_library_scan_failed">Local audio could not be read. Check storage or folder access and try again.</string>
 </resources>

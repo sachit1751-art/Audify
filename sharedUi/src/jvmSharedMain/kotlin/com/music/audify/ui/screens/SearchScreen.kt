@@ -97,12 +97,7 @@ import com.music.audify.ui.components.SongRow
 import com.music.audify.ui.components.SearchPlayingBars
 import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.components.songListSkeleton
-import com.music.audify.ui.components.optimizedHazeEffect
 import androidx.compose.ui.zIndex
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeSource
 import java.util.Locale
 
 @Composable
@@ -191,10 +186,8 @@ fun SearchScreen(
     onExploreRetry: () -> Unit = {},
     /** Whether the search field has focus; the categories give way to recent searches once it does. */
     fieldFocused: Boolean = true,
-    /** Applied to the scrolling list; the app uses it to record the list as a blur source. */
+    /** Optional modifier for the scrolling list. */
     listModifier: Modifier = Modifier,
-    /** Applied to the fixed header; the app uses it to draw the blurred list behind the header. */
-    headerModifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
     val revealSeenState = rememberRevealSeenState()
@@ -236,17 +229,6 @@ fun SearchScreen(
             if (!loadingMore && total > 0 && lastVisible >= total - 4) onLoadMore()
         }
     }
-    val frost = remember { HazeState() }
-    val frostFill = MaterialTheme.colorScheme.background
-    val frostStyle = remember(frostFill) {
-        HazeStyle(
-            backgroundColor = frostFill,
-            tints = listOf(HazeTint(frostFill.copy(alpha = 0.55f))),
-            blurRadius = 24.dp,
-            noiseFactor = 0f,
-            fallbackTint = HazeTint(frostFill),
-        )
-    }
     var headerHeightPx by remember { mutableIntStateOf(0) }
     val headerHeight = with(LocalDensity.current) { headerHeightPx.toDp() }
     Box(modifier = modifier.fillMaxSize()) {
@@ -260,19 +242,8 @@ fun SearchScreen(
             modifier = Modifier
                 .zIndex(1f)
                 .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.background)
                 .onSizeChanged { headerHeightPx = it.height }
-                .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                .background(frostFill.copy(alpha = 0.9f))
-                .then(headerModifier)
-                // When the app supplies its own backdrop blur it is the frost;
-                // Haze on top would blur the same list a second time.
-                .then(
-                    if (headerModifier === Modifier) {
-                        Modifier.optimizedHazeEffect(frost, frostStyle)
-                    } else {
-                        Modifier
-                    },
-                )
                 .padding(top = topPadding),
         ) {
             if (showField) {
@@ -325,8 +296,6 @@ fun SearchScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                // Only recorded while Haze is the one blurring the header.
-                .then(if (headerModifier === Modifier) Modifier.hazeSource(frost) else Modifier)
                 .then(listModifier)
                 .onSizeChanged { listWidthPx = it.width },
             contentPadding = PaddingValues(top = headerHeight, bottom = contentPadding.calculateBottomPadding()),
@@ -546,49 +515,61 @@ private fun LazyListScope.librarySearchResults(
         }
         UiState.Loading -> songListSkeleton(keyPrefix = "skeleton:search:library")
         is UiState.Error -> item(key = "library:error") { MessageState(results.message) }
-        is UiState.Success -> if (results.data.isEmpty()) {
-            item(key = "library:no-match") {
-                MessageState(
-                    if (addons) {
-                        stringResource(Res.string.search_addons_no_results, query)
-                    } else {
-                        stringResource(Res.string.search_library_no_results, query)
-                    },
-                )
-            }
-        } else {
-            val tracks = results.data
-            val isCurrentRow = playingRowMatcher(tracks, currentSong)
-            itemsIndexed(tracks, key = { index, song -> "${if (addons) "addon" else "library"}_${song.videoId}_$index" }) { index, song ->
-                val blocked = isBlocked(song)
-                SongRow(
-                    song = song,
-                    // Dimmed rather than hidden, so the listener can see the
-                    // addon has the song and tap to learn why it won't play.
-                    modifier = if (blocked) Modifier.alpha(BLOCKED_ROW_ALPHA) else Modifier,
-                    onClick = {
-                        if (blocked) {
-                            onBlockedSongClick(song)
-                        } else {
-                            // The queue skips blocked rows, or playing through
-                            // it would stop at the first one with an error.
-                            val playable = tracks.filterNot(isBlocked)
-                            onSongClick(playable, playable.indexOfFirst { it === song })
-                        }
-                    },
-                    onLongPress = { onSongLongPress(song) },
-                    onSwipeToQueue = { if (blocked) onBlockedSongClick(song) else onSongSwipe(song) },
-                    isCurrent = isCurrentRow(song),
-                    isPlaying = isPlaying && isCurrentRow(song),
-                    searchPlayingStyle = true,
-                    showSourceQuality = addons,
-                )
-                if (index < tracks.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline,
+        is UiState.Success -> {
+            results.warning?.let { warning ->
+                item(key = "library:warning") {
+                    Text(
+                        text = warning,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     )
+                }
+            }
+            if (results.data.isEmpty()) {
+                item(key = "library:no-match") {
+                    MessageState(
+                        if (addons) {
+                            stringResource(Res.string.search_addons_no_results, query)
+                        } else {
+                            stringResource(Res.string.search_library_no_results, query)
+                        },
+                    )
+                }
+            } else {
+                val tracks = results.data
+                val isCurrentRow = playingRowMatcher(tracks, currentSong)
+                itemsIndexed(tracks, key = { index, song -> "${if (addons) "addon" else "library"}_${song.videoId}_$index" }) { index, song ->
+                    val blocked = isBlocked(song)
+                    SongRow(
+                        song = song,
+                        // Dimmed rather than hidden, so the listener can see the
+                        // addon has the song and tap to learn why it won't play.
+                        modifier = if (blocked) Modifier.alpha(BLOCKED_ROW_ALPHA) else Modifier,
+                        onClick = {
+                            if (blocked) {
+                                onBlockedSongClick(song)
+                            } else {
+                                // The queue skips blocked rows, or playing through
+                                // it would stop at the first one with an error.
+                                val playable = tracks.filterNot(isBlocked)
+                                onSongClick(playable, playable.indexOfFirst { it === song })
+                            }
+                        },
+                        onLongPress = { onSongLongPress(song) },
+                        onSwipeToQueue = { if (blocked) onBlockedSongClick(song) else onSongSwipe(song) },
+                        isCurrent = isCurrentRow(song),
+                        isPlaying = isPlaying && isCurrentRow(song),
+                        searchPlayingStyle = true,
+                        showSourceQuality = addons,
+                    )
+                    if (index < tracks.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
                 }
             }
         }

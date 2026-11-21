@@ -51,8 +51,8 @@ fun Modifier.shelfStagger(index: Int): Modifier = this
 
 /**
  * A sideways-scrolling shelf, in whatever the platform wraps one in — see [ShelfRowChrome].
- * Snaps to each cell rather than stopping mid-card: a fling settles with a
- * column aligned to the leading edge instead of leaving items cut in half.
+ * Uses the native LazyRow fling so gestures keep momentum without a
+ * forced snap animation competing with artwork loading and feed scrolling.
  */
 @Composable
 fun ShelfRow(

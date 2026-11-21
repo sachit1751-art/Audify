@@ -376,7 +376,7 @@ private fun GlassNowPlaying(
         fontSize = ACCESSORY_ARTIST_SIZE,
         letterSpacing = ACCESSORY_ARTIST_TRACKING,
     )
-    val glyphSlot = if (isInline) 32.dp else 40.dp
+    val glyphSlot = 48.dp
     val glyphSize = if (isInline) 24.dp else EXPANDED_GLYPH_SIZE
 
     Box(
@@ -517,7 +517,7 @@ private fun GlassNowPlaying(
             // survive that, not a second transport button.
             if (!isInline) {
                 // Glyph centres 44dp apart, as Apple's are.
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(8.dp))
                 MiniPlayerNextButton(
                     tint = contentColor.copy(alpha = if (controlsLocked) 0.3f else 1f),
                     enabled = !controlsLocked,

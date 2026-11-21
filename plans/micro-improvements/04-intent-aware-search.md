@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 04 — Intent-Aware Unified Search
 
-**Status: planned — not started.**  
+**Status: in-progress ? typeahead responses now require matching query generation, source and submission state. Search intent, facets and provider capability work remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 05 — Advanced Search Filters and existing provider search adapters.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

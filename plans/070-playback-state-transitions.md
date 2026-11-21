@@ -1,6 +1,6 @@
 # 070 — Clarify playback state transitions
 
-- **Status**: TODO
+- **Status**: IN PROGRESS ? 220 ms track transitions and reduced-motion transport feedback implemented; service lifecycle/device acceptance remains
 - **Commit**: dd97d775
 - **Severity**: HIGH
 - **Category**: Purpose & frequency; interruptibility; cohesion

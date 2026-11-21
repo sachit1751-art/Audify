@@ -326,7 +326,7 @@ private fun PanelMiniRow(
     } else {
         MaterialTheme.typography.bodyMedium
     }
-    val glyphSlot = if (!glass) 40.dp else if (showNext) 40.dp else 32.dp
+    val glyphSlot = 48.dp
     // 29dp expanded, as the glass accessory's own play glyph is.
     val glyphSize = if (!glass) 32.dp else if (showNext) 29.dp else 24.dp
     Box(
@@ -419,7 +419,7 @@ private fun PanelMiniRow(
                 )
             }
             if (showNext) {
-                Spacer(Modifier.width(if (glass) 4.dp else 8.dp))
+                Spacer(Modifier.width(8.dp))
                 MiniPlayerNextButton(
                     tint = contentColor.copy(alpha = if (controlsLocked) 0.3f else 1f),
                     enabled = !controlsLocked,

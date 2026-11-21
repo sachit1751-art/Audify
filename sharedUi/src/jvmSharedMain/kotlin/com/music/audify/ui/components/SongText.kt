@@ -164,6 +164,9 @@ object TrackFlow {
  * players do. A cut that keeps the same words stays put. With reduced
  * animation it is a plain cross-fade.
  */
+internal fun trackTextTransitionDurationMs(reduceAnimation: Boolean): Int =
+    if (reduceAnimation) 150 else 220
+
 @Composable
 fun TrackTextSwitch(song: Song, modifier: Modifier = Modifier, content: @Composable (Song) -> Unit) {
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -172,15 +175,16 @@ fun TrackTextSwitch(song: Song, modifier: Modifier = Modifier, content: @Composa
         targetState = song,
         contentKey = { it.videoId },
         transitionSpec = {
+            val duration = trackTextTransitionDurationMs(reduceAnimation)
             if (reduceAnimation) {
-                fadeIn(tween(150)) togetherWith fadeOut(tween(150))
+                fadeIn(tween(duration)) togetherWith fadeOut(tween(duration))
             } else {
                 val sign = if (forward) 1 else -1
                 (
-                    slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { width -> sign * width / 4 } +
-                        fadeIn(tween(260, delayMillis = 60))
+                    slideInHorizontally(tween(duration, easing = FastOutSlowInEasing)) { width -> sign * width / 4 } +
+                        fadeIn(tween(duration - 40, delayMillis = 40))
                     ) togetherWith (
-                    slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { width -> -sign * width / 4 } +
+                    slideOutHorizontally(tween(duration, easing = FastOutSlowInEasing)) { width -> -sign * width / 4 } +
                         fadeOut(tween(160))
                     )
             }

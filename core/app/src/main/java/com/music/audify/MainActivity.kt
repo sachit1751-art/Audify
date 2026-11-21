@@ -297,7 +297,6 @@ import com.music.audify.ui.components.backdrop.backdrops.rememberLayerBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.rememberSnapshotBackdrop
 import com.music.audify.ui.components.backdrop.backdrops.snapshotBackdropSource
 
-import com.music.audify.ui.components.backdrop.drawPlainBackdrop
 import com.music.audify.ui.components.backdrop.effects.blur
 import com.music.audify.ui.components.isGlassSupported
 import com.music.audify.data.sources.SourceConfig
@@ -680,10 +679,6 @@ private fun AudifyApp(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
     val glassSamplesBackdrop = glassActive && !reduceDynamicBlur
-    // Local backdrop for the Search tab: records the mood grid so the fixed
-    // header above it can draw a blurred copy of what scrolls underneath.
-    val searchBackdrop = rememberLayerBackdrop()
-    val searchHeaderTint = MaterialTheme.colorScheme.background.copy(alpha = 0.55f)
     // What folds [GlassNavBar] between its expanded and inline shapes. Held here
     // rather than inside the bar because the page's scroll is what drives it,
     // and the page is a sibling of the bar rather than a child.
@@ -4116,21 +4111,6 @@ private fun AudifyApp(
                                 // suggestions and filters, and a gap reads as a break.
                                 topPadding = topBarHeight() + 4.dp,
                                 showField = false,
-                                listModifier = if (glassSamplesBackdrop) {
-                                    Modifier.layerBackdrop(searchBackdrop)
-                                } else {
-                                    Modifier
-                                },
-                                headerModifier = if (glassSamplesBackdrop) {
-                                    Modifier.drawPlainBackdrop(
-                                        backdrop = searchBackdrop,
-                                        shape = { androidx.compose.ui.graphics.RectangleShape },
-                                        effects = { blur(24.dp.toPx()) },
-                                        onDrawSurface = { drawRect(searchHeaderTint) },
-                                    )
-                                } else {
-                                    Modifier
-                                },
 
                                 // The settings page's own two-state selector, so the
                                 // app has one look for "pick one of these".

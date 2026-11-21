@@ -61,12 +61,14 @@ import com.music.audify.playback.AudioRouting
 import com.music.audify.playback.toSongOrNull
 import com.music.audify.playback.isPodcastEpisode
 import com.music.audify.playback.toMediaItem
+import com.music.audify.playback.queueEntryId
 import com.music.audify.data.podcast.PodcastRepository
 import com.music.audify.data.YtMusicRepository
 import com.music.audify.playback.PlayableMedia
 import com.music.audify.playback.QueueEntryMetadata
 import com.music.audify.wear.PodcastPlayRequest
 import android.os.SystemClock
+import java.util.concurrent.atomic.AtomicLong
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.music.audify.playback.cast.CastSink
@@ -113,6 +115,18 @@ import com.music.audify.wear.WearProtocol as P
  * in its place (tv/src/main/java/.../wear/WearBridge.kt), so neither Play
  * services Wearable nor [WearCommandService] reach the TV app.
  */
+internal fun uniqueQueueEntryIndex(entryId: String, queueEntryIds: List<String?>): Int? {
+    if (entryId.isBlank()) return null
+    var match: Int? = null
+    queueEntryIds.forEachIndexed { index, candidate ->
+        if (candidate == entryId) {
+            if (match != null) return null
+            match = index
+        }
+    }
+    return match
+}
+
 object WearBridge {
 
     private const val TAG = "AudifyWear"
@@ -136,15 +150,30 @@ object WearBridge {
         val durationMs: Long,
         val speed: Float,
         val repeatMode: Int,
+        val currentEntryId: String?,
+        val currentIndex: Int,
     )
 
     private class Art(val url: String, val asset: Asset, val colors: ArrayList<Int>)
 
     /** One row of Up Next, read off the session by [WearCommandService]. */
-    internal class QueueRow(val index: Int, val title: String, val artist: String, val artworkUrl: String?)
+    internal class QueueRow(
+        val index: Int,
+        val title: String,
+        val artist: String,
+        val artworkUrl: String?,
+        val queueEntryId: String?,
+        val queueEntryIdUnique: Boolean,
+    )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Any()
+    private val queuePublishGeneration = AtomicLong(0L)
+    private val queuePublishLock = Any()
+
+    internal fun nextQueuePublishGeneration(): Long = synchronized(queuePublishLock) {
+        queuePublishGeneration.incrementAndGet()
+    }
 
     @Volatile private var last: Playing? = null
     @Volatile private var art: Art? = null
@@ -170,6 +199,8 @@ object WearBridge {
             durationMs = player.duration.coerceAtLeast(0L),
             speed = player.playbackParameters.speed,
             repeatMode = player.repeatMode,
+            currentEntryId = player.currentMediaItem?.queueEntryId,
+            currentIndex = player.currentMediaItemIndex,
         )
         schedule(context.applicationContext)
     }
@@ -213,6 +244,8 @@ object WearBridge {
                     durationMs = 0L,
                     speed = 1f,
                     repeatMode = AppSettings.repeatMode.value,
+                    currentEntryId = null,
+                    currentIndex = -1,
                 )
             }
         }
@@ -229,13 +262,27 @@ object WearBridge {
         schedule(app)
     }
 
-    internal fun publishQueue(context: Context, rows: List<QueueRow>, currentIndex: Int, currentMediaId: String?) {
+    internal fun publishQueue(
+        context: Context,
+        rows: List<QueueRow>,
+        currentIndex: Int,
+        currentMediaId: String?,
+        currentEntryId: String?,
+        generation: Long,
+        requestedAtMillis: Long,
+    ) {
+        if (queuePublishGeneration.get() != generation) return
         val app = context.applicationContext
         val request = PutDataMapRequest.create(P.PATH_QUEUE)
         val items = ArrayList<DataMap>(rows.size)
         rows.forEachIndexed { position, row ->
+            if (queuePublishGeneration.get() != generation) return
             items += DataMap().apply {
                 putInt(P.KEY_INDEX, row.index)
+                row.queueEntryId?.let {
+                    putString(P.KEY_QUEUE_ENTRY_ID, it)
+                    putBoolean(P.KEY_QUEUE_ENTRY_ID_UNIQUE, row.queueEntryIdUnique)
+                }
                 putString(P.KEY_TITLE, row.title)
                 putString(P.KEY_ARTIST, row.artist)
                 if (position < QUEUE_ART_ROWS) {
@@ -244,14 +291,18 @@ object WearBridge {
                 }
             }
         }
+        if (queuePublishGeneration.get() != generation) return
         request.dataMap.apply {
             putDataMapArrayList(P.KEY_ITEMS, items)
             putInt(P.KEY_CURRENT_INDEX, currentIndex)
             putString(P.KEY_QUEUE_MEDIA_ID, currentMediaId.orEmpty())
+            currentEntryId?.let { putString(P.KEY_CURRENT_ENTRY_ID, it) }
             // Always a change, so asking twice for the same queue still lands.
-            putLong(P.KEY_POSITION_AT, System.currentTimeMillis())
+            putLong(P.KEY_POSITION_AT, requestedAtMillis)
         }
-        put(app, request)
+        synchronized(queuePublishLock) {
+            if (queuePublishGeneration.get() == generation) put(app, request)
+        }
     }
 
     /** Sends a bounded phone-owned catalogue of RSS/Atom subscriptions and saved YouTube Music shows. */
@@ -595,6 +646,8 @@ object WearBridge {
             val s = now.snapshot
             map.putBoolean(P.KEY_HAS_TRACK, true)
             map.putString(P.KEY_MEDIA_ID, s.mediaId.orEmpty())
+            now.currentEntryId?.let { map.putString(P.KEY_CURRENT_ENTRY_ID, it) }
+            if (now.currentIndex >= 0) map.putInt(P.KEY_CURRENT_INDEX, now.currentIndex)
             map.putString(P.KEY_TITLE, s.title)
             map.putString(P.KEY_ARTIST, s.artist)
             map.putString(P.KEY_ALBUM, now.album.orEmpty())
@@ -846,23 +899,51 @@ class WearCommandService : WearableListenerService() {
                 controller.prepareIfIdle()
                 controller.play()
             }
+            P.CMD_SKIP_TO_ENTRY -> {
+                val entryId = arg.takeIf(String::isNotBlank) ?: return
+                val entryIds = (0 until controller.mediaItemCount).map { itemIndex ->
+                    controller.getMediaItemAt(itemIndex).queueEntryId
+                }
+                val index = uniqueQueueEntryIndex(entryId, entryIds) ?: return
+                controller.seekToDefaultPosition(index)
+                controller.prepareIfIdle()
+                controller.play()
+            }
             P.CMD_QUEUE -> {
                 val current = controller.currentMediaItemIndex
                 // One played track above the playing one, for context, like the phone's list.
                 val from = (current - 1).coerceAtLeast(0)
                 val to = (current + WearBridge.queueAhead).coerceAtMost(controller.mediaItemCount - 1)
+                val allEntryIds = (0 until controller.mediaItemCount).map { i ->
+                    controller.getMediaItemAt(i).queueEntryId
+                }
+                val entryIdCounts = allEntryIds.filterNotNull().groupingBy { it }.eachCount()
                 val rows = (from..to).map { i ->
-                    val metadata = controller.getMediaItemAt(i).mediaMetadata
+                    val item = controller.getMediaItemAt(i)
+                    val entryId = allEntryIds.getOrNull(i)
+                    val metadata = item.mediaMetadata
                     WearBridge.QueueRow(
                         index = i,
                         title = metadata.title?.toString().orEmpty(),
                         artist = metadata.artist?.toString().orEmpty(),
                         artworkUrl = metadata.artworkUri?.toString(),
+                        queueEntryId = entryId,
+                        queueEntryIdUnique = entryId != null && entryIdCounts[entryId] == 1,
                     )
                 }
-                val mediaId = controller.currentMediaItem?.mediaId
-                // Off the main thread: the thumbnails are a few disk reads each.
-                Thread { WearBridge.publishQueue(applicationContext, rows, current, mediaId) }.start()
+                val currentItem = controller.currentMediaItem
+                val mediaId = currentItem?.mediaId
+                val currentEntryId = currentItem?.queueEntryId
+                // Off the main thread: thumbnails are disk/network reads. A newer
+                // queue request invalidates this publication before it can win a race.
+                val generation = WearBridge.nextQueuePublishGeneration()
+                val requestedAtMillis = System.currentTimeMillis()
+                Thread {
+                    WearBridge.publishQueue(
+                        applicationContext, rows, current, mediaId, currentEntryId,
+                        generation, requestedAtMillis,
+                    )
+                }.start()
             }
         }
     }
