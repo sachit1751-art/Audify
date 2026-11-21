@@ -172,7 +172,7 @@ internal fun FeedbackWelcomeDialog(
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "v${com.music.audify.BuildConfig.VERSION_NAME} • Made by Sachit",
+                        "v1.9.3 • Made by Sachit",
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = colors.onSurfaceVariant.copy(alpha = 0.6f),
                     )
