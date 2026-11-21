@@ -43,10 +43,12 @@ Project: AUDIFY
 
 > **Independent project:** Audify is a third-party client. It is not affiliated with, endorsed by, or sponsored by Google or YouTube.
 
+## See it
+
 <p align="center">
-  <video src="docs/audify-launch.mp4" controls preload="metadata" width="88%">
-    Your browser does not support embedded video. <a href="docs/audify-launch.mp4">Watch the Audify launch video</a>.
-  </video>
+  <a href="docs/audify-launch.mp4"><img src="docs/audify-launch-preview.gif" alt="Audify launch video preview" width="300" height="533"></a>
+  <br>
+  <sub><a href="docs/audify-launch.mp4">Watch the 45-second Audify video</a> (MP4, with sound)</sub>
 </p>
 
 ## Screenshots
