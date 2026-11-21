@@ -47,11 +47,12 @@ Project: AUDIFY
 ## See it
 
 <p align="center">
-  <a href="https://sachit1751-art.github.io/Audify/launch-video.html"><img src="docs/audify-launch-preview.gif" alt="Audify launch video preview — full 45-second video loops on the video page" width="300" height="533"></a>
+  <img src="docs/audify-launch-loop.gif" alt="Full 45-second Audify launch video, looping" width="300">
   <br>
-  <sub><a href="https://sachit1751-art.github.io/Audify/launch-video.html">Watch the full 45-second Audify video on loop</a> (open the player to enable sound)</sub>
+  <sub>Full 45-second launch video, playing on loop directly in this README.</sub>
+  <br>
+  <sub><a href="docs/audify-launch.mp4">Watch the original MP4 with sound</a></sub>
 </p>
-
 ## Screenshots
 
 See Audify as it actually looks. These are captures from the app, not concept mockups.
