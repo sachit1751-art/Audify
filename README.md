@@ -47,9 +47,9 @@ Project: AUDIFY
 ## See it
 
 <p align="center">
-  <a href="docs/audify-launch.mp4"><img src="docs/audify-launch-preview.gif" alt="Audify launch video preview" width="300" height="533"></a>
+  <a href="https://sachit1751-art.github.io/Audify/launch-video.html"><img src="docs/audify-launch-preview.gif" alt="Audify launch video preview — full 45-second video loops on the video page" width="300" height="533"></a>
   <br>
-  <sub><a href="docs/audify-launch.mp4">Watch the 45-second Audify video</a> (MP4, with sound)</sub>
+  <sub><a href="https://sachit1751-art.github.io/Audify/launch-video.html">Watch the full 45-second Audify video on loop</a> (open the player to enable sound)</sub>
 </p>
 
 ## Screenshots

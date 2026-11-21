@@ -1,0 +1,28 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101114">
+  <title>Audify — Launch video</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101114; color: #f5f5f7; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+    main { width: min(100%, 520px); text-align: center; }
+    video { display: block; width: 100%; max-height: 80vh; aspect-ratio: 9 / 16; object-fit: contain; background: #000; border-radius: 16px; }
+    p { color: #b8bac3; line-height: 1.5; }
+    a { color: #9bc4ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Meet Audify</h1>
+    <video controls autoplay muted loop playsinline preload="metadata" poster="audify-launch-preview.gif">
+      <source src="audify-launch.mp4" type="video/mp4">
+      Your browser does not support HTML video. <a href="audify-launch.mp4">Watch the MP4</a>.
+    </video>
+    <p>Full 45-second launch video, set to repeat continuously. Playback starts muted because browsers block autoplay with sound; use the player controls to enable audio.</p>
+    <p><a href="../">Back to the Audify repository</a></p>
+  </main>
+</body>
+</html>
