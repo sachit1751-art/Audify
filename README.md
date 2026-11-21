@@ -252,6 +252,14 @@ Audify does not host or upload music. It accesses local media and third-party se
 
 Audify is an independent third-party client and is not associated with or endorsed by Google LLC, YouTube, YouTube Music, Deezer, Telegram or their parent companies.
 
+## Contributors
+
+Thanks to everyone who helps improve Audify.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/sachit1751-art/Audify/contributors/contributors.svg" alt="Audify contributors" width="100%">
+</p>
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=sachit1751-art/Audify&type=Date)](https://www.star-history.com/#sachit1751-art/Audify&Date)
