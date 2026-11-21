@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -54,7 +53,6 @@ import com.music.audify.data.model.UiState
 import com.music.audify.data.model.withoutItemsOn
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
-import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.PullToRefresh
 import com.music.audify.ui.components.EditorialShelfSkeleton
 import com.music.audify.ui.components.SectionHeaderSkeleton
@@ -99,7 +97,7 @@ fun ExploreScreen(
                 } else {
                     contentPadding
                 },
-                modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize().align(Alignment.TopCenter),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 if (showTitle) {
                     item {

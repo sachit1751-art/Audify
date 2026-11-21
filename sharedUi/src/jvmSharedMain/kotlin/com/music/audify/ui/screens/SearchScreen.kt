@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -91,7 +90,6 @@ import com.music.audify.ui.components.SkeletonShimmerHost
 import com.music.audify.ui.components.rememberRevealSeenState
 import com.music.audify.ui.components.revealOnAppear
 import com.music.audify.ui.components.PAGE_GUTTER
-import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.RowMoreButton
 import com.music.audify.ui.components.ROW_DIVIDER_INSET
 import com.music.audify.ui.components.SearchField
@@ -262,8 +260,6 @@ fun SearchScreen(
             modifier = Modifier
                 .zIndex(1f)
                 .fillMaxWidth()
-                .widthIn(max = PAGE_CONTENT_MAX_WIDTH)
-                .align(Alignment.TopCenter)
                 .onSizeChanged { headerHeightPx = it.height }
                 .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                 .background(frostFill.copy(alpha = 0.9f))
@@ -328,9 +324,7 @@ fun SearchScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier
-                .widthIn(max = PAGE_CONTENT_MAX_WIDTH)
                 .fillMaxSize()
-                .align(Alignment.TopCenter)
                 // Only recorded while Haze is the one blurring the header.
                 .then(if (headerModifier === Modifier) Modifier.hazeSource(frost) else Modifier)
                 .then(listModifier)

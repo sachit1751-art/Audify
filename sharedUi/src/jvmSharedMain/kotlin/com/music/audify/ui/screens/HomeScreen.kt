@@ -56,7 +56,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.audify.ui.components.ShelfRow
@@ -127,7 +126,6 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.HERO_CARD_RATIO
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
-import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.RowMoreButton
 import com.music.audify.ui.components.PullToRefresh
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
@@ -788,7 +786,7 @@ fun HomeScreen(
         SkeletonShimmerHost(enabled = !feedReady || topPicksWaiting || recentlyPlayedLoading || loadingMore) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             // The heading sits higher than the other tabs' first row: pull the
             // whole feed up by [HOME_TITLE_LIFT] with it.
             contentPadding = if (title != null) {

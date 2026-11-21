@@ -2815,10 +2815,7 @@ fun NowPlayingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { playerBounds = it }
-                    .then(dockHost)
-                    .background(
-                        if (fullArtworkBlurImage == null || legacyMesh) Color.Black else Color.Transparent,
-                    ),
+                    .then(dockHost),
             ) {
                 // The same blurred still cover the lyrics and queue use, under the
                 // main player as well — square or portrait clip, or still art. The
@@ -3166,27 +3163,6 @@ fun NowPlayingScreen(
                                     }
                                 },
                             ),
-                    )
-                }
-
-                // While the control deck is up, the whole Canvas sits under a flat 50%
-                // dim so the buttons and text read against any clip. It fades out as
-                // the deck collapses to the full-screen video, and back in with the
-                // deck, on the deck's own timing. Alpha is read in the draw phase, so
-                // the fade never recomposes the player. Drawn above the glass deck, not
-                // under it: the deck's blur samples the video layer itself, so a dim
-                // beneath it never reached the glass and the deck stayed bright.
-                val spotifyCanvasDim = animateFloatAsState(
-                    targetValue = if (spotifyCanvasPresentation && spotifyCanvasControlsOpen) 0.5f else 0f,
-                    animationSpec = tween(SPOTIFY_CANVAS_CONTROLS_ANIMATION_MS),
-                    label = "spotifyCanvasDim",
-                )
-                val spotifyCanvasDimShowing by remember { derivedStateOf { spotifyCanvasDim.value > 0f } }
-                if (spotifyCanvasPresentation || spotifyCanvasDimShowing) {
-                    Box(
-                        Modifier.matchParentSize()
-                            .graphicsLayer { alpha = spotifyCanvasDim.value * liveDeckShare() }
-                            .background(Color.Black),
                     )
                 }
 

@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -68,7 +67,6 @@ import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.components.LIBRARY_GRID_SPACING
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
-import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.PullToRefresh
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
 import com.music.audify.ui.components.libraryGrid
@@ -175,7 +173,7 @@ fun LibraryScreen(
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             // The heading sits where Home's does: the whole page is lifted by
             // the same amount, not just the title.
             contentPadding = if (showTitle) {
@@ -802,10 +800,7 @@ fun LibraryGridPage(
             horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             modifier = Modifier
-                .widthIn(max = PAGE_CONTENT_MAX_WIDTH)
-                .fillMaxSize()
-                .align(Alignment.TopCenter)
-                .padding(horizontal = PAGE_GUTTER),
+                .fillMaxSize().padding(horizontal = PAGE_GUTTER),
         ) {
             if (onNewPlaylist != null) {
                 item(key = "leading") {

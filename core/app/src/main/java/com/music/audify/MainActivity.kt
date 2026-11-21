@@ -4700,13 +4700,12 @@ private fun AudifyApp(
                     },
                 )
 
-                // Keep the feed visible up to the progressive blur. A separate
-                // opaque-ending fade here darkens the last part of the feed and
-                // reads as a black slab above the floating glass navigation.
-                ProgressiveScrollEdgeBlur(
-                    hazeState = hazeState,
+                // Use a page-colour-matched feather at the bottom. Haze can fall back
+                // to a dark slab around the floating controls on devices without a
+                // useful backdrop beneath the system gesture area.
+                BottomFadeScrim(
                     pageColor = chromePageColor,
-                    edge = ScrollBlurEdge.Bottom,
+                    withMiniPlayer = player.song != null,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
 
