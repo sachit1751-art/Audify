@@ -537,7 +537,11 @@ fun MiniPlayer(
             // A music video gets a portrait thumbnail frame, like its shelf
             // card; fit the moving picture inside it instead of cropping it.
             val artWidth by animateDpAsState(
-                targetValue = if (song.isVideo && !VideoThumbnails.square && MusicOnlyPlayback.showsPicture(song.videoId)) VIDEO_ART_WIDTH else 40.dp,
+                // The mini-player thumbnail is a property of the track, not
+                // whether the inline video surface is currently attached.
+                // Keep the portrait frame for every video track; the explicit
+                // square-thumbnail preference remains the only override.
+                targetValue = if (song.isVideo && !VideoThumbnails.square) VIDEO_ART_WIDTH else 40.dp,
                 label = "miniArtWidth",
             )
             Box(

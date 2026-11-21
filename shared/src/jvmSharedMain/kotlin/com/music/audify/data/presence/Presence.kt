@@ -115,7 +115,11 @@ class Presence(
     }
 
     companion object {
-        const val ENDPOINT = "https://api.bitchord.kushagrasingh.in/api/presence"
+        // Keep Audify's public install count on Audify's own Cloudflare Worker.
+        // The worker already exposes /api/presence and /api/stats/live; using
+        // BitChord's host here would report Audify installs in another app's
+        // public statistics instead of our own.
+        const val ENDPOINT = "https://audify-listen-together.sachit1751.workers.dev/api/presence"
         private const val TAG = "Presence"
         private const val DEFAULT_INTERVAL_SEC = 300
         private const val MIN_INTERVAL_SEC = 60

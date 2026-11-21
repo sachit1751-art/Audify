@@ -883,7 +883,7 @@ object AppSettings {
     val hideHomeMoods = MutableStateFlow(false)
 
     /** Shows every music video as a square, see [VideoThumbnails]. */
-    val squareVideoCovers = MutableStateFlow(true)
+    val squareVideoCovers = MutableStateFlow(false)
 
     /** Never plays the music video in the player: a video track shows its cover instead. */
     val stillVideoCovers = MutableStateFlow(false)

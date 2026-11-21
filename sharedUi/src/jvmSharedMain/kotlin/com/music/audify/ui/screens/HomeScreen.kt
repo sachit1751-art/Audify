@@ -2061,7 +2061,12 @@ internal fun Shelf(
                 contentType = { _, _ -> "shelf-card" },
             ) { index, item ->
                 Box(Modifier.shelfStagger(index)) {
-                    if (shelf.layout == ShelfLayout.VIDEO) {
+                    // Mixed shelves (notably Trending) can contain both
+                    // catalogue artwork and music-video uploads. Choose the
+                    // renderer per item so a video never falls through the
+                    // square, centre-cropped album-art card just because most
+                    // of its neighbours are ordinary cards.
+                    if (shelf.layout == ShelfLayout.VIDEO || item.isVideo) {
                         VideoShelfCard(
                             item = item,
                             onClick = { onItemClick(item) },

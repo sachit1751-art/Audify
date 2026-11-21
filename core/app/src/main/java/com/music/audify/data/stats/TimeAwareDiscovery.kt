@@ -92,10 +92,14 @@ fun selectTimeAwareHourBlock(
 internal fun selectTimeAwareDiscoveryShelf(
     shelves: List<HomeShelf>,
     block: ListeningHourBlock,
+    excludeVideoIds: Set<String> = emptySet(),
 ): HomeShelf? {
     val eligible = shelves.filter { shelf ->
         shelf.title.trim().lowercase(Locale.ROOT) !in CHRONOLOGICAL_HISTORY_SHELF_TITLES &&
-            shelf.items.any { it.videoId != null || it.browseId != null }
+            !shelf.title.contains("quick picks", ignoreCase = true) &&
+            shelf.items.any { (it.videoId != null || it.browseId != null) && it.videoId !in excludeVideoIds }
+    }.map { shelf ->
+        shelf.copy(items = shelf.items.filter { it.videoId !in excludeVideoIds })
     }
     val preferredTerms = when (block) {
         ListeningHourBlock.MORNING -> listOf("morning", "commute", "daily discover", "quick picks", "energy")

@@ -68,6 +68,22 @@ class TimeAwareDiscoveryTest {
     }
 
     @Test
+    fun timeAwarePicksExcludeQuickPicksTracksAndChooseDifferentPersonalizedShelf() {
+        val quickPicks = HomeShelf("Quick picks", listOf(shelfItem("shared"), shelfItem("quick-only")))
+        val morning = HomeShelf("Morning energy", listOf(shelfItem("shared"), shelfItem("morning-only")))
+        val evening = HomeShelf("Evening chill", listOf(shelfItem("evening-only")))
+
+        val selected = selectTimeAwareDiscoveryShelf(
+            listOf(quickPicks, morning, evening),
+            ListeningHourBlock.MORNING,
+            excludeVideoIds = setOf("shared", "quick-only"),
+        )
+
+        assertEquals("Morning energy", selected?.title)
+        assertEquals(listOf("morning-only"), selected?.items?.mapNotNull { it.videoId })
+    }
+
+    @Test
     fun discoveryShelfFallsBackWithoutUsingRecents() {
         val recents = HomeShelf("Recents", listOf(shelfItem("recent")))
         val fallback = HomeShelf("Listen again", listOf(shelfItem("again")))

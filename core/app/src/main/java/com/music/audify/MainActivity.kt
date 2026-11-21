@@ -2769,7 +2769,12 @@ private fun AudifyApp(
         while (true) {
             val now = java.time.LocalTime.now()
             val block = selectTimeAwareHourBlock(now, ListeningStats.summary(ReplayPeriod.ALL_TIME).hourOfDay.map(Long::toInt))
-            val sourceShelf = block?.let { selectTimeAwareDiscoveryShelf(availableShelves, it) }
+            val quickPickIds = availableShelves
+                .firstOrNull { it.title.contains("quick picks", ignoreCase = true) }
+                ?.items.orEmpty().mapNotNull { it.videoId }.toSet()
+            val sourceShelf = block?.let {
+                selectTimeAwareDiscoveryShelf(availableShelves, it, quickPickIds)
+            }
             val picks = sourceShelf?.items.orEmpty()
                 .filter { it.videoId != null || it.browseId != null }
                 .distinctBy { it.videoId ?: it.browseId ?: it.title }
