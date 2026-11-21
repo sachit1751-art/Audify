@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +47,27 @@ import androidx.compose.ui.unit.dp
 /** How long one highlight sweep takes to cross a placeholder. */
 private const val SHIMMER_PERIOD_MS = 1650
 
+private val LocalSkeletonSweep = staticCompositionLocalOf<State<Float>?> { null }
+
+/** One draw-phase shimmer clock for a loading screen, rather than one animation per bone. */
+@Composable
+fun SkeletonShimmerHost(
+    enabled: Boolean,
+    content: @Composable () -> Unit,
+) {
+    if (enabled) {
+        val phase = rememberInfiniteTransition(label = "skeleton-host").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = LinearEasing)),
+            label = "shared-sweep",
+        )
+        CompositionLocalProvider(LocalSkeletonSweep provides phase, content = content)
+    } else {
+        CompositionLocalProvider(LocalSkeletonSweep provides null, content = content)
+    }
+}
+
 private val BlockShape = RoundedCornerShape(6.dp)
 private val LineShape = RoundedCornerShape(4.dp)
 
@@ -60,6 +84,27 @@ private val SubtitleWidths = listOf(0.34f, 0.44f, 0.27f, 0.38f, 0.31f)
  */
 @Composable
 fun ShimmerBox(modifier: Modifier = Modifier, shape: Shape = BlockShape) {
+    val sharedSweep = LocalSkeletonSweep.current
+    if (sharedSweep != null) {
+        ShimmerBoxDraw(modifier, shape, sharedSweep)
+    } else {
+        ShimmerBoxWithOwnSweep(modifier, shape)
+    }
+}
+
+@Composable
+private fun ShimmerBoxWithOwnSweep(modifier: Modifier, shape: Shape) {
+    val sweep = rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = LinearEasing)),
+        label = "sweep",
+    )
+    ShimmerBoxDraw(modifier, shape, sweep)
+}
+
+@Composable
+private fun ShimmerBoxDraw(modifier: Modifier, shape: Shape, sweep: State<Float>) {
     val scheme = MaterialTheme.colorScheme
     // A low-strength wash carries the active theme without turning every
     // loading state into a solid accent-coloured block. The moving highlight
@@ -68,12 +113,6 @@ fun ShimmerBox(modifier: Modifier = Modifier, shape: Shape = BlockShape) {
     val highlight = lerp(base, scheme.primary, 0.24f)
         .copy(alpha = 0.78f)
         .compositeOver(base)
-    val sweep = rememberInfiniteTransition(label = "skeleton").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(SHIMMER_PERIOD_MS, easing = LinearEasing)),
-        label = "sweep",
-    )
     Box(
         modifier
             .clip(shape)

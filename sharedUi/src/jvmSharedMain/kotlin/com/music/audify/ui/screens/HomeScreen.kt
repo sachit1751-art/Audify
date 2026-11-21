@@ -61,6 +61,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.audify.ui.components.ShelfRow
 import com.music.audify.ui.components.shelfStagger
+import com.music.audify.ui.components.SkeletonShimmerHost
+import com.music.audify.ui.components.RevealSeenState
+import com.music.audify.ui.components.rememberRevealSeenState
+import com.music.audify.ui.components.revealOnAppear
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -738,6 +742,9 @@ fun HomeScreen(
 ) {
     // Top Picks' pictures and motion wait for the feed — see LocalArtworkImages.
     val feedReady = state !is UiState.Loading
+    // Home shelf entrances run once per stable shelf key, including after a
+    // return from another tab. The saveable set is bounded by RevealSeenState.
+    val revealSeenState = rememberRevealSeenState()
     // A custom layout places Top Picks itself, among the other rows, once the feed
     // is in. Until then it only goes above the feed when the layout puts it first;
     // anywhere else it waits for its slot rather than jump there later.
@@ -778,6 +785,7 @@ fun HomeScreen(
         modifier = modifier,
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        SkeletonShimmerHost(enabled = !feedReady || topPicksWaiting || recentlyPlayedLoading || loadingMore) {
         LazyColumn(
             state = listState,
             modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize(),
@@ -793,14 +801,16 @@ fun HomeScreen(
             },
         ) {
             if (title != null) {
-                item {
-                    HomeHeader(
-                        title = title,
-                        account = account,
-                        onSearchClick = onSearchClick,
-                        onCustomizeClick = onCustomizeClick,
-                        onAccountClick = onAccountClick,
-                    )
+                item(key = "home-header") {
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:header", revealSeenState, feedReady)) {
+                        HomeHeader(
+                            title = title,
+                            account = account,
+                            onSearchClick = onSearchClick,
+                            onCustomizeClick = onCustomizeClick,
+                            onAccountClick = onAccountClick,
+                        )
+                    }
                 }
             }
             if (!signedIn && onSignIn != null) {
@@ -809,7 +819,9 @@ fun HomeScreen(
                     // recomposes the banner alone.
                     SignInBanner(
                         onSignIn = onSignIn,
-                        modifier = Modifier.padding(bottom = 8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp).revealOnAppear(
+                            "home:sign-in", revealSeenState, feedReady,
+                        ),
                         motion = LocalArtworkMotion.current && !listState.isScrollInProgress,
                     )
                 }
@@ -817,37 +829,43 @@ fun HomeScreen(
             // Pinned playlists: one tap from Home instead of a trip to Library.
             if (pinnedShelf != null && pinnedShelf.items.isNotEmpty()) {
                 item(key = "pinned-playlists") {
-                    Shelf(
-                        shelf = pinnedShelf,
-                        onItemClick = { onItemClick(it, pinnedShelf.title) },
-                        onItemLongPress = onItemLongPress,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        homeStyle = true,
-                    )
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:pinned", revealSeenState, feedReady)) {
+                        Shelf(
+                            shelf = pinnedShelf,
+                            onItemClick = { onItemClick(it, pinnedShelf.title) },
+                            onItemLongPress = onItemLongPress,
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                            homeStyle = true,
+                        )
+                    }
                 }
             }
             if (timeAwareShelf != null && timeAwareShelf.items.isNotEmpty()) {
                 item(key = "time-aware-discovery") {
-                    Shelf(
-                        shelf = timeAwareShelf,
-                        onItemClick = { onItemClick(it, timeAwareShelf.title) },
-                        onItemLongPress = onItemLongPress,
-                        currentSong = currentSong,
-                        isPlaying = isPlaying,
-                        homeStyle = true,
-                    )
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:time-aware", revealSeenState, feedReady)) {
+                        Shelf(
+                            shelf = timeAwareShelf,
+                            onItemClick = { onItemClick(it, timeAwareShelf.title) },
+                            onItemLongPress = onItemLongPress,
+                            currentSong = currentSong,
+                            isPlaying = isPlaying,
+                            homeStyle = true,
+                        )
+                    }
                 }
             }
             if (onTopPickClick != null && topPicksAboveFeed) {
                 when {
                     !topPicks.isNullOrEmpty() -> item(key = "top-picks") {
-                        TopPicksShelf(
-                            picks = topPicks,
-                            listenerName = listenerName,
-                            onClick = onTopPickClick,
-                            onLongPress = onTopPickLongPress,
-                        )
+                        Box(Modifier.fillMaxWidth().revealOnAppear("home:top-picks", revealSeenState, feedReady)) {
+                            TopPicksShelf(
+                                picks = topPicks,
+                                listenerName = listenerName,
+                                onClick = onTopPickClick,
+                                onLongPress = onTopPickLongPress,
+                            )
+                        }
                     }
                     topPicksWaiting -> topPicksSkeleton()
                 }
@@ -900,6 +918,8 @@ fun HomeScreen(
                         onListenTogetherClick = onListenTogetherClick,
                         podcastShows = homePodcastShows,
                         onPodcastsClick = onPodcastsClick,
+                        revealSeenState = revealSeenState,
+                        revealEnabled = feedReady,
                         topPicksPending = onTopPickClick != null && topPicksWaiting,
                         topPicksItem = if (onTopPickClick != null && !topPicks.isNullOrEmpty()) {
                             {
@@ -917,6 +937,7 @@ fun HomeScreen(
                     if (loadingMore) feedMoreSkeleton()
                 }
             }
+        }
         }
         }
     }
@@ -1011,6 +1032,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     onListenTogetherClick: (() -> Unit)? = null,
     podcastShows: List<PodcastProviderShow> = emptyList(),
     onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
+    revealSeenState: RevealSeenState,
+    revealEnabled: Boolean,
 ) {
     // Recents swaps places with Listen again once it arrives, so its slot is
     // reserved from the start and the rows beneath are already where they will stay.
@@ -1037,6 +1060,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             return
         }
         item(key = shelf.title + index, contentType = shelf.layout) {
+            Column(
+                modifier = Modifier.fillMaxWidth().revealOnAppear(
+                    key = "home:${homeShelfKey(shelf.title)}:$index",
+                    seenState = revealSeenState,
+                    enabled = revealEnabled,
+                ),
+            ) {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
             val isListenAgain = LISTEN_AGAIN_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
             val isQuickPicks = QUICK_PICKS_TITLES.any { shelf.title.trim().equals(it, ignoreCase = true) }
@@ -1107,13 +1137,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
                     homeStyle = true,
                 )
             }
+            }
         }
         if (shelf.title.equals("Quick picks", ignoreCase = true)) {
             item(key = "home-listen-together") {
-                ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
+                Box(Modifier.fillMaxWidth().revealOnAppear("home:listen-together", revealSeenState, revealEnabled)) {
+                    ListenTogetherShelf(shelf.items.take(2).map { it.thumbnailUrl }, onListenTogetherClick)
+                }
             }
             if (onPodcastsClick != null) {
-                item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+                item(key = "home-podcasts") {
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:podcasts", revealSeenState, revealEnabled)) {
+                        HomePodcastsShelf(podcastShows, onPodcastsClick)
+                    }
+                }
             }
         }
     }
@@ -1131,12 +1168,18 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             when {
                 shelf != null -> shelfItem(shelfIndex++, shelf)
                 key == HOME_SLOT_TOP_PICKS -> if (topPicksItem != null) {
-                    item(key = "top-picks") { topPicksItem() }
+                    item(key = "top-picks") {
+                        Box(Modifier.fillMaxWidth().revealOnAppear("home:top-picks", revealSeenState, revealEnabled)) {
+                            topPicksItem()
+                        }
+                    }
                 } else {
                     topPicksSkeleton()
                 }
                 else -> item(key = "find-your-mood") {
-                    if (onMoodClick != null) FindYourMoodShelf(onMoodClick, onMoodsShowAll)
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:find-your-mood", revealSeenState, revealEnabled)) {
+                        if (onMoodClick != null) FindYourMoodShelf(onMoodClick, onMoodsShowAll)
+                    }
                 }
             }
         }
@@ -1145,16 +1188,32 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
 
     ordered.forEachIndexed { index, shelf ->
         if (index == moodAt && onMoodClick != null) {
-            item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
+            item(key = "find-your-mood") {
+                Box(Modifier.fillMaxWidth().revealOnAppear("home:find-your-mood", revealSeenState, revealEnabled)) {
+                    FindYourMoodShelf(onMoodClick, onMoodsShowAll)
+                }
+            }
         }
         shelfItem(index, shelf)
     }
     if (moodAt >= ordered.size && onMoodClick != null) {
-        item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
+        item(key = "find-your-mood") {
+            Box(Modifier.fillMaxWidth().revealOnAppear("home:find-your-mood", revealSeenState, revealEnabled)) {
+                FindYourMoodShelf(onMoodClick, onMoodsShowAll)
+            }
+        }
     }
     if (ordered.none { it.title.equals("Quick picks", ignoreCase = true) } && onPodcastsClick != null) {
-        item(key = "home-listen-together-fallback") { ListenTogetherShelf(emptyList(), onListenTogetherClick) }
-        item(key = "home-podcasts") { HomePodcastsShelf(podcastShows, onPodcastsClick) }
+        item(key = "home-listen-together-fallback") {
+            Box(Modifier.fillMaxWidth().revealOnAppear("home:listen-together", revealSeenState, revealEnabled)) {
+                ListenTogetherShelf(emptyList(), onListenTogetherClick)
+            }
+        }
+        item(key = "home-podcasts") {
+            Box(Modifier.fillMaxWidth().revealOnAppear("home:podcasts", revealSeenState, revealEnabled)) {
+                HomePodcastsShelf(podcastShows, onPodcastsClick)
+            }
+        }
     }
 }
 
@@ -2006,10 +2065,10 @@ private fun HeroCard(
                 )
                 .padding(start = 16.dp, end = 16.dp, top = 34.dp, bottom = 14.dp),
         ) {
-            Text(
+                Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.inverseOnSurface,
+                color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -2018,7 +2077,7 @@ private fun HeroCard(
                 Text(
                     text = displaySubtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.72f),
+                    color = Color.White.copy(alpha = 0.78f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

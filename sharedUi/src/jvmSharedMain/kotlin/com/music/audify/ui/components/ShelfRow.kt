@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyListPrefetchStrategy
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
@@ -77,6 +78,14 @@ private val SHELF_STAGGER_SLIDE = 72.dp
 private val SHELF_STAGGER_LIFT = 10.dp
 
 internal val LocalShelfScrollFlow = staticCompositionLocalOf<ShelfScrollFlow?> { null }
+
+/** Shared bounded prefetch policy for LazyRows nested inside a vertical feed. */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+fun rememberNestedShelfListState(): LazyListState {
+    val strategy = remember { LazyListPrefetchStrategy(nestedPrefetchItemCount = 3) }
+    return rememberLazyListState(prefetchStrategy = strategy)
+}
 
 /**
  * A shelf card's entrance: a card that comes in from the right edge while its
@@ -168,7 +177,10 @@ fun ShelfRow(
     contentPadding: PaddingValues,
     horizontalArrangement: Arrangement.Horizontal,
     modifier: Modifier = Modifier,
-    state: LazyListState = rememberLazyListState(),
+    // Nested rows prepare the next three cards while their parent feed is
+    // approaching them. Keep this bounded: large prefetch windows compete with
+    // artwork decoding and the active player for memory and CPU.
+    state: LazyListState = rememberNestedShelfListState(),
     content: LazyListScope.() -> Unit,
 ) {
     val flow = remember(state) { ShelfScrollFlow() }

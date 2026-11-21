@@ -230,6 +230,10 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import com.music.audify.data.YtMusicRepository
+import com.music.audify.ui.components.rememberRevealSeenState
+import com.music.audify.ui.components.revealOnAppear
+import com.music.audify.ui.components.SkeletonShimmerHost
+import com.music.audify.ui.components.rememberNestedShelfListState
 
 private const val MAX_ARTIST_SONGS = 20
 private const val SONGS_PER_COLUMN = 4
@@ -436,6 +440,7 @@ fun DetailScreen(
         rawSongs.withIndex().associate { (i, s) -> s.videoId to ((if (byTag) s.trackNumber else null) ?: (i + 1)) }
     }
     val isArtist = page.type == BrowseType.ARTIST
+    val revealSeenState = rememberRevealSeenState()
     // Whether the top release card's album is already saved isn't on the shelf
     // item; it is read off the album once, as soon as the card is known.
     val topReleaseId = if (isArtist) page.sections.topRelease()?.browseId else null
@@ -670,7 +675,8 @@ fun DetailScreen(
 
                 if (reorder != null) {
                     reorder(palette)
-                } else LazyColumn(
+                } else SkeletonShimmerHost(enabled = page.songs is UiState.Loading) {
+                LazyColumn(
                     state = listState,
                     overscrollEffect = listOverscroll,
                     modifier = Modifier.fillMaxSize(),
@@ -839,7 +845,7 @@ fun DetailScreen(
                         )
                         BoxWithConstraints {
                             val columnWidth = trackColumnWidth(maxWidth)
-                            val topSongsState = rememberLazyListState()
+                            val topSongsState = rememberNestedShelfListState()
                             LazyRow(
                                 state = topSongsState,
                                 contentPadding = PaddingValues(horizontal = ARTIST_CONTENT_GUTTER),
@@ -979,14 +985,20 @@ fun DetailScreen(
                 val displayItems = remember(shelf.items) {
                     if (canShowAll) shelf.items.take(ARTIST_ROW_MAX_ITEMS) else shelf.items
                 }
-                Column(Modifier.padding(top = 22.dp)) {
+                Column(
+                    Modifier.padding(top = 22.dp).revealOnAppear(
+                        key = "artist:${page.browseId}:section:${shelf.title}",
+                        seenState = revealSeenState,
+                        enabled = !songsLoading,
+                    ),
+                ) {
                     SectionHeading(
                         title = shelf.title,
                         palette = palette,
                         onShowAll = if (canShowAll) { { onActiveShelfChange(shelf) } } else null,
                         horizontalPadding = ARTIST_CONTENT_GUTTER,
                     )
-                    val carouselState = rememberLazyListState()
+                    val carouselState = rememberNestedShelfListState()
                     LazyRow(
                         state = carouselState,
                         contentPadding = PaddingValues(horizontal = ARTIST_CONTENT_GUTTER),
@@ -1006,7 +1018,8 @@ fun DetailScreen(
                 }
             }
             if (isArtist) aboutItem()
-        }
+                }
+                }
 
                 if (folder != null && folderState != null && folderState.selecting) {
                     LocalFolderSelectionBar(

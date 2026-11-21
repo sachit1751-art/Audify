@@ -920,7 +920,9 @@ object AppSettings {
     val glassIndicator = MutableStateFlow(GlassPreset.DEFAULT.indicator)
 
     /** Progressive blur at the top and bottom scroll edges. Independent of Liquid Glass. */
-    val progressiveBlur = MutableStateFlow(true)
+    // New installs start with the GPU-expensive edge blur disabled. Existing
+    // installations retain their explicitly saved preference during upgrades.
+    val progressiveBlur = MutableStateFlow(false)
 
     /** Blurs unfocused lyric lines, keeping the active line sharp. */
     val lyricsBlur = MutableStateFlow(true)
@@ -1746,7 +1748,7 @@ object AppSettings {
             iconLift = prefs.getFloat(KEY_GIND_ICON_LIFT, gi.iconLift),
             squash = prefs.getFloat(KEY_GIND_SQUASH, gi.squash),
         ).coerced()
-        progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, true)
+        progressiveBlur.value = prefs.getBoolean(KEY_PROGRESSIVE_BLUR, false)
         lyricsBlur.value = prefs.getBoolean(KEY_LYRICS_BLUR, true)
         liquidFlow.value = prefs.getBoolean(KEY_LIQUID_FLOW, true)
         lyricsSparkle.value = prefs.getBoolean(KEY_LYRICS_SPARKLE, true)

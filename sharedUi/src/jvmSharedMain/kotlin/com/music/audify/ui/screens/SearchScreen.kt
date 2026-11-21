@@ -87,6 +87,9 @@ import com.music.audify.data.model.UiState
 import com.music.audify.data.model.SearchHistoryEntity
 import com.music.audify.data.model.EntityType
 import com.music.audify.ui.components.MessageState
+import com.music.audify.ui.components.SkeletonShimmerHost
+import com.music.audify.ui.components.rememberRevealSeenState
+import com.music.audify.ui.components.revealOnAppear
 import com.music.audify.ui.components.PAGE_GUTTER
 import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.RowMoreButton
@@ -196,6 +199,7 @@ fun SearchScreen(
     headerModifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
+    val revealSeenState = rememberRevealSeenState()
     var listWidthPx by remember { mutableIntStateOf(0) }
     val categoryColumns = moodGenreColumns(with(LocalDensity.current) { listWidthPx.toDp() })
     val focusManager = LocalFocusManager.current
@@ -318,6 +322,9 @@ fun SearchScreen(
             }
         }
 
+        SkeletonShimmerHost(
+            enabled = results is UiState.Loading || libraryResults is UiState.Loading || addonResults is UiState.Loading,
+        ) {
         LazyColumn(
             state = listState,
             modifier = Modifier
@@ -446,31 +453,43 @@ fun SearchScreen(
                                 }
                             },
                         ) { index, row ->
-                            when (row) {
-                                is SearchResult.TopTrack -> Unit
-                                is SearchResult.Track -> SongRow(
-                                    song = row.song,
-                                    onClick = {
-                                        onSongClick(tracks, tracks.indexOf(row.song).coerceAtLeast(0))
-                                    },
-                                    onLongPress = { onSongLongPress(row.song) },
-                                    onSwipeToQueue = { onSongSwipe(row.song) },
-                                    isCurrent = isCurrentRow(row.song),
-                                    isPlaying = isPlaying && isCurrentRow(row.song),
-                                    searchPlayingStyle = true,
-                                )
-                                is SearchResult.Browse -> BrowseRow(
-                                    item = row.item,
-                                    onClick = { onBrowseClick(row.item) },
-                                    onLongPress = onBrowseLongPress?.let { { it(row.item) } },
-                                )
+                            val revealKey = when (row) {
+                                is SearchResult.TopTrack -> "top:${row.song.videoId}"
+                                is SearchResult.Track -> "track:${row.song.videoId}"
+                                is SearchResult.Browse -> "browse:${row.item.browseId}"
                             }
-                            if (index < section.rows.lastIndex) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
-                                    thickness = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                )
+                            Column(
+                                Modifier.fillMaxWidth().revealOnAppear(
+                                    key = "search:${query.trim().lowercase(Locale.ROOT)}:${section.title}:$index:$revealKey",
+                                    seenState = revealSeenState,
+                                ),
+                            ) {
+                                when (row) {
+                                    is SearchResult.TopTrack -> Unit
+                                    is SearchResult.Track -> SongRow(
+                                        song = row.song,
+                                        onClick = {
+                                            onSongClick(tracks, tracks.indexOf(row.song).coerceAtLeast(0))
+                                        },
+                                        onLongPress = { onSongLongPress(row.song) },
+                                        onSwipeToQueue = { onSongSwipe(row.song) },
+                                        isCurrent = isCurrentRow(row.song),
+                                        isPlaying = isPlaying && isCurrentRow(row.song),
+                                        searchPlayingStyle = true,
+                                    )
+                                    is SearchResult.Browse -> BrowseRow(
+                                        item = row.item,
+                                        onClick = { onBrowseClick(row.item) },
+                                        onLongPress = onBrowseLongPress?.let { { it(row.item) } },
+                                    )
+                                }
+                                if (index < section.rows.lastIndex) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(start = ROW_DIVIDER_INSET),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outline,
+                                    )
+                                }
                             }
                         }
                     }
@@ -483,6 +502,7 @@ fun SearchScreen(
                     }
                 }
             }
+        }
         }
     }
 }
