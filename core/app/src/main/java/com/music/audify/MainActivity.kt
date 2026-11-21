@@ -380,6 +380,9 @@ import com.music.audify.ui.screens.LibraryGridPage
 import com.music.audify.ui.screens.LibraryScreen
 import com.music.audify.ui.screens.MoodGenrePlaylistsScreen
 import com.music.audify.ui.screens.SearchScreen
+import com.music.audify.ui.screens.FeedbackDialog
+import com.music.audify.ui.screens.FeedbackWelcomeDialog
+import com.music.audify.ui.screens.isFeedbackWelcomeDue
 import com.music.audify.data.settings.SongSort
 import com.music.audify.ui.onboarding.OnboardingScreen
 import com.music.audify.ui.replay.ReplayScreen
@@ -942,6 +945,31 @@ private fun AudifyApp(
     val onboardingShown = remember { MutableTransitionState(!onboardingComplete) }
     onboardingShown.targetState = !onboardingComplete
     val onboardingVisible = onboardingShown.currentState || onboardingShown.targetState
+
+    // Ask for optional feedback once per eight-day window. The timestamp is
+    // local-only; no analytics, account identifier, or listening data is used.
+    val feedbackWelcomePreferences = remember(context) {
+        context.getSharedPreferences("feedback_welcome", android.content.Context.MODE_PRIVATE)
+    }
+    var showFeedbackWelcome by remember { mutableStateOf(false) }
+    var feedbackFormKind by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(onboardingComplete) {
+        if (onboardingComplete) {
+            val lastDismissed = feedbackWelcomePreferences.getLong("dismissed_at", 0L)
+            showFeedbackWelcome = isFeedbackWelcomeDue(System.currentTimeMillis(), lastDismissed)
+        }
+    }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        if (onboardingComplete && feedbackFormKind == null) {
+            val lastDismissed = feedbackWelcomePreferences.getLong("dismissed_at", 0L)
+            showFeedbackWelcome = isFeedbackWelcomeDue(System.currentTimeMillis(), lastDismissed)
+        }
+    }
+    val dismissFeedbackWelcome: () -> Unit = {
+        feedbackWelcomePreferences.edit().putLong("dismissed_at", System.currentTimeMillis()).apply()
+        showFeedbackWelcome = false
+    }
+    BackHandler(enabled = showFeedbackWelcome) { dismissFeedbackWelcome() }
 
     // ---- Navigation ----
     // One back stack for every page: the routes pushed over the tabs, and the
@@ -3787,6 +3815,16 @@ private fun AudifyApp(
                                                 bottom = listPadding.calculateBottomPadding(),
                                             ),
                                             onClose = { reorderTarget = null },
+                                            onRetry = {
+                                                reorderEntries = UiState.Loading
+                                                viewModel.loadPlaylistEntries(reordering) { result ->
+                                                    if (reorderTarget != reordering) return@loadPlaylistEntries
+                                                    reorderEntries = result.fold(
+                                                        onSuccess = { UiState.Success(it) },
+                                                        onFailure = { UiState.Error(failedMessage) },
+                                                    )
+                                                }
+                                            },
                                             onSave = { reordered ->
                                                 val original = (reorderEntries as? UiState.Success)?.data.orEmpty()
                                                 reorderSaving = true
@@ -6087,6 +6125,23 @@ private fun AudifyApp(
         }
 
         // ---- Update available (once per launch; held until the welcome is done) ----
+        if (showFeedbackWelcome && onboardingComplete) {
+            FeedbackWelcomeDialog(
+                onDismiss = dismissFeedbackWelcome,
+                onSuggestFeature = {
+                    dismissFeedbackWelcome()
+                    feedbackFormKind = "feature"
+                },
+                onReportBug = {
+                    dismissFeedbackWelcome()
+                    feedbackFormKind = "bug"
+                },
+            )
+        }
+        feedbackFormKind?.let { kind ->
+            FeedbackDialog(kind = kind, onDismiss = { feedbackFormKind = null })
+        }
+
         if (showUpdateDialog && onboardingComplete) {
             updateNotice?.let { update ->
                 UpdateAvailableDialog(

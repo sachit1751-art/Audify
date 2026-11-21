@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import java.util.UUID
 import com.music.audify.R
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.Song
@@ -60,6 +61,12 @@ import com.music.audify.data.model.UiState
 import com.music.audify.data.model.UserPlaylist
 import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.theme.ArtworkPalette
+
+/** A playlist row is an occurrence, not merely a media ID. */
+internal data class ReorderPlaylistEntry(val key: String, val song: Song)
+
+internal fun createReorderPlaylistEntries(songs: List<Song>): List<ReorderPlaylistEntry> =
+    songs.map { ReorderPlaylistEntry(UUID.randomUUID().toString(), it) }
 
 /**
  * Rearranges one of the account's playlists: every entry with a handle to drag
@@ -86,13 +93,18 @@ fun ReorderPlaylistPage(
     palette: ArtworkPalette,
     onSave: (List<Song>) -> Unit,
     onClose: () -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
 ) {
     BackHandler(onBack = onClose)
     val original = (entries as? UiState.Success)?.data.orEmpty()
-    val order = remember(original) { mutableStateListOf<Song>().apply { addAll(original) } }
-    val changed = order.map { it.setVideoId } != original.map { it.setVideoId }
+    val order = remember(original) {
+        mutableStateListOf<ReorderPlaylistEntry>().apply {
+            addAll(createReorderPlaylistEntries(original))
+        }
+    }
+    val changed = order.map { it.song.setVideoId } != original.map { it.setVideoId }
 
     Column(modifier.fillMaxSize().padding(top = topBarContentPadding())) {
         Row(
@@ -124,7 +136,7 @@ fun ReorderPlaylistPage(
             }
             // The page's filled pill — white with dark text, as its Play is.
             Button(
-                onClick = { onSave(order.toList()) },
+                onClick = { onSave(order.map { it.song }) },
                 enabled = changed && !saving,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
@@ -160,11 +172,11 @@ fun ReorderPlaylistPage(
                 )
             }
 
-            is UiState.Error -> Text(
-                text = entries.message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = palette.onBackgroundVariant,
-                modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+            is UiState.Error -> MessageState(
+                message = entries.message,
+                modifier = Modifier.padding(horizontal = 22.dp),
+                actionLabel = stringResource(R.string.retry),
+                onAction = onRetry,
             )
 
             is UiState.Success -> ReorderableSongList(order, enabled = !saving, palette, contentPadding)
@@ -184,7 +196,7 @@ fun ReorderPlaylistPage(
  */
 @Composable
 private fun ReorderableSongList(
-    order: MutableList<Song>,
+    order: MutableList<ReorderPlaylistEntry>,
     enabled: Boolean,
     palette: ArtworkPalette,
     contentPadding: PaddingValues,
@@ -255,8 +267,8 @@ private fun ReorderableSongList(
     }
 
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        itemsIndexed(order, key = { _, song -> song.setVideoId ?: song.videoId }) { _, song ->
-            val key = song.setVideoId ?: song.videoId
+        itemsIndexed(order, key = { _, entry -> entry.key }) { _, entry ->
+            val key = entry.key
             val dragging = held == key
             val start: () -> Unit = {
                 held = key
@@ -267,7 +279,7 @@ private fun ReorderableSongList(
                 settle()
             }
             ReorderRow(
-                song = song,
+                song = entry.song,
                 palette = palette,
                 lifted = dragging,
                 enabled = enabled,

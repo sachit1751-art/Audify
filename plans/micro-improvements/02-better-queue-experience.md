@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 02 — Queue Control and Listening Session Management
 
-**Status: planned — not started.**  
+**Status: in-progress — duplicate playlist-row identity fix implemented and production-variant regression-tested; remaining queue stages are not yet complete.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 071 — Queue Interaction Identity and the existing Media3 queue/session implementation.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
