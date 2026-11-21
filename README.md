@@ -260,7 +260,7 @@ Audify is an independent third-party client and is not associated with or endors
 Thanks to everyone who helps improve Audify.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/sachit1751-art/Audify/contributors/contributors.svg" alt="Audify contributors" width="100%">
+  <img src="docs/contributors.svg" alt="Audify contributors" width="100%">
 </p>
 
 ## Star History
