@@ -7,7 +7,7 @@ Project: AUDIFY
 Use this index to find the maintained product, design, release, and implementation context. Keep status claims synchronized with source, tests, and GitHub rather than copying stale release snapshots.
 
 ## Project
-- [Listen Together Server Documentation](../backend/README.md): Architecture, synchronization protocol, and deployment instructions for the party server.
+- [Listen Together Server Documentation](../core/backend/README.md): Architecture, synchronization protocol, and deployment instructions for the party server.
 - [Lyrics Translation](future%20updates/LYRICS_TRANSLATION.md): Pipeline documentation for on-demand lyrics translation, timing projection, and UI transitions.
 - [Product context](PRODUCT.md): shipped capability baseline, architecture constraints, and project rules.
 - [Design context](DESIGN.md): current visual, interaction, accessibility, and motion conventions.

@@ -180,7 +180,7 @@ The Android app also supports direct anonymous bug reports and feature suggestio
 
 Audify uses the Gradle wrapper; a separate Gradle installation is not required. Android Studio is optional, but the Android SDK is required.
 
-For a repeatable setup on Windows, macOS or Linux, follow the [Development Environment Setup Guide](docs/DEVELOPMENT_ENVIRONMENT.md). On Windows, `scripts/first-run.ps1 -AcceptLicenses` bootstraps the SDK, runs the unit/JVM test gates, and builds phone, TV and Wear OS debug APKs in one flow.
+For platform-specific setup, follow the [Development Environment Setup Guide](docs/DEVELOPMENT_ENVIRONMENT.md). On Windows, `scripts/first-run.ps1 -AcceptLicenses` validates or installs the Android SDK packages, runs the phone and shared-UI unit tests, and builds the phone `prodDebug` APK. TV and Wear OS builds are separate Gradle tasks.
 
 - **JDK 21**
 - **Android SDK Platform 37** and the Android build tools required by the project
