@@ -1564,7 +1564,7 @@ object AppSettings {
                 .putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
                 .putBoolean(KEY_REDUCE_ANIMATION, lowRam)
                 .putBoolean(KEY_REDUCE_BLUR, lowRam)
-                .putBoolean(KEY_PROGRESSIVE_BLUR, true)
+                .putBoolean(KEY_PROGRESSIVE_BLUR, false)
                 .putBoolean(KEY_FROSTED_GLASS, lowRam)
                 .putBoolean(KEY_LEGACY_MESH_GRADIENT, false)
                 .putBoolean(KEY_LYRICS_BLUR, !lowRam)
