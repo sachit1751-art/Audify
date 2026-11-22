@@ -226,14 +226,7 @@ private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit)
 /** First-run introduction: a concise product overview before asking for details. */
 @Composable
 private fun ColumnScope.WelcomePage(onNext: () -> Unit) {
-    Spacer(Modifier.height(42.dp))
-    Image(
-        painter = painterResource(Res.drawable.ic_logo),
-        contentDescription = "Audify",
-        modifier = Modifier
-            .size(width = 76.dp, height = 56.dp),
-    )
-    Spacer(Modifier.height(36.dp))
+    Spacer(Modifier.height(30.dp))
     Text(
         text = "Find it.\nFeel it.\nShare it.",
         style = MaterialTheme.typography.displayLarge.copy(
@@ -271,7 +264,7 @@ private fun OnboardingPage(page: Int, onSkip: () -> Unit, content: @Composable C
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp),
         ) {
-            OnboardingHeader(page = page, onSkip = onSkip)
+            if (page != PAGE_DISCOVERY) OnboardingHeader(page = page, onSkip = onSkip)
             content()
         }
     }
@@ -284,7 +277,14 @@ private fun OnboardingHeader(page: Int, onSkip: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text("AUDIFY", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.2.sp, color = Color(0xFFF2F3F7))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            Image(
+                painter = painterResource(Res.drawable.ic_logo),
+                contentDescription = null,
+                modifier = Modifier.size(width = 27.dp, height = 23.dp),
+            )
+            Text("AUDIFY", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.2.sp, color = Color(0xFFF2F3F7))
+        }
         Box(
             Modifier
                 .height(48.dp)
@@ -388,19 +388,28 @@ private fun ColumnScope.DiscoveryPage(
     onListenTogether: () -> Unit,
     onContinue: () -> Unit,
 ) {
-    Spacer(Modifier.height(32.dp))
-    BackButton(onBack)
-    Spacer(Modifier.height(22.dp))
-    Title("Your music.\nYour way.")
     Spacer(Modifier.height(10.dp))
+    BackButton(onBack)
+    Spacer(Modifier.height(18.dp))
+    Text(
+        text = "Your music.\nYour way.",
+        style = MaterialTheme.typography.displaySmall.copy(
+            fontSize = 30.sp,
+            lineHeight = 34.sp,
+            letterSpacing = (-0.8).sp,
+        ),
+        fontWeight = FontWeight.Bold,
+        color = Color.White,
+    )
+    Spacer(Modifier.height(8.dp))
     Text(
         text = "Choose how you want to experience music with Audify. You can change this later.",
-        style = MaterialTheme.typography.bodyLarge,
-        fontSize = 17.sp,
-        lineHeight = 25.sp,
+        style = MaterialTheme.typography.bodyMedium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
         color = Color.White.copy(alpha = 0.72f),
     )
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(20.dp))
     DiscoveryOption(
         title = "YouTube Music",
         description = if (youtubeConnected) "Connected · browse your supported music library" else "Connect to explore playlists, liked songs and personalised content",
@@ -439,11 +448,11 @@ private fun ColumnScope.DiscoveryPage(
             }
         },
     )
-    Spacer(Modifier.height(18.dp))
-    Text("Or use music stored on your device — no account needed.", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(14.dp))
+    Text("Or use music stored on your device — no account needed.", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.height(14.dp))
     PillButton(label = "Continue without connecting", onClick = onContinue, primary = true)
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(18.dp))
 }
 
 @Composable
@@ -457,11 +466,11 @@ private fun DiscoveryOption(
 ) {
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xCC171B27))
-            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xE51C0B13))
+            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading()
@@ -472,7 +481,14 @@ private fun DiscoveryOption(
             Text(description, color = Color.White.copy(alpha = 0.66f), style = MaterialTheme.typography.bodySmall, lineHeight = 17.sp)
         }
         Spacer(Modifier.width(8.dp))
-        Text(actionLabel, color = accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Box(
+            Modifier
+                .clip(CircleShape)
+                .background(accent.copy(alpha = 0.14f))
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+        ) {
+            Text(actionLabel, color = accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
     }
 }
 

@@ -17,6 +17,7 @@ import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -103,6 +105,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import com.music.audify.ui.components.IosSwitch
 import com.music.audify.ui.components.IosSlider
 import androidx.compose.material3.Text
@@ -319,6 +322,7 @@ fun SettingsScreen(
     val dolbyAtmosSupported = DeviceCodecs.playsDolbyAtmos
     val spatialAudio by AppSettings.spatialAudio.collectAsStateWithLifecycle()
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
+    val showIndieStoryCard by AppSettings.showIndieStoryCard.collectAsStateWithLifecycle()
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val listenTogetherTab by AppSettings.showListenTogetherTab.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -797,6 +801,15 @@ fun SettingsScreen(
                 .liquidGlassRim(RoundedCornerShape(16.dp))
                 .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
             )
+
+            if (!searching && showIndieStoryCard) {
+                IndieStoryCard(
+                    version = version,
+                    onFeature = { feedbackKind = "feature"; showFeedbackDialog = true },
+                    onBug = { feedbackKind = "bug"; showFeedbackDialog = true },
+                    onRepository = { context.openLink("https://github.com/sachit1751-art/Audify") },
+                )
+            }
 
             SearchableSettingsGroup(search, header = null) {
                 val accountTitle = stringResource(R.string.account_integrations)
@@ -2191,6 +2204,20 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
+            row("Show indie project story", "about", "audify", "independent", "settings card") {
+                SettingsRow(
+                    icon = SfIcons.Info,
+                    title = "Show indie project story",
+                    subtitle = "Show the project note at the top of Settings",
+                    trailing = {
+                        IosSwitch(
+                            checked = showIndieStoryCard,
+                            onCheckedChange = AppSettings::setShowIndieStoryCard,
+                        )
+                    },
+                    onClick = { AppSettings.setShowIndieStoryCard(!showIndieStoryCard) },
+                )
+            }
             val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
             row(showNerdStatsTitle, "player", "audio", "quality", "codec", "automix", "bitrate") {
                 SettingsRow(
@@ -3091,50 +3118,227 @@ private fun AboutSettingsContent(
             .verticalScroll(rememberScrollState())
             .padding(contentPadding),
     ) {
-        SettingsPageTitle(stringResource(SettingsCategory.ABOUT.title))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SettingsGroup {
-                SettingsRow(icon = SfIcons.Bug, title = "Report a problem", subtitle = "Tell us what went wrong", onClick = {
-                    feedbackKind = "bug"; showFeedbackDialog = true
-                })
-                SettingsRow(icon = SfIcons.AutoAwesome, title = "Request a feature", subtitle = "Suggest something you’d like to see", onClick = {
-                    feedbackKind = "feature"; showFeedbackDialog = true
-                })
-                SettingsRow(icon = SfIcons.Person, title = "Contact support", subtitle = "sachit1771@gmail.com", onClick = { context.openLink("mailto:sachit1771@gmail.com") })
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_logo),
-                        contentDescription = "Audify",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
-                    )
-                    Column {
-                        Text("Audify", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("Version $version", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+        // The Stitch About page is an editorial, centered page — not the
+        // standard SettingsPageTitle + settings-group template.
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.size(80.dp)) {
+                Image(
+                    painter = painterResource(R.drawable.ic_logo),
+                    contentDescription = "Audify app logo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                )
+                Box(
+                    Modifier.align(Alignment.BottomEnd).size(22.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface).padding(5.dp)
+                        .clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                )
+            }
+            Text("Audify", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+            Surface(
+                modifier = Modifier.padding(top = 6.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Row(Modifier.padding(horizontal = 11.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                    Text("v$version · Stable", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                 }
-                SettingsRow(icon = SfIcons.Person, title = "sachit1751-art", subtitle = "Lead Maintainer", onClick = { context.openLink("https://github.com/sachit1751-art") })
+            }
+            Text(
+                "Built late at night with care. Free, ad-free music for listeners who respect craft.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+                modifier = Modifier.padding(top = 12.dp, bottom = 22.dp).widthIn(max = 320.dp),
+            )
+        }
+
+        // Separate inset story card, matching the reference's Silent Impact block.
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(34.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).padding(7.dp), contentAlignment = Alignment.Center) {
+                    Icon(SfIcons.HeartFill, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+                    }
+                    Text("Built late at night, shaped by you", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
+                }
                 Text(
-                    "Copyright © 2026 Audify Contributors. Audify comes with absolutely no warranty. Audify is free software under the GNU General Public License version 3 or later. Audify is unofficial and is not affiliated with Spotify AB.",
+                    "Audify is 100% independent. No tracking, no ads, no funding—just one person coding late at night for listeners who care about music.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    lineHeight = 20.sp,
                 )
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    TextButton(onClick = { context.openLink("https://www.gnu.org/licenses/gpl-3.0.html") }) { Text("License") }
-                    TextButton(onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }) { Text("Source code") }
-                    TextButton(onClick = { context.openLink("https://github.com/sachit1751-art") }) { Text("Developer") }
+            }
+        }
+
+        // One continuous action card, with the exact row order from Stitch.
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Column {
+                AboutActionRow(SfIcons.AutoAwesome, "Suggest a feature", "Have an idea for audio control or UI?", MaterialTheme.colorScheme.primary) {
+                    feedbackKind = "feature"; showFeedbackDialog = true
+                }
+                AboutActionDivider()
+                AboutActionRow(SfIcons.Bug, "Report a bug", "Something not working right? We fix it fast.", MaterialTheme.colorScheme.error) {
+                    feedbackKind = "bug"; showFeedbackDialog = true
+                }
+                AboutActionDivider()
+                AboutActionRow(SfIcons.Star, "Star on GitHub", "sachit1751-art/Audify · Keeps project alive", Color(0xFFFFB74D), trailingIcon = SfIcons.Open) {
+                    context.openLink("https://github.com/sachit1751-art/Audify")
+                }
+                AboutActionDivider()
+                AboutActionRow(SfIcons.Person, "Contact developer", "sachit1771@gmail.com", MaterialTheme.colorScheme.onSurfaceVariant, trailingIcon = SfIcons.Person) {
+                    context.openLink("mailto:sachit1771@gmail.com")
+                }
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                        Text("S", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold)
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("sachit1751-art", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text("Lead Maintainer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surface) {
+                        Text("ACTIVE", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Text(
+                    "Audify is free software under GNU General Public License v3 or later. Unofficial and not affiliated with Spotify AB or Google.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp,
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { context.openLink("https://www.gnu.org/licenses/gpl-3.0.html") }, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) { Text("License") }
+                    Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { context.openLink("https://github.com/sachit1751-art/Audify") }, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) { Text("Source code") }
+                    Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { context.openLink("https://github.com/sachit1751-art") }, contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)) { Text("Developer website") }
                 }
             }
         }
     }
 
     if (showFeedbackDialog) FeedbackDialog(kind = feedbackKind, onDismiss = { showFeedbackDialog = false })
+}
+
+@Composable
+private fun AboutActionDivider() {
+    HorizontalDivider(Modifier.padding(start = 66.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
+}
+
+@Composable
+private fun AboutActionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    tint: Color,
+    badge: String? = null,
+    trailingIcon: ImageVector = SfIcons.ChevronRight,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp)
+            .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+        }
+        Column(Modifier.weight(1f).padding(end = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
+        if (badge != null) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.secondaryContainer) {
+                Text(badge, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Icon(trailingIcon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(19.dp))
+    }
+}
+
+/** Compact Settings-home story card, distinct from the full About page. */
+@Composable
+private fun IndieStoryCard(
+    version: String,
+    onFeature: () -> Unit,
+    onBug: () -> Unit,
+    onRepository: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = GROUP_INSET),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(SfIcons.HeartFill, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(18.dp))
+                }
+                Text(
+                    "Built late at night, shaped by you",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 19.sp,
+                )
+            }
+            Text(
+                "Audify has no tracking and no ads. Just one person building a music player for listeners who care about music. Listener suggestions help shape what gets built next.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 18.sp,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AboutStoryButton(SfIcons.AutoAwesome, "Suggest a feature", Modifier.weight(1f), onFeature)
+                AboutStoryButton(SfIcons.Bug, "Report a bug", Modifier.weight(1f), onBug)
+            }
+            AboutStoryButton(SfIcons.Star, "Star on GitHub", Modifier.fillMaxWidth(), onRepository)
+        }
+    }
+}
+
+@Composable
+private fun AboutStoryButton(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.heightIn(min = 36.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+    ) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+            Text(label, modifier = Modifier.padding(start = 5.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+        }
+    }
 }
 
 /** One tappable link in the settings footer card. */
@@ -3674,7 +3878,12 @@ internal fun SettingsGroup(
             .fillMaxWidth()
             .padding(horizontal = GROUP_INSET)
             .clip(GroupShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f),
+                GroupShape,
+            ),
     ) {
         content()
     }

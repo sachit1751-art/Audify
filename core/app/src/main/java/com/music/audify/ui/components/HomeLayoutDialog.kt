@@ -427,114 +427,129 @@ private fun ReorderableHomeSlotList(
                         },
                 ) {
                     AlertRule()
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = ACTION_HEIGHT)
-                            .padding(start = 4.dp, end = 16.dp, top = 9.dp, bottom = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 6.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.DragHandle,
-                            contentDescription = stringResource(R.string.drag_to_reorder),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                        // Keep the title on its own line. On phone-width screens,
+                        // putting five controls beside it reduced shelf names to
+                        // one or two visible characters.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.DragHandle,
+                                contentDescription = stringResource(R.string.drag_to_reorder),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                                modifier = Modifier
+                                    .padding(horizontal = 6.dp)
+                                    .size(22.dp)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragStart = {
+                                                draggedSlot = slot
+                                                totalDrag = 0f
+                                                startIndex = liveOrder.indexOf(slot)
+                                                lockedPitchPx = pitchPx
+                                                autoScroll.setSpeed(0f)
+                                            },
+                                            onDrag = { change, delta ->
+                                                change.consume()
+                                                advanceDrag(delta.y)
+                                            },
+                                            onDragEnd = {
+                                                draggedSlot = null
+                                                totalDrag = 0f
+                                                autoScroll.setSpeed(0f)
+                                                onReorder(liveOrder)
+                                            },
+                                            onDragCancel = {
+                                                draggedSlot = null
+                                                totalDrag = 0f
+                                                autoScroll.setSpeed(0f)
+                                                liveOrder = order
+                                            },
+                                        )
+                                    },
+                            )
+                            Text(
+                                text = slotTitle,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface
+                                    .copy(alpha = if (shown) 1f else 0.58f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 4.dp, end = 8.dp),
+                            )
+                        }
+                        Row(
                             modifier = Modifier
-                                .padding(horizontal = 6.dp)
-                                .size(18.dp)
-                                .pointerInput(Unit) {
-                                    detectDragGestures(
-                                        onDragStart = {
-                                            draggedSlot = slot
-                                            totalDrag = 0f
-                                            startIndex = liveOrder.indexOf(slot)
-                                            lockedPitchPx = pitchPx
-                                            autoScroll.setSpeed(0f)
-                                        },
-                                        onDrag = { change, delta ->
-                                            change.consume()
-                                            advanceDrag(delta.y)
-                                        },
-                                        onDragEnd = {
-                                            draggedSlot = null
-                                            totalDrag = 0f
-                                            autoScroll.setSpeed(0f)
-                                            onReorder(liveOrder)
-                                        },
-                                        onDragCancel = {
-                                            draggedSlot = null
-                                            totalDrag = 0f
-                                            autoScroll.setSpeed(0f)
-                                            liveOrder = order
-                                        },
-                                    )
+                                .fillMaxWidth()
+                                .padding(start = 28.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = shown,
+                                onCheckedChange = { onToggle(slot) },
+                                enabled = canHide,
+                                modifier = Modifier.semantics {
+                                    contentDescription = slotTitle
+                                    stateDescription = visibilityState
                                 },
-                        )
-                        Text(
-                            text = homeSlotTitle(slot, titles),
-                            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
-                            color = MaterialTheme.colorScheme.onSurface
-                                .copy(alpha = if (shown) 1f else 0.5f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Checkbox(
-                            checked = shown,
-                            onCheckedChange = { onToggle(slot) },
-                            enabled = canHide,
-                            modifier = Modifier.semantics {
-                                contentDescription = slotTitle
-                                stateDescription = visibilityState
-                            },
-                        )
-                        if (onTogglePin != null) {
-                            val isPinned = slot in pinned
-                            IconButton(onClick = { onTogglePin(slot) }) {
+                            )
+                            Spacer(Modifier.weight(1f))
+                            if (onTogglePin != null) {
+                                val isPinned = slot in pinned
+                                IconButton(onClick = { onTogglePin(slot) }) {
+                                    Icon(
+                                        imageVector = if (isPinned) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                                        contentDescription = stringResource(
+                                            if (isPinned) R.string.unpin_home_section else R.string.pin_home_section,
+                                            slotTitle,
+                                        ),
+                                        tint = if (isPinned) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = {
+                                    val index = liveOrder.indexOf(slot)
+                                    if (index > 0) {
+                                        liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
+                                            .move(slot, -1).slots.map { it.key }
+                                        onReorder(liveOrder)
+                                    }
+                                },
+                                enabled = liveOrder.indexOf(slot) > 0,
+                            ) {
                                 Icon(
-                                    imageVector = if (isPinned) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                                    contentDescription = stringResource(
-                                        if (isPinned) R.string.unpin_home_section else R.string.pin_home_section,
-                                        homeSlotTitle(slot, titles),
-                                    ),
-                                    tint = if (isPinned) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface,
+                                    imageVector = Icons.Rounded.ArrowUpward,
+                                    contentDescription = stringResource(R.string.move_home_section_up, slotTitle),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
-                        }
-                        IconButton(
-                            onClick = {
-                                val index = liveOrder.indexOf(slot)
-                                if (index > 0) {
-                                    liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
-                                        .move(slot, -1).slots.map { it.key }
-                                    onReorder(liveOrder)
-                                }
-                            },
-                            enabled = liveOrder.indexOf(slot) > 0,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ArrowUpward,
-                                contentDescription = stringResource(R.string.move_home_section_up, homeSlotTitle(slot, titles)),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                val index = liveOrder.indexOf(slot)
-                                if (index in 0 until liveOrder.lastIndex) {
-                                    liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
-                                        .move(slot, 1).slots.map { it.key }
-                                    onReorder(liveOrder)
-                                }
-                            },
-                            enabled = liveOrder.indexOf(slot) in 0 until liveOrder.lastIndex,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ArrowDownward,
-                                contentDescription = stringResource(R.string.move_home_section_down, homeSlotTitle(slot, titles)),
-                                tint = MaterialTheme.colorScheme.onSurface,
-                            )
+                            IconButton(
+                                onClick = {
+                                    val index = liveOrder.indexOf(slot)
+                                    if (index in 0 until liveOrder.lastIndex) {
+                                        liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
+                                            .move(slot, 1).slots.map { it.key }
+                                        onReorder(liveOrder)
+                                    }
+                                },
+                                enabled = liveOrder.indexOf(slot) in 0 until liveOrder.lastIndex,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.ArrowDownward,
+                                    contentDescription = stringResource(R.string.move_home_section_down, slotTitle),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     }
                 }
