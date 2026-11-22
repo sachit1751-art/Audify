@@ -31,6 +31,15 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
     private fun component(context: Context) =
         ComponentName(context.packageName, "${context.packageName}.$alias")
 
+    internal fun isEnabled(context: Context): Boolean {
+        val pm = context.packageManager
+        val component = component(context)
+        return isLauncherComponentEnabled(
+            overrideState = pm.getComponentEnabledSetting(component),
+            manifestEnabled = runCatching { pm.getActivityInfo(component, 0).enabled }.getOrDefault(false),
+        )
+    }
+
     companion object {
         /**
          * Icons that were removed leave no alias to enable. If one of them was
@@ -39,17 +48,12 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
          */
         fun repairLauncher(context: Context) {
             val pm = context.packageManager
-            val enabled = entries.filter { icon ->
-                runCatching { pm.getActivityInfo(icon.component(context), 0).enabled }.getOrDefault(false)
-            }
+            val enabled = entries.filter { it.isEnabled(context) }
             if (enabled.size != 1) apply(context, enabled.firstOrNull() ?: Default)
         }
 
         fun current(context: Context): AppIcon {
-            val pm = context.packageManager
-            return entries.firstOrNull { icon ->
-                runCatching { pm.getActivityInfo(icon.component(context), 0).enabled }.getOrDefault(false)
-            } ?: Default
+            return entries.firstOrNull { it.isEnabled(context) } ?: Default
         }
 
         /** Enables [icon] before disabling the rest so there is never a moment with no launcher entry. */
@@ -70,3 +74,14 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
         }
     }
 }
+
+/** PackageManager's ActivityInfo.enabled reflects the manifest, not runtime alias overrides. */
+internal fun isLauncherComponentEnabled(overrideState: Int, manifestEnabled: Boolean): Boolean =
+    when (overrideState) {
+        PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+        PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER,
+        PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED -> false
+        PackageManager.COMPONENT_ENABLED_STATE_DEFAULT -> manifestEnabled
+        else -> manifestEnabled
+    }

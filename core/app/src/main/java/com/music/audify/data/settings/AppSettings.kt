@@ -802,9 +802,6 @@ object AppSettings {
     /** Put the playing track's codec, bitrate and sample rate on the player. */
     val showNerdStats = MutableStateFlow(false)
 
-    /** Show the independent-project story card at the top of Settings. */
-    val showIndieStoryCard = MutableStateFlow(true)
-
     /** Show the output / Listen Together pill under the player's transport. */
     val showListenTogetherButton = MutableStateFlow(false)
 
@@ -1575,11 +1572,13 @@ object AppSettings {
                 )
                 .putString(KEY_TRANSLATION_LANGUAGE, language)
                 .putString(KEY_THEME, "SYSTEM")
-                .putString(KEY_THEME_PALETTE, "forest")
-                .putString(KEY_BACKGROUND_STYLE, "SUNSET")
+                .putString(KEY_THEME_PALETTE, "ocean")
+                .putString(KEY_BACKGROUND_STYLE, "OCEAN")
                 .putString(KEY_ACCENT_COLOR, "GREEN")
                 .putString(KEY_APP_FONT, "DEFAULT")
-                .putBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
+                .putBoolean(KEY_HIGH_PERFORMANCE_MODE, true)
+                .putBoolean(KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED, true)
+                .putInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE)
                 .putBoolean(KEY_REDUCE_ANIMATION, false)
                 .putBoolean(KEY_REDUCE_BLUR, false)
                 .putBoolean(KEY_PROGRESSIVE_BLUR, false)
@@ -1668,9 +1667,9 @@ object AppSettings {
             AccentColor.valueOf(prefs.getString(KEY_ACCENT_COLOR, null) ?: AccentColor.RED.name)
         }.getOrDefault(AccentColor.RED)
         customThemePacks.value = ThemePacks.decodeLibrary(prefs.getString(KEY_CUSTOM_THEME_PACKS, null))
-        selectedThemePackId.value = prefs.getString(KEY_THEME_PALETTE, ThemePacks.CLASSIC_ID)
+        selectedThemePackId.value = prefs.getString(KEY_THEME_PALETTE, "ocean")
             ?.takeIf { id -> ThemePacks.builtIns.any { it.id == id } || customThemePacks.value.any { it.id == id } }
-            ?: ThemePacks.CLASSIC_ID
+            ?: "ocean"
         themeBackgroundUri.value = wallpaperPrefs.getString(KEY_THEME_BACKGROUND_URI, null)
         backgroundStyle.value = runCatching {
             AppBackgroundStyle.valueOf(
@@ -1682,7 +1681,6 @@ object AppSettings {
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
         showNerdStats.value = prefs.getBoolean(KEY_NERD_STATS, false)
-        showIndieStoryCard.value = prefs.getBoolean(KEY_SHOW_INDIE_STORY_CARD, true)
         showListenTogetherButton.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_BUTTON, false)
         showListenTogetherTab.value = prefs.getBoolean(KEY_LISTEN_TOGETHER_TAB, false)
         reduceAnimation.value = prefs.getBoolean(KEY_REDUCE_ANIMATION, false)
@@ -1690,10 +1688,23 @@ object AppSettings {
         coverFluidAnimation.value = prefs.getBoolean(KEY_COVER_FLUID_ANIMATION, false)
         coverMixOnlyEffects.value = prefs.getBoolean(KEY_COVER_MIX_ONLY_EFFECTS, false)
         onboardingComplete.value = prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false)
-        highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, false)
-        performanceRefreshRate.value = normalizePerformanceRefreshRate(
-            prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
-        )
+        // Existing installs stored `false` as the former default. Apply the
+        // requested high-performance default once, then respect every explicit
+        // change made by the listener from this build onward.
+        if (!prefs.getBoolean(KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED, false)) {
+            highPerformanceMode.value = true
+            performanceRefreshRate.value = DEFAULT_PERFORMANCE_REFRESH_RATE
+            prefs.edit {
+                putBoolean(KEY_HIGH_PERFORMANCE_MODE, true)
+                putInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE)
+                putBoolean(KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED, true)
+            }
+        } else {
+            highPerformanceMode.value = prefs.getBoolean(KEY_HIGH_PERFORMANCE_MODE, true)
+            performanceRefreshRate.value = normalizePerformanceRefreshRate(
+                prefs.getInt(KEY_PERFORMANCE_REFRESH_RATE, DEFAULT_PERFORMANCE_REFRESH_RATE),
+            )
+        }
         stopOnTaskRemoved.value = prefs.getBoolean(KEY_STOP_ON_TASK_REMOVED, true)
         hideVolumeBar.value = prefs.getBoolean(KEY_HIDE_VOLUME_BAR, false)
         hideStatusBarInPlayer.value = prefs.getBoolean(KEY_HIDE_STATUS_BAR_IN_PLAYER, false)
@@ -2208,11 +2219,6 @@ object AppSettings {
         prefs.edit {putBoolean(KEY_NERD_STATS, value)}
     }
 
-    fun setShowIndieStoryCard(value: Boolean) {
-        showIndieStoryCard.value = value
-        prefs.edit { putBoolean(KEY_SHOW_INDIE_STORY_CARD, value) }
-    }
-
     fun setShowListenTogetherTab(value: Boolean) {
         showListenTogetherTab.value = value
         prefs.edit {putBoolean(KEY_LISTEN_TOGETHER_TAB, value)}
@@ -2515,7 +2521,9 @@ object AppSettings {
             reduceAnimation.value = false
             reduceDynamicBlur.value = false
         }
-        prefs.edit { putBoolean(KEY_HIGH_PERFORMANCE_MODE, value)
+        prefs.edit {
+            putBoolean(KEY_HIGH_PERFORMANCE_MODE, value)
+            putBoolean(KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED, true)
             if (value) {
                 putBoolean(KEY_REDUCE_ANIMATION, false)
                 putBoolean(KEY_REDUCE_BLUR, false)
@@ -3345,7 +3353,9 @@ object AppSettings {
     const val MIN_UPGRADE_LENGTH_SLACK_SECONDS = 0
     const val MAX_UPGRADE_LENGTH_SLACK_SECONDS = 10
 
-    private const val DEFAULT_PERFORMANCE_REFRESH_RATE = 120
+    // Resolving 240 Hz against the current display's supported modes selects
+    // its highest available rate (60/90/120/144/165/240 Hz, etc.).
+    private const val DEFAULT_PERFORMANCE_REFRESH_RATE = 240
 
     private fun normalizePerformanceRefreshRate(value: Int): Int =
         value.takeIf { it in 50..240 } ?: DEFAULT_PERFORMANCE_REFRESH_RATE
@@ -3400,7 +3410,6 @@ object AppSettings {
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"
     private const val KEY_NERD_STATS = "show_nerd_stats"
-    private const val KEY_SHOW_INDIE_STORY_CARD = "show_indie_story_card"
     private const val KEY_LISTEN_TOGETHER_BUTTON = "show_listen_together_button"
     // v2 intentionally defaults hidden; do not inherit the earlier always-on tab.
     private const val KEY_LISTEN_TOGETHER_TAB = "show_listen_together_tab_v2"
@@ -3412,6 +3421,7 @@ object AppSettings {
     private const val KEY_COVER_MIX_ONLY_EFFECTS = "cover_mix_only_effects"
     private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     private const val KEY_HIGH_PERFORMANCE_MODE = "high_performance_mode"
+    private const val KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED = "high_performance_default_applied"
     private const val KEY_PERFORMANCE_REFRESH_RATE = "performance_refresh_rate"
     private const val KEY_STOP_ON_TASK_REMOVED = "stop_on_task_removed"
     private const val KEY_HIDE_VOLUME_BAR = "hide_volume_bar"

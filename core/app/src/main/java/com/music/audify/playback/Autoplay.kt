@@ -155,10 +155,16 @@ object RadioRecommendationExplanationState {
 
     fun publish(explanations: Map<String, RadioRecommendationReason>) {
         if (explanations.isEmpty()) return
-        _byVideoId.value = (_byVideoId.value + explanations).entries
-            .toList()
-            .takeLast(MAX_EXPLANATIONS)
-            .associate { it.toPair() }
+        val updated = LinkedHashMap(_byVideoId.value)
+        explanations.forEach { (videoId, reason) ->
+            // Refresh recency when a track appears in a later radio batch.
+            updated.remove(videoId)
+            updated[videoId] = reason
+        }
+        while (updated.size > MAX_EXPLANATIONS) {
+            updated.remove(updated.keys.first())
+        }
+        _byVideoId.value = updated
     }
 
     fun clear() {

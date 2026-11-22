@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 03 — Offline-First Library and Playback Experience
 
-**Status: in progress — local-library scans distinguish complete, partial and failed results; unavailable MediaStore checks preserve offline playlist entries, and failed download deletion preserves its record. Offline browse/play/reconnect acceptance remains.**
+**Status: in progress — local-library scans distinguish complete, partial and failed results; unavailable MediaStore checks preserve offline playlist entries; failed download deletion preserves its record; storage-exhaustion failures now receive an actionable message instead of a connection error. Focused automated checks pass; offline browse/play/reconnect device acceptance remains open.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 081 — Library Backup and Restore plus existing local-media/download/provider boundaries.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

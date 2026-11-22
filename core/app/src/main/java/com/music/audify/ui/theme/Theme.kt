@@ -263,9 +263,9 @@ fun AudifyTheme(
         val baseColors = if (!darkTheme) {
             LightColors.copy(
                 background = ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor(),
-                surface = Color(0xFFF7F3F8).withAccent(primary, 0.12f),
-                surfaceVariant = Color(0xFFF8F7FA).withAccent(primary, 0.075f),
-                outline = Color(0xFFE4E1E8).withAccent(secondary, 0.16f),
+                surface = Color(0xFFF1EEF5).withAccent(primary, 0.10f),
+                surfaceVariant = Color(0xFFE9E8F0).withAccent(primary, 0.12f),
+                outline = Color(0xFFD2CFDA).withAccent(secondary, 0.14f),
                 onSurfaceVariant = Color(0xFF55515C),
             )
         } else {

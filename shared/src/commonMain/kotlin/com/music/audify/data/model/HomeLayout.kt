@@ -10,6 +10,7 @@ const val HOME_SLOT_MOODS = "slot:moods"
 const val LIBRARY_SLOT_PINNED = "slot:library-pinned"
 const val LIBRARY_SLOT_LINKS = "slot:library-links"
 const val LIBRARY_SLOT_REPLAY = "slot:library-replay"
+const val LIBRARY_SLOT_SMART_PLAYLISTS = "slot:library-smart-playlists"
 const val LIBRARY_SLOT_ON_DEVICE = "slot:library-on-device"
 
 /** Title of the speed dial built from local listening; kept apart from YouTube's Quick picks / Speed dial shelf. */
@@ -68,15 +69,24 @@ data class HomeLayout(val slots: List<HomeSlot> = emptyList()) {
         return saved + fresh
     }
 
-    /** Move one known slot by [offset], leaving the layout unchanged at either boundary. */
-    fun move(key: String, offset: Int): HomeLayout {
-        if (offset == 0) return this
+    /** Whether a slot can move by [offset] without crossing a pinned-group boundary. */
+    fun canMove(key: String, offset: Int): Boolean {
+        if (offset == 0) return false
         val index = slots.indexOfFirst { it.key == key }
-        if (index < 0) return this
+        if (index < 0) return false
         val target = (index.toLong() + offset.toLong())
             .coerceIn(0L, slots.lastIndex.toLong())
             .toInt()
-        if (target == index) return this
+        return target != index && slots[target].pinned == slots[index].pinned
+    }
+
+    /** Move one known slot by [offset], leaving the layout unchanged at either boundary. */
+    fun move(key: String, offset: Int): HomeLayout {
+        if (!canMove(key, offset)) return this
+        val index = slots.indexOfFirst { it.key == key }
+        val target = (index.toLong() + offset.toLong())
+            .coerceIn(0L, slots.lastIndex.toLong())
+            .toInt()
         val reordered = slots.toMutableList().apply {
             add(target, removeAt(index))
         }

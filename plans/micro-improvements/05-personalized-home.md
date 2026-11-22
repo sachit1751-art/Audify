@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 05 — Personalized Home Layout and Section Control
 
-**Status: in progress — Home shelves support pin-to-top, reorder, visibility and reset through the existing preference owner; app test/build and device verification remain.**
+**Status: in progress — Home shelves support pin-to-top, reorder, visibility and reset through the existing preference owner; drag and accessible move controls now respect the pinned/unpinned boundary. Stable keys and preference decoding are covered by unit tests; app-wide verification and form-factor/device acceptance remain open.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 090 — Personalization Engine and Control Centre.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

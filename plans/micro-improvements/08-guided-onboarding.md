@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 08 — First-Run Onboarding and First Successful Play
 
-**Status: in progress — current source already implements the four-step skippable flow; Back navigation now has focused regression tests; lifecycle/device verification remains.**
+**Status: in progress — current four-step flow remains skippable and account-free local playback remains available; Back navigation has focused regression tests; onboarding copy/progress now uses explicit string resources. Those newly introduced strings intentionally fall back to English until translations are supplied for every shipped locale. Process-recreation, permission-denial and device acceptance remain open.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Existing navigation, permissions, provider connection and first-run preference architecture.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -277,12 +277,12 @@ This worker extracted the Back destination mapping into `previousOnboardingPage`
 | Stage | Workstream | Current status |
 |---:|---|---|
 | 1 | Repository and product audit | Complete |
-| 2 | Contract and acceptance design | Partial — existing flow audited; lifecycle criteria need tests |
+| 2 | Contract and acceptance design | Partial — existing flow audited; process-recreation and permission-denial criteria still need runtime acceptance |
 | 3 | Foundation and domain implementation | Existing preference-backed completion reused |
-| 4 | User interface and interaction | Existing flow retained; Back mapping extracted and tested |
+| 4 | User interface and interaction | Existing flow retained; Back mapping extracted and tested; progress/action strings moved to the dedicated English resource file and the progress row announces its step |
 | 5 | Platform and integration coverage | Android phone path only; other surfaces not verified |
 | 6 | Reliability, performance and privacy | Source audit complete; lifecycle/device checks pending |
-| 7 | Full verification and regression pass | Onboarding navigation JVM tests and phone/Wear/TV compilation, unit tests and lint passed in the serialized 2026-11-22 run; process recreation and device navigation remain unverified |
+| 7 | Full verification and regression pass | Focused onboarding navigation tests pass (3); Android phone compilation and selected regression tests pass; process recreation and device navigation remain unverified |
 | 8 | Handoff and plan status | In progress |
 
 Progress is tracked by the current stage statuses above; acceptance gates remain open. Estimates are planning ranges, not delivery commitments.

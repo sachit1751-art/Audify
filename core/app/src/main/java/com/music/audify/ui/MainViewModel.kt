@@ -90,6 +90,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -1132,11 +1133,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         privacy: PlaylistPrivacy,
         song: Song? = null,
         cover: android.net.Uri? = null,
+        onFailed: ((Throwable) -> Unit)? = null,
         onCreated: ((UserPlaylist) -> Unit)? = null,
     ) {
-        if (!requireSignIn()) return
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         viewModelScope.launch {
+            suspend fun saveLocally(remoteFailure: Throwable? = null) {
+                val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, listOfNotNull(song))
+                cover?.let { uri ->
+                    runCatching { com.music.audify.data.spotify.LocalPlaylistStore.setCover(local.id, uri.toString()) }
+                        .onFailure { Log.w("Audify", "Playlist was saved, but its custom cover could not be stored", it) }
+                }
+                val created = UserPlaylist(
+                    playlistId = local.id,
+                    title = local.title,
+                    subtitle = if (local.songs.isEmpty()) "" else "${local.songs.size} song${if (local.songs.size == 1) "" else "s"}",
+                    thumbnailUrl = local.coverUrl ?: song?.thumbnailUrl,
+                )
+                if (remoteFailure != null) {
+                    Log.w("Audify", "YouTube Music playlist creation failed; saved on this device", remoteFailure)
+                }
+                onCreated?.invoke(created)
+            }
+            if (!authStore.isSignedIn) {
+                runCatching { saveLocally() }
+                    .onFailure {
+                        Log.e("Audify", "Could not save local playlist", it)
+                        onFailed?.invoke(it)
+                    }
+                return@launch
+            }
             YtMusicRepository.createPlaylist(
                 title = name,
                 privacy = privacy,
@@ -1182,7 +1208,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     onCreated?.invoke(created)
                 },
-                onFailure = {},
+                onFailure = { failure ->
+                    runCatching { saveLocally(failure) }
+                        .onFailure {
+                            Log.e("Audify", "Could not save playlist locally after remote creation failed", it)
+                            onFailed?.invoke(it)
+                        }
+                },
             )
         }
     }
@@ -1996,14 +2028,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     homeShelfRequestSettled(identity, generation)
                 }
             }
-            if (_signedIn.value && !AppSettings.hideHomeRecents.value) loadHomeRecents(identity, generation)
             launch {
                 coreFeed.join()
                 // The core Home feed is the first useful remote content on a
                 // cold launch. Do not let optional shelves compete with it for
-                // network, JSON parsing, and scheduler time. Start the same
-                // parallel supplement batch only after the primary feed has
-                // been published; retain stable shelf order below.
+                // network, JSON parsing, and scheduler time. Recents also waits
+                // for this first publication: otherwise a fast history request
+                // could turn Loading into Success with only one shelf, remove
+                // the feed skeleton, and then make the complete feed appear in
+                // a second layout pass. Its reserved slot is retained below.
+                if (_signedIn.value && !AppSettings.hideHomeRecents.value) {
+                    loadHomeRecents(identity, generation)
+                }
+                // Start the same parallel supplement batch only after the
+                // primary feed has been published; retain stable shelf order.
                 val supplements = YtMusicRepository.HOME_SUPPLEMENT_BROWSE_IDS.map { browseId ->
                     async { runCatching { YtMusicRepository.homeSupplement(browseId).getOrNull() }.getOrNull() }
                 }
@@ -2842,40 +2880,50 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * alone.
      */
     private fun startSearchPipeline() = viewModelScope.launch {
+        // Do not cancel an in-flight provider search when a newer deliberate
+        // submission arrives. A cancelled OkHttp call can poison a pooled
+        // connection for the request that reuses it. Two requests may run at
+        // once; queued obsolete requests are discarded as soon as they acquire
+        // a slot, and only the newest response may publish.
+        val limiter = Semaphore(2)
         searchRequests
-            .collectLatest { request ->
-                val key = cacheKey(request.query, request.filter)
-                // Something to look at immediately: the exact answer if this
-                // query has been run before, otherwise the closest earlier
-                // one. Only fall back to a spinner with neither.
-                val exact = searchCache.get(key)
-                val cached = exact?.rows ?: prefixMatch(request.query, request.filter)
-                _results.value = cached?.let { UiState.Success(filterExplicitSearchRows(it)) } ?: UiState.Loading
-                // An explicit submit still has to reach the server even when
-                // an anonymous lookup cached the same query: that call is what
-                // records it in the account's history.
-                if (exact != null && request.anonymous) {
-                    searchSession = SearchSession(key, request.requestId, request.filter, exact.continuation)
-                    return@collectLatest
-                }
+            .collect { request ->
+                launch {
+                    limiter.withPermit {
+                        if (!shouldStartSearchRequest(request.requestId, newestRequestId.get())) {
+                            return@withPermit
+                        }
+                        val key = cacheKey(request.query, request.filter)
+                        // Something to look at immediately: the exact answer if
+                        // this query has been run before, otherwise the closest
+                        // earlier one. Only fall back to a spinner with neither.
+                        val exact = searchCache.get(key)
+                        val cached = exact?.rows ?: prefixMatch(request.query, request.filter)
+                        _results.value = cached?.let { UiState.Success(filterExplicitSearchRows(it)) }
+                            ?: UiState.Loading
+                        // An explicit submit still has to reach the server even
+                        // when an anonymous lookup cached the same query: that
+                        // call is what records it in the account's history.
+                        if (exact != null && request.anonymous) {
+                            searchSession = SearchSession(key, request.requestId, request.filter, exact.continuation)
+                            return@withPermit
+                        }
 
-                // Search is YouTube's alone. A module is a *substitution*
-                // layer, not a catalogue to browse: it never has cover art,
-                // radio, related tracks or an album page, so its rows arrived
-                // in the results list looking like YouTube's and then behaved
-                // nothing like them. Every track found here takes the ordinary
-                // YouTube path and is handed to the module at playback time —
-                // see [SourceResolver.substituteForYouTube] — which upgrades
-                // the ones it holds without any of them having to be a
-                // separate row to pick between.
-                val result = YtMusicRepository.searchPage(request.query, request.filter, request.anonymous)
-                // A search that has been superseded shouldn't land on screen,
-                // whether it succeeded or failed.
-                if (request.requestId != newestRequestId.get()) return@collectLatest
-                _results.value = result.fold(
-                    onSuccess = { page -> published(page, key, request.requestId) },
-                    onFailure = { failure -> UiState.Error(failure.friendly()) },
-                )
+                        // Search is YouTube's alone. Modules are a substitution
+                        // layer, not a catalogue to browse; provider result types
+                        // and navigation remain owned by YouTube.
+                        val result = YtMusicRepository.searchPage(request.query, request.filter, request.anonymous)
+                        // A superseded request may finish, but it must never
+                        // replace the state for a newer query or filter.
+                        if (!shouldStartSearchRequest(request.requestId, newestRequestId.get())) {
+                            return@withPermit
+                        }
+                        _results.value = result.fold(
+                            onSuccess = { page -> published(page, key, request.requestId) },
+                            onFailure = { failure -> UiState.Error(failure.friendly()) },
+                        )
+                    }
+                }
             }
     }
 

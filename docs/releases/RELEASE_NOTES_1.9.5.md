@@ -20,9 +20,29 @@
 - Retained bounded nested-shelf prefetching and native momentum scrolling.
 - Progressive Blur defaults to **off** on fresh installs; an explicitly saved user choice remains unchanged during upgrades.
 
+## Appearance and theme refinements
+
+- Refined light-theme surface and outline tones for clearer separation while preserving each theme pack's accent palette and existing dark-surface styles.
+- Kept theme accents on component surfaces rather than allowing the accent colour to replace the neutral page canvas.
+
+## Home stability and accessibility
+
+- Home shelves now use stable identity keys instead of position-based keys, preventing feed updates from recreating shelf state when another shelf is inserted.
+- The Recents loading placeholder and its loaded shelf retain the same identity; supplementary Recents loading starts after the primary Home feed is published.
+- Suppressed shelf entrance reveals during active scrolling to avoid repeated visual flashes while the list is moving.
+- Memoized Home's filtered shelf model and Library's pinned/sorted shelf model so unrelated playback and UI updates do not repeatedly allocate or sort the same feed data.
+- Library grid cards now have stable, collision-safe item keys, including when provider data repeats a title or omits an ID.
+- Home and Library layout controls expose named visibility and movement actions; move controls disable at pinned/unpinned boundaries.
+
+## Onboarding and listening intent
+
+- Onboarding progress and action copy now use the dedicated English resource file, and the progress indicator exposes an accessible step description.
+- Radio sessions can be steered toward familiar artists, discovery, higher-energy or calmer tracks, or the provider's original order; explanations use available artist/energy signals and remain session-scoped.
+- The radio explanation cache is bounded and refreshes recency when a track appears in a later batch.
+
 ## Version and build
 
 - Phone, Wear OS and Android TV configuration remains at **1.9.5 (44)**. This is a 1.9.5 maintenance update; no version-code bump is made here.
-- Production APKs previously built for universal, ARM64, ARMv7 and x86_64 variants and passed signature/version verification.
-- Shared UI JVM tests and production-debug unit-test tasks previously passed: 1,308 tests, zero failures, zero errors, one skipped.
-- The current Search changes still require a fresh build and device verification before this update is considered fully validated. No new benchmark result is claimed here.
+- Production phone, Android TV and Wear OS APKs were rebuilt from this source state as universal, ARM64, ARMv7 and x86_64 variants (12 signed APKs total).
+- Cross-platform verification passed: 1,553 tests across shared JVM, shared UI JVM, phone, TV and Wear OS; zero failures and one skipped test. All three DevDebug lint tasks completed with zero errors (40 warnings across the three reports).
+- Production Kotlin compilation, release lint checks and APK signature/package/version verification passed. Physical-device, accessibility-service and audio-route acceptance remain unverified because no ADB device was connected. No new benchmark result is claimed here.

@@ -255,8 +255,8 @@ fun EditorialShelfSkeleton() {
 }
 
 /** Reserved at the top of Play while Recents loads. */
-fun LazyListScope.recentlyPlayedSkeleton() {
-    item(key = "skeleton:recently-played") {
+fun LazyListScope.recentlyPlayedSkeleton(key: String = "skeleton:recently-played") {
+    item(key = key) {
         Column(Modifier.padding(bottom = 26.dp)) {
             RecentsHeaderSkeleton()
             BoxWithConstraints {

@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 09 — User-Controlled Listening Intent and Context
 
-**Status: in progress — the existing AutoPlay/radio refill owner now accepts session-scoped Familiar, Discovery, Energetic and Calm intent with an Off state, equal-score artist diversity and per-track explanations derived from the actual ranking signal. Automated coverage has been added but is intentionally pending the later verification pass.**
+**Status: in progress — the existing AutoPlay/radio refill owner accepts session-scoped Familiar, Discovery, Energetic and Calm intent with an Off state, equal-score artist diversity and per-track explanations derived from actual ranking signals. Dedicated `RadioListeningIntentTest` coverage is included in the consolidated verification pass; device listening-quality and long-session acceptance remain open.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 07 — Explainable Listening Recommendations and Plan 079 — Smart Music Radio.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -284,10 +284,10 @@ The existing `core/app/src/main/java/com/music/audify/playback/Autoplay.kt` `loa
 | 4 | User interface and interaction | Partial — player menu cycles intent, describes its real ranking input and shows the current AutoPlay track's factual reason; effect is explicitly next-batch only |
 | 5 | Platform and integration coverage | Android phone player/radio owner only; party UI hides the control; no device acceptance |
 | 6 | Reliability, performance and privacy | Partial — no new network/data source; session state is ephemeral and reset at queue/service boundaries |
-| 7 | Full verification and regression pass | In progress — focused ranking tests and cross-platform source tests/compilation are being rerun |
+| 7 | Full verification and regression pass | Partial — focused radio-intent tests pass (10), including score precedence, artist diversity, measured-energy fallbacks, factual explanations and bounded explanation-cache recency; device radio-session acceptance remains |
 | 8 | Handoff and plan status | In progress |
 
-Progress is tracked by the current stage statuses above; Plan 09 is no longer blocked on owner discovery. Equal-score artist diversity and per-track explanations are implemented in the existing ranking owner and player song menu. Automated tests have been added but not run by request; device-level radio-session validation remains deferred. Estimates are planning ranges, not delivery commitments.
+Progress is tracked by the current stage statuses above; Plan 09 is no longer blocked on owner discovery. Equal-score artist diversity and per-track explanations are implemented in the existing ranking owner and player song menu. The explanation cache now refreshes recency on reuse while enforcing its 100-entry bound; focused automated tests pass. Device-level radio-session validation remains deferred. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 

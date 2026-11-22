@@ -23,4 +23,13 @@ fun Display?.supportedPerformanceRefreshRates(): List<Int> {
 
 /** Maps a saved preference to a real mode, including preferences restored on another device. */
 fun Display?.resolvePerformanceRefreshRate(preferred: Int): Int =
-    supportedPerformanceRefreshRates().minBy { abs(it - preferred) }
+    resolvePerformanceRefreshRate(preferred, supportedPerformanceRefreshRates())
+
+/** Resolves a saved preference to a real supported mode; ties prefer the higher rate. */
+internal fun resolvePerformanceRefreshRate(preferred: Int, supported: List<Int>): Int =
+    supported.minWithOrNull(compareBy<Int> { abs(it - preferred) }.thenByDescending { it })
+        ?: preferred.coerceAtLeast(MIN_PERFORMANCE_REFRESH_RATE)
+
+/** The highest refresh rate the current display reports as selectable. */
+fun Display?.highestPerformanceRefreshRate(): Int =
+    supportedPerformanceRefreshRates().last()

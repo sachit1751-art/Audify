@@ -54,3 +54,7 @@ internal fun shouldPublishLibrarySearch(
     currentGeneration: Long,
     source: SearchSource,
 ): Boolean = requestGeneration == currentGeneration && source == SearchSource.LIBRARY
+
+/** A submitted search may start only while it is still the newest request. */
+internal fun shouldStartSearchRequest(requestId: Long, newestRequestId: Long): Boolean =
+    requestId == newestRequestId

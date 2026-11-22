@@ -101,7 +101,7 @@ class HomeLayoutTest {
     fun moveReordersSlotsAndPreservesVisibility() {
         val layout = HomeLayout(
             listOf(
-                HomeSlot("shelf:one"),
+                HomeSlot("shelf:one", pinned = true),
                 HomeSlot("shelf:two", hidden = true, pinned = true),
                 HomeSlot("shelf:three"),
             ),
@@ -111,7 +111,7 @@ class HomeLayoutTest {
             HomeLayout(
                 listOf(
                     HomeSlot("shelf:two", hidden = true, pinned = true),
-                    HomeSlot("shelf:one"),
+                    HomeSlot("shelf:one", pinned = true),
                     HomeSlot("shelf:three"),
                 ),
             ),
@@ -127,6 +127,31 @@ class HomeLayoutTest {
         assertEquals(layout, layout.move("shelf:one", -1))
         assertEquals(layout, layout.move("shelf:two", 1))
         assertEquals(layout, layout.move("shelf:one", 0))
+    }
+
+    @Test
+    fun moveCannotCrossThePinnedAndUnpinnedBoundary() {
+        val layout = HomeLayout(
+            listOf(
+                HomeSlot("shelf:pinned", pinned = true),
+                HomeSlot("shelf:ordinary"),
+            ),
+        )
+
+        assertFalse(layout.canMove("shelf:pinned", 1))
+        assertFalse(layout.canMove("shelf:ordinary", -1))
+        assertEquals(layout, layout.move("shelf:pinned", 1))
+        assertEquals(layout, layout.move("shelf:ordinary", -1))
+        val grouped = HomeLayout(
+            listOf(
+                HomeSlot("shelf:pinned-one", pinned = true),
+                HomeSlot("shelf:pinned-two", pinned = true),
+                HomeSlot("shelf:ordinary-one"),
+                HomeSlot("shelf:ordinary-two"),
+            ),
+        )
+        assertTrue(grouped.canMove("shelf:pinned-two", -1))
+        assertTrue(grouped.canMove("shelf:ordinary-one", 1))
     }
 
     @Test

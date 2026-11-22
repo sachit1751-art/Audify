@@ -103,4 +103,27 @@ Project: AUDIFY
     <string name="move_home_section_down" translatable="false">Move %1$s down</string>
     <string name="pin_home_section" translatable="false">Pin %1$s to the top of Home</string>
     <string name="unpin_home_section" translatable="false">Unpin %1$s from the top of Home</string>
+    <string name="onboarding_step_progress" translatable="false">Step %1$d of 4</string>
+    <string name="onboarding_skip" translatable="false">Skip</string>
+    <string name="onboarding_skip_for_now" translatable="false">Skip for now</string>
+    <string name="onboarding_welcome_heading" translatable="false">Find it.\nFeel it.\nShare it.</string>
+    <string name="onboarding_welcome_description" translatable="false">Discover music, play the files you already own, and listen together. Your library stays yours.</string>
+    <string name="onboarding_get_started" translatable="false">Get started</string>
+    <string name="onboarding_discovery_heading" translatable="false">Your music.\nYour way.</string>
+    <string name="onboarding_discovery_description" translatable="false">Choose how you want to experience music with Audify. You can change this later.</string>
+    <string name="onboarding_youtube_connected" translatable="false">Connected · browse your supported music library</string>
+    <string name="onboarding_youtube_connect" translatable="false">Connect to explore playlists, liked songs and personalised content</string>
+    <string name="onboarding_spotify_connected" translatable="false">Connected · browse your supported Spotify playlists</string>
+    <string name="onboarding_spotify_connect" translatable="false">Connect to browse your Spotify playlists and Liked Songs; playback is matched through YouTube Music</string>
+    <string name="onboarding_connected" translatable="false">Connected</string>
+    <string name="onboarding_connect" translatable="false">Connect</string>
+    <string name="onboarding_listen_together_description" translatable="false">Create a listening party or join one with friends</string>
+    <string name="onboarding_explore" translatable="false">Explore</string>
+    <string name="onboarding_local_music_no_account" translatable="false">Or use music stored on your device — no account needed.</string>
+    <string name="onboarding_continue_without_connecting" translatable="false">Continue without connecting</string>
+    <string name="onboarding_name_heading" translatable="false">Make it yours.</string>
+    <string name="onboarding_continue" translatable="false">Continue</string>
+    <string name="onboarding_music_heading" translatable="false">Ready to explore.</string>
+    <string name="onboarding_music_description" translatable="false">Explore new music, browse your connected services, play audio stored on your device, or start listening with friends.</string>
+    <string name="onboarding_explore_music" translatable="false">Explore music</string>
 </resources>

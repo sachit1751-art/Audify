@@ -78,4 +78,10 @@ class SearchPipelineStateTest {
         assertFalse(shouldPublishLibrarySearch(4L, 4L, SearchSource.YOUTUBE))
         assertFalse(shouldPublishLibrarySearch(4L, 4L, SearchSource.ADDONS))
     }
+
+    @Test
+    fun submittedSearchStartsOnlyIfItIsStillTheNewestRequest() {
+        assertTrue(shouldStartSearchRequest(12L, 12L))
+        assertFalse(shouldStartSearchRequest(11L, 12L))
+    }
 }

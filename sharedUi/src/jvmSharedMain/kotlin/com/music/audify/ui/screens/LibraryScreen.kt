@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -42,6 +43,7 @@ import androidx.compose.material3.Text
 import com.music.audify.ui.components.ElasticRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -57,6 +59,7 @@ import com.music.audify.data.model.LIBRARY_SLOT_LINKS
 import com.music.audify.data.model.LIBRARY_SLOT_ON_DEVICE
 import com.music.audify.data.model.LIBRARY_SLOT_PINNED
 import com.music.audify.data.model.LIBRARY_SLOT_REPLAY
+import com.music.audify.data.model.LIBRARY_SLOT_SMART_PLAYLISTS
 import com.music.audify.data.model.LibraryPage
 import com.music.audify.data.model.homeShelfKey
 import com.music.audify.data.model.ShelfItem
@@ -219,7 +222,9 @@ fun LibraryScreen(
                     }
                 }
                 item(key = "replay") { replay() }
-                if (onSmartPlaylists != null) {
+            }
+            if (onSmartPlaylists != null) {
+                section(LIBRARY_SLOT_SMART_PLAYLISTS) {
                     item(key = "smart-playlists") {
                         Row(
                             modifier = Modifier
@@ -235,16 +240,8 @@ fun LibraryScreen(
                                 modifier = Modifier.size(28.dp),
                             )
                             Column(Modifier.padding(start = 16.dp).weight(1f)) {
-                                Text(
-                                    text = stringResource(Res.string.smart_playlists),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    text = stringResource(Res.string.smart_playlists_subtitle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                Text(stringResource(Res.string.smart_playlists), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                                Text(stringResource(Res.string.smart_playlists_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         HorizontalDivider(
@@ -794,7 +791,13 @@ fun LibraryGridPage(
     // Pinning wins over the default order, but an explicit sort is a stronger,
     // more deliberate signal than a pin and is left to reorder the whole grid,
     // pinned cards included.
-    val sortedShelf = shelf.pinnedFirst(pinnedPlaylists).sortedForLibrary(librarySort)
+    // Pinning and alphabetical sorting are O(n log n). Keep their result while
+    // the source shelf, pin order, and selected sort are unchanged; unrelated
+    // playback/UI state updates should not rebuild the entire grid's model.
+    val sortedShelf = remember(shelf, pinnedPlaylists, librarySort) {
+        shelf.pinnedFirst(pinnedPlaylists).sortedForLibrary(librarySort)
+    }
+    val itemKeys = remember(sortedShelf.items) { libraryShelfItemKeys(sortedShelf.items) }
     BoxWithConstraints(modifier.fillMaxSize()) {
         val grid = libraryGrid(maxWidth - PAGE_GUTTER * 2)
         LazyVerticalGrid(
@@ -817,7 +820,7 @@ fun LibraryGridPage(
                     )
                 }
             }
-            items(sortedShelf.items, key = { it.browseId ?: it.title }) { item ->
+            itemsIndexed(sortedShelf.items, key = { index, _ -> itemKeys[index] }) { _, item ->
                 ShelfCard(
                     item = item,
                     onClick = { onItemClick(item) },
@@ -827,6 +830,16 @@ fun LibraryGridPage(
                 )
             }
         }
+    }
+}
+
+/** Stable, unique LazyGrid keys even when a provider repeats a title or omits ids. */
+private fun libraryShelfItemKeys(items: List<ShelfItem>): List<String> {
+    val seen = HashMap<String, Int>(items.size)
+    return items.map { item ->
+        val base = "library:" + (item.browseId ?: item.videoId ?: "${item.title}|${item.subtitle}")
+        val occurrence = seen.merge(base, 1, Int::plus)!!
+        if (occurrence == 1) base else "$base#$occurrence"
     }
 }
 

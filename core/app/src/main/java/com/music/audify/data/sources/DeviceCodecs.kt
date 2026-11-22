@@ -10,6 +10,12 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.playback.audio.bitperfect.BitPerfectOutput
 import java.util.Locale
 
+/** A failed decoder query is not evidence that a decoder exists. */
+internal fun hasDolbyAtmosDecoderEvidence(
+    media3Decoders: List<String>?,
+    platformDecoders: List<String>?,
+): Boolean = (media3Decoders ?: platformDecoders)?.isNotEmpty() == true
+
 /**
  * What this particular phone can actually decode, asked once and remembered.
  *
@@ -120,22 +126,18 @@ object DeviceCodecs {
     }
 
     /**
-     * Yes on anything that cannot be established.
-     *
-     * A probe that fails outright is exotic and an unsupported device is not,
-     * but the cost of the two mistakes is not symmetric: guessing "no" on a
-     * capable flagship silently drops it from the tier it is paying for and
-     * greys out the switch that would restore it, while guessing "yes" only
-     * restores the behaviour that shipped before any of this existed. So the
-     * uncertain case keeps the old behaviour.
+     * Only positive decoder evidence enables Atmos. An unavailable or
+     * malformed codec query is not proof that the renderer can decode it; the
+     * safe fallback is to offer the ordinary stereo rendition instead of
+     * silently skipping a track or failing decoder initialisation.
      */
     private fun probe(): Boolean {
         val viaMedia3 = media3Decoders()
         if (viaMedia3 != null) {
             TrackLog.d(TAG, "Dolby Atmos decoders (Media3): ${viaMedia3.ifEmpty { "none" }}")
-            return viaMedia3.isNotEmpty()
+            return hasDolbyAtmosDecoderEvidence(viaMedia3, platformDecoders = null)
         }
-        return runCatching {
+        val viaPlatform = runCatching {
             MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { info ->
                 !info.isEncoder && info.supportedTypes.any {
                     it.lowercase(Locale.ROOT) in DOLBY_MIMES
@@ -143,12 +145,11 @@ object DeviceCodecs {
             }.map { it.name }
         }.onSuccess {
             TrackLog.d(TAG, "Dolby Atmos decoders (platform): ${it.ifEmpty { "none" }}")
-        }.map {
-            it.isNotEmpty()
         }.getOrElse {
-            TrackLog.w(TAG, "could not read the codec list; assuming Dolby Atmos plays — ${it.message}")
-            true
+            TrackLog.w(TAG, "could not read the codec list; Atmos support is unverified — ${it.message}")
+            emptyList()
         }
+        return hasDolbyAtmosDecoderEvidence(media3Decoders = null, platformDecoders = viaPlatform)
     }
 
     /**

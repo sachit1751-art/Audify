@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 04 — Intent-Aware Unified Search
 
-**Status: in progress — confident leading natural-language intents now select an existing YouTube Music facet; provider capability boundaries remain explicit. Full acceptance and device verification are still pending.**
+**Status: in progress — confident leading natural-language intents select an existing YouTube Music facet; manual filter selection takes precedence; deliberate provider searches are no longer cancelled by newer submissions, with a two-request concurrency limit and stale-result suppression. Focused automated checks pass; full provider/device acceptance remains open.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 05 — Advanced Search Filters and existing provider search adapters.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

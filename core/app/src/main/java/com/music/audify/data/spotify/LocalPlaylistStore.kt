@@ -84,11 +84,12 @@ object LocalPlaylistStore {
     }
 
     fun savePlaylist(title: String, songs: List<Song>): LocalPlaylist {
+        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
         val id = "sp_local_" + System.currentTimeMillis()
         val playlist = LocalPlaylist(id = id, title = title, songs = songs)
         val updated = listOf(playlist) + _playlists.value.filterNot { it.id == id }
+        persist(updated, commit = true)
         _playlists.value = updated
-        persist(updated)
         return playlist
     }
 
@@ -206,34 +207,39 @@ object LocalPlaylistStore {
         _playlists.value = updated
     }
 
-    private fun persist(list: List<LocalPlaylist>) {
+    private fun persist(list: List<LocalPlaylist>, commit: Boolean = false) {
         if (!this::prefs.isInitialized) return
-        runCatching {
-            val jsonArray = JSONArray()
-            for (playlist in list) {
-                val pObj = JSONObject()
-                pObj.put("id", playlist.id)
-                pObj.put("title", playlist.title)
-                pObj.put("coverUrl", playlist.coverUrl)
-                pObj.put("youtubePlaylistId", playlist.youtubePlaylistId)
-                val songsArray = JSONArray()
-                for (song in playlist.songs) {
-                    val sObj = JSONObject()
-                    sObj.put("videoId", song.videoId)
-                    sObj.put("title", song.title)
-                    sObj.put("artist", song.artist)
-                    sObj.put("thumbnailUrl", song.thumbnailUrl)
-                    sObj.put("durationText", song.durationText)
-                    sObj.put("artistId", song.artistId)
-                    sObj.put("albumId", song.albumId)
-                    sObj.put("albumName", song.albumName)
-                    sObj.put("isVideo", song.isVideo)
-                    songsArray.put(sObj)
-                }
-                pObj.put("songs", songsArray)
-                jsonArray.put(pObj)
+        val jsonArray = JSONArray()
+        for (playlist in list) {
+            val pObj = JSONObject()
+            pObj.put("id", playlist.id)
+            pObj.put("title", playlist.title)
+            pObj.put("coverUrl", playlist.coverUrl)
+            pObj.put("youtubePlaylistId", playlist.youtubePlaylistId)
+            val songsArray = JSONArray()
+            for (song in playlist.songs) {
+                val sObj = JSONObject()
+                sObj.put("videoId", song.videoId)
+                sObj.put("title", song.title)
+                sObj.put("artist", song.artist)
+                sObj.put("thumbnailUrl", song.thumbnailUrl)
+                sObj.put("durationText", song.durationText)
+                sObj.put("artistId", song.artistId)
+                sObj.put("albumId", song.albumId)
+                sObj.put("albumName", song.albumName)
+                sObj.put("isVideo", song.isVideo)
+                songsArray.put(sObj)
             }
-            prefs.edit {putString(KEY_PLAYLISTS, jsonArray.toString())}
+            pObj.put("songs", songsArray)
+            jsonArray.put(pObj)
+        }
+        if (commit) {
+            @Suppress("UseKtx")
+            check(prefs.edit().putString(KEY_PLAYLISTS, jsonArray.toString()).commit()) {
+                "Could not save playlist on this device"
+            }
+        } else {
+            prefs.edit { putString(KEY_PLAYLISTS, jsonArray.toString()) }
         }
     }
 }

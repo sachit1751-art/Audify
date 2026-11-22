@@ -5548,7 +5548,20 @@ private fun AudifyApp(
                     }
                 },
                 onCreate = { title, privacy, cover ->
-                    viewModel.createPlaylist(title, privacy, target, cover) { created ->
+                    viewModel.createPlaylist(
+                        title,
+                        privacy,
+                        target,
+                        cover,
+                        onFailed = { failure ->
+                            Toast.makeText(context, failure.message ?: "Could not create playlist", Toast.LENGTH_LONG).show()
+                        },
+                    ) { created ->
+                        if (created.playlistId.startsWith("sp_local_")) {
+                            Toast.makeText(context, "Playlist saved on this device. Sign in to sync it to YouTube Music.", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Playlist created in YouTube Music.", Toast.LENGTH_SHORT).show()
+                        }
                         // Dibuat dari tab Library (bukan dari menu lagu): masuk ke
                         // halaman playlist-nya dan langsung buka popup tambah lagu.
                         if (target == null) {

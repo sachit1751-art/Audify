@@ -209,17 +209,17 @@ private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit)
     Spacer(Modifier.height(32.dp))
     BackButton(onBack)
     Spacer(Modifier.height(32.dp))
-    Title("Ready to explore.")
+    Title(stringResource(R.string.onboarding_music_heading))
     Spacer(Modifier.height(14.dp))
     Text(
-        text = "Explore new music, browse your connected services, play audio stored on your device, or start listening with friends.",
+        text = stringResource(R.string.onboarding_music_description),
         style = MaterialTheme.typography.bodyLarge,
         fontSize = 17.sp,
         lineHeight = 25.sp,
         color = Color.White.copy(alpha = 0.78f),
     )
     Spacer(Modifier.height(40.dp))
-    PillButton(label = "Explore music", onClick = onFinish, primary = true)
+    PillButton(label = stringResource(R.string.onboarding_explore_music), onClick = onFinish, primary = true)
     Spacer(Modifier.height(24.dp))
 }
 
@@ -228,7 +228,7 @@ private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit)
 private fun ColumnScope.WelcomePage(onNext: () -> Unit) {
     Spacer(Modifier.height(30.dp))
     Text(
-        text = "Find it.\nFeel it.\nShare it.",
+        text = stringResource(R.string.onboarding_welcome_heading),
         style = MaterialTheme.typography.displayLarge.copy(
             fontSize = 52.sp,
             lineHeight = 52.sp,
@@ -241,7 +241,7 @@ private fun ColumnScope.WelcomePage(onNext: () -> Unit) {
     )
     Spacer(Modifier.height(18.dp))
     Text(
-        text = "Discover music, play the files you already own, and listen together. Your library stays yours.",
+        text = stringResource(R.string.onboarding_welcome_description),
         style = MaterialTheme.typography.bodyLarge,
         color = Color.White.copy(alpha = 0.76f),
         lineHeight = 25.sp,
@@ -249,7 +249,7 @@ private fun ColumnScope.WelcomePage(onNext: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
     )
     Spacer(Modifier.height(52.dp))
-    PillButton(label = "Get started", onClick = onNext, primary = true)
+    PillButton(label = stringResource(R.string.onboarding_get_started), onClick = onNext, primary = true)
     Spacer(Modifier.height(24.dp))
 }
 
@@ -272,6 +272,7 @@ private fun OnboardingPage(page: Int, onSkip: () -> Unit, content: @Composable C
 
 @Composable
 private fun OnboardingHeader(page: Int, onSkip: () -> Unit) {
+    val progressDescription = stringResource(R.string.onboarding_step_progress, page + 1)
     Row(
         Modifier.fillMaxWidth().height(48.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -294,14 +295,14 @@ private fun OnboardingHeader(page: Int, onSkip: () -> Unit) {
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("Skip", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.82f))
+            Text(stringResource(R.string.onboarding_skip), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.82f))
         }
     }
     Row(
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 12.dp)
-            .semantics { contentDescription = "Step ${page + 1} of 4" },
+            .semantics { contentDescription = progressDescription },
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         repeat(4) { index ->
@@ -345,7 +346,7 @@ private fun ColumnScope.NamePage(
     Spacer(Modifier.height(16.dp))
     BackButton(onBack)
     Spacer(Modifier.height(20.dp))
-    Title("Make it yours.")
+    Title(stringResource(R.string.onboarding_name_heading))
 
     Spacer(Modifier.height(36.dp))
 
@@ -366,10 +367,10 @@ private fun ColumnScope.NamePage(
         modifier = Modifier.padding(horizontal = 4.dp),
     )
     Spacer(Modifier.height(24.dp))
-    PillButton(label = "Continue", onClick = onNext, primary = true)
+    PillButton(label = stringResource(R.string.onboarding_continue), onClick = onNext, primary = true)
     Spacer(Modifier.height(10.dp))
     Text(
-        text = "Skip for now",
+        text = stringResource(R.string.onboarding_skip_for_now),
         modifier = Modifier.fillMaxWidth().clip(CircleShape).clickable(role = Role.Button, onClick = onSkip).padding(14.dp),
         textAlign = TextAlign.Center,
         color = Color.White.copy(alpha = 0.72f),
@@ -392,7 +393,7 @@ private fun ColumnScope.DiscoveryPage(
     BackButton(onBack)
     Spacer(Modifier.height(18.dp))
     Text(
-        text = "Your music.\nYour way.",
+        text = stringResource(R.string.onboarding_discovery_heading),
         style = MaterialTheme.typography.displaySmall.copy(
             fontSize = 30.sp,
             lineHeight = 34.sp,
@@ -403,7 +404,7 @@ private fun ColumnScope.DiscoveryPage(
     )
     Spacer(Modifier.height(8.dp))
     Text(
-        text = "Choose how you want to experience music with Audify. You can change this later.",
+        text = stringResource(R.string.onboarding_discovery_description),
         style = MaterialTheme.typography.bodyMedium,
         fontSize = 14.sp,
         lineHeight = 20.sp,
@@ -412,8 +413,10 @@ private fun ColumnScope.DiscoveryPage(
     Spacer(Modifier.height(20.dp))
     DiscoveryOption(
         title = "YouTube Music",
-        description = if (youtubeConnected) "Connected · browse your supported music library" else "Connect to explore playlists, liked songs and personalised content",
-        actionLabel = if (youtubeConnected) "Connected" else "Connect",
+        description = stringResource(
+            if (youtubeConnected) R.string.onboarding_youtube_connected else R.string.onboarding_youtube_connect,
+        ),
+        actionLabel = stringResource(if (youtubeConnected) R.string.onboarding_connected else R.string.onboarding_connect),
         onClick = { if (!youtubeConnected) onYouTubeConnect() },
         accent = Color(0xFFFF5252),
         leading = {
@@ -425,8 +428,10 @@ private fun ColumnScope.DiscoveryPage(
     Spacer(Modifier.height(10.dp))
     DiscoveryOption(
         title = "Spotify",
-        description = if (spotifyConnected) "Connected · browse your supported Spotify playlists" else "Connect to browse your Spotify playlists and Liked Songs; playback is matched through YouTube Music",
-        actionLabel = if (spotifyConnected) "Connected" else "Connect",
+        description = stringResource(
+            if (spotifyConnected) R.string.onboarding_spotify_connected else R.string.onboarding_spotify_connect,
+        ),
+        actionLabel = stringResource(if (spotifyConnected) R.string.onboarding_connected else R.string.onboarding_connect),
         onClick = { if (!spotifyConnected) onSpotifyConnect() },
         accent = Color(0xFF1DB954),
         leading = {
@@ -438,8 +443,8 @@ private fun ColumnScope.DiscoveryPage(
     Spacer(Modifier.height(10.dp))
     DiscoveryOption(
         title = "Listen Together",
-        description = "Create a listening party or join one with friends",
-        actionLabel = "Explore",
+        description = stringResource(R.string.onboarding_listen_together_description),
+        actionLabel = stringResource(R.string.onboarding_explore),
         onClick = onListenTogether,
         accent = Color(0xFFE6C17A),
         leading = {
@@ -449,9 +454,9 @@ private fun ColumnScope.DiscoveryPage(
         },
     )
     Spacer(Modifier.height(14.dp))
-    Text("Or use music stored on your device — no account needed.", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+    Text(stringResource(R.string.onboarding_local_music_no_account), color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     Spacer(Modifier.height(14.dp))
-    PillButton(label = "Continue without connecting", onClick = onContinue, primary = true)
+    PillButton(label = stringResource(R.string.onboarding_continue_without_connecting), onClick = onContinue, primary = true)
     Spacer(Modifier.height(18.dp))
 }
 
@@ -467,8 +472,8 @@ private fun DiscoveryOption(
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xE51C0B13))
-            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(16.dp))
+            .background(androidx.compose.ui.graphics.lerp(Color(0xFF182333), accent, 0.14f))
+            .border(1.dp, accent.copy(alpha = 0.30f), RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

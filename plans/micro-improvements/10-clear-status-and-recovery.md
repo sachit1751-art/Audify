@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 10 — Consistent Status, Error and Recovery UX
 
-**Status: in progress — local-library/download state is preserved on incomplete operations; shared UI errors now carry backward-compatible retryability metadata, and empty/permanent states suppress unsafe retry actions. Offline/permission-specific guidance and broader workflow coverage remain.**
+**Status: in progress — local-library/download state is preserved on incomplete operations; shared UI errors carry backward-compatible retryability metadata; empty/permanent states suppress unsafe retry actions; storage-exhaustion failures have a distinct classification. Dedicated UiState retryability, remote-listing, local-library and download-failure tests are included in consolidated verification. Offline/permission-specific guidance and broader workflow/device acceptance remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Existing shared UI state patterns plus playback, search, provider, artwork, lyrics, sync and download owners.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

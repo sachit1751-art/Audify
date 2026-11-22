@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 06 — Audio Quality, Output and Playback Enhancement Controls
 
-**Status: partial — existing quality/output controls remain authoritative; audio-effect session and route-removal lifecycle policies now have focused regression tests. Output-specific headphone correction remains blocked by missing licensed measurements and verified device identity/attachment evidence.**
+**Status: partial — existing quality/output controls remain authoritative; audio-effect session and route-removal lifecycle policies have focused regression tests; Dolby Atmos is now enabled only with positive decoder evidence, with failed codec probes falling back safely to stereo. Output-specific headphone correction remains blocked by missing licensed measurements and verified device identity/attachment evidence.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 11 — Headphone Audio Profiles and the existing audio pipeline.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.

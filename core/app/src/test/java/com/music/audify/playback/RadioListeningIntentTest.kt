@@ -4,7 +4,9 @@ import com.music.audify.data.model.Song
 import com.music.audify.playback.smart.EnergySample
 import com.music.audify.playback.smart.TrackAnalysis
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RadioListeningIntentTest {
@@ -191,6 +193,28 @@ class RadioListeningIntentTest {
         assertEquals(RadioListeningIntent.ENERGETIC, RadioListeningIntent.DISCOVERY.next())
         assertEquals(RadioListeningIntent.CALM, RadioListeningIntent.ENERGETIC.next())
         assertEquals(RadioListeningIntent.OFF, RadioListeningIntent.CALM.next())
+    }
+
+    @Test
+    fun explanationCacheIsBoundedAndRefreshesRecentlyUsedTracks() {
+        RadioRecommendationExplanationState.clear()
+        val firstBatch = (0 until 100).associate { "track-$it" to RadioRecommendationReason.PROVIDER_ORDER }
+        RadioRecommendationExplanationState.publish(firstBatch)
+
+        RadioRecommendationExplanationState.publish(
+            mapOf("track-0" to RadioRecommendationReason.NEW_ARTIST),
+        )
+        RadioRecommendationExplanationState.publish(
+            mapOf("track-100" to RadioRecommendationReason.PROVIDER_ORDER),
+        )
+
+        val explanations = RadioRecommendationExplanationState.byVideoId.value
+        assertEquals(100, explanations.size)
+        assertEquals(RadioRecommendationReason.NEW_ARTIST, explanations["track-0"])
+        assertFalse(explanations.containsKey("track-1"))
+        assertTrue(explanations.containsKey("track-100"))
+        RadioRecommendationExplanationState.clear()
+        assertTrue(RadioRecommendationExplanationState.byVideoId.value.isEmpty())
     }
 
     private fun analysis(id: String, energy: Double) = TrackAnalysis(

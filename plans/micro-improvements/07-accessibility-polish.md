@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 07 — Cross-Platform Accessibility Audit and Remediation
 
-**Status: in progress — playback/queue/transport controls honor reduced motion; Wear OS queue rows use occurrence identity; Home supports non-drag reorder, pin/unpin and explicit visibility semantics. Screen-reader, focus, large-text and cross-platform verification remain.**
+**Status: in progress — playback/queue/transport controls honor reduced motion; Wear OS queue rows use occurrence identity; Home supports non-drag reorder, pin/unpin, explicit visibility semantics and pinned-boundary-safe movement. Onboarding now uses an announced localized-resource progress label and explicit string resources. Focused unit checks pass; screen-reader, focus, large-text and device/platform acceptance remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plans 02, 073, 074, 084 and the existing design/accessibility system.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -270,11 +270,11 @@ Stages are sequential. The executor must report evidence at each gate and must n
 |---:|---|---|
 | 1 | Repository and product audit | Completed — current Home, audio controls, TV motion, Wear queue semantics and web motion references inspected |
 | 2 | Contract and acceptance design | Completed — prioritized non-drag Home reorder and explicit row toggle semantics |
-| 3 | Foundation and domain implementation | Partial — shared Home layout move and backward-compatible pin persistence added with boundary/metadata tests |
-| 4 | User interface and interaction | Partial — Home/Library reorder actions, Home pin/unpin and a dedicated labeled visibility checkbox added; broader screen audit remains |
+| 3 | Foundation and domain implementation | Partial — shared Home layout move and backward-compatible pin persistence; `canMove` now exposes pinned-group-safe availability as a testable domain rule |
+| 4 | User interface and interaction | Partial — Home/Library reorder actions, Home pin/unpin and a dedicated labeled visibility checkbox; move actions now disable at pinned/unpinned boundaries |
 | 5 | Platform and integration coverage | Not started |
 | 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
+| 7 | Full verification and regression pass | Partial — focused Home layout tests pass (12); Android compile and shared JVM tests pass; full lint and device accessibility checks remain |
 | 8 | Handoff and plan status | Not started |
 
 Progress: **1/8 stages completed; stages 3–4 are partial.** Core journeys, large text, TalkBack, keyboard/remote focus and device verification remain.
@@ -285,6 +285,7 @@ Progress: **1/8 stages completed; stages 3–4 are partial.** Core journeys, lar
 - Plan 074's Wear queue now uses `stableKey(duplicateEntryIds)` and rejects stale snapshots before rendering. Existing list rows and transport controls expose some action semantics; target bounds, traversal, rotary and ambient behavior still require watch verification.
 - Plan 084's historical CSS path `platforms/web/core/app/src/styles/global.css` does not exist in this checkout. The current stylesheet is `platforms/web/app/src/styles/global.css`; its reduced-motion rules are already present at lines 403–418 with a download-ring override at 430. No duplicate web motion policy was added.
 - Home layout rows previously exposed drag-only reordering and a generic clickable visibility row. The current change adds Move up/Move down buttons with shelf-specific labels, Home-only pin/unpin actions and a dedicated Material Checkbox whose own semantics expose checked state and shelf label; this avoids putting the checkbox semantics on a parent that also contains pin/move buttons. These controls are source-verified only; TalkBack/focus/target-size acceptance remains unverified.
+- The movement buttons now use the same `HomeLayout.canMove` invariant as the domain reorder operation. They are disabled when the adjacent row is outside the current pinned/unpinned group, instead of appearing enabled while performing a no-op. The domain boundary tests cover both permitted within-group moves and prohibited cross-group moves.
 
 ## Repository-wide execution constraints
 

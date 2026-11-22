@@ -64,6 +64,7 @@ import com.music.audify.data.model.LIBRARY_SLOT_LINKS
 import com.music.audify.data.model.LIBRARY_SLOT_ON_DEVICE
 import com.music.audify.data.model.LIBRARY_SLOT_PINNED
 import com.music.audify.data.model.LIBRARY_SLOT_REPLAY
+import com.music.audify.data.model.LIBRARY_SLOT_SMART_PLAYLISTS
 import com.music.audify.data.model.HomeLayout
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.HomeSlot
@@ -110,7 +111,7 @@ fun HomeLayoutDialog(
         titles.distinctBy { homeShelfKey(it) }.associate { homeShelfKey(it) to it }
     }
     val libraryDefaults = remember(libraryTitles) {
-        listOf(LIBRARY_SLOT_PINNED, LIBRARY_SLOT_LINKS, LIBRARY_SLOT_REPLAY, LIBRARY_SLOT_ON_DEVICE) +
+        listOf(LIBRARY_SLOT_PINNED, LIBRARY_SLOT_LINKS, LIBRARY_SLOT_REPLAY, LIBRARY_SLOT_SMART_PLAYLISTS, LIBRARY_SLOT_ON_DEVICE) +
             libraryTitles.keys
     }
     val libraryOrder = remember(libraryLayout, libraryDefaults) {
@@ -300,6 +301,7 @@ private fun homeSlotTitle(slot: String, titles: Map<String, String>): String = w
     LIBRARY_SLOT_PINNED -> stringResource(R.string.library_row_pinned)
     LIBRARY_SLOT_LINKS -> stringResource(R.string.library_row_links)
     LIBRARY_SLOT_REPLAY -> stringResource(R.string.replay)
+    LIBRARY_SLOT_SMART_PLAYLISTS -> stringResource(R.string.smart_playlists)
     LIBRARY_SLOT_ON_DEVICE -> stringResource(R.string.on_device)
     "shelf:listen-again" -> homeShelfLabel(titles[slot] ?: "Listen again")
     "shelf:quick-picks" -> homeShelfLabel(titles[slot] ?: "Quick picks")
@@ -344,19 +346,26 @@ private fun ReorderableHomeSlotList(
         if (pitch <= 0f) return
         var index = liveOrder.indexOf(slot)
         if (index < 0) return
+        val pinnedGroup = slot in pinned
+        val firstAllowed = liveOrder.indexOfFirst { (it in pinned) == pinnedGroup }
+        val lastAllowed = liveOrder.indexOfLast { (it in pinned) == pinnedGroup }
 
         totalDrag = (totalDrag + delta).coerceIn(
-            -startIndex * pitch,
-            (liveOrder.lastIndex - startIndex) * pitch,
+            (firstAllowed - startIndex) * pitch,
+            (lastAllowed - startIndex) * pitch,
         )
 
         while (true) {
             val travelled = totalDrag / pitch
             val moved = (index - startIndex).toFloat()
-            if (travelled > moved + HOME_SWAP_THRESHOLD && index < liveOrder.lastIndex) {
+            if (travelled > moved + HOME_SWAP_THRESHOLD && index < liveOrder.lastIndex &&
+                (liveOrder[index] in pinned) == (liveOrder[index + 1] in pinned)
+            ) {
                 liveOrder = liveOrder.toMutableList().apply { add(index + 1, removeAt(index)) }
                 index++
-            } else if (travelled < moved - HOME_SWAP_THRESHOLD && index > 0) {
+            } else if (travelled < moved - HOME_SWAP_THRESHOLD && index > 0 &&
+                (liveOrder[index] in pinned) == (liveOrder[index - 1] in pinned)
+            ) {
                 liveOrder = liveOrder.toMutableList().apply { add(index - 1, removeAt(index)) }
                 index--
             } else {
@@ -374,8 +383,8 @@ private fun ReorderableHomeSlotList(
             speed = edgeSpeedPx,
         )
         val blocked = when {
-            speed < 0f -> index <= 0 || !scrollState.canScrollBackward
-            speed > 0f -> index >= liveOrder.lastIndex || !scrollState.canScrollForward
+            speed < 0f -> index <= firstAllowed || !scrollState.canScrollBackward
+            speed > 0f -> index >= lastAllowed || !scrollState.canScrollForward
             else -> true
         }
         autoScroll.setSpeed(if (blocked) 0f else speed)
@@ -407,6 +416,11 @@ private fun ReorderableHomeSlotList(
                 val shown = slot !in hidden
                 val dragging = slot == draggedSlot
                 val slotTitle = homeSlotTitle(slot, titles)
+                val currentLayout = remember(liveOrder, pinned) {
+                    HomeLayout(liveOrder.map { HomeSlot(it, pinned = it in pinned) })
+                }
+                val canMoveUp = currentLayout.canMove(slot, -1)
+                val canMoveDown = currentLayout.canMove(slot, 1)
                 val canHide = canHideLayoutSlot(isVisible = shown, visibleCount = visibleCount)
                 val visibilityState = when {
                     !canHide -> stringResource(R.string.layout_last_visible_row)
@@ -520,12 +534,11 @@ private fun ReorderableHomeSlotList(
                                 onClick = {
                                     val index = liveOrder.indexOf(slot)
                                     if (index > 0) {
-                                        liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
-                                            .move(slot, -1).slots.map { it.key }
+                                        liveOrder = currentLayout.move(slot, -1).slots.map { it.key }
                                         onReorder(liveOrder)
                                     }
                                 },
-                                enabled = liveOrder.indexOf(slot) > 0,
+                                enabled = canMoveUp,
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.ArrowUpward,
@@ -537,12 +550,11 @@ private fun ReorderableHomeSlotList(
                                 onClick = {
                                     val index = liveOrder.indexOf(slot)
                                     if (index in 0 until liveOrder.lastIndex) {
-                                        liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
-                                            .move(slot, 1).slots.map { it.key }
+                                        liveOrder = currentLayout.move(slot, 1).slots.map { it.key }
                                         onReorder(liveOrder)
                                     }
                                 },
-                                enabled = liveOrder.indexOf(slot) in 0 until liveOrder.lastIndex,
+                                enabled = canMoveDown,
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.ArrowDownward,

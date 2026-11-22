@@ -1636,11 +1636,7 @@ object Downloads {
      * `Unsupported MIME type audio/webm` at least sends someone looking in the
      * right direction.
      */
-    private fun Exception.friendly(): String = when {
-        (this is IllegalStateException || this is IllegalArgumentException) &&
-            !message.isNullOrBlank() -> message!!
-        else -> "Download failed — check your connection"
-    }
+    private fun Exception.friendly(): String = friendlyDownloadFailure(this)
 
     /**
      * How long the source lookup may hold a download up before it goes to

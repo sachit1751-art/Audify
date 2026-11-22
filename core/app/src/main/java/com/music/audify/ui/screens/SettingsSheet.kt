@@ -222,7 +222,6 @@ import kotlinx.coroutines.isActive
 import com.music.audify.playback.smart.AutomixModels
 import kotlin.math.roundToInt
 import java.util.Locale
-import java.text.Normalizer
 
 /**
  * Grouped settings, in the shape phones have taught people to expect: inset
@@ -322,7 +321,6 @@ fun SettingsScreen(
     val dolbyAtmosSupported = DeviceCodecs.playsDolbyAtmos
     val spatialAudio by AppSettings.spatialAudio.collectAsStateWithLifecycle()
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
-    val showIndieStoryCard by AppSettings.showIndieStoryCard.collectAsStateWithLifecycle()
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val listenTogetherTab by AppSettings.showListenTogetherTab.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -801,15 +799,6 @@ fun SettingsScreen(
                 .liquidGlassRim(RoundedCornerShape(16.dp))
                 .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
             )
-
-            if (!searching && showIndieStoryCard) {
-                IndieStoryCard(
-                    version = version,
-                    onFeature = { feedbackKind = "feature"; showFeedbackDialog = true },
-                    onBug = { feedbackKind = "bug"; showFeedbackDialog = true },
-                    onRepository = { context.openLink("https://github.com/sachit1751-art/Audify") },
-                )
-            }
 
             SearchableSettingsGroup(search, header = null) {
                 val accountTitle = stringResource(R.string.account_integrations)
@@ -2204,20 +2193,6 @@ fun SettingsScreen(
         // No footer: it only restated the stop-on-close row's own subtitle,
         // which sits four rows above it and says the same thing in fewer words.
         if (shows(SettingsCategory.MISCELLANEOUS)) SearchableSettingsGroup(search, header = stringResource(R.string.miscellaneous)) {
-            row("Show indie project story", "about", "audify", "independent", "settings card") {
-                SettingsRow(
-                    icon = SfIcons.Info,
-                    title = "Show indie project story",
-                    subtitle = "Show the project note at the top of Settings",
-                    trailing = {
-                        IosSwitch(
-                            checked = showIndieStoryCard,
-                            onCheckedChange = AppSettings::setShowIndieStoryCard,
-                        )
-                    },
-                    onClick = { AppSettings.setShowIndieStoryCard(!showIndieStoryCard) },
-                )
-            }
             val showNerdStatsTitle = stringResource(R.string.show_nerd_stats)
             row(showNerdStatsTitle, "player", "audio", "quality", "codec", "automix", "bitrate") {
                 SettingsRow(
@@ -3281,66 +3256,6 @@ private fun AboutActionRow(
     }
 }
 
-/** Compact Settings-home story card, distinct from the full About page. */
-@Composable
-private fun IndieStoryCard(
-    version: String,
-    onFeature: () -> Unit,
-    onBug: () -> Unit,
-    onRepository: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = GROUP_INSET),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(
-                    Modifier.size(34.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(SfIcons.HeartFill, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(18.dp))
-                }
-                Text(
-                    "Built late at night, shaped by you",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 19.sp,
-                )
-            }
-            Text(
-                "Audify has no tracking and no ads. Just one person building a music player for listeners who care about music. Listener suggestions help shape what gets built next.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 18.sp,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AboutStoryButton(SfIcons.AutoAwesome, "Suggest a feature", Modifier.weight(1f), onFeature)
-                AboutStoryButton(SfIcons.Bug, "Report a bug", Modifier.weight(1f), onBug)
-            }
-            AboutStoryButton(SfIcons.Star, "Star on GitHub", Modifier.fillMaxWidth(), onRepository)
-        }
-    }
-}
-
-@Composable
-private fun AboutStoryButton(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Surface(
-        modifier = modifier.heightIn(min = 36.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-    ) {
-        Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
-            Text(label, modifier = Modifier.padding(start = 5.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-        }
-    }
-}
-
 /** One tappable link in the settings footer card. */
 @Composable
 private fun FooterLinkRow(
@@ -3723,41 +3638,22 @@ internal val TEXT_INSET = ROW_INSET + ICON_SIZE + ICON_GAP
  * rather than remembered.
  */
 private class SettingsSearch(
-    query: String,
+    private val query: String,
     /** Drawing one category's page rather than the main one: its top bar names it. */
     val inPage: Boolean = false,
 ) {
     // Trimmed, because a trailing space is a typo rather than a search for
     // something ending in one â€” and on a phone keyboard it is one keystroke
     // away from every word typed.
-    private val terms = normalizedSearchTerms(query)
-
     var anyMatch = false
         private set
 
     fun matches(vararg keywords: String?): Boolean {
-        val corpus = normalizeSettingsSearch(keywords.filterNotNull().joinToString(" "))
-        // Every query term must be represented somewhere in the row's title,
-        // subtitle, category or aliases. Matching is accent- and punctuation-
-        // insensitive, and substring matching keeps singular/plural variants
-        // and compound terms such as "cross fade" discoverable.
-        val compactCorpus = corpus.replace(" ", "")
-        val hit = terms.isEmpty() || terms.all { term ->
-            corpus.contains(term) || compactCorpus.contains(term.replace(" ", ""))
-        }
+        val hit = settingsSearchMatches(query, *keywords)
         if (hit) anyMatch = true
         return hit
     }
 }
-
-private fun normalizedSearchTerms(query: String): List<String> =
-    normalizeSettingsSearch(query).split(' ').filter(String::isNotBlank).distinct()
-
-private fun normalizeSettingsSearch(value: String): String = Normalizer
-    .normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFD)
-    .replace(Regex("\\p{Mn}+"), "")
-    .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
-    .trim()
 
 /** Collects the rows of one group that survived the search. */
 private class SettingsGroupScope(
