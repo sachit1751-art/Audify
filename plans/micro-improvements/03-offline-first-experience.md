@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 03 — Offline-First Library and Playback Experience
 
-**Status: in-progress ? local-library scans use latest-request/source guards and distinguish complete, partial and failed provider scans while preserving the legacy list API. Offline browse/play/reconnect coverage remains.**
+**Status: in progress — local-library scans distinguish complete, partial and failed results; unavailable MediaStore checks preserve offline playlist entries, and failed download deletion preserves its record. Offline browse/play/reconnect acceptance remains.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 081 — Library Backup and Restore plus existing local-media/download/provider boundaries.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Plan 081 — Library Backup and Restore plus existing l
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -264,20 +264,29 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
+## Execution evidence — 2026-11-22
+
+- `MainViewModel.loadLibrarySongs` cancels superseded scans and publishes only the newest request while Local Music remains the selected source. `LocalMediaRepository.getLocalMusicScan` preserves complete, partial and failed outcomes; the compatibility list API remains available to existing callers.
+- `LocalMediaRepository.present` now treats a null cursor or failed chunk query as unavailable verification. Missing MediaStore IDs prune an offline playlist only when every query completed and the app has storage permission. `LocalMediaFilterTest` covers this trust policy.
+- `Downloads.delete` now forgets saved metadata only after `DownloadStore.delete` confirms success, so a provider/storage failure does not orphan a still-existing file from the Downloads library.
+- Existing local playback resolves a readable local URI before remote streaming; download lifecycle claims are token-bound and cancellation/re-enqueue races have focused coverage in `DownloadQueueRaceTest`. Local-library result presentation is covered by `LocalLibraryStateTest`.
+- The focused `:app:testDevDebugUnitTest` run reached app Kotlin compilation but failed while the compiler tried to read a missing/zero-byte generated `AutoplayKt.class`; other workers were compiling the same shared build tree concurrently. A serialized retry remains necessary. Airplane-mode browse/play, permission revocation, reconnect reconciliation and real storage-provider behavior remain device-only acceptance checks.
+- No backup format, schema, migration, permission, provider entitlement or background download behavior was added.
+
 ## Implementation tracking
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
-| 8 | Handoff and plan status | Not started |
+| 1 | Repository and product audit | Complete |
+| 2 | Contract and acceptance design | Complete |
+| 3 | Foundation and domain implementation | Implemented; automated execution pending |
+| 4 | User interface and interaction | Existing offline states retained; device check pending |
+| 5 | Platform and integration coverage | Source review partial; device check pending |
+| 6 | Reliability, performance and privacy | Source review partial |
+| 7 | Full verification and regression pass | JVM tests, phone/Wear/TV DevDebug compilation and unit tests, and all three platform lint tasks passed in the serialized 2026-11-22 run; offline device acceptance remains open |
+| 8 | Handoff and plan status | In progress |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress is **2/8 complete; source implementation and automated verification passed; offline browse/play/reconnect acceptance remains open**. See the consolidated verification matrix in this directory's README. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +298,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

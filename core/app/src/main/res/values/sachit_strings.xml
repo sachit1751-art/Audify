@@ -76,6 +76,31 @@ Project: AUDIFY
     
     
     
-    <string name="local_library_scan_partial">Some local audio could not be read. Showing the available files.</string>
-    <string name="local_library_scan_failed">Local audio could not be read. Check storage or folder access and try again.</string>
+    <string name="local_library_scan_partial" translatable="false">Some local audio could not be read. Showing the available files.</string>
+    <string name="local_library_scan_failed" translatable="false">Local audio could not be read. Check storage or folder access and try again.</string>
+    <string name="remote_library_load_failed" translatable="false">Could not load this remote library. Check its connection and access settings, then try again.</string>
+    <string name="radio_listening_intent" translatable="false">Listening intent (next radio batch): %1$s</string>
+    <string name="radio_intent_off" translatable="false">Off</string>
+    <string name="radio_intent_familiar" translatable="false">Familiar artists</string>
+    <string name="radio_intent_discovery" translatable="false">Discover new artists</string>
+    <string name="radio_intent_energetic" translatable="false">More energetic</string>
+    <string name="radio_intent_calm" translatable="false">Calmer</string>
+    <string name="radio_intent_off_description" translatable="false">Keep the provider\'s original order.</string>
+    <string name="radio_intent_familiar_description" translatable="false">Prioritize artists already present in this session.</string>
+    <string name="radio_intent_discovery_description" translatable="false">Prioritize artists not yet present in this session.</string>
+    <string name="radio_intent_energetic_description" translatable="false">Prioritize tracks with higher measured audio energy.</string>
+    <string name="radio_intent_calm_description" translatable="false">Prioritize tracks with lower measured audio energy.</string>
+    <string name="radio_reason_familiar_artist" translatable="false">Suggested because this artist is already in your listening session.</string>
+    <string name="radio_reason_new_artist" translatable="false">Suggested because this artist is new to your current listening session.</string>
+    <string name="radio_reason_higher_energy" translatable="false">Ranked using this track’s measured audio energy for your Energetic intent.</string>
+    <string name="radio_reason_lower_energy" translatable="false">Ranked using this track’s measured audio energy for your Calm intent.</string>
+    <string name="radio_reason_provider_order" translatable="false">Suggested in the provider’s original order; no matching ranking signal was available.</string>
+    <string name="layout_last_visible_row" translatable="false">At least one section must remain visible.</string>
+    <string name="layout_visible_state" translatable="false">Visible</string>
+    <string name="layout_hidden_state" translatable="false">Hidden</string>
+    <string name="spotify_matches_still_loading" translatable="false">Spotify tracks are still matching. Try Shuffle again when at least one track is ready.</string>
+    <string name="move_home_section_up" translatable="false">Move %1$s up</string>
+    <string name="move_home_section_down" translatable="false">Move %1$s down</string>
+    <string name="pin_home_section" translatable="false">Pin %1$s to the top of Home</string>
+    <string name="unpin_home_section" translatable="false">Unpin %1$s from the top of Home</string>
 </resources>

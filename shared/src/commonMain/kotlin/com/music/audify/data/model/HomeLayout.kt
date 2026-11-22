@@ -32,7 +32,11 @@ fun homeShelfKey(title: String): String {
 }
 
 /** One place on Home: where it sits in [HomeLayout.slots] is its position, [hidden] takes it off the page. */
-data class HomeSlot(val key: String, val hidden: Boolean = false)
+data class HomeSlot(
+    val key: String,
+    val hidden: Boolean = false,
+    val pinned: Boolean = false,
+)
 
 /**
  * The listener's own arrangement of Home. Empty means "not customised": Home
@@ -44,11 +48,39 @@ data class HomeLayout(val slots: List<HomeSlot> = emptyList()) {
 
     fun isHidden(key: String): Boolean = slots.any { it.key == key && it.hidden }
 
+    fun isPinned(key: String): Boolean = slots.any { it.key == key && it.pinned }
+
+    /** Toggle a known slot's pin without losing its hidden state or position. */
+    fun togglePinned(key: String): HomeLayout {
+        val index = slots.indexOfFirst { it.key == key }
+        if (index < 0) return this
+        return copy(
+            slots = slots.mapIndexed { slotIndex, slot ->
+                if (slotIndex == index) slot.copy(pinned = !slot.pinned) else slot
+            },
+        )
+    }
+
     /** Saved rows (including hidden ones) first, followed by newly available rows. */
     fun editorOrder(availableKeys: List<String>): List<String> {
         val saved = slots.map { it.key }.distinct()
         val fresh = availableKeys.filterNot { it in saved }
         return saved + fresh
+    }
+
+    /** Move one known slot by [offset], leaving the layout unchanged at either boundary. */
+    fun move(key: String, offset: Int): HomeLayout {
+        if (offset == 0) return this
+        val index = slots.indexOfFirst { it.key == key }
+        if (index < 0) return this
+        val target = (index.toLong() + offset.toLong())
+            .coerceIn(0L, slots.lastIndex.toLong())
+            .toInt()
+        if (target == index) return this
+        val reordered = slots.toMutableList().apply {
+            add(target, removeAt(index))
+        }
+        return copy(slots = reordered)
     }
 
     /**
@@ -60,20 +92,40 @@ data class HomeLayout(val slots: List<HomeSlot> = emptyList()) {
         if (!isCustom) return items
         val position = HashMap<String, Int>()
         slots.forEachIndexed { index, slot -> position.putIfAbsent(slot.key, index) }
-        val known = items.filter { keyOf(it) in position }.sortedBy { position.getValue(keyOf(it)) }
+        val known = items.filter { keyOf(it) in position }.sortedWith(
+            compareBy<T>({ !isPinned(keyOf(it)) }, { position.getValue(keyOf(it)) }),
+        )
         val fresh = items.filter { keyOf(it) !in position }
         return (known + fresh).filterNot { dropHidden && isHidden(keyOf(it)) }
     }
 
-    fun encode(): String = slots.joinToString("\n") { (if (it.hidden) "1" else "0") + it.key }
+    fun encode(): String = slots.joinToString("\n") {
+        val flag = when {
+            it.hidden && it.pinned -> '3'
+            it.pinned -> '2'
+            it.hidden -> '1'
+            else -> '0'
+        }
+        flag + it.key
+    }
 
     companion object {
         fun decode(text: String?): HomeLayout = HomeLayout(
             text.orEmpty().lineSequence()
                 .filter { it.length > 1 }
-                .map { HomeSlot(key = it.substring(1), hidden = it[0] == '1') }
+                .map {
+                    HomeSlot(
+                        key = it.substring(1),
+                        hidden = it[0] == '1' || it[0] == '3',
+                        pinned = it[0] == '2' || it[0] == '3',
+                    )
+                }
                 .distinctBy { it.key }
                 .toList(),
         )
     }
 }
+
+/** Keep at least one Home/Library section visible so its tab cannot be made empty by layout edits. */
+fun canHideLayoutSlot(isVisible: Boolean, visibleCount: Int): Boolean =
+    !isVisible || visibleCount > 1

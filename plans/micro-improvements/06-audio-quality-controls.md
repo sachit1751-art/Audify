@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 06 — Audio Quality, Output and Playback Enhancement Controls
 
-**Status: planned — not started.**  
+**Status: partial — existing quality/output controls remain authoritative; audio-effect session and route-removal lifecycle policies now have focused regression tests. Output-specific headphone correction remains blocked by missing licensed measurements and verified device identity/attachment evidence.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 11 — Headphone Audio Profiles and the existing audio pipeline.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Plan 11 — Headphone Audio Profiles and the existing a
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -268,16 +268,26 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
-| 8 | Handoff and plan status | Not started |
+| 1 | Repository and product audit | Completed — current quality settings, runtime consumers, output policy and pipeline readout inspected |
+| 2 | Contract and acceptance design | Completed — historical Plan 11 recovered; profile data licensing and output effect attachment are hard prerequisites |
+| 3 | Foundation and domain implementation | Partial — extracted the pure audio-effect session advertisement gate; no unverified correction profile was added |
+| 4 | User interface and interaction | Existing global EQ/quality controls retained; no misleading per-headphone profile selector added |
+| 5 | Platform and integration coverage | Existing output callbacks/reconfiguration retained; exact device-route runtime acceptance remains unavailable under the no-device constraint |
+| 6 | Reliability, performance and privacy | Partial — added session lifecycle and selected-output removal policy tests |
+| 7 | Full verification and regression pass | In progress — new app regression tests and phone/Wear/TV source validation are being rerun |
+| 8 | Handoff and plan status | In progress |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress: **2/8 stages complete; lifecycle policy is now independently testable. The measured per-headphone correction slice remains blocked by external evidence, not by the existing EQ engine.**
+
+### Current-checkout reconciliation (2026-11-22)
+
+- `AppSettings` owns separate Wi-Fi/cellular streaming ceilings, independent download quality, metered-network policy, PCM output mode, USB preference, bit-perfect mode, loudness normalization, speaker bypass, Atmos preference, crossfade and Automix controls. Existing global EQ settings/curves remain persisted by the current preference owner; this pass does not create an incompatible second persistence format.
+- `AndroidStreamHooks` consumes `effectiveAudioQuality`; `PlaybackService` observes quality changes; `SettingsSheet` exposes the existing controls. `AudioOutputPolicy` enforces route-aware PCM-float constraints and has focused unit tests.
+- `AudioPipelineDialog` reports live source/decoder/resampler/DSP/output state and identifies the first reason the signal is not bit-exact. Existing tests cover output-format policy and broader audio pipeline behavior.
+- The current `plans/` tree omits Plan 11, but its historical proposal is recoverable from `30d5fe17^:plans/11-headphone-audio-profiles.md`. It concerns measured headphone correction profiles/AutoEQ-style behavior, profile licensing/provenance, preamp headroom, output association and truthful applied/unsupported status. It explicitly excludes duplicate EQ controls and unlicensed bundled profile databases.
+- `AudioEffectSessionPolicy.kt` now isolates the exact valid-session gate used by `PlaybackService.updateAudioEffectSession`; `AudioEffectSessionPolicyTest` covers buffering/ready, pause/idle/ended and unset/non-positive IDs. `AudioRouting.shouldForgetSelection` is used by the device-removal callback and `AudioRoutingLifecycleTest` verifies that only the selected removed device clears the selection.
+- `PlaybackService` already registers/unregisters `AudioDeviceCallback`, reapplies output configuration on route changes, drops a selected framework ID when that exact device is removed, shares one AudioSessionId across both crossfade players, and advertises/closes the standard system effect session on playback state changes. Those runtime paths remain device-dependent and were not exercised here.
+- No measured headphone-profile dataset with verified redistribution/license/attribution rights was found. `AudioDeviceInfo.id` is reconnect-ephemeral/reusable; Bluetooth addresses can be redacted and permission-gated; the current in-process DSP chain is attached before the output sink rather than independently confirmed per physical output. A per-model correction selector would therefore be misleading. The exact external prerequisites are: (1) a licensed, attributable measured profile dataset, (2) a stable, privacy-safe output identity contract, (3) a verified per-output attachment/activation path, and (4) physical-device clipping/headroom, route-switch, CPU, thermal and battery measurements. No invented profiles or unsupported correction claims were added.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +299,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

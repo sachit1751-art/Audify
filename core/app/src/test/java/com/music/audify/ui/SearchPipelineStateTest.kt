@@ -1,10 +1,64 @@
 package com.music.audify.ui
 
+import com.music.audify.data.model.SearchFilter
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SearchPipelineStateTest {
+    @Test
+    fun naturalLanguageSearchIntentSelectsOnlyConfidentLeadingFacets() {
+        assertEquals(SearchFilter.SONGS, inferSearchFilter("songs by Radiohead"))
+        assertEquals(SearchFilter.SONGS, inferSearchFilter("Find tracks by Daft Punk"))
+        assertEquals(SearchFilter.ALBUMS, inferSearchFilter("show me albums by Radiohead"))
+        assertEquals(SearchFilter.ARTISTS, inferSearchFilter("artist Radiohead"))
+        assertEquals(SearchFilter.PLAYLISTS, inferSearchFilter("playlists with 90s rock"))
+        assertEquals(SearchFilter.VIDEOS, inferSearchFilter("music videos by Beyonce"))
+        assertEquals(SearchFilter.ARTISTS, inferSearchFilter("ARTIST Beyoncé"))
+    }
+
+    @Test
+    fun ambiguousQueriesDoNotOverrideTheUsersSearchFacet() {
+        assertNull(inferSearchFilter("Radiohead"))
+        assertNull(inferSearchFilter("songs for studying"))
+        assertNull(inferSearchFilter("album"))
+        assertNull(inferSearchFilter("best playlists"))
+        assertNull(inferSearchFilter("artistically inspired songs"))
+    }
+
+    @Test
+    fun queryEditsResetOnlyInferredFacets() {
+        val inferred = SearchFilterSelection().infer("songs by Radiohead", SearchSource.YOUTUBE)
+        assertEquals(SearchFilter.SONGS, inferred.filter)
+        assertTrue(inferred.inferred)
+
+        val edited = inferred.onQueryChanged()
+        assertEquals(SearchFilter.ALL, edited.filter)
+        assertFalse(edited.inferred)
+
+        val manual = SearchFilterSelection()
+            .select(SearchFilter.ALBUMS)
+            .infer("songs by Radiohead", SearchSource.YOUTUBE)
+            .onQueryChanged()
+        assertEquals(SearchFilter.ALBUMS, manual.filter)
+        assertFalse(manual.inferred)
+    }
+
+    @Test
+    fun explicitFacetSelectionWinsAndInferenceIsYoutubeOnly() {
+        val manual = SearchFilterSelection()
+            .select(SearchFilter.ARTISTS)
+            .infer("songs by Radiohead", SearchSource.YOUTUBE)
+        assertEquals(SearchFilter.ARTISTS, manual.filter)
+        assertFalse(manual.inferred)
+
+        val addon = SearchFilterSelection().infer("albums by Radiohead", SearchSource.ADDONS)
+        assertEquals(SearchFilter.ALL, addon.filter)
+        assertFalse(addon.inferred)
+    }
+
     @Test
     fun youtubeTypeaheadPublishesOnlyForTheCurrentUnsubmittedYoutubeQuery() {
         assertTrue(shouldPublishYouTubeTypeahead("arijit", "arijit", false, SearchSource.YOUTUBE, 8L, 8L))

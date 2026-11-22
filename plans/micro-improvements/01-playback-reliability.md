@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 01 — Playback Reliability and Recovery
 
-**Status: in-progress ? track identity transition reduced to 220 ms; reduced-motion transport feedback implemented. Playback lifecycle and recovery verification remain.**
+**Status: in progress — playback recovery now validates queue-occurrence identity and maintains per-occurrence retry budgets. Playback lifecycle and device acceptance remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 070 and the existing Media3 playback/session architecture.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -126,9 +126,9 @@ The canonical owner is **Plan 070 and the existing Media3 playback/session archi
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -266,20 +266,27 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
+## Execution evidence — 2026-11-22
+
+- `PlaybackService` captures `MediaItem.queueEntryId` when a failure occurs. Delayed retry, alternative-source fallback, manifest reopen and failed-start skip paths verify that the same occurrence is still current before mutating playback.
+- Recovery budgets use the queue-entry ID when present and fall back to the media ID for older items without occurrence metadata. Repeated copies of the same recording therefore receive independent retry budgets.
+- `PlaybackRecoveryPolicyTest` covers stale callbacks against a second occurrence and independent retry-budget keys. The focused `:app:testDevDebugUnitTest` run reached app Kotlin compilation but failed while the compiler tried to read a missing/zero-byte generated `AutoplayKt.class`; other workers were compiling the same shared build tree concurrently. A serialized retry remains necessary.
+- No queue persistence, database schema, app version, provider policy or permission changes were made. Real phone checks for service recreation, audio interruptions, network recovery and rapid duplicate-track failures remain outstanding.
+
 ## Implementation tracking
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
-| 8 | Handoff and plan status | Not started |
+| 1 | Repository and product audit | Complete |
+| 2 | Contract and acceptance design | Complete |
+| 3 | Foundation and domain implementation | Implemented; automated execution pending |
+| 4 | User interface and interaction | Existing state feedback retained; device check pending |
+| 5 | Platform and integration coverage | Source review partial; device check pending |
+| 6 | Reliability, performance and privacy | Source review partial |
+| 7 | Full verification and regression pass | JVM tests, phone/Wear/TV DevDebug compilation and unit tests, and all three platform lint tasks passed in the serialized 2026-11-22 run; device acceptance remains open |
+| 8 | Handoff and plan status | In progress |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress is **2/8 complete; implementation and source-level verification passed; playback lifecycle and device acceptance remain open**. See the consolidated verification matrix in this directory's README. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 
@@ -291,9 +298,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

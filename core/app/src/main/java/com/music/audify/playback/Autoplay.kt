@@ -16,8 +16,12 @@ import com.music.audify.playback.smart.assessTransitionTier
 import com.music.audify.playback.smart.incomingRateBetween
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import java.util.Locale
 
 /** Most AutoPlay-suggested tracks kept queued ahead of the current one at once. */
 const val MAX_QUEUED_AUTOPLAY = 10
@@ -109,6 +113,175 @@ object AutoplayMixRanking {
     var analysisOf: ((String) -> TrackAnalysis?)? = null
 }
 
+/** Explicit, session-scoped steering for the existing radio/AutoPlay queue. */
+enum class RadioListeningIntent {
+    OFF,
+    FAMILIAR,
+    DISCOVERY,
+    ENERGETIC,
+    CALM,
+    ;
+
+    fun next(): RadioListeningIntent = entries[(ordinal + 1) % entries.size]
+}
+
+/** Shared by the player menu and the existing queue owner; never persisted as a taste profile. */
+object RadioListeningIntentState {
+    private val _current = MutableStateFlow(RadioListeningIntent.OFF)
+    val current: StateFlow<RadioListeningIntent> = _current.asStateFlow()
+
+    fun advance(): RadioListeningIntent = _current.value.next().also { _current.value = it }
+
+    fun clear() {
+        _current.value = RadioListeningIntent.OFF
+        RadioRecommendationExplanationState.clear()
+    }
+}
+
+/** A factual, signal-backed explanation for one AutoPlay candidate. */
+enum class RadioRecommendationReason {
+    FAMILIAR_ARTIST,
+    NEW_ARTIST,
+    HIGHER_MEASURED_ENERGY,
+    LOWER_MEASURED_ENERGY,
+    PROVIDER_ORDER,
+}
+
+/** Session-only explanations; bounded so a long radio session cannot grow this map forever. */
+object RadioRecommendationExplanationState {
+    private const val MAX_EXPLANATIONS = 100
+    private val _byVideoId = MutableStateFlow<Map<String, RadioRecommendationReason>>(emptyMap())
+    val byVideoId: StateFlow<Map<String, RadioRecommendationReason>> = _byVideoId.asStateFlow()
+
+    fun publish(explanations: Map<String, RadioRecommendationReason>) {
+        if (explanations.isEmpty()) return
+        _byVideoId.value = (_byVideoId.value + explanations).entries
+            .toList()
+            .takeLast(MAX_EXPLANATIONS)
+            .associate { it.toPair() }
+    }
+
+    fun clear() {
+        _byVideoId.value = emptyMap()
+    }
+}
+
+/**
+ * Reorders a provider's radio candidates using only explicit session intent
+ * and evidence already available locally. Stable provider order breaks ties;
+ * missing artist/analysis metadata is never guessed.
+ */
+internal fun orderForListeningIntent(
+    intent: RadioListeningIntent,
+    seed: Song,
+    existing: List<Song>,
+    candidates: List<Song>,
+    analysisOf: (String) -> TrackAnalysis?,
+): List<Song> {
+    if (intent == RadioListeningIntent.OFF || candidates.size < 2) return candidates
+
+    fun artistKeys(song: Song): Set<String> = buildSet {
+        song.artists.mapNotNullTo(this) { it.name.trim().lowercase(Locale.ROOT).takeIf(String::isNotEmpty) }
+        song.artist.split(',', '&').mapTo(this) { it.trim().lowercase(Locale.ROOT) }
+        remove("")
+    }
+
+    val familiarArtists = (existing + seed).flatMapTo(HashSet(), ::artistKeys)
+    val scored = candidates.mapIndexedNotNull { index, song ->
+        val score = when (intent) {
+            RadioListeningIntent.OFF -> null
+            RadioListeningIntent.FAMILIAR -> artistKeys(song).takeIf { it.isNotEmpty() }
+                ?.let { keys -> if (keys.any { it in familiarArtists }) 1.0 else 0.0 }
+            RadioListeningIntent.DISCOVERY -> artistKeys(song).takeIf { it.isNotEmpty() }
+                ?.let { keys -> if (keys.none { it in familiarArtists }) 1.0 else 0.0 }
+            RadioListeningIntent.ENERGETIC,
+            RadioListeningIntent.CALM,
+            -> analysisOf(song.videoId)
+                ?.takeIf { it.status.isBlank() || it.status == TrackAnalysis.STATUS_READY }
+                ?.energyCurve
+                ?.map { it.energy }
+                ?.filter(Double::isFinite)
+                ?.takeIf { it.isNotEmpty() }
+                ?.average()
+        }
+        score?.let { Triple(index, song, it) }
+    }
+    if (scored.isEmpty()) return candidates
+
+    val knownOrder = when (intent) {
+        RadioListeningIntent.FAMILIAR,
+        RadioListeningIntent.DISCOVERY,
+        RadioListeningIntent.ENERGETIC,
+        -> compareByDescending<Triple<Int, Song, Double>> { it.third }
+        RadioListeningIntent.CALM -> compareBy<Triple<Int, Song, Double>> { it.third }
+        RadioListeningIntent.OFF -> return candidates
+    }
+    val rankedKnown = scored.sortedWith(knownOrder.thenBy { it.first })
+    // Preserve the intent score as the primary ordering, but avoid stacking
+    // several tracks by the same artist when equally ranked alternatives exist.
+    // This is deliberately a tie-breaker: explicit intent always outranks variety.
+    val diversifiedKnown = rankedKnown.groupBy { it.third }.values.flatMap { tied ->
+        val remaining = tied.toMutableList()
+        val ordered = ArrayList<Triple<Int, Song, Double>>(tied.size)
+        val recentArtists = ArrayDeque<Set<String>>()
+        while (remaining.isNotEmpty()) {
+            val diverseIndex = remaining.indexOfFirst { candidate ->
+                val keys = artistKeys(candidate.second)
+                keys.isEmpty() || recentArtists.none { previous -> keys.any(previous::contains) }
+            }
+            val chosen = remaining.removeAt(if (diverseIndex >= 0) diverseIndex else 0)
+            ordered += chosen
+            val keys = artistKeys(chosen.second)
+            if (keys.isNotEmpty()) {
+                recentArtists.addLast(keys)
+                while (recentArtists.size > 2) recentArtists.removeFirst()
+            }
+        }
+        ordered
+    }
+    val knownIndices = diversifiedKnown.mapTo(HashSet()) { it.first }
+    return buildList(candidates.size) {
+        addAll(diversifiedKnown.map { it.second })
+        candidates.forEachIndexed { index, song -> if (index !in knownIndices) add(song) }
+    }
+}
+
+internal fun explainListeningIntentCandidate(
+    intent: RadioListeningIntent,
+    seed: Song,
+    existing: List<Song>,
+    candidate: Song,
+    analysisOf: (String) -> TrackAnalysis?,
+): RadioRecommendationReason {
+    fun artistKeys(song: Song): Set<String> = buildSet {
+        song.artists.mapNotNullTo(this) { it.name.trim().lowercase(Locale.ROOT).takeIf(String::isNotEmpty) }
+        song.artist.split(',', '&').mapTo(this) { it.trim().lowercase(Locale.ROOT) }
+        remove("")
+    }
+    val knownArtists = (existing + seed).flatMapTo(HashSet(), ::artistKeys)
+    val candidateArtists = artistKeys(candidate)
+    return when (intent) {
+        RadioListeningIntent.FAMILIAR -> if (candidateArtists.any { it in knownArtists }) {
+            RadioRecommendationReason.FAMILIAR_ARTIST
+        } else RadioRecommendationReason.PROVIDER_ORDER
+        RadioListeningIntent.DISCOVERY -> if (candidateArtists.isNotEmpty() && candidateArtists.none { it in knownArtists }) {
+            RadioRecommendationReason.NEW_ARTIST
+        } else RadioRecommendationReason.PROVIDER_ORDER
+        RadioListeningIntent.ENERGETIC,
+        RadioListeningIntent.CALM,
+        -> {
+            val energy = analysisOf(candidate.videoId)
+                ?.takeIf { it.status.isBlank() || it.status == TrackAnalysis.STATUS_READY }
+                ?.energyCurve?.map { it.energy }?.filter(Double::isFinite)?.takeIf { it.isNotEmpty() }
+                ?.average()
+            if (energy == null) RadioRecommendationReason.PROVIDER_ORDER
+            else if (intent == RadioListeningIntent.ENERGETIC) RadioRecommendationReason.HIGHER_MEASURED_ENERGY
+            else RadioRecommendationReason.LOWER_MEASURED_ENERGY
+        }
+        RadioListeningIntent.OFF -> RadioRecommendationReason.PROVIDER_ORDER
+    }
+}
+
 /** Bobot terhadap urutan relevansi radio (posisi 1.0 turun ke 0). */
 private const val MIX_BONUS_BASE = 0.35
 private const val MIX_BONUS_CLOSE = 0.25
@@ -162,18 +335,53 @@ internal fun orderForMixing(
     return out
 }
 
-private suspend fun rankForAutomix(seedSong: Song, related: List<Song>): List<Song> {
-    val lookup = AutoplayMixRanking.analysisOf ?: return related
-    if (!AppSettings.smartFadeEnabled.value) return related
-    return try {
+private suspend fun rankForAutomix(
+    seedSong: Song,
+    existing: List<Song>,
+    related: List<Song>,
+    intent: RadioListeningIntent,
+): List<Song> {
+    val lookup = AutoplayMixRanking.analysisOf
+    val mixed = try {
         withContext(Dispatchers.IO) {
-            val seed = lookup(seedSong.videoId)
-            if (seed == null) related else orderForMixing(seed, related, lookup)
+            if (lookup != null && AppSettings.smartFadeEnabled.value) {
+                val seed = lookup(seedSong.videoId)
+                if (seed == null) related else orderForMixing(seed, related, lookup)
+            } else related
         }
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (_: Exception) {
         related
+    }
+    // A failed optional Automix analysis must not silently discard the user's
+    // explicit listening intent. Ranking still uses whatever evidence remains.
+    return try {
+        withContext(Dispatchers.IO) {
+            val ordered = orderForListeningIntent(
+                intent = intent,
+                seed = seedSong,
+                existing = existing,
+                candidates = mixed,
+                analysisOf = lookup ?: { null },
+            )
+            RadioRecommendationExplanationState.publish(
+                ordered.associate { song ->
+                    song.videoId to explainListeningIntentCandidate(
+                        intent = intent,
+                        seed = seedSong,
+                        existing = existing,
+                        candidate = song,
+                        analysisOf = lookup ?: { null },
+                    )
+                },
+            )
+            ordered
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        mixed
     }
 }
 
@@ -186,6 +394,7 @@ suspend fun loadAutoplayTracks(
     existing: List<Song>,
     seedSong: Song,
     limit: Int = MAX_QUEUED_AUTOPLAY,
+    intent: RadioListeningIntent = RadioListeningIntentState.current.value,
 ): Result<List<Song>> {
     val seed = youtubeSeedFor(seedSong) ?: return Result.success(emptyList())
     // A music video plays on with music videos, as YouTube Music does.
@@ -193,7 +402,12 @@ suspend fun loadAutoplayTracks(
     // converted again, when the station's songs are the answer.
     val videos = seedSong.isVideo && seed == seedSong.videoId && !MusicOnlyPlayback.isActive()
     val related = YtMusicRepository.radio(seed, preferVideo = videos).getOrElse { return Result.failure(it) }
-    val extra = QueueBuilder.extend(existing, rankForAutomix(seedSong, related), limit, preferVideos = videos)
+    val extra = QueueBuilder.extend(
+        existing,
+        rankForAutomix(seedSong, existing, related, intent),
+        limit,
+        preferVideos = videos,
+    )
     if (extra.isEmpty()) return Result.success(emptyList())
 
     return Result.success(extra.map {

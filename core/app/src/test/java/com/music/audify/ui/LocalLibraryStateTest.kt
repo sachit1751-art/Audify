@@ -16,7 +16,7 @@ class LocalLibraryStateTest {
             LocalMediaRepository.LocalMusicScanResult.Complete(emptyList()),
             "empty", "partial", "failed", "access required",
         )
-        assertEquals(UiState.Error("empty"), state)
+        assertEquals(UiState.Error("empty", retryable = false), state)
     }
 
     @Test
@@ -67,6 +67,6 @@ class LocalLibraryStateTest {
             LocalMediaRepository.LocalMusicScanResult.Failed(LocalMediaRepository.LocalMusicScanIssue.ACCESS_UNAVAILABLE),
             "empty", "partial", "failed", "access required",
         )
-        assertEquals(UiState.Error("access required"), state)
+        assertEquals(UiState.Error("access required", retryable = false), state)
     }
 }

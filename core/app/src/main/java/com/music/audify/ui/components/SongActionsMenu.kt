@@ -68,6 +68,8 @@ import com.music.audify.data.webdav.WebDavUploads
 import com.music.audify.download.DownloadState
 import com.music.audify.download.Downloads
 import com.music.audify.playback.SleepTimer
+import com.music.audify.playback.RadioListeningIntent
+import com.music.audify.playback.RadioListeningIntentState
 import com.music.audify.ui.components.thumbnailBorder
 import com.music.audify.ui.theme.ArtworkPalette
 import kotlinx.coroutines.delay
@@ -194,6 +196,10 @@ fun SongActionsMenu(
     onShowSongInfo: ((Song) -> Unit)? = null,
     /** Keeps Add to playlist (and Remove) on the menu without an account, for playlists kept on this device. */
     canAddToPlaylist: Boolean = false,
+    /** Offers explicit, session-scoped steering only for the active local player session. */
+    showRadioIntentControl: Boolean = false,
+    /** Factual reason for an AutoPlay row, derived from the ranking signal actually used. */
+    recommendationExplanation: String? = null,
 ) {
     var showingSongInfo by remember(song.videoId) { mutableStateOf(false) }
     var pickingSleepTimer by remember { mutableStateOf(false) }
@@ -206,6 +212,7 @@ fun SongActionsMenu(
     val palette = neutralMenuPalette()
     val liked = likeStatus == LikeStatus.LIKE
     val disliked = likeStatus == LikeStatus.DISLIKE
+    val radioIntent by RadioListeningIntentState.current.collectAsStateWithLifecycle()
     // A local file or a finished download has no YouTube identity behind it to
     // rate, save, queue into a playlist, fetch again, or share a link for.
     val isOffline = song.localUri != null
@@ -218,6 +225,16 @@ fun SongActionsMenu(
         fun startsGroup(): Boolean = drawnAny.also { drawnAny = true }
         val canRate = isOffline || signedIn
         val shareAction = onShare?.takeIf { !isOffline }
+
+        recommendationExplanation?.takeIf { song.queueTier == com.music.audify.data.model.QueueTier.AUTOPLAY }?.let { reason ->
+            if (startsGroup()) IosMenuSeparator()
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
 
         // Leads with the actions it is opened for most, as tiles: the rating
         // — kept up after a tap, so the new state shows in place — and Share.
@@ -327,6 +344,33 @@ fun SongActionsMenu(
             accent = palette.accent,
             onClick = onStartRadio,
         )
+        if (showRadioIntentControl) {
+            val intentLabel = stringResource(
+                when (radioIntent) {
+                    RadioListeningIntent.OFF -> R.string.radio_intent_off
+                    RadioListeningIntent.FAMILIAR -> R.string.radio_intent_familiar
+                    RadioListeningIntent.DISCOVERY -> R.string.radio_intent_discovery
+                    RadioListeningIntent.ENERGETIC -> R.string.radio_intent_energetic
+                    RadioListeningIntent.CALM -> R.string.radio_intent_calm
+                },
+            )
+            val intentDescription = stringResource(
+                when (radioIntent) {
+                    RadioListeningIntent.OFF -> R.string.radio_intent_off_description
+                    RadioListeningIntent.FAMILIAR -> R.string.radio_intent_familiar_description
+                    RadioListeningIntent.DISCOVERY -> R.string.radio_intent_discovery_description
+                    RadioListeningIntent.ENERGETIC -> R.string.radio_intent_energetic_description
+                    RadioListeningIntent.CALM -> R.string.radio_intent_calm_description
+                },
+            )
+            ActionRow(
+                icon = SfIcons.Radio,
+                label = stringResource(R.string.radio_listening_intent, intentLabel),
+                accent = palette.accent,
+                description = intentDescription,
+                onClick = { RadioListeningIntentState.advance() },
+            )
+        }
         ActionRow(
             icon = SfIcons.PlayNext,
             label = stringResource(R.string.play_next),

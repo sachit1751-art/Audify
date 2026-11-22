@@ -11,32 +11,38 @@ class RemoteListingTest {
 
     @Test
     fun listsWhatTheServerReturned() {
-        assertEquals(UiState.Success(listOf("a", "b")), RemoteListing.state(Result.success(listOf("a", "b")), "empty"))
+        assertEquals(
+            UiState.Success(listOf("a", "b")),
+            RemoteListing.state(Result.success(listOf("a", "b")), "empty", "failed"),
+        )
     }
 
     @Test
     fun emptyListingReadsAsEmpty() {
-        assertEquals(UiState.Error("empty"), RemoteListing.state(Result.success(emptyList<String>()), "empty"))
+        assertEquals(
+            UiState.Error("empty", retryable = false),
+            RemoteListing.state(Result.success(emptyList<String>()), "empty", "failed"),
+        )
     }
 
     @Test
-    fun failedListingNamesItsCause() {
+    fun failedListingDoesNotExposeRemotePathsOrRawExceptionDetails() {
         val denied = IllegalStateException("STATUS_ACCESS_DENIED (0xc0000022): Could not connect to \\\\nas\\Music")
         assertEquals(
-            UiState.Error("STATUS_ACCESS_DENIED (0xc0000022): Could not connect to \\\\nas\\Music"),
-            RemoteListing.state(Result.failure<List<String>>(denied), "empty"),
+            UiState.Error("failed"),
+            RemoteListing.state(Result.failure<List<String>>(denied), "empty", "failed"),
         )
     }
 
     @Test
-    fun failureWithoutMessageNamesItsType() {
+    fun failuresWithoutUsefulMessagesStillUseTheSafeFallback() {
         assertEquals(
-            UiState.Error("NullPointerException"),
-            RemoteListing.state(Result.failure<List<String>>(NullPointerException()), "empty"),
+            UiState.Error("failed"),
+            RemoteListing.state(Result.failure<List<String>>(NullPointerException()), "empty", "failed"),
         )
         assertEquals(
-            UiState.Error("IllegalStateException"),
-            RemoteListing.state(Result.failure<List<String>>(IllegalStateException("  ")), "empty"),
+            UiState.Error("failed"),
+            RemoteListing.state(Result.failure<List<String>>(IllegalStateException("  ")), "empty", "failed"),
         )
     }
 }

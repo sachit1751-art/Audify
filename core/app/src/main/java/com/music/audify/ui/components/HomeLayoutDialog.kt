@@ -18,9 +18,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +49,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -59,6 +67,7 @@ import com.music.audify.data.model.LIBRARY_SLOT_REPLAY
 import com.music.audify.data.model.HomeLayout
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.HomeSlot
+import com.music.audify.data.model.canHideLayoutSlot
 import com.music.audify.data.model.homeShelfKey
 import com.music.audify.data.settings.AppSettings
 import com.music.audify.ui.player.edgeScrollSpeed
@@ -151,12 +160,13 @@ fun HomeLayoutDialog(
                 (it == recentsKey && recentsHidden)
         }.toSet()
     }
+    val pinned = remember(layout, order) { order.filter { layout.isPinned(it) }.toSet() }
 
-    fun save(keys: List<String>, hiddenKeys: Set<String>) {
+    fun save(keys: List<String>, hiddenKeys: Set<String>, pinnedKeys: Set<String>) {
         if (keys.isEmpty()) return
         val unseen = layout.slots.filter { it.key !in keys }
         AppSettings.setHomeLayout(
-            HomeLayout(keys.map { HomeSlot(it, it in hiddenKeys) } + unseen),
+            HomeLayout(keys.map { HomeSlot(it, it in hiddenKeys, it in pinnedKeys) } + unseen),
         )
     }
 
@@ -249,9 +259,18 @@ fun HomeLayoutDialog(
                     order = order,
                     hidden = hidden,
                     titles = titles,
-                    onReorder = { save(it, hidden) },
+                    pinned = pinned,
+                    onReorder = { save(it, hidden, pinned) },
                     onToggle = { slot ->
-                        save(order, if (slot in hidden) hidden - slot else hidden + slot)
+                        save(order, if (slot in hidden) hidden - slot else hidden + slot, pinned)
+                    },
+                    onTogglePin = { slot ->
+                        val current = HomeLayout(
+                            order.map { HomeSlot(it, it in hidden, it in pinned) } +
+                                layout.slots.filter { it.key !in order },
+                        )
+                        val next = current.togglePinned(slot)
+                        save(order, hidden, next.slots.filter { it.pinned }.mapTo(HashSet()) { it.key })
                     },
                 )
             }
@@ -301,6 +320,8 @@ private fun ReorderableHomeSlotList(
     titles: Map<String, String>,
     onReorder: (List<String>) -> Unit,
     onToggle: (String) -> Unit,
+    pinned: Set<String> = emptySet(),
+    onTogglePin: ((String) -> Unit)? = null,
 ) {
     var liveOrder by remember(order) { mutableStateOf(order) }
     var draggedSlot by remember { mutableStateOf<String?>(null) }
@@ -315,6 +336,7 @@ private fun ReorderableHomeSlotList(
     val density = LocalDensity.current
     val edgeZonePx = with(density) { HOME_EDGE_SCROLL_ZONE.toPx() }
     val edgeSpeedPx = with(density) { HOME_EDGE_SCROLL_SPEED.toPx() }
+    val visibleCount = order.count { it !in hidden }
 
     fun advanceDrag(delta: Float) {
         val slot = draggedSlot ?: return
@@ -384,6 +406,13 @@ private fun ReorderableHomeSlotList(
             key(slot) {
                 val shown = slot !in hidden
                 val dragging = slot == draggedSlot
+                val slotTitle = homeSlotTitle(slot, titles)
+                val canHide = canHideLayoutSlot(isVisible = shown, visibleCount = visibleCount)
+                val visibilityState = when {
+                    !canHide -> stringResource(R.string.layout_last_visible_row)
+                    shown -> stringResource(R.string.layout_visible_state)
+                    else -> stringResource(R.string.layout_hidden_state)
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -402,11 +431,6 @@ private fun ReorderableHomeSlotList(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = ACTION_HEIGHT)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() },
-                                onClick = { onToggle(slot) },
-                            )
                             .padding(start = 4.dp, end = 16.dp, top = 9.dp, bottom = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -455,12 +479,61 @@ private fun ReorderableHomeSlotList(
                             modifier = Modifier.weight(1f),
                         )
                         Spacer(Modifier.width(10.dp))
-                        if (shown) {
+                        Checkbox(
+                            checked = shown,
+                            onCheckedChange = { onToggle(slot) },
+                            enabled = canHide,
+                            modifier = Modifier.semantics {
+                                contentDescription = slotTitle
+                                stateDescription = visibilityState
+                            },
+                        )
+                        if (onTogglePin != null) {
+                            val isPinned = slot in pinned
+                            IconButton(onClick = { onTogglePin(slot) }) {
+                                Icon(
+                                    imageVector = if (isPinned) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                                    contentDescription = stringResource(
+                                        if (isPinned) R.string.unpin_home_section else R.string.pin_home_section,
+                                        homeSlotTitle(slot, titles),
+                                    ),
+                                    tint = if (isPinned) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                val index = liveOrder.indexOf(slot)
+                                if (index > 0) {
+                                    liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
+                                        .move(slot, -1).slots.map { it.key }
+                                    onReorder(liveOrder)
+                                }
+                            },
+                            enabled = liveOrder.indexOf(slot) > 0,
+                        ) {
                             Icon(
-                                imageVector = Icons.Rounded.Check,
-                                contentDescription = stringResource(R.string.enabled),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(19.dp),
+                                imageVector = Icons.Rounded.ArrowUpward,
+                                contentDescription = stringResource(R.string.move_home_section_up, homeSlotTitle(slot, titles)),
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val index = liveOrder.indexOf(slot)
+                                if (index in 0 until liveOrder.lastIndex) {
+                                    liveOrder = HomeLayout(liveOrder.map(::HomeSlot))
+                                        .move(slot, 1).slots.map { it.key }
+                                    onReorder(liveOrder)
+                                }
+                            },
+                            enabled = liveOrder.indexOf(slot) in 0 until liveOrder.lastIndex,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowDownward,
+                                contentDescription = stringResource(R.string.move_home_section_down, homeSlotTitle(slot, titles)),
+                                tint = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }

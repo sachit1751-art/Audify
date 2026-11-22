@@ -767,5 +767,10 @@ data class SongMenu(
 sealed interface UiState<out T> {
     data object Loading : UiState<Nothing>
     data class Success<T>(val data: T, val warning: String? = null) : UiState<T>
-    data class Error(val message: String) : UiState<Nothing>
+    /**
+     * A failed or unavailable result. Retry is opt-out for backwards
+     * compatibility; producers should set it to false for empty or permanent
+     * states that another identical request cannot resolve.
+     */
+    data class Error(val message: String, val retryable: Boolean = true) : UiState<Nothing>
 }

@@ -56,8 +56,8 @@ fun HistoryScreen(
             is UiState.Error -> item(key = "history:message") {
                 MessageState(
                     message = state.message,
-                    actionLabel = stringResource(R.string.try_again),
-                    onAction = onRetry,
+                    actionLabel = stringResource(R.string.try_again).takeIf { state.retryable },
+                    onAction = onRetry.takeIf { state.retryable },
                 )
             }
 

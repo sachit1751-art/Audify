@@ -98,6 +98,10 @@ object AudioRouting {
         _selectedId.value = null
     }
 
+    /** A selected route is valid only until its exact framework device id is removed. */
+    internal fun shouldForgetSelection(selectedId: Int?, removedIds: Collection<Int>): Boolean =
+        selectedId != null && selectedId in removedIds
+
     /** The device matching a chosen id, for handing to the player. */
     fun infoFor(manager: AudioManager, id: Int?): AudioDeviceInfo? {
         if (id == null) return null

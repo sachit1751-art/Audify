@@ -321,7 +321,11 @@ internal fun LazyListScope.moodGenreGrid(
     when (state) {
         UiState.Loading -> item(key = "mood-skeleton") { ExploreSkeletonRows(columns) }
         is UiState.Error -> item(key = "mood-error") {
-            MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
+            MessageState(
+                state.message,
+                actionLabel = stringResource(Res.string.retry).takeIf { state.retryable },
+                onAction = onRetry.takeIf { state.retryable },
+            )
         }
         is UiState.Success -> {
             val rows = state.data
@@ -380,7 +384,11 @@ fun MoodGenrePlaylistsScreen(
         when (state) {
             UiState.Loading -> feedSkeleton()
             is UiState.Error -> item {
-                MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
+                MessageState(
+                    state.message,
+                    actionLabel = stringResource(Res.string.retry).takeIf { state.retryable },
+                    onAction = onRetry.takeIf { state.retryable },
+                )
             }
             is UiState.Success -> items(state.data, key = { it.title }) { shelf ->
                 Shelf(shelf = shelf, onItemClick = onItemClick)

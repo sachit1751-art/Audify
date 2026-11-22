@@ -644,23 +644,28 @@ object LocalMediaRepository {
     suspend fun present(context: Context, songs: List<Song>): List<Song> = withContext(Dispatchers.IO) {
         val mediaIds = songs.mapNotNull { it.localUri?.mediaStoreAudioId() }
         val existing = HashSet<Long>()
-        val canAsk = mediaIds.isNotEmpty() && runCatching {
-            mediaIds.distinct().chunked(500).forEach { chunk ->
-                context.contentResolver.query(
+        val queryCompleted = mediaIds.isNotEmpty() && runCatching {
+            mediaIds.distinct().chunked(500).all { chunk ->
+                val cursor = context.contentResolver.query(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     arrayOf(MediaStore.Audio.Media._ID),
                     "${MediaStore.Audio.Media._ID} IN (${chunk.joinToString(",")})",
                     null,
                     null,
-                )?.use { cursor ->
-                    while (cursor.moveToNext()) existing += cursor.getLong(0)
+                ) ?: return@all false
+                cursor.use {
+                    while (it.moveToNext()) existing += it.getLong(0)
                 }
+                true
             }
-        }.isSuccess
+        }.getOrDefault(false)
         // MediaStore only answers for files this app may see. Without the
         // permission its silence is not an answer, except for this app's own
         // downloads, which it always sees.
-        val trustMissing = canAsk && hasStoragePermission(context)
+        val trustMissing = canTrustMissingMediaStoreRows(
+            queryCompleted = queryCompleted,
+            hasStoragePermission = hasStoragePermission(context),
+        )
         songs.filter { song ->
             val uri = song.localUri ?: return@filter false
             val id = uri.mediaStoreAudioId()
@@ -671,6 +676,12 @@ object LocalMediaRepository {
             }
         }
     }
+
+    /** A missing MediaStore row is evidence only after every lookup completed successfully. */
+    internal fun canTrustMissingMediaStoreRows(
+        queryCompleted: Boolean,
+        hasStoragePermission: Boolean,
+    ): Boolean = queryCompleted && hasStoragePermission
 
     /** The row id of a `content://media/…/audio/media/<id>` uri, else null. */
     private fun String.mediaStoreAudioId(): Long? {

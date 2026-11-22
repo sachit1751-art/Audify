@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 05 — Personalized Home Layout and Section Control
 
-**Status: planned — not started.**  
+**Status: in progress — Home shelves support pin-to-top, reorder, visibility and reset through the existing preference owner; app test/build and device verification remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 090 — Personalization Engine and Control Centre.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Plan 090 — Personalization Engine and Control Centre*
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -268,16 +268,25 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
+| 1 | Repository and product audit | Completed — HEAD `b49d62b7`; clean baseline; canonical owner and current Home implementation inspected |
+| 2 | Contract and acceptance design | Completed — add non-drag reorder controls while preserving existing order/visibility ownership |
+| 3 | Foundation and domain implementation | Implemented — `HomeLayout` supports bounded reorder, pinned state, last-visible-section guard and backward-compatible preference encoding; tests cover metadata, legacy decode, pin toggling and hide boundaries |
+| 4 | User interface and interaction | Implemented — accessible Move up/down actions, Home-only pin/unpin controls and a dedicated visibility checkbox with visible/hidden/last-section state descriptions |
 | 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
+| 6 | Reliability, performance and privacy | Partial — existing preference persistence remains backward-compatible; the visibility checkbox is now a dedicated control rather than a parent toggleable row containing nested pin/move buttons |
+| 7 | Full verification and regression pass | Home layout JVM tests passed as part of shared/app unit-test runs; phone/Wear/TV compilation, tests and lint passed; phone/tablet, accessibility and process-restart acceptance remains open |
 | 8 | Handoff and plan status | Not started |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress: **4/8 stages implemented; stages 5–7 remain partial pending automated and device verification.** Phone/tablet, screen-reader and lifecycle checks remain.
+
+### Additional implementation evidence — 2026-11-22
+
+- `HomeSlot.pinned` is persisted in the existing `AppSettings.homeLayout` preference using flag values `2`/`3`; legacy `0`/`1` values still decode as unpinned, preserving existing layouts without a migration.
+- `HomeLayout.arrange` promotes pinned shelves before unpinned shelves while retaining saved order within each group. Hidden/pinned metadata survives reorder and reset clears both.
+- `HomeLayout.togglePinned` toggles only the selected pin flag while preserving row position and hidden state. The editor uses that domain helper rather than maintaining a second pin mutation rule.
+- `canHideLayoutSlot` prevents hiding the last visible Home or Library section. The primary app tabs and player remain outside these shelf layouts and cannot be removed by this editor.
+- The Home editor exposes labeled pin/unpin actions; the Library editor retains its separate layout and does not gain Home pin semantics. Visibility is represented by an actual Material `Checkbox` with its own accessible label/state, so it no longer owns the entire row's click semantics around nested pin/move controls.
+- `HomeLayoutTest` covers pinned ordering, hidden+pinned round-trip, legacy preference decoding, reorder metadata and bounds. Phone/tablet, TalkBack and process-restart runtime checks remain unverified.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +298,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

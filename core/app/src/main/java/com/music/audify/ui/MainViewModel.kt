@@ -222,6 +222,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** The mixed YouTube Music result page is the fast, useful default. */
     private val _filter = MutableStateFlow(SearchFilter.ALL)
     val filter: StateFlow<SearchFilter> = _filter.asStateFlow()
+    /** Distinguishes a query-derived facet from a facet the user selected. */
+    private var searchFilterSelection = SearchFilterSelection()
 
     private val _searchLoadingMore = MutableStateFlow(false)
     val searchLoadingMore: StateFlow<Boolean> = _searchLoadingMore.asStateFlow()
@@ -1790,7 +1792,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             .onSuccess { shelves ->
                 val usable = shelves.filter { it.items.isNotEmpty() }
                 _exploreCharts.value = if (usable.isEmpty()) {
-                    UiState.Error(text(R.string.nothing_to_explore))
+                    UiState.Error(text(R.string.nothing_to_explore), retryable = false)
                 } else {
                     UiState.Success(usable)
                 }
@@ -1806,7 +1808,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val state = YtMusicRepository.moodAndGenres().fold(
             onSuccess = { sections ->
                 if (sections.isEmpty()) {
-                    UiState.Error(text(R.string.nothing_to_explore))
+                    UiState.Error(text(R.string.nothing_to_explore), retryable = false)
                 } else {
                     // Artwork yang sudah pernah dimuat langsung dipakai, jadi
                     // refresh tidak mengosongkan grid lalu mengulang puluhan request.
@@ -1926,7 +1928,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _moodGenreShelves.value = YtMusicRepository.moodGenreShelves(item.browseId, item.params).fold(
                 onSuccess = { shelves ->
-                    if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore))
+                    if (shelves.isEmpty()) UiState.Error(text(R.string.nothing_to_explore), retryable = false)
                     else UiState.Success(shelves)
                 },
                 onFailure = { UiState.Error(it.friendly()) },
@@ -2384,7 +2386,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // this ViewModel's scope, so it is cancelled with the screen and
                 // a liked track past the first page still reads as liked.
                 page.likedContinuation?.let { token -> syncLikedMusic(identity, token) }
-                if (page.isEmpty) UiState.Error(text(R.string.library_empty))
+                if (page.isEmpty) UiState.Error(text(R.string.library_empty), retryable = false)
                 else UiState.Success(page.copy(
                     shelves = filterExplicitHomeShelves(page.shelves),
                     likedContinuation = null,
@@ -2450,7 +2452,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun loadHistory() {
         if (!_signedIn.value) {
-            _history.value = UiState.Error(text(R.string.history_sign_in_required))
+            _history.value = UiState.Error(text(R.string.history_sign_in_required), retryable = false)
             return
         }
         val identity = listenerKey()
@@ -2458,10 +2460,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val next = YtMusicRepository.history().fold(
                 onSuccess = { songs ->
-                    if (songs.isEmpty()) UiState.Error(text(R.string.history_empty))
+                    if (songs.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
                     else {
                         val visible = filterExplicitSongs(songs)
-                        if (visible.isEmpty()) UiState.Error(text(R.string.history_empty))
+                        if (visible.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
                         else UiState.Success(visible)
                     }
                 },
@@ -2579,7 +2581,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun searchFor(term: String) {
         newestSuggestRequestId.incrementAndGet()
+        resetInferredSearchFilter()
         _query.value = term
+        applyInferredSearchFilter(term)
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
@@ -2596,6 +2600,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onQueryChange(newValue: String) {
         val requestId = newestSuggestRequestId.incrementAndGet()
+        if (newValue != _query.value) resetInferredSearchFilter()
         _query.value = newValue
         if (newValue.isBlank()) {
             searchSubmitted = false
@@ -2628,6 +2633,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun submitSearch() {
         val q = _query.value.trim()
         if (q.isEmpty() || _searchSource.value == SearchSource.LIBRARY) return
+        applyInferredSearchFilter(q)
         newestSuggestRequestId.incrementAndGet()
         searchSubmitted = true
         _suggestions.value = emptyList()
@@ -2653,7 +2659,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // search page dims them and says why on a tap — see `isBlocked` there.
         val addons = SourceRegistry.active().filterIsInstance<AddonSource>()
         if (addons.isEmpty()) {
-            _addonResults.value = UiState.Error(text(R.string.search_addons_none))
+            _addonResults.value = UiState.Error(text(R.string.search_addons_none), retryable = false)
             return
         }
         _addonResults.value = UiState.Loading
@@ -2712,7 +2718,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         libraryLoadJob = viewModelScope.launch {
             val context = getApplication<Application>()
             val state = if (!LocalMediaRepository.canReadLocalMusic(context)) {
-                UiState.Error(text(R.string.storage_required_read))
+                UiState.Error(text(R.string.storage_required_read), retryable = false)
             } else {
                 val scan = try {
                     LocalMediaRepository.getLocalMusicScan(context)
@@ -2740,10 +2746,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onFilterChange(value: SearchFilter) {
+        searchFilterSelection = searchFilterSelection.select(value)
         if (_filter.value == value) return
         _filter.value = value
         searchSubmitted = true
         runSearch()
+    }
+
+    private fun resetInferredSearchFilter() {
+        searchFilterSelection = searchFilterSelection.onQueryChanged()
+        _filter.value = searchFilterSelection.filter
+    }
+
+    private fun applyInferredSearchFilter(query: String) {
+        searchFilterSelection = searchFilterSelection.infer(query, _searchSource.value)
+        _filter.value = searchFilterSelection.filter
     }
 
     /** Cari query saat ini tanpa mencatat riwayat; dipakai popup Add Songs saat mengetik. */
@@ -2960,7 +2977,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         requestId: Long,
     ): UiState<List<SearchResult>> {
         val rows = filterExplicitSearchRows(page.rows)
-        if (rows.isEmpty()) return UiState.Error(text(R.string.no_results))
+        if (rows.isEmpty()) return UiState.Error(text(R.string.no_results), retryable = false)
         searchCache.put(key, SearchCacheEntry(page.rows, page.continuation))
         searchSession = SearchSession(key, requestId, _filter.value, page.continuation)
         prefetchTopResult(rows)
@@ -3220,7 +3237,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun remoteSongsState(remote: RemoteLibrary): UiState<List<Song>> =
-        com.music.audify.data.remote.RemoteListing.state(runCatching { remote.songs() }, text(remote.emptyRes))
+        com.music.audify.data.remote.RemoteListing.state(
+            listing = runCatching { remote.songs() },
+            emptyMessage = text(remote.emptyRes),
+            failureMessage = text(R.string.remote_library_load_failed),
+        )
 
     /**
      * Re-reads an open remote-library page after its server settings change.
@@ -3343,7 +3364,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             monthlyListenerCount = page.monthlyListenerCount
                             subscription = page.subscription
                             if (page.songs.isEmpty()) {
-                                UiState.Error(text(R.string.no_tracks_here))
+                                UiState.Error(text(R.string.no_tracks_here), retryable = false)
                             } else {
                                 UiState.Success(page.songs.withArtwork(thumbnailUrl ?: artwork))
                             }
@@ -3377,7 +3398,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             }
                             description = page.description
                             if (page.songs.isEmpty()) {
-                                UiState.Error(text(R.string.no_tracks_here))
+                                UiState.Error(text(R.string.no_tracks_here), retryable = false)
                             } else {
                                 more = page.continuation
                                 suggested = page.suggested.withArtwork(thumbnailUrl ?: artwork)
@@ -3459,11 +3480,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     setSongs(UiState.Success(soFar.map { it.asPendingSong() }))
                 }
             }.getOrElse {
-                setSongs(UiState.Error(it.message ?: text(R.string.failed)))
+                setSongs(UiState.Error(text(R.string.failed)))
                 return@launch
             }
             if (tracks.isEmpty()) {
-                setSongs(UiState.Error(text(R.string.spotify_empty_tracks)))
+                setSongs(UiState.Error(text(R.string.spotify_empty_tracks), retryable = false))
                 return@launch
             }
             val gate = Semaphore(SPOTIFY_MATCH_PARALLELISM)
@@ -3514,7 +3535,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             title = group.title,
             subtitle = group.subtitle,
             thumbnailUrl = group.thumbnailUrl,
-            songs = if (group.songs.isEmpty()) UiState.Error(text(R.string.no_tracks_here)) else UiState.Success(group.songs),
+            songs = if (group.songs.isEmpty()) UiState.Error(text(R.string.no_tracks_here), retryable = false) else UiState.Success(group.songs),
             type = group.type,
         )
     }
@@ -3531,7 +3552,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             title = pick.title.ifBlank { label },
             subtitle = pick.subtitle,
             thumbnailUrl = pick.images.firstOrNull(),
-            songs = if (songs.isEmpty()) UiState.Error(text(R.string.no_tracks_here)) else UiState.Success(songs),
+            songs = if (songs.isEmpty()) UiState.Error(text(R.string.no_tracks_here), retryable = false) else UiState.Success(songs),
             covers = pick.images,
         )
     }
@@ -3565,7 +3586,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _detailStack.value = _detailStack.value.map { page ->
                 if (page.browseId == id) {
                     page.copy(
-                        songs = if (songs.isEmpty()) UiState.Error(text(R.string.couldnt_load_tracks)) else UiState.Success(songs),
+                        songs = if (songs.isEmpty()) UiState.Error(text(R.string.couldnt_load_tracks), retryable = false) else UiState.Success(songs),
                     )
                 } else page
             }
@@ -3624,12 +3645,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun localPageState(browseId: String): UiState<List<Song>>? {
         val context = getApplication<Application>()
         fun nonEmpty(songs: List<Song>, empty: () -> String): UiState<List<Song>> =
-            if (songs.isEmpty()) UiState.Error(empty()) else UiState.Success(songs)
+            if (songs.isEmpty()) UiState.Error(empty(), retryable = false) else UiState.Success(songs)
 
         if (OfflinePlaylists.isOfflinePlaylist(browseId)) {
             // A playlist deleted while its page was still reachable — from
             // "Playing from", say — is an empty page, not a YouTube lookup.
-            val playlist = OfflinePlaylists.get(browseId) ?: return UiState.Error(text(R.string.no_tracks_here))
+            val playlist = OfflinePlaylists.get(browseId)
+                ?: return UiState.Error(text(R.string.no_tracks_here), retryable = false)
             return nonEmpty(LocalMediaRepository.present(context, playlist.songs)) {
                 text(if (playlist.isLiked) R.string.offline_liked_empty else R.string.offline_playlist_empty)
             }
@@ -3644,7 +3666,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // when it can't be listed is what this page says too.
             return when (val folder = localPageState(folderId)) {
                 is UiState.Success -> nonEmpty(LocalGroups.songsOf(browseId, folder.data)) { text(R.string.no_tracks_here) }
-                null -> UiState.Error(text(R.string.no_tracks_here))
+                null -> UiState.Error(text(R.string.no_tracks_here), retryable = false)
                 else -> folder
             }
         }
@@ -3655,7 +3677,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 nonEmpty(LocalMediaRepository.getDownloadedSongs(context)) { "No downloaded tracks" }
             browseId == CACHE_FOLDER_BROWSE_ID -> cachedSongsState()
             browseId == "local:all" -> if (!LocalMediaRepository.canReadLocalMusic(context)) {
-                UiState.Error(text(R.string.storage_required_read))
+                UiState.Error(text(R.string.storage_required_read), retryable = false)
             } else {
                 nonEmpty(LocalMediaRepository.getLocalMusic(context)) { text(R.string.no_local_audio_found) }
             }
@@ -3698,7 +3720,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun cachedSongsState(): UiState<List<Song>> {
         val songs = AudioCache.cachedSongs().map { it.song }
-        return if (songs.isEmpty()) UiState.Error(text(R.string.cached_songs_empty)) else UiState.Success(songs)
+        return if (songs.isEmpty()) UiState.Error(text(R.string.cached_songs_empty), retryable = false) else UiState.Success(songs)
     }
 
     /**

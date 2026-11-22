@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 09 — User-Controlled Listening Intent and Context
 
-**Status: planned — not started.**  
+**Status: in progress — the existing AutoPlay/radio refill owner now accepts session-scoped Familiar, Discovery, Energetic and Calm intent with an Off state, equal-score artist diversity and per-track explanations derived from the actual ranking signal. Automated coverage has been added but is intentionally pending the later verification pass.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 07 — Explainable Listening Recommendations and Plan 079 — Smart Music Radio.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -264,20 +264,30 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
+## Execution audit — 2026-11-22, baseline `b49d62b7`
+
+The current source exposes explicit mood choices through `TopPickMood`, `TopPicks.moodStation(...)`, the Find Your Mood surface in `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/screens/HomeScreen.kt` and `TopPicksShelf.kt`, and mood queue construction in `shared/src/jvmSharedMain/kotlin/com/music/audify/data/TopPicks.kt:540-591`. Mood queues are fetched when the user selects a mood. `TopPicks.moodFor(...)` also selects a suggested mood using local time; it does not inspect microphone, location, health, identity or other sensitive signals.
+
+The player already distinguishes player-origin actions from list-origin actions in `core/app/src/main/java/com/music/audify/MainActivity.kt:4847-5019` and `core/app/src/main/java/com/music/audify/ui/components/SongActionsMenu.kt`. Player-only options include sleep timer, playback-version controls, source rollback/upgrade, lyrics offset, spatial audio and track-log access; playlist-row actions are withheld when the menu is opened from the player. This contextual menu behaviour is already implemented in the baseline.
+
+The existing `core/app/src/main/java/com/music/audify/playback/Autoplay.kt` `loadAutoplayTracks`/`rankForAutomix` path is the current canonical radio refill owner: it already fetches provider radio candidates, preserves queue metadata, de-duplicates through `QueueBuilder`, and optionally applies `orderForMixing`. This pass extends that same path rather than creating a parallel recommender. `RadioListeningIntentState` is an in-memory session control exposed from the player-origin `SongActionsMenu`; it cycles Off, Familiar artists, Discover new artists, More energetic and Calmer. It is hidden in Listen Together parties, resets on a non-radio queue transition and when the playback service is destroyed, and is deliberately not persisted as a permanent taste profile.
+
+`orderForListeningIntent` applies deterministic stable ranking using only existing queue/session artist names or finite measured `TrackAnalysis.energyCurve` values. Missing evidence leaves provider order intact for those candidates. Within equal intent-score groups, a stable two-artist recency guard prefers an alternative artist when available; it never moves a lower intent score ahead of a higher one. The existing provider order remains the tie-breaker, the `QueueBuilder` still owns de-duplication and queue boundaries, and already-queued items are not silently reordered: a changed intent is labelled as applying to the next radio refill. The player menu explains each intent and, for the currently playing AutoPlay item, displays a per-track explanation derived from the signal actually available for that candidate. Explanations are session-only, bounded to 100 entries and cleared with the radio intent. No microphone, location, health, account identity or unapproved history signal is inferred. This remains an enhancement to the existing ranking engine, not a claim that the full Plan 07/079 recommendation system is complete.
+
 ## Implementation tracking
 
-| Stage | Workstream | Initial status |
+| Stage | Workstream | Current status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
-| 8 | Handoff and plan status | Not started |
+| 1 | Repository and product audit | Complete |
+| 2 | Contract and acceptance design | Partial — five-state session intent and signal-backed per-track explanation contract implemented; full Plan 07/079 acceptance remains |
+| 3 | Foundation and domain implementation | Partial — existing radio refill owner extended with deterministic artist/energy ranking, equal-score artist diversity and missing-evidence fallback |
+| 4 | User interface and interaction | Partial — player menu cycles intent, describes its real ranking input and shows the current AutoPlay track's factual reason; effect is explicitly next-batch only |
+| 5 | Platform and integration coverage | Android phone player/radio owner only; party UI hides the control; no device acceptance |
+| 6 | Reliability, performance and privacy | Partial — no new network/data source; session state is ephemeral and reset at queue/service boundaries |
+| 7 | Full verification and regression pass | In progress — focused ranking tests and cross-platform source tests/compilation are being rerun |
+| 8 | Handoff and plan status | In progress |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress is tracked by the current stage statuses above; Plan 09 is no longer blocked on owner discovery. Equal-score artist diversity and per-track explanations are implemented in the existing ranking owner and player song menu. Automated tests have been added but not run by request; device-level radio-session validation remains deferred. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +299,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

@@ -27,9 +27,12 @@ class OnboardingScreenTest {
             MaterialTheme {
                 OnboardingScreen(
                     signedIn = false,
+                    spotifyConnected = false,
                     initialName = "",
                     onNameChosen = {},
                     onSignIn = { signInRequested = true },
+                    onSpotifyConnect = {},
+                    onListenTogether = {},
                     onFinish = { finished = true },
                 )
             }
@@ -42,5 +45,34 @@ class OnboardingScreenTest {
             assertTrue(finished)
             assertFalse(signInRequested)
         }
+    }
+
+    @Test
+    fun discoveryOffersAllThreeExperiencesAndNameCanBeSkipped() {
+        composeRule.setContent {
+            MaterialTheme {
+                OnboardingScreen(
+                    signedIn = false,
+                    spotifyConnected = false,
+                    initialName = "",
+                    onNameChosen = {},
+                    onSignIn = {},
+                    onSpotifyConnect = {},
+                    onListenTogether = {},
+                    onFinish = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Get started").performClick()
+        composeRule.onNodeWithText("Your music.\nYour way.").assertIsDisplayed()
+        composeRule.onNodeWithText("YouTube Music").assertIsDisplayed()
+        composeRule.onNodeWithText("Spotify").assertIsDisplayed()
+        composeRule.onNodeWithText("Listen Together").assertIsDisplayed()
+
+        composeRule.onNodeWithText("Continue without connecting").performClick()
+        composeRule.onNodeWithText("Make it yours.").assertIsDisplayed()
+        composeRule.onNodeWithText("Skip for now").performClick()
+        composeRule.onNodeWithText("Ready to explore.").assertIsDisplayed()
     }
 }

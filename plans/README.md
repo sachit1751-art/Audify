@@ -30,9 +30,9 @@ Scope rules that apply to **every** plan (from the repo's AGENTS.md and project 
 - No changes to README/markdown files except inside `plans/` and the top-level planning docs.
 - Build/verify with JDK 21:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 
 ## Active plans
@@ -51,7 +51,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [08 - Music recognition](08-music-recognition.md) | Foreground recognition and history | **Proposal - provider/privacy/battery review required** |
 | [09 - Player Studio](09-player-studio.md) | Player layouts, backgrounds, gestures, motion | **Proposal - extend existing player components** |
 | [10 - Local metadata intelligence](10-local-metadata-intelligence.md) | Rich local tags and reconciliation | **Proposal - reconcile older plans** |
-| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | Output-aware tuning | **Proposal - reconcile audio pipeline** |
+| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | Output-aware tuning | **Historical proposal file missing from current tree; recovered from Git history by Micro Improvement 06; blocked on licensed measured data/output attachment** |
 | [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Lyrics fallback, correction, translation | **Proposal - reconcile lyrics foundation** |
 | [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | FCast and DLNA research | **Research proposal** |
 | [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions and playback | **Blocked - Plan 15 prerequisite** |
@@ -80,7 +80,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [090 - Personalization Engine and Control Centre](090-personalization-and-control-center.md) | Appearance, Home layout, player presentation, configurable gestures and personalization profiles | **Planned for v1.9.2; reconcile with Plans 09, 11, 080 and 081 before implementation** |
 | [091 - AUDIFY Identity and Lightweight Social Layer](091-audify-identity-and-social-layer.md) | First-party accounts, profiles, username discovery, follow graph and shared identity foundation | **P0 — FIRST PRIORITY; prerequisite for Plan 075 and Issue #23** |
 | [092 - Differentiated Listening Experience Roadmap](092-differentiated-listening-experience-roadmap.md) | Umbrella roadmap for personal music identity, intelligent discovery, social music, deeper exploration and cross-device continuity | **Roadmap - reuse Plans 06, 07, 075, 079, 082, 083 and 091; Plan 083 is the easiest first slice** |
-| [Micro Improvements](micro-improvements/README.md) | Ten focused proposals for playback reliability, queue, offline use, search, home personalization, audio, accessibility, onboarding, context-aware listening and recovery | **Proposal collection - reconcile with existing plans before implementation** |
+| [Micro Improvements](micro-improvements/README.md) | Ten focused improvements across playback, queue, offline use, search, Home, audio, accessibility, onboarding, context and recovery | **In progress — source/test changes across all ten plans; Plan 06's measured headphone correction prerequisites and Plan 09's per-track explainability/diversity acceptance remain open** |
 
 ## Critical execution priority
 

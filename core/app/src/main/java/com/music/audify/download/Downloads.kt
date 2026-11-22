@@ -499,7 +499,7 @@ object Downloads {
         return withContext(Dispatchers.IO) {
             val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
             val deleted = DownloadStore.delete(context, uri)
-            forget(videoId)
+            if (deleted) forget(videoId)
             deleted
         }
     }

@@ -3,15 +3,26 @@
 package com.music.audify
 
 import com.music.audify.playback.QueueShuffle
+import com.music.audify.playback.randomPlayableShuffleStartIndex
 import com.music.audify.playback.queueStartIndex
+import com.music.audify.data.model.Song
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 /**
  * The reordering behind the shuffle toggle. Playing the queue is ExoPlayer's
  * job; getting the queue into the order it should play in is this one's.
  */
 class QueueShuffleTest {
+
+    private fun testSong(id: String) = Song(
+        videoId = id,
+        title = "Title $id",
+        artist = "Artist $id",
+        thumbnailUrl = null,
+    )
 
     /** The upcoming stretch of the queue as turning shuffle off leaves it. */
     private fun restored(upcoming: List<String>, original: List<String>): List<String> =
@@ -25,6 +36,35 @@ class QueueShuffleTest {
     @Test
     fun `an unshuffled queue starts at the tapped track's list position`() {
         assertEquals(3, queueStartIndex(requestedIndex = 3, itemCount = 5, shuffled = false))
+    }
+
+    @Test
+    fun `collection shuffle chooses among playable rows rather than unresolved Spotify placeholders`() {
+        val songs = listOf(
+            testSong("spotify-pending").copy(videoId = "sp:pending"),
+            testSong("playable-a"),
+            testSong("spotify-missing").copy(videoId = "sp-miss:missing"),
+            testSong("playable-b"),
+            testSong("playable-c"),
+        )
+
+        val picks = (0L until 100L).mapNotNull { seed ->
+            randomPlayableShuffleStartIndex(songs, Random(seed))
+        }
+
+        assertTrue(picks.all { it == 1 || it == 3 || it == 4 })
+        assertEquals(setOf(1, 3, 4), picks.toSet())
+    }
+
+    @Test
+    fun `collection shuffle returns no start when every Spotify row is unresolved`() {
+        val songs = listOf(
+            testSong("pending").copy(videoId = "sp:pending"),
+            testSong("missing").copy(videoId = "sp-miss:missing"),
+        )
+
+        assertEquals(null, randomPlayableShuffleStartIndex(songs, Random(0)))
+        assertEquals(null, randomPlayableShuffleStartIndex(emptyList(), Random(0)))
     }
 
     @Test

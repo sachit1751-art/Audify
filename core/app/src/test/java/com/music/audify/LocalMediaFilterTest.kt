@@ -75,4 +75,26 @@ class LocalMediaFilterTest {
             ),
         )
     }
+
+    @Test
+    fun doesNotTreatAnUnavailableMediaStoreQueryAsProofThatFilesAreMissing() {
+        assertFalse(
+            LocalMediaRepository.canTrustMissingMediaStoreRows(
+                queryCompleted = false,
+                hasStoragePermission = true,
+            ),
+        )
+        assertFalse(
+            LocalMediaRepository.canTrustMissingMediaStoreRows(
+                queryCompleted = true,
+                hasStoragePermission = false,
+            ),
+        )
+        assertTrue(
+            LocalMediaRepository.canTrustMissingMediaStoreRows(
+                queryCompleted = true,
+                hasStoragePermission = true,
+            ),
+        )
+    }
 }

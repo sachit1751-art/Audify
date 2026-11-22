@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 08 — First-Run Onboarding and First Successful Play
 
-**Status: planned — not started.**  
+**Status: in progress — current source already implements the four-step skippable flow; Back navigation now has focused regression tests; lifecycle/device verification remains.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Existing navigation, permissions, provider connection and first-run preference architecture.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -264,20 +264,28 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
+## Execution audit — 2026-11-22, baseline `b49d62b7`
+
+The existing implementation is in `core/app/src/main/java/com/music/audify/ui/onboarding/OnboardingScreen.kt` and is mounted once from `core/app/src/main/java/com/music/audify/MainActivity.kt:5991-6011`. `AppSettings.onboardingComplete` is loaded from and written to the existing preferences key in `core/app/src/main/java/com/music/audify/data/settings/AppSettings.kt:830-835,1666,2265-2268`.
+
+Verified in source: welcome, optional profile name, optional Google sign-in, and a music setup destination; Skip is available on every page; Back navigation is wired; page and name use `rememberSaveable`; an already signed-in account bypasses the connect page; completion uses the existing preference. Local audio is explicitly described as account-free. No new permission request, schema, remote service, or tracking path was introduced.
+
+This worker extracted the Back destination mapping into `previousOnboardingPage` and added focused tests for the signed-in and signed-out navigation paths. Clean-install, upgrade, process-death, permission-denial, screen-reader and large-text acceptance still require broader verification and device checks. Do not mark the plan done yet.
+
 ## Implementation tracking
 
-| Stage | Workstream | Initial status |
+| Stage | Workstream | Current status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
-| 8 | Handoff and plan status | Not started |
+| 1 | Repository and product audit | Complete |
+| 2 | Contract and acceptance design | Partial — existing flow audited; lifecycle criteria need tests |
+| 3 | Foundation and domain implementation | Existing preference-backed completion reused |
+| 4 | User interface and interaction | Existing flow retained; Back mapping extracted and tested |
+| 5 | Platform and integration coverage | Android phone path only; other surfaces not verified |
+| 6 | Reliability, performance and privacy | Source audit complete; lifecycle/device checks pending |
+| 7 | Full verification and regression pass | Onboarding navigation JVM tests and phone/Wear/TV compilation, unit tests and lint passed in the serialized 2026-11-22 run; process recreation and device navigation remain unverified |
+| 8 | Handoff and plan status | In progress |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress is tracked by the current stage statuses above; acceptance gates remain open. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +297,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

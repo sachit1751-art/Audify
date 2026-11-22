@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 04 — Intent-Aware Unified Search
 
-**Status: in-progress ? typeahead responses now require matching query generation, source and submission state. Search intent, facets and provider capability work remain.**
+**Status: in progress — confident leading natural-language intents now select an existing YouTube Music facet; provider capability boundaries remain explicit. Full acceptance and device verification are still pending.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 05 — Advanced Search Filters and existing provider search adapters.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Plan 05 — Advanced Search Filters and existing provid
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -268,16 +268,36 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
+| 1 | Repository and product audit | Complete — see audit below |
+| 2 | Contract and acceptance design | Complete for the implemented intent slice |
+| 3 | Foundation and domain implementation | Partial — query intent inference and regression tests added |
+| 4 | User interface and interaction | Partial — existing facet selector reflects inferred filter; no new controls |
 | 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Not started |
-| 8 | Handoff and plan status | Not started |
+| 6 | Reliability, performance and privacy | Partial — query is passed unchanged; no new persistence or network path |
+| 7 | Full verification and regression pass | In progress — pure inference, manual-facet precedence, query-edit reset and source-boundary tests added; final serialized DevDebug/shared/Wear/TV validation is being rerun |
+| 8 | Handoff and plan status | In progress |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+### Current source audit (baseline `b49d62b7`)
+
+| Area | Current owner and evidence | Capability / decision |
+|---|---|---|
+| Search state and requests | `core/app/.../ui/MainViewModel.kt`: `_query`, `_filter`, `submitSearch`, `runSearch`, `startSearchPipeline` | YouTube Music is the only source with typed browse filters; requests already carry `SearchFilter`. |
+| Provider result model | `shared/.../data/model/Models.kt`: `SearchResult`, `BrowseItem`, `BrowseType`, `SearchFilter` | Results are typed as tracks, top tracks, or browse rows. YouTube Music filters expose All, Songs, Videos, Albums, Artists and Playlists. |
+| Provider adapter boundary | `core/app/.../data/sources/MusicSource.kt`: `MusicSource.search`; `YouTubeSource`, `JioSaavnSource`, `AddonSource`, `ModuleSource` | Source adapters return `Song` tracks only. They do not advertise album/artist/playlist browse search. Do not map browse facets onto them. |
+| Local and addon search | `MainViewModel.libraryResults`, `runAddonSearch`; `SearchScreen.kt` | Both are track-only and the UI already omits YouTube facet controls for these sources. |
+| UI facets | `sharedUi/.../screens/SearchScreen.kt`: `StyledSegmentedControl` over `SearchFilter.entries` | Existing selector is the real filter control; inferred intent updates its selected facet. |
+| Typed playable-media dependency | `plans/15-typed-playable-media.md`; current `SearchResult` remains music-catalogue-shaped | Plan 15's proposed podcast playback descriptor is not implemented and does not authorize podcast search results. Podcast show discovery currently has a separate provider API/screen. |
+| Existing race protection | `SearchPipelineState.kt`, `SearchPipelineStateTest.kt`, and `MainViewModel` request generations | Typeahead and library responses already reject stale generations. This change reuses that pipeline without altering request cancellation. |
+
+### Intent contract implemented
+
+- Recognize only confident leading phrases (`songs/tracks by`, `albums by`, `artist`, `playlists by/for/with`, and `music videos by`) and select the matching existing `SearchFilter`.
+- Keep the complete original query unchanged when sending it to the provider; the inferred facet only chooses the provider's existing filter parameter.
+- Infer only while the current facet is neutral (`ALL`). A manually selected facet takes precedence.
+- Reset an inferred facet when the query text changes. A manual facet remains selected across query edits, matching existing behavior.
+- Ambiguous or incomplete phrases do not infer a facet. No fuzzy matching, provider syntax, result types, or capabilities are invented.
+
+Progress is **2/8 complete, 3 partial, 1 in progress** for this implementation slice. The initial focused attempt used an invalid `FossDebug` task; the actual application variant is `DevDebug`. The Android SDK has since been located and configured for centralized validation. No device test was attempted under the explicit no-emulator/device constraint. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +309,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

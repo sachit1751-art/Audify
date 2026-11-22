@@ -223,6 +223,7 @@ import com.music.audify.playback.PlayerDeepLink
 import com.music.audify.playback.QueueCoordinator
 import com.music.audify.playback.QueueCoordinator.asQueueEntry
 import com.music.audify.playback.QueueShuffle
+import com.music.audify.playback.randomPlayableShuffleStartIndex
 import com.music.audify.playback.QueueSource
 import com.music.audify.playback.cast.CastController
 import com.music.audify.data.model.QueueTier
@@ -232,6 +233,8 @@ import com.music.audify.playback.commitRadioQueue
 import com.music.audify.playback.fromAutoplay
 import com.music.audify.playback.hasYouTubeOriginal
 import com.music.audify.playback.loadAutoplayTracks
+import com.music.audify.playback.RadioRecommendationExplanationState
+import com.music.audify.playback.RadioRecommendationReason
 import com.music.audify.playback.playSongs
 import com.music.audify.playback.BoundedQueuePlanner
 import com.music.audify.playback.playBoundedContext
@@ -935,6 +938,7 @@ private fun AudifyApp(
     // Every other surface follows the theme; Replay's page and stories remain
     // dark artwork either way. So is the welcome, drawn over all of it.
     val onboardingComplete by AppSettings.onboardingComplete.collectAsStateWithLifecycle()
+    val onboardingSpotifyConnected by AppSettings.spotifySpdcToken.collectAsStateWithLifecycle()
     // Held through the slide away as well, so the glyphs don't turn dark over
     // the mesh while it is still on its way off the screen.
     val onboardingShown = remember { MutableTransitionState(!onboardingComplete) }
@@ -3710,12 +3714,21 @@ private fun AudifyApp(
                                 onSongLongPress = { openSongMenu(withAlbum(it)) },
                                 onSongSwipe = { onSongSwipe(withAlbum(it)) },
                                 onShuffle = { songs ->
-                                    if (songs.isNotEmpty()) {
+                                    val startIndex = randomPlayableShuffleStartIndex(songs)
+                                    if (startIndex != null) {
                                         // Shuffle goes on first so the queue is built shuffled
-                                        // as it is set — the random pick here only decides
-                                        // which track leads it.
+                                        // as it is set. Spotify rows still waiting for a
+                                        // YouTube match are excluded before choosing the lead;
+                                        // selecting one used to make playFrom reject the whole
+                                        // request and leave the previous track playing.
                                         QueueShuffle.enableForNextQueue()
-                                        playDetailSongs(songs, songs.indices.random())
+                                        playDetailSongs(songs, startIndex)
+                                    } else if (songs.isNotEmpty()) {
+                                        Toast.makeText(
+                                            context,
+                                            R.string.spotify_matches_still_loading,
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
                                     }
                                 },
                                 onSectionItemClick = { item ->
@@ -5016,6 +5029,15 @@ private fun AudifyApp(
             val trackSpatialOverrides by AppSettings.spatialAudioByTrack.collectAsStateWithLifecycle()
             val spatialAudioGlobal by AppSettings.spatialAudio.collectAsStateWithLifecycle()
             val spatialAudioOn = trackSpatialOverrides[song.videoId] ?: spatialAudioGlobal
+            val radioRecommendationReasons by RadioRecommendationExplanationState.byVideoId.collectAsStateWithLifecycle()
+            val recommendationExplanation = when (radioRecommendationReasons[song.videoId]) {
+                RadioRecommendationReason.FAMILIAR_ARTIST -> stringResource(R.string.radio_reason_familiar_artist)
+                RadioRecommendationReason.NEW_ARTIST -> stringResource(R.string.radio_reason_new_artist)
+                RadioRecommendationReason.HIGHER_MEASURED_ENERGY -> stringResource(R.string.radio_reason_higher_energy)
+                RadioRecommendationReason.LOWER_MEASURED_ENERGY -> stringResource(R.string.radio_reason_lower_energy)
+                RadioRecommendationReason.PROVIDER_ORDER -> stringResource(R.string.radio_reason_provider_order)
+                null -> null
+            }
             SongActionsMenu(
                 song = song,
                 signedIn = signedIn,
@@ -5129,6 +5151,8 @@ private fun AudifyApp(
                 // looked up as the menu opens — see `needsLinks` above.
                 resolvingLinks = if (fromPlayer) linksLoading else needsLinks && menuLinksLoading,
                 showSleepTimer = fromPlayer,
+                showRadioIntentControl = fromPlayer && !partyState.inParty,
+                recommendationExplanation = recommendationExplanation,
                 // Song Info: menu langsung menutup, popup-nya tampil sendiri.
                 onShowSongInfo = { info ->
                     songInfoBackdrop = if (menuFromPlayer && playerRaised && songMenuOrigin == null) {
@@ -6002,11 +6026,17 @@ private fun AudifyApp(
         ) {
             OnboardingScreen(
                 signedIn = signedIn,
+                spotifyConnected = onboardingSpotifyConnected.isNotBlank(),
                 initialName = remember {
                     ListenTogether.nickname().ifBlank { account?.name.orEmpty() }
                 },
                 onNameChosen = ListenTogether::setNickname,
                 onSignIn = { webSession = WebSessionMode.SIGN_IN },
+                onSpotifyConnect = { showSpotifyLogin = true },
+                onListenTogether = {
+                    AppSettings.setOnboardingComplete()
+                    navigator.push(AppRoute.ListenTogether)
+                },
                 onFinish = AppSettings::setOnboardingComplete,
             )
         }

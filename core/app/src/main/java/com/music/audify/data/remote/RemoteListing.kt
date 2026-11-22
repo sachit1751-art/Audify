@@ -10,9 +10,18 @@ import com.music.audify.data.model.UiState
  */
 object RemoteListing {
 
-    fun <T> state(listing: Result<List<T>>, emptyMessage: String): UiState<List<T>> =
+    fun <T> state(
+        listing: Result<List<T>>,
+        emptyMessage: String,
+        failureMessage: String,
+    ): UiState<List<T>> =
         listing.fold(
-            onSuccess = { items -> if (items.isEmpty()) UiState.Error(emptyMessage) else UiState.Success(items) },
-            onFailure = { UiState.Error(it.message?.takeIf(String::isNotBlank) ?: it.javaClass.simpleName) },
+            onSuccess = {
+                items -> if (items.isEmpty()) UiState.Error(emptyMessage, retryable = false) else UiState.Success(items)
+            },
+            // Remote exceptions can contain SMB paths, server names, usernames,
+            // or implementation details. Keep those out of user-visible state;
+            // detailed diagnostics belong in the existing redacted log path.
+            onFailure = { UiState.Error(failureMessage) },
         )
 }

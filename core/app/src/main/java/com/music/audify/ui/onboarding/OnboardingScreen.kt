@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,6 +43,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -50,7 +52,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -79,8 +80,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.music.audify.R
 import com.music.audify.sharedui.resources.Res
-import com.music.audify.sharedui.resources.ic_google_g
 import com.music.audify.sharedui.resources.ic_logo
+import com.music.audify.sharedui.resources.spotify_logo
 import org.jetbrains.compose.resources.painterResource
 import com.music.audify.ui.icons.AudifyIcons
 import com.music.audify.ui.player.MeshGradientBackground
@@ -103,11 +104,14 @@ import com.music.audify.ui.player.cyclingMeshPalette
 @Composable
 fun OnboardingScreen(
     signedIn: Boolean,
+    spotifyConnected: Boolean,
     initialName: String,
     /** Saves the party name. Called on Next, before the second page. */
     onNameChosen: (String) -> Unit,
     /** Opens the Google sign-in; a successful return advances to the music setup page. */
     onSignIn: () -> Unit,
+    onSpotifyConnect: () -> Unit,
+    onListenTogether: () -> Unit,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -115,23 +119,13 @@ fun OnboardingScreen(
     var name by rememberSaveable { mutableStateOf(initialName) }
     val focusManager = LocalFocusManager.current
 
-    BackHandler(enabled = page != PAGE_WELCOME) {
-        page = when (page) {
-            PAGE_NAME -> PAGE_WELCOME
-            PAGE_CONNECT -> PAGE_NAME
-            else -> if (signedIn) PAGE_NAME else PAGE_CONNECT
-        }
+    BackHandler(enabled = previousOnboardingPage(page) != null) {
+        previousOnboardingPage(page)?.let { page = it }
     }
-    // "Sign in with Google" goes through the app's own sign-in WebView, raised
-    // over this page; the account landing is what ends the welcome.
-    LaunchedEffect(signedIn, page) {
-        if (signedIn && page == PAGE_CONNECT) page = PAGE_MUSIC
-    }
-
     // Keep the original animated, multi-colour onboarding mesh. The welcome
     // and setup pages use AUDIFY's warm palette; account connection leans into
     // the original red/pink/violet palette.
-    val palette = cyclingMeshPalette(if (page == PAGE_CONNECT) ConnectPalettes else WelcomeMeshPalettes)
+    val palette = cyclingMeshPalette(if (page == PAGE_DISCOVERY) ConnectPalettes else WelcomeMeshPalettes)
 
     Box(
         modifier
@@ -181,25 +175,29 @@ fun OnboardingScreen(
                 onSkip = onFinish,
             ) {
                 when (shown) {
-                    PAGE_WELCOME -> WelcomePage(onNext = { page = PAGE_NAME })
+                    PAGE_WELCOME -> WelcomePage(onNext = { page = PAGE_DISCOVERY })
+                    PAGE_DISCOVERY -> DiscoveryPage(
+                        youtubeConnected = signedIn,
+                        spotifyConnected = spotifyConnected,
+                        onBack = { page = PAGE_WELCOME },
+                        onYouTubeConnect = onSignIn,
+                        onSpotifyConnect = onSpotifyConnect,
+                        onListenTogether = onListenTogether,
+                        onContinue = { page = PAGE_NAME },
+                    )
                     PAGE_NAME -> NamePage(
                         name = name,
                         onNameChange = { name = it.take(NAME_LIMIT) },
-                        onBack = { page = PAGE_WELCOME },
+                        onBack = { page = PAGE_DISCOVERY },
                         onNext = next@{
                             val chosen = name.trim()
-                            if (chosen.isEmpty()) return@next
                             focusManager.clearFocus()
-                            onNameChosen(chosen)
-                            if (signedIn) page = PAGE_MUSIC else page = PAGE_CONNECT
+                            if (chosen.isNotEmpty()) onNameChosen(chosen)
+                            page = PAGE_MUSIC
                         },
-                    )
-                    PAGE_CONNECT -> ConnectPage(
-                        onBack = { page = PAGE_NAME },
-                        onSignIn = onSignIn,
                         onSkip = { page = PAGE_MUSIC },
                     )
-                    else -> MusicSetupPage(onBack = { page = if (signedIn) PAGE_NAME else PAGE_CONNECT }, onFinish = onFinish)
+                    else -> MusicSetupPage(onBack = { page = PAGE_NAME }, onFinish = onFinish)
                 }
             }
         }
@@ -211,17 +209,17 @@ private fun ColumnScope.MusicSetupPage(onBack: () -> Unit, onFinish: () -> Unit)
     Spacer(Modifier.height(32.dp))
     BackButton(onBack)
     Spacer(Modifier.height(32.dp))
-    Title("You're all set.")
+    Title("Ready to explore.")
     Spacer(Modifier.height(14.dp))
     Text(
-        text = "Find something new, play audio from your device, or start a listening session with friends. You can connect music services whenever you need them.",
+        text = "Explore new music, browse your connected services, play audio stored on your device, or start listening with friends.",
         style = MaterialTheme.typography.bodyLarge,
         fontSize = 17.sp,
         lineHeight = 25.sp,
         color = Color.White.copy(alpha = 0.78f),
     )
     Spacer(Modifier.height(40.dp))
-    PillButton(label = "Start listening", onClick = onFinish, primary = true)
+    PillButton(label = "Explore music", onClick = onFinish, primary = true)
     Spacer(Modifier.height(24.dp))
 }
 
@@ -325,6 +323,7 @@ private fun ColumnScope.NamePage(
     onNameChange: (String) -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit,
+    onSkip: () -> Unit,
 ) {
     // With the keyboard up there is room for the title or the logo, not both;
     // the title is the one that says where you are.
@@ -346,7 +345,7 @@ private fun ColumnScope.NamePage(
     Spacer(Modifier.height(16.dp))
     BackButton(onBack)
     Spacer(Modifier.height(20.dp))
-    Title(stringResource(R.string.onboarding_title))
+    Title("Make it yours.")
 
     Spacer(Modifier.height(36.dp))
 
@@ -367,65 +366,114 @@ private fun ColumnScope.NamePage(
         modifier = Modifier.padding(horizontal = 4.dp),
     )
     Spacer(Modifier.height(24.dp))
-    PillButton(
-        label = stringResource(R.string.onboarding_next),
-        onClick = onNext,
-        enabled = name.isNotBlank(),
-        primary = true,
+    PillButton(label = "Continue", onClick = onNext, primary = true)
+    Spacer(Modifier.height(10.dp))
+    Text(
+        text = "Skip for now",
+        modifier = Modifier.fillMaxWidth().clip(CircleShape).clickable(role = Role.Button, onClick = onSkip).padding(14.dp),
+        textAlign = TextAlign.Center,
+        color = Color.White.copy(alpha = 0.72f),
+        style = MaterialTheme.typography.labelLarge,
     )
     Spacer(Modifier.height(24.dp))
 }
 
 @Composable
-private fun ColumnScope.ConnectPage(
+private fun ColumnScope.DiscoveryPage(
+    youtubeConnected: Boolean,
+    spotifyConnected: Boolean,
     onBack: () -> Unit,
-    onSignIn: () -> Unit,
-    onSkip: () -> Unit,
+    onYouTubeConnect: () -> Unit,
+    onSpotifyConnect: () -> Unit,
+    onListenTogether: () -> Unit,
+    onContinue: () -> Unit,
 ) {
     Spacer(Modifier.height(32.dp))
     BackButton(onBack)
-    Spacer(Modifier.height(32.dp))
-    Title("Your library,\nwithin reach.")
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(22.dp))
+    Title("Your music.\nYour way.")
+    Spacer(Modifier.height(10.dp))
     Text(
-        text = "Connect YouTube Music to access your saved playlists, liked songs, and supported account features. This is optional — local audio works without signing in.",
+        text = "Choose how you want to experience music with Audify. You can change this later.",
         style = MaterialTheme.typography.bodyLarge,
         fontSize = 17.sp,
         lineHeight = 25.sp,
         color = Color.White.copy(alpha = 0.72f),
     )
-
-    Spacer(Modifier.height(30.dp))
-    Row(verticalAlignment = Alignment.Top) {
-        Text(
-            "Your sign-in is handled by Google. Audify never asks for your Google password.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.82f),
-            lineHeight = 21.sp,
-        )
-    }
-
-    Spacer(Modifier.height(42.dp))
-
-    PillButton(
-        label = "Continue with Google",
-        onClick = onSignIn,
-        primary = true,
+    Spacer(Modifier.height(24.dp))
+    DiscoveryOption(
+        title = "YouTube Music",
+        description = if (youtubeConnected) "Connected · browse your supported music library" else "Connect to explore playlists, liked songs and personalised content",
+        actionLabel = if (youtubeConnected) "Connected" else "Connect",
+        onClick = { if (!youtubeConnected) onYouTubeConnect() },
+        accent = Color(0xFFFF5252),
         leading = {
-            Image(
-                painter = painterResource(Res.drawable.ic_google_g),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-            )
+            Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0x33FF5252)), contentAlignment = Alignment.Center) {
+                Icon(AudifyIcons.Play, contentDescription = null, tint = Color(0xFFFF7777), modifier = Modifier.size(22.dp))
+            }
         },
     )
-    Spacer(Modifier.height(14.dp))
-    PillButton(
-        label = stringResource(R.string.onboarding_skip_sign_in),
-        onClick = onSkip,
-        primary = false,
+    Spacer(Modifier.height(10.dp))
+    DiscoveryOption(
+        title = "Spotify",
+        description = if (spotifyConnected) "Connected · browse your supported Spotify playlists" else "Connect to browse your Spotify playlists and Liked Songs; playback is matched through YouTube Music",
+        actionLabel = if (spotifyConnected) "Connected" else "Connect",
+        onClick = { if (!spotifyConnected) onSpotifyConnect() },
+        accent = Color(0xFF1DB954),
+        leading = {
+            Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0x331DB954)), contentAlignment = Alignment.Center) {
+                Image(painterResource(Res.drawable.spotify_logo), contentDescription = null, modifier = Modifier.size(25.dp))
+            }
+        },
     )
+    Spacer(Modifier.height(10.dp))
+    DiscoveryOption(
+        title = "Listen Together",
+        description = "Create a listening party or join one with friends",
+        actionLabel = "Explore",
+        onClick = onListenTogether,
+        accent = Color(0xFFE6C17A),
+        leading = {
+            Box(Modifier.size(42.dp).clip(CircleShape).background(Color(0x33E6C17A)), contentAlignment = Alignment.Center) {
+                Text("♫", color = Color(0xFFE6C17A), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            }
+        },
+    )
+    Spacer(Modifier.height(18.dp))
+    Text("Or use music stored on your device — no account needed.", color = Color.White.copy(alpha = 0.72f), style = MaterialTheme.typography.bodyMedium)
+    Spacer(Modifier.height(16.dp))
+    PillButton(label = "Continue without connecting", onClick = onContinue, primary = true)
     Spacer(Modifier.height(24.dp))
+}
+
+@Composable
+private fun DiscoveryOption(
+    title: String,
+    description: String,
+    actionLabel: String,
+    onClick: () -> Unit,
+    accent: Color,
+    leading: @Composable () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xCC171B27))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(20.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        leading()
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(3.dp))
+            Text(description, color = Color.White.copy(alpha = 0.66f), style = MaterialTheme.typography.bodySmall, lineHeight = 17.sp)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(actionLabel, color = accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+    }
 }
 
 /** A restrained headline that remains legible at the user's chosen font scale. */
@@ -564,10 +612,18 @@ private fun BackButton(onClick: () -> Unit) {
     }
 }
 
-private const val PAGE_WELCOME = 0
-private const val PAGE_NAME = 1
-private const val PAGE_CONNECT = 2
-private const val PAGE_MUSIC = 3
+internal const val PAGE_WELCOME = 0
+internal const val PAGE_DISCOVERY = 1
+internal const val PAGE_NAME = 2
+internal const val PAGE_MUSIC = 3
+
+/** The page Back should reveal, or null when the welcome is already at the root. */
+internal fun previousOnboardingPage(page: Int): Int? = when (page) {
+    PAGE_DISCOVERY -> PAGE_WELCOME
+    PAGE_NAME -> PAGE_DISCOVERY
+    PAGE_MUSIC -> PAGE_NAME
+    else -> null
+}
 
 /** Long enough for a full name; the party server keeps the first 80. */
 private const val NAME_LIMIT = 40

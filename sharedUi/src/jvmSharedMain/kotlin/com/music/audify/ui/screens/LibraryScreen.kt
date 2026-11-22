@@ -296,7 +296,11 @@ fun LibraryScreen(
                     is UiState.Loading -> status.add { librarySkeleton() }
                     is UiState.Error -> status.add {
                         item {
-                            MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
+                            MessageState(
+                                state.message,
+                                actionLabel = stringResource(Res.string.retry).takeIf { state.retryable },
+                                onAction = onRetry.takeIf { state.retryable },
+                            )
                         }
                     }
                     is UiState.Success -> {

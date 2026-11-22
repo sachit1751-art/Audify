@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 07 — Cross-Platform Accessibility Audit and Remediation
 
-**Status: in-progress ? playback/queue/transport controls honor reduced motion; Wear OS queue rows use occurrence identity and reject stale snapshots. Screen-reader, focus, large-text and cross-platform verification remain.**
+**Status: in progress — playback/queue/transport controls honor reduced motion; Wear OS queue rows use occurrence identity; Home supports non-drag reorder, pin/unpin and explicit visibility semantics. Screen-reader, focus, large-text and cross-platform verification remain.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plans 02, 073, 074, 084 and the existing design/accessibility system.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -125,9 +125,9 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 2. Run relevant integration tests and static analysis configured by the repository.
 3. Run the repository-approved JDK 21 commands:
    ```bash
-   ./gradlew :app:compileFossDebugKotlin --console=plain
-   ./gradlew :app:testFossDebugUnitTest --console=plain
-   ./gradlew :app:assembleFossDebug --console=plain
+   ./gradlew :app:compileDevDebugKotlin --console=plain
+   ./gradlew :app:testDevDebugUnitTest --console=plain
+   ./gradlew :app:assembleDevDebug --console=plain
    ```
 4. Run additional module/platform build tasks only when the changed code requires them and the task exists.
 5. For UI or device-specific work, install and verify on a real emulator/device; screenshots or compilation alone are insufficient.
@@ -268,16 +268,23 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Not started |
-| 2 | Contract and acceptance design | Not started |
-| 3 | Foundation and domain implementation | Not started |
-| 4 | User interface and interaction | Not started |
+| 1 | Repository and product audit | Completed — current Home, audio controls, TV motion, Wear queue semantics and web motion references inspected |
+| 2 | Contract and acceptance design | Completed — prioritized non-drag Home reorder and explicit row toggle semantics |
+| 3 | Foundation and domain implementation | Partial — shared Home layout move and backward-compatible pin persistence added with boundary/metadata tests |
+| 4 | User interface and interaction | Partial — Home/Library reorder actions, Home pin/unpin and a dedicated labeled visibility checkbox added; broader screen audit remains |
 | 5 | Platform and integration coverage | Not started |
 | 6 | Reliability, performance and privacy | Not started |
 | 7 | Full verification and regression pass | Not started |
 | 8 | Handoff and plan status | Not started |
 
-Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
+Progress: **1/8 stages completed; stages 3–4 are partial.** Core journeys, large text, TalkBack, keyboard/remote focus and device verification remain.
+
+### Current-checkout reconciliation (2026-11-22)
+
+- Plan 073's TV root already collects `AppSettings.reduceAnimation` and provides `LocalTvReduceMotion`; setup and Now Playing transitions use reduced-motion-aware specs, and artwork tint snaps when reduced motion is enabled. Remaining TV call sites still require a complete animation inventory and remote/device checks.
+- Plan 074's Wear queue now uses `stableKey(duplicateEntryIds)` and rejects stale snapshots before rendering. Existing list rows and transport controls expose some action semantics; target bounds, traversal, rotary and ambient behavior still require watch verification.
+- Plan 084's historical CSS path `platforms/web/core/app/src/styles/global.css` does not exist in this checkout. The current stylesheet is `platforms/web/app/src/styles/global.css`; its reduced-motion rules are already present at lines 403–418 with a download-ring override at 430. No duplicate web motion policy was added.
+- Home layout rows previously exposed drag-only reordering and a generic clickable visibility row. The current change adds Move up/Move down buttons with shelf-specific labels, Home-only pin/unpin actions and a dedicated Material Checkbox whose own semantics expose checked state and shelf label; this avoids putting the checkbox semantics on a parent that also contains pin/move buttons. These controls are source-verified only; TalkBack/focus/target-size acceptance remains unverified.
 
 ## Repository-wide execution constraints
 
@@ -289,9 +296,9 @@ Progress is **0/8** until work is actually performed and evidenced. Estimates ar
 - Do not edit README/Markdown outside `plans/` and top-level planning docs.
 - Use JDK 21 and the repository-approved verification commands:
   ```bash
-  ./gradlew :app:compileFossDebugKotlin --console=plain
-  ./gradlew :app:testFossDebugUnitTest --console=plain
-  ./gradlew :app:assembleFossDebug --console=plain
+  ./gradlew :app:compileDevDebugKotlin --console=plain
+  ./gradlew :app:testDevDebugUnitTest --console=plain
+  ./gradlew :app:assembleDevDebug --console=plain
   ```
 - Preserve unrelated working-tree changes. Never reset, clean, stash, or overwrite user work without approval.
 - Do not assume a path, class, API, platform target or feature exists; prove it from the current checkout.

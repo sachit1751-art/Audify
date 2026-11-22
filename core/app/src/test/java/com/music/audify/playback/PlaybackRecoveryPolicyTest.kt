@@ -4,6 +4,7 @@ package com.music.audify.playback
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -39,6 +40,42 @@ class PlaybackRecoveryPolicyTest {
         assertTrue(PlaybackRecoveryPolicy.isCurrentItem("track-a", "track-a"))
         assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", "track-b"))
         assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", null))
+    }
+
+    @Test
+    fun `delayed recovery rejects another occurrence of the same media`() {
+        assertTrue(
+            PlaybackRecoveryPolicy.isCurrentItem(
+                failedMediaId = "track-a",
+                currentMediaId = "track-a",
+                failedQueueEntryId = "occurrence-1",
+                currentQueueEntryId = "occurrence-1",
+            ),
+        )
+        assertFalse(
+            PlaybackRecoveryPolicy.isCurrentItem(
+                failedMediaId = "track-a",
+                currentMediaId = "track-a",
+                failedQueueEntryId = "occurrence-1",
+                currentQueueEntryId = "occurrence-2",
+            ),
+        )
+    }
+
+    @Test
+    fun `retry budgets are independent for repeated queue occurrences`() {
+        assertNotEquals(
+            PlaybackRecoveryPolicy.recoveryKey("track-a", "occurrence-1"),
+            PlaybackRecoveryPolicy.recoveryKey("track-a", "occurrence-2"),
+        )
+        assertEquals(
+            PlaybackRecoveryPolicy.recoveryKey("track-a", null),
+            PlaybackRecoveryPolicy.recoveryKey("track-a", null),
+        )
+        assertNotEquals(
+            PlaybackRecoveryPolicy.recoveryKey("entry:track-a", null),
+            PlaybackRecoveryPolicy.recoveryKey("other", "track-a"),
+        )
     }
 
     @Test

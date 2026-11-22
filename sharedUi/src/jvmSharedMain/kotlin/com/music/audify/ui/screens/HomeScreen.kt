@@ -890,7 +890,11 @@ fun HomeScreen(
                     }
                 }
                 is UiState.Error -> item {
-                    MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
+                    MessageState(
+                        state.message,
+                        actionLabel = stringResource(Res.string.retry).takeIf { state.retryable },
+                        onAction = onRetry.takeIf { state.retryable },
+                    )
                 }
                 is UiState.Success -> {
                     // The Apple-style release row now leads Explore; keep it out of Home.

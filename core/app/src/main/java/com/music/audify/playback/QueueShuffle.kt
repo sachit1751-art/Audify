@@ -5,11 +5,28 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.music.audify.data.model.QueueTier
 import com.music.audify.data.model.Song
+import com.music.audify.data.model.isUnresolvedSpotify
 import com.music.audify.data.settings.AppSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
+import kotlin.random.Random
+
+/**
+ * Pick the starting occurrence for a collection-level Shuffle action.
+ * Spotify rows that have not resolved to a playable catalogue item are
+ * excluded before choosing; selecting one must never silently abort the
+ * entire shuffle request or fall back to the first row.
+ */
+internal fun randomPlayableShuffleStartIndex(
+    songs: List<Song>,
+    random: Random = Random.Default,
+): Int? {
+    val playableIndices = songs.indices.filterNot { songs[it].isUnresolvedSpotify }
+    if (playableIndices.isEmpty()) return null
+    return playableIndices[random.nextInt(playableIndices.size)]
+}
 
 /**
  * Shuffle as an edit to the queue, not a playback mode.

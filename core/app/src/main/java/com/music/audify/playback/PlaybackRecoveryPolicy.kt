@@ -13,11 +13,20 @@ internal object PlaybackRecoveryPolicy {
 
     fun nextAttempt(previousAttempts: Int): Int = previousAttempts + 1
 
+    /** Keep repeated queue occurrences' retry budgets independent. */
+    fun recoveryKey(mediaId: String, queueEntryId: String?): String =
+        queueEntryId?.let { "entry:$it" } ?: "media:$mediaId"
+
     fun shouldGiveUp(attempts: Int, permanentVerdict: String?, maxRecoveries: Int): Boolean =
         permanentVerdict != null || attempts > maxRecoveries
 
-    fun isCurrentItem(failedMediaId: String, currentMediaId: String?): Boolean =
-        currentMediaId == failedMediaId
+    fun isCurrentItem(
+        failedMediaId: String,
+        currentMediaId: String?,
+        failedQueueEntryId: String? = null,
+        currentQueueEntryId: String? = null,
+    ): Boolean = currentMediaId == failedMediaId &&
+        (failedQueueEntryId == null || currentQueueEntryId == failedQueueEntryId)
 
     fun skipDecision(
         verdict: String?,

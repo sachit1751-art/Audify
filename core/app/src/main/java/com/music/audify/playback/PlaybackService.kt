@@ -605,7 +605,7 @@ class PlaybackService : MediaLibraryService() {
             // Left set, its id matches nothing — and ids are reused, so it
             // would eventually match whatever device the framework hands that
             // number to next. See [AudioRouting].
-            if (removedDevices.any { it.id == AudioRouting.selectedId.value }) {
+            if (AudioRouting.shouldForgetSelection(AudioRouting.selectedId.value, removedDevices.map { it.id })) {
                 AudioRouting.forget()
             }
             requestOutputReconfiguration()
@@ -3622,10 +3622,11 @@ class PlaybackService : MediaLibraryService() {
      */
     private fun updateAudioEffectSession(activePlayer: ExoPlayer) {
         val sessionId = activePlayer.audioSessionId
-        val shouldAdvertise = activePlayer.playWhenReady &&
-            (activePlayer.playbackState == Player.STATE_BUFFERING ||
-                activePlayer.playbackState == Player.STATE_READY) &&
-            sessionId != C.AUDIO_SESSION_ID_UNSET && sessionId > 0
+        val shouldAdvertise = shouldAdvertiseAudioEffectSession(
+            playWhenReady = activePlayer.playWhenReady,
+            playbackState = activePlayer.playbackState,
+            sessionId = sessionId,
+        )
 
         if (!shouldAdvertise) {
             closeAudioEffectSession()
@@ -3771,8 +3772,8 @@ class PlaybackService : MediaLibraryService() {
             }
         }
         scheduleBoundedContextTopUp()
-        // A *different* track is a clean slate for [recoverFrom], and so is the
-        // same track becoming current for any reason other than that method's
+        // A *different* queue occurrence is a clean slate for [recoverFrom], and so is the
+        // same occurrence becoming current for any reason other than that method's
         // own retry. The distinction is the whole of the reported loading loop.
         //
         // This was an unconditional clear, on the reasoning that the count exists
@@ -3786,12 +3787,22 @@ class PlaybackService : MediaLibraryService() {
         // in 2m41s, each followed by a fresh "attempt 1", eight failures against
         // a budget of two, and roughly twenty-seven full resolve walks for one
         // unplayable track. [retryingMediaId] is the one case that must not
-        // reset; everything else still does.
+        // reset; everything else still does. Queue entry IDs distinguish two
+        // occurrences of the same media ID when the queue repeats a track.
+        // Radio suggestions carry radioName forward. A non-radio item means
+        // the listener chose a different queue, so end the previous intent.
+        if (mediaItem?.toSongOrNull()?.radioName.isNullOrBlank()) RadioListeningIntentState.clear()
         val becameCurrent = mediaItem?.mediaId
-        if (becameCurrent == null || becameCurrent != retryingMediaId) {
+        val becameCurrentEntryId = mediaItem?.queueEntryId
+        val isRetryTransition = if (retryingQueueEntryId != null) {
+            becameCurrent == retryingMediaId && becameCurrentEntryId == retryingQueueEntryId
+        } else {
+            becameCurrent != null && becameCurrent == retryingMediaId
+        }
+        if (!isRetryTransition) {
             recoveries.clear()
         }
-        retryingMediaId = null
+        clearRetryTransition()
 
         // Where the wait starts, for the log in onIsPlayingChanged — unless
         // there was no wait. A crossfaded track has been audible for as long as
@@ -3939,19 +3950,27 @@ class PlaybackService : MediaLibraryService() {
     }
 
     /**
-     * How many times each track has been picked up off the floor, so a stream
-     * that fails the same way every time stops rather than loops. Reset when
-     * the queue genuinely moves on, not when a track merely re-prepares.
+     * How many times each queue occurrence has been picked up off the floor, so
+     * a stream that fails the same way every time stops rather than loops. Reset
+     * when the queue genuinely moves on, not when an occurrence merely re-prepares.
      */
     private val recoveries = mutableMapOf<String, Int>()
 
     /**
-     * The track [recoverFrom] is about to seek-and-prepare, so that the
+     * The occurrence [recoverFrom] is about to seek-and-prepare, so that the
      * transition its own retry may fire can be told from the queue moving on or
      * the listener asking again — see [onTrackBecameCurrent]. Cleared by the
      * transition it describes, the same way [swappingMediaId] is.
      */
     private var retryingMediaId: String? = null
+
+    /** Stable occurrence identity for a retry; media IDs can repeat in a queue. */
+    private var retryingQueueEntryId: String? = null
+
+    private fun clearRetryTransition() {
+        retryingMediaId = null
+        retryingQueueEntryId = null
+    }
 
     /**
      * Media3's retry budget, with one thing added: a load error that cannot
@@ -4058,10 +4077,12 @@ class PlaybackService : MediaLibraryService() {
     private fun recoverFrom(error: PlaybackException, player: ExoPlayer) {
         val item = player.currentMediaItem ?: return
         val mediaId = item.mediaId
+        val queueEntryId = item.queueEntryId
+        val recoveryKey = PlaybackRecoveryPolicy.recoveryKey(mediaId, queueEntryId)
         val uri = item.localConfiguration?.uri
         val position = player.currentPosition.coerceAtLeast(0L)
-        val attempts = PlaybackRecoveryPolicy.nextAttempt(recoveries.getOrDefault(mediaId, 0))
-        recoveries[mediaId] = attempts
+        val attempts = PlaybackRecoveryPolicy.nextAttempt(recoveries.getOrDefault(recoveryKey, 0))
+        recoveries[recoveryKey] = attempts
         TrackLog.w(
             "Audify",
             "playback failed for $mediaId at ${position}ms (${error.errorCodeName}), attempt $attempts",
@@ -4087,6 +4108,7 @@ class PlaybackService : MediaLibraryService() {
         if (error.errorCode == PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND &&
             restreamMissingLocalFile(player, item, uri, position)
         ) {
+            clearRetryTransition()
             return
         }
         // A manifest read as audio is not a broken stream, and everything below
@@ -4097,6 +4119,7 @@ class PlaybackService : MediaLibraryService() {
         if (error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED &&
             replayAsManifest(player, item, uri, position)
         ) {
+            clearRetryTransition()
             return
         }
         // An addon/JioSaavn stream gets one chance. If it fails after selection,
@@ -4104,7 +4127,10 @@ class PlaybackService : MediaLibraryService() {
         // again. Rebuild it as an explicit YouTube request instead. This also
         // clears a DASH/HLS MIME left on an upgraded item, which otherwise makes
         // Media3 parse YouTube's WebM bytes as a manifest forever.
-        if (fallbackFailedAlternativeToYouTube(item, uri, position, error)) return
+        if (fallbackFailedAlternativeToYouTube(item, uri, position, error)) {
+            clearRetryTransition()
+            return
+        }
         // Giving up on the *retry*, not on everything below it.
         //
         // A track that has exhausted its attempts is not finished with.
@@ -4240,13 +4266,19 @@ class PlaybackService : MediaLibraryService() {
                 // is what the report describes and what "it was stuck on my
                 // phone too" means. Moving on is the only honest answer.
                 skipReason(verdict, error, neverStarted, attempts)?.let { reason ->
-                    withContext(Dispatchers.Main) { skipPastUnplayable(mediaId, reason) }
+                    withContext(Dispatchers.Main) { skipPastUnplayable(mediaId, queueEntryId, reason) }
                 }
                 return@launch
             }
             withContext(Dispatchers.Main) {
                 val player = this@PlaybackService.player ?: return@withContext
-                if (!PlaybackRecoveryPolicy.isCurrentItem(mediaId, player.currentMediaItem?.mediaId)) {
+                if (!PlaybackRecoveryPolicy.isCurrentItem(
+                        mediaId,
+                        player.currentMediaItem?.mediaId,
+                        queueEntryId,
+                        player.currentMediaItem?.queueEntryId,
+                    )
+                ) {
                     return@withContext
                 }
                 TrackLog.d("Audify", "retrying $mediaId from ${position}ms")
@@ -4254,6 +4286,7 @@ class PlaybackService : MediaLibraryService() {
                 // recognised as this retry rather than read as a fresh start and
                 // handed a fresh attempt budget.
                 retryingMediaId = mediaId
+                retryingQueueEntryId = queueEntryId
                 player.seekTo(player.currentMediaItemIndex, position)
                 player.prepare()
             }
@@ -4280,6 +4313,8 @@ class PlaybackService : MediaLibraryService() {
         if (!PlaybackFallback.isAlternative(playbackUri.toString(), substituted)) return false
         val fallback = item.toYouTubeFallbackMediaItem() ?: return false
         val mediaId = item.mediaId
+        val queueEntryId = item.queueEntryId
+        val recoveryKey = PlaybackRecoveryPolicy.recoveryKey(mediaId, queueEntryId)
 
         QualityUpgrade.forget(mediaId)
         QualityUpgrade.refuseUpgrades(mediaId)
@@ -4288,7 +4323,7 @@ class PlaybackService : MediaLibraryService() {
             StreamChoice.forget(it)
         }
         NerdStats.clearDeclared(mediaId)
-        recoveries.remove(mediaId)
+        recoveries.remove(recoveryKey)
         TrackLog.w(
             "Audify",
             "$mediaId failed on a higher-quality source; falling back to YouTube audio",
@@ -4311,7 +4346,13 @@ class PlaybackService : MediaLibraryService() {
             }
             withContext(Dispatchers.Main) {
                 val live = this@PlaybackService.player ?: return@withContext
-                if (!PlaybackRecoveryPolicy.isCurrentItem(mediaId, live.currentMediaItem?.mediaId)) {
+                if (!PlaybackRecoveryPolicy.isCurrentItem(
+                        mediaId,
+                        live.currentMediaItem?.mediaId,
+                        queueEntryId,
+                        live.currentMediaItem?.queueEntryId,
+                    )
+                ) {
                     return@withContext
                 }
                 swappingMediaId = mediaId
@@ -4356,7 +4397,7 @@ class PlaybackService : MediaLibraryService() {
         val scheme = uri?.scheme
         if (scheme != "file" && scheme != "content") return false
         val mediaId = item.mediaId
-
+        val recoveryKey = PlaybackRecoveryPolicy.recoveryKey(mediaId, item.queueEntryId)
         Downloads.forgetMissing(mediaId)
         val restreamed = item.toSong().copy(localUri = null, localPath = null).toMediaItem()
         if (restreamed.localConfiguration?.uri == uri) {
@@ -4378,7 +4419,7 @@ class PlaybackService : MediaLibraryService() {
         // refilling its own attempt budget, and this is a different source
         // entirely. Letting the transition clear the count is the right answer
         // here — a stream that has never been tried deserves the full budget.
-        recoveries.remove(mediaId)
+        recoveries.remove(recoveryKey)
         player.replaceMediaItem(player.currentMediaItemIndex, restreamed)
         player.seekTo(player.currentMediaItemIndex, position)
         player.prepare()
@@ -4429,6 +4470,8 @@ class PlaybackService : MediaLibraryService() {
         position: Long,
     ): Boolean {
         val mediaId = item.mediaId
+        val queueEntryId = item.queueEntryId
+        val recoveryKey = PlaybackRecoveryPolicy.recoveryKey(mediaId, queueEntryId)
         // Already declared, and still unreadable: this is a real failure and
         // re-preparing the identical item would only spend the budget on it.
         if (item.localConfiguration?.mimeType != null) return false
@@ -4446,7 +4489,7 @@ class PlaybackService : MediaLibraryService() {
         // [restreamMissingLocalFile]: that flag stops a retry against the same
         // stream refilling its own budget, and this is the first attempt this
         // stream has had that could possibly work.
-        recoveries.remove(mediaId)
+        recoveries.remove(recoveryKey)
         val declared = item.buildUpon()
             // MIME selects DashMediaSource/HlsMediaSource; the marker makes
             // Media3 actually rebuild rather than update ProgressiveMediaSource.
@@ -4460,7 +4503,13 @@ class PlaybackService : MediaLibraryService() {
                 // The queue can move while the discard runs, and replacing the
                 // current item then would rewrite whatever the listener skipped
                 // to instead.
-                if (live.currentMediaItem?.mediaId != mediaId) return@withContext
+                if (!PlaybackRecoveryPolicy.isCurrentItem(
+                        mediaId,
+                        live.currentMediaItem?.mediaId,
+                        queueEntryId,
+                        live.currentMediaItem?.queueEntryId,
+                    )
+                ) return@withContext
                 live.replaceMediaItem(live.currentMediaItemIndex, declared)
                 live.seekTo(live.currentMediaItemIndex, position)
                 live.prepare()
@@ -4546,9 +4595,15 @@ class PlaybackService : MediaLibraryService() {
      * `rememberPlayerState` in
      * [PlayerConnection][com.music.audify.playback.PlayerConnection].
      */
-    private fun skipPastUnplayable(mediaId: String, reason: String) {
+    private fun skipPastUnplayable(mediaId: String, queueEntryId: String?, reason: String) {
         val exoPlayer = player ?: return
-        if (exoPlayer.currentMediaItem?.mediaId != mediaId) return
+        if (!PlaybackRecoveryPolicy.isCurrentItem(
+                mediaId,
+                exoPlayer.currentMediaItem?.mediaId,
+                queueEntryId,
+                exoPlayer.currentMediaItem?.queueEntryId,
+            )
+        ) return
         if (!exoPlayer.hasNextMediaItem()) {
             TrackLog.w("Audify", "$reason — and nothing after it in the queue", about = mediaId)
             return
@@ -7909,6 +7964,7 @@ class PlaybackService : MediaLibraryService() {
         serviceLyricsJob = null
         serviceLyrics = null
         cancelPrefetch()
+        RadioListeningIntentState.clear()
         AutoplayMixRanking.analysisOf = null
         trackAnalyzer.release()
         loudnessRetryJob?.cancel()
