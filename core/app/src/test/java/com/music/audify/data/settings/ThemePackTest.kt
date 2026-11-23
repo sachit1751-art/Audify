@@ -7,9 +7,9 @@ import org.junit.Test
 
 class ThemePackTest {
     @Test
-    fun allTenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
-        assertEquals(10, ThemePacks.builtIns.size)
-        assertEquals(10, ThemePacks.builtIns.map { it.id }.distinct().size)
+    fun allThirteenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
+        assertEquals(13, ThemePacks.builtIns.size)
+        assertEquals(13, ThemePacks.builtIns.map { it.id }.distinct().size)
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { color ->
                 assertTrue(color.matches(Regex("^#[0-9A-Fa-f]{6}$")))
@@ -111,6 +111,27 @@ class ThemePackTest {
     }
 
     @Test
+    fun minimalPresetsAreVisiblyDistinctFromExistingThemesAndEachOther() {
+        val minimalIds = setOf("minimal-slate", "soft-sage", "warm-sand")
+        val minimal = ThemePacks.builtIns.filter { it.id in minimalIds }
+        val existing = ThemePacks.builtIns.filterNot { it.id in minimalIds }
+
+        assertEquals(minimalIds, minimal.map { it.id }.toSet())
+        minimal.forEach { candidate ->
+            val minimumDistance = existing.minOf { paletteDistance(candidate, it) }
+            assertTrue("${candidate.name} must not duplicate an existing palette ($minimumDistance)", minimumDistance > 40.0)
+        }
+        minimal.indices.forEach { index ->
+            for (other in index + 1 until minimal.size) {
+                assertTrue(
+                    "${minimal[index].name} and ${minimal[other].name} must remain distinct",
+                    paletteDistance(minimal[index], minimal[other]) > 20.0,
+                )
+            }
+        }
+    }
+
+    @Test
     fun renderedLightModeAccentsRemainVisibleOnWhiteSurfaces() {
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { accent ->
@@ -132,5 +153,18 @@ class ThemePackTest {
         val first = luminance(firstHex)
         val second = luminance(secondHex)
         return (maxOf(first, second) + 0.05) / (minOf(first, second) + 0.05)
+    }
+
+    /** RMS RGB distance across all three semantic swatches (0..255 scale). */
+    private fun paletteDistance(first: ThemePack, second: ThemePack): Double {
+        val firstColors = listOf(first.primaryHex, first.secondaryHex, first.tertiaryHex)
+        val secondColors = listOf(second.primaryHex, second.secondaryHex, second.tertiaryHex)
+        val squared = firstColors.zip(secondColors).flatMap { (a, b) ->
+            a.drop(1).chunked(2).zip(b.drop(1).chunked(2)).map { (left, right) ->
+                val difference = left.toInt(16) - right.toInt(16)
+                difference * difference
+            }
+        }
+        return kotlin.math.sqrt(squared.average())
     }
 }

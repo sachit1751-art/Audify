@@ -41,6 +41,13 @@ object ThemePacks {
         ThemePack("rose", "Rose", "#F48FB1", "#E6A6D8", "#B58CFF"),
         ThemePack("violet", "Violet", "#B7A1FF", "#83B8FF", "#E5A0E8"),
         ThemePack("jade", "Jade", "#6EE7B7", "#A3E635", "#67E8F9", ThemeSurfaceStyle.SLATE),
+        // Minimal presets intentionally fill a gap in the existing set: muted,
+        // low-saturation accents rather than another bright/neon colour family.
+        // Keep the three roles distinct so primary actions, supporting controls,
+        // and tertiary highlights remain recognisable throughout the app.
+        ThemePack("minimal-slate", "Minimal Slate", "#64748B", "#78716C", "#475569", ThemeSurfaceStyle.GRAPHITE),
+        ThemePack("soft-sage", "Soft Sage", "#66806C", "#9AA58A", "#49675C", ThemeSurfaceStyle.SLATE),
+        ThemePack("warm-sand", "Warm Sand", "#92765C", "#B59A7B", "#6D766A", ThemeSurfaceStyle.WARM),
     )
 
     fun isValidHex(value: String): Boolean = value.matches(Regex("^#[0-9A-Fa-f]{6}$"))
