@@ -70,6 +70,7 @@ fun SmartPlaylistsScreen(
     var loadingLibrary by remember { mutableStateOf(true) }
     var candidates by remember { mutableStateOf<List<Song>>(emptyList()) }
     var results by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
+    var recommendations by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
     var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
     var refreshVersion by rememberSaveable { mutableIntStateOf(0) }
     var showEditor by rememberSaveable { mutableStateOf(false) }
@@ -89,6 +90,17 @@ fun SmartPlaylistsScreen(
     }
     LaunchedEffect(definitions, candidates, refreshVersion) {
         results = SmartPlaylistRepository.evaluateAll(candidates)
+    }
+    LaunchedEffect(definitions, candidates, results) {
+        val next = mutableMapOf<String, List<Song>>()
+        definitions.forEach { definition ->
+            next[definition.id] = SmartPlaylistRepository.recommend(
+                definition = definition,
+                currentSongs = results[definition.id].orEmpty(),
+                library = candidates,
+            )
+        }
+        recommendations = next
     }
 
     Column(
@@ -170,6 +182,10 @@ fun SmartPlaylistsScreen(
                                     enabled = songs.isNotEmpty() && !definition.paused,
                                     onClick = { onPlaySongs(definition.title, songs, 0) },
                                 ) { Text("Play") }
+                                TextButton(
+                                    enabled = songs.isNotEmpty() && !definition.paused,
+                                    onClick = { onPlaySongs(definition.title, songs.shuffled(), 0) },
+                                ) { Text("Shuffle") }
                                 TextButton(onClick = {
                                     SmartPlaylistStore.setPaused(definition.id, !definition.paused)
                                 }) { Text(if (definition.paused) "Resume" else "Pause") }
@@ -180,14 +196,52 @@ fun SmartPlaylistsScreen(
                                 if (songs.isEmpty()) {
                                     Text("No tracks match these rules yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 } else {
-                                    songs.take(30).forEach { song ->
-                                        Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                                    songs.forEachIndexed { index, song ->
+                                        Column(
+                                            Modifier.fillMaxWidth().clickable {
+                                                onPlaySongs(definition.title, songs, index)
+                                            }.padding(vertical = 7.dp),
+                                        ) {
                                             Text(song.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
                                             Text(song.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                         }
                                     }
-                                    if (songs.size > 30) {
-                                        Text("Showing 30 of ${songs.size} tracks.", style = MaterialTheme.typography.labelSmall)
+                                    val suggested = recommendations[definition.id].orEmpty()
+                                    if (suggested.isNotEmpty()) {
+                                        Spacer(Modifier.height(14.dp))
+                                        Text("Recommended for this playlist", style = MaterialTheme.typography.titleSmall)
+                                        Text(
+                                            "Suggestions stay separate until you add them.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        suggested.forEach { suggestion ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Column(Modifier.weight(1f)) {
+                                                    Text(suggestion.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                                                    Text(
+                                                        suggestion.artist,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 1,
+                                                    )
+                                                }
+                                                TextButton(
+                                                    onClick = {
+                                                        SmartPlaylistStore.save(
+                                                            definition.copy(
+                                                                includedSongIds = (definition.includedSongIds + suggestion.videoId)
+                                                                    .distinct()
+                                                                    .take(SmartPlaylistEngine.MAX_TRACKS),
+                                                            ),
+                                                        )
+                                                    },
+                                                ) { Text("Add") }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -254,6 +308,7 @@ private fun SmartPlaylistEditorDialog(
             sortBy = sortBy,
             maxTracks = maxTracks.toIntOrNull() ?: 100,
             paused = initial?.paused ?: false,
+            includedSongIds = initial?.includedSongIds.orEmpty(),
         )
         error = SmartPlaylistEngine.validate(definition)
         return definition.takeIf { error == null }
