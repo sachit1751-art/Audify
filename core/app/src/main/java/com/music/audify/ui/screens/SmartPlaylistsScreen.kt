@@ -311,6 +311,15 @@ private fun SmartPlaylistEditorDialog(
     var previewing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    fun resetPresetFilters() {
+        likedOnly = false
+        excludeRecent = false
+        addedDays = ""
+        playedDays = ""
+        notPlayedDays = ""
+        minimumPlays = ""
+    }
+
     fun buildDefinition(): SmartPlaylistDefinition? {
         val rawNumbers = listOf(addedDays, playedDays, notPlayedDays, minimumPlays)
         if (rawNumbers.any { it.isNotBlank() && it.toIntOrNull() == null }) {
@@ -354,25 +363,19 @@ private fun SmartPlaylistEditorDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         TextButton(onClick = {
+                            resetPresetFilters()
                             likedOnly = true
-                            excludeRecent = false
-                            addedDays = ""
-                            playedDays = ""
-                            notPlayedDays = ""
-                            minimumPlays = ""
                             sortBy = SmartPlaylistSort.MOST_PLAYED
                             previewCount = null
                         }) { Text("Liked") }
                         TextButton(onClick = {
-                            likedOnly = false
+                            resetPresetFilters()
                             playedDays = "30"
-                            notPlayedDays = ""
                             sortBy = SmartPlaylistSort.RECENTLY_PLAYED
                             previewCount = null
                         }) { Text("Recently played") }
                         TextButton(onClick = {
-                            likedOnly = false
-                            playedDays = ""
+                            resetPresetFilters()
                             notPlayedDays = "30"
                             sortBy = SmartPlaylistSort.MOST_PLAYED
                             previewCount = null
@@ -380,18 +383,13 @@ private fun SmartPlaylistEditorDialog(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         TextButton(onClick = {
-                            likedOnly = false
+                            resetPresetFilters()
                             addedDays = "30"
-                            playedDays = ""
-                            notPlayedDays = ""
                             sortBy = SmartPlaylistSort.RECENTLY_ADDED
                             previewCount = null
                         }) { Text("New additions") }
                         TextButton(onClick = {
-                            likedOnly = false
-                            addedDays = ""
-                            playedDays = ""
-                            notPlayedDays = ""
+                            resetPresetFilters()
                             sortBy = SmartPlaylistSort.MOST_PLAYED
                             previewCount = null
                         }) { Text("Most played") }
