@@ -5,6 +5,7 @@ package com.music.audify.data.playlist
 import com.music.audify.data.model.Song
 import com.music.audify.data.stats.ListeningStats
 import com.music.audify.data.stats.LocalLibraryStore
+import java.util.Locale
 
 /**
  * Builds a fresh result from the current library and listening aggregates.
@@ -40,6 +41,42 @@ object SmartPlaylistRepository {
         }
     }
 
+    /**
+     * Suggest tracks related to the playlist's current artists, ranked by
+     * listening activity. Suggestions are not part of the playlist until the
+     * user explicitly adds them.
+     */
+    suspend fun recommend(
+        definition: SmartPlaylistDefinition,
+        currentSongs: List<Song>,
+        library: List<Song>,
+        limit: Int = 12,
+    ): List<Song> {
+        if (library.isEmpty() || limit <= 0) return emptyList()
+        val currentIds = currentSongs.mapTo(mutableSetOf()) { it.videoId }
+        val anchorArtists = (currentSongs.flatMap { song ->
+            listOf(song.artist) + song.artists.map { it.name }
+        } + definition.artists)
+            .map { it.trim().lowercase(Locale.ROOT) }
+            .filter(String::isNotBlank)
+            .toSet()
+        val listening = ListeningStats.trackSnapshot().associateBy { it.videoId }
+        return library.asSequence()
+            .filter { it.videoId.isNotBlank() && it.videoId !in currentIds }
+            .distinctBy { it.videoId }
+            .sortedWith(
+                compareByDescending<Song> { song ->
+                    if (anchorArtists.isEmpty()) 0
+                    else (listOf(song.artist) + song.artists.map { it.name })
+                        .count { it.trim().lowercase(Locale.ROOT) in anchorArtists }
+                }.thenByDescending { listening[it.videoId]?.plays ?: 0 }
+                    .thenByDescending { listening[it.videoId]?.lastPlayedAtEpochMs ?: 0L }
+                    .thenBy { it.title.lowercase(Locale.ROOT) },
+            )
+            .take(limit.coerceAtMost(50))
+            .toList()
+    }
+
     private fun evaluateWithSnapshot(
         definition: SmartPlaylistDefinition,
         library: List<Song>,
@@ -63,7 +100,7 @@ object SmartPlaylistRepository {
                 lastPlayedAtEpochMs = snapshot.lastPlayedAtEpochMs,
             )
         }
-        return SmartPlaylistEngine.evaluate(
+        val generated = SmartPlaylistEngine.evaluate(
             definition = definition,
             library = candidates,
             likedVideoIds = likedIds,
@@ -71,6 +108,10 @@ object SmartPlaylistRepository {
             nowEpochSeconds = nowEpochSeconds,
             listening = listening,
         )
+        // Explicit additions take precedence but never alter the rule engine's output.
+        val byId = candidates.associateBy { it.videoId }
+        val included = definition.includedSongIds.mapNotNull(byId::get)
+        return (included + generated).distinctBy { it.videoId }.take(definition.maxTracks)
     }
 }
 
