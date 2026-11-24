@@ -108,6 +108,7 @@ object SmartPlaylistRepository {
             nowEpochSeconds = nowEpochSeconds,
             listening = listening,
         )
+        if (definition.paused) return emptyList()
         return mergeSmartPlaylistAdditions(
             generated = generated,
             library = candidates,
