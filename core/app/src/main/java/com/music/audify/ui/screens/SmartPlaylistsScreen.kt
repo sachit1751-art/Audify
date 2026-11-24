@@ -3,8 +3,13 @@
 package com.music.audify.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,12 +17,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
-import com.music.audify.ui.components.ExplicitSongTitle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -38,6 +41,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.LocalMediaRepository
 import com.music.audify.data.model.Song
+import coil3.compose.AsyncImage
+import com.music.audify.data.model.ROW_ART_PX
+import com.music.audify.data.model.artworkAt
 import com.music.audify.data.playlist.SmartPlaylistDefinition
 import com.music.audify.data.playlist.SmartPlaylistEngine
 import com.music.audify.data.playlist.SmartPlaylistRepository
@@ -151,94 +160,135 @@ fun SmartPlaylistsScreen(
                 modifier = Modifier.padding(vertical = 24.dp),
             )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(definitions, key = { it.id }) { definition ->
-                    val songs = results[definition.id].orEmpty()
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(
-                                    modifier = Modifier.weight(1f).clickable {
-                                        expandedId = if (expandedId == definition.id) null else definition.id
-                                    },
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val columns = if (maxWidth >= 340.dp) 2 else 1
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(definitions, key = { it.id }) { definition ->
+                        val songs = results[definition.id].orEmpty()
+                        val expanded = expandedId == definition.id
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                Box(
+                                    Modifier.fillMaxWidth().height(if (columns == 1) 184.dp else 132.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable { expandedId = if (expanded) null else definition.id },
                                 ) {
-                                    Text(definition.title, style = MaterialTheme.typography.titleMedium)
+                                    PlaylistArtwork(songs.take(4), Modifier.fillMaxSize())
+                                    if (definition.paused) {
+                                        Text(
+                                            "PAUSED",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(50))
+                                                .padding(horizontal = 9.dp, vertical = 5.dp),
+                                        )
+                                    }
                                     Text(
-                                        "${songs.size} tracks · ${if (definition.paused) "Paused" else "Updates automatically"}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        "${songs.size} TRACKS",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(50))
+                                            .padding(horizontal = 9.dp, vertical = 5.dp),
                                     )
                                 }
-                                TextButton(onClick = { editing = definition; showEditor = true }) { Text("Edit") }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                TextButton(
-                                    enabled = songs.isNotEmpty() && !definition.paused,
-                                    onClick = { onPlaySongs(definition.title, songs, 0) },
-                                ) { Text("Play") }
-                                TextButton(
-                                    enabled = songs.isNotEmpty() && !definition.paused,
-                                    onClick = { onPlaySongs(definition.title, songs.shuffled(), 0) },
-                                ) { Text("Shuffle") }
-                                TextButton(onClick = {
-                                    SmartPlaylistStore.setPaused(definition.id, !definition.paused)
-                                }) { Text(if (definition.paused) "Resume" else "Pause") }
-                                TextButton(onClick = { deleting = definition }) { Text("Delete") }
-                            }
-                            if (expandedId == definition.id) {
-                                Spacer(Modifier.height(8.dp))
-                                if (songs.isEmpty()) {
-                                    Text("No tracks match these rules yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                } else {
-                                    songs.forEachIndexed { index, song ->
-                                        Column(
-                                            Modifier.fillMaxWidth().clickable {
-                                                onPlaySongs(definition.title, songs, index)
-                                            }.padding(vertical = 7.dp),
-                                        ) {
-                                            Text(song.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                                            Text(song.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                                Spacer(Modifier.height(10.dp))
+                                Text(definition.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    if (definition.paused) "Paused" else "Updates automatically",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    TextButton(
+                                        enabled = songs.isNotEmpty() && !definition.paused,
+                                        onClick = { onPlaySongs(definition.title, songs, 0) },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Play") }
+                                    TextButton(
+                                        enabled = songs.isNotEmpty() && !definition.paused,
+                                        onClick = { onPlaySongs(definition.title, songs.shuffled(), 0) },
+                                        modifier = Modifier.weight(1f),
+                                    ) { Text("Shuffle") }
+                                    Box {
+                                        var menuExpanded by remember(definition.id) { mutableStateOf(false) }
+                                        TextButton(onClick = { menuExpanded = true }) { Text("More") }
+                                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                            DropdownMenuItem(
+                                                text = { Text("Edit") },
+                                                onClick = { menuExpanded = false; editing = definition; showEditor = true },
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text(if (definition.paused) "Resume" else "Pause") },
+                                                onClick = {
+                                                    menuExpanded = false
+                                                    SmartPlaylistStore.setPaused(definition.id, !definition.paused)
+                                                },
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Delete") },
+                                                onClick = { menuExpanded = false; deleting = definition },
+                                            )
                                         }
                                     }
                                 }
-                                val suggested = recommendations[definition.id].orEmpty()
-                                if (suggested.isNotEmpty()) {
-                                    Spacer(Modifier.height(14.dp))
-                                    Text("Recommended for this playlist", style = MaterialTheme.typography.titleSmall)
-                                    Text(
-                                        "Suggestions stay separate until you add them.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                TextButton(
+                                    onClick = { expandedId = if (expanded) null else definition.id },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) { Text(if (expanded) "Hide tracks" else "View tracks") }
+                                if (expanded) {
+                                    androidx.compose.material3.HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
                                     )
-                                    suggested.forEach { suggestion ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                        ) {
-                                            Column(Modifier.weight(1f)) {
-                                                Text(suggestion.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                                                Text(
-                                                    suggestion.artist,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
-                                                )
-                                            }
-                                            TextButton(
-                                                onClick = {
+                                    Spacer(Modifier.height(8.dp))
+                                    if (songs.isEmpty()) {
+                                        Text("No tracks match these rules yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    } else {
+                                        songs.forEachIndexed { index, song ->
+                                            TrackArtworkRow(song) { onPlaySongs(definition.title, songs, index) }
+                                        }
+                                    }
+                                    val suggested = recommendations[definition.id].orEmpty()
+                                    if (suggested.isNotEmpty()) {
+                                        Spacer(Modifier.height(12.dp))
+                                        Text("Recommended", style = MaterialTheme.typography.titleSmall)
+                                        Text(
+                                            "Add a suggestion to keep it in this playlist.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                        suggested.forEach { suggestion ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                SongArtwork(suggestion, Modifier.size(42.dp))
+                                                Spacer(Modifier.size(9.dp))
+                                                Column(Modifier.weight(1f)) {
+                                                    Text(suggestion.title, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                    Text(suggestion.artist, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                }
+                                                TextButton(onClick = {
                                                     SmartPlaylistStore.save(
                                                         definition.copy(
                                                             includedSongIds = (definition.includedSongIds + suggestion.videoId)
-                                                                .distinct()
-                                                                .take(SmartPlaylistEngine.MAX_TRACKS),
+                                                                .distinct().take(SmartPlaylistEngine.MAX_TRACKS),
                                                         ),
                                                     )
-                                                },
-                                            ) { Text("Add") }
+                                                }) { Text("Add") }
+                                            }
                                         }
                                     }
                                 }
@@ -285,6 +335,65 @@ fun SmartPlaylistsScreen(
                 TextButton(onClick = { deleting = null }) { Text("Cancel") }
             },
         )
+    }
+}
+
+
+@Composable
+private fun PlaylistArtwork(songs: List<Song>, modifier: Modifier = Modifier) {
+    if (songs.isEmpty()) {
+        Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+            Text("♫", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
+    Row(modifier) {
+        songs.take(2).forEach { song -> SongArtwork(song, Modifier.weight(1f).fillMaxHeight()) }
+        if (songs.size == 1) {
+            Box(
+                Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("♫", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (songs.size > 2) {
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                songs.drop(2).take(2).forEach { song -> SongArtwork(song, Modifier.weight(1f).fillMaxWidth()) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SongArtwork(song: Song, modifier: Modifier = Modifier) {
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+        val artwork = if (song.isVideo) song.thumbnailUrl else song.artworkAt(ROW_ART_PX)
+        if (!artwork.isNullOrBlank()) {
+            AsyncImage(
+                model = artwork,
+                contentDescription = "Artwork for ${song.title}",
+                contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Text("♫", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun TrackArtworkRow(song: Song, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SongArtwork(song, Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
+        Spacer(Modifier.size(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(song.title, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
