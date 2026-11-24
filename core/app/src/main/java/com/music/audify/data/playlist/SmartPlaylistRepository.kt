@@ -108,11 +108,28 @@ object SmartPlaylistRepository {
             nowEpochSeconds = nowEpochSeconds,
             listening = listening,
         )
-        // Explicit additions take precedence but never alter the rule engine's output.
-        val byId = candidates.associateBy { it.videoId }
-        val included = definition.includedSongIds.mapNotNull(byId::get)
-        return (included + generated).distinctBy { it.videoId }.take(definition.maxTracks)
+        return mergeSmartPlaylistAdditions(
+            generated = generated,
+            library = candidates,
+            includedSongIds = definition.includedSongIds,
+            maxTracks = definition.maxTracks,
+        )
     }
+}
+
+/**
+ * Merge deliberate user additions with rule matches. User additions are placed
+ * first so they remain present even when the generated result reaches its cap.
+ */
+internal fun mergeSmartPlaylistAdditions(
+    generated: List<Song>,
+    library: List<Song>,
+    includedSongIds: List<String>,
+    maxTracks: Int,
+): List<Song> {
+    val byId = library.associateBy { it.videoId }
+    val included = includedSongIds.mapNotNull(byId::get)
+    return (included + generated).distinctBy { it.videoId }.take(maxTracks.coerceAtLeast(0))
 }
 
 /** Merge all device-owned sources once, preserving the first (richest) song record. */
