@@ -75,6 +75,7 @@ fun SmartPlaylistsScreen(
     var refreshVersion by rememberSaveable { mutableIntStateOf(0) }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
+    var deleting by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
 
     LaunchedEffect(context, refreshVersion, history, favorites) {
         loadingLibrary = true
@@ -92,15 +93,11 @@ fun SmartPlaylistsScreen(
         results = SmartPlaylistRepository.evaluateAll(candidates)
     }
     LaunchedEffect(definitions, candidates, results) {
-        val next = mutableMapOf<String, List<Song>>()
-        definitions.forEach { definition ->
-            next[definition.id] = SmartPlaylistRepository.recommend(
-                definition = definition,
-                currentSongs = results[definition.id].orEmpty(),
-                library = candidates,
-            )
-        }
-        recommendations = next
+        recommendations = SmartPlaylistRepository.recommendAll(
+            definitions = definitions,
+            currentSongsByPlaylist = results,
+            library = candidates,
+        )
     }
 
     Column(
@@ -189,7 +186,7 @@ fun SmartPlaylistsScreen(
                                 TextButton(onClick = {
                                     SmartPlaylistStore.setPaused(definition.id, !definition.paused)
                                 }) { Text(if (definition.paused) "Resume" else "Pause") }
-                                TextButton(onClick = { SmartPlaylistStore.delete(definition.id) }) { Text("Delete") }
+                                TextButton(onClick = { deleting = definition }) { Text("Delete") }
                             }
                             if (expandedId == definition.id) {
                                 Spacer(Modifier.height(8.dp))
@@ -261,6 +258,30 @@ fun SmartPlaylistsScreen(
                 SmartPlaylistStore.save(definition)
                 expandedId = definition.id
                 showEditor = false
+            },
+        )
+    }
+
+    deleting?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text("Delete Smart Playlist?") },
+            text = {
+                Text(
+                    "Delete ${target.title}? This removes only its smart-playlist rules and saved additions. Your songs and ordinary playlists are not changed.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        SmartPlaylistStore.delete(target.id)
+                        if (expandedId == target.id) expandedId = null
+                        deleting = null
+                    },
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleting = null }) { Text("Cancel") }
             },
         )
     }
