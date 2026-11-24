@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -144,7 +145,7 @@ fun SmartPlaylistsScreen(
         if (definitions.isEmpty()) {
             Text(
                 if (loadingLibrary) "Loading your library and listening history..."
-                else "No smart playlists yet. Create rules from played tracks, liked songs, artists or downloaded music.",
+                else "No smart playlists yet. Start with liked tracks, recent listening, new additions or music you want to rediscover.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 24.dp),
@@ -295,14 +296,14 @@ private fun SmartPlaylistEditorDialog(
     onSave: (SmartPlaylistDefinition) -> Unit,
 ) {
     var title by remember(initial?.id) { mutableStateOf(initial?.title.orEmpty()) }
-    var artists by remember(initial?.id) { mutableStateOf(initial?.artists?.joinToString(", ").orEmpty()) }
+    var advancedExpanded by remember(initial?.id) { mutableStateOf(false) }
     var likedOnly by remember(initial?.id) { mutableStateOf(initial?.likedOnly ?: false) }
     var excludeRecent by remember(initial?.id) { mutableStateOf(initial?.excludeRecentHistory ?: false) }
     var addedDays by remember(initial?.id) { mutableStateOf(initial?.addedWithinDays?.toString().orEmpty()) }
     var playedDays by remember(initial?.id) { mutableStateOf(initial?.playedWithinDays?.toString().orEmpty()) }
     var notPlayedDays by remember(initial?.id) { mutableStateOf(initial?.notPlayedWithinDays?.toString().orEmpty()) }
     var minimumPlays by remember(initial?.id) { mutableStateOf(initial?.minimumPlays?.toString().orEmpty()) }
-    var maxTracks by remember(initial?.id) { mutableStateOf((initial?.maxTracks ?: 100).toString()) }
+    var maxTracks by remember(initial?.id) { mutableIntStateOf(initial?.maxTracks ?: 100) }
     var sortBy by remember(initial?.id) { mutableStateOf(initial?.sortBy ?: SmartPlaylistSort.MOST_PLAYED) }
     var sortMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -311,7 +312,7 @@ private fun SmartPlaylistEditorDialog(
     val scope = rememberCoroutineScope()
 
     fun buildDefinition(): SmartPlaylistDefinition? {
-        val rawNumbers = listOf(addedDays, playedDays, notPlayedDays, minimumPlays, maxTracks)
+        val rawNumbers = listOf(addedDays, playedDays, notPlayedDays, minimumPlays)
         if (rawNumbers.any { it.isNotBlank() && it.toIntOrNull() == null }) {
             error = "Rule values must be whole numbers."
             return null
@@ -319,7 +320,7 @@ private fun SmartPlaylistEditorDialog(
         val definition = SmartPlaylistDefinition(
             id = initial?.id ?: UUID.randomUUID().toString(),
             title = title.trim(),
-            artists = artists.split(',').map(String::trim).filter(String::isNotBlank).distinct(),
+            artists = initial?.artists.orEmpty(),
             likedOnly = likedOnly,
             addedWithinDays = addedDays.toIntOrNull(),
             excludeRecentHistory = excludeRecent,
@@ -327,7 +328,7 @@ private fun SmartPlaylistEditorDialog(
             notPlayedWithinDays = notPlayedDays.toIntOrNull(),
             minimumPlays = minimumPlays.toIntOrNull(),
             sortBy = sortBy,
-            maxTracks = maxTracks.toIntOrNull() ?: 100,
+            maxTracks = maxTracks,
             paused = initial?.paused ?: false,
             includedSongIds = initial?.includedSongIds.orEmpty(),
         )
@@ -344,14 +345,61 @@ private fun SmartPlaylistEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(title, { title = it; previewCount = null }, label = { Text("Name") }, singleLine = true)
-                OutlinedTextField(
-                    artists,
-                    { artists = it; previewCount = null },
-                    label = { Text("Artists (comma-separated)") },
-                    supportingText = { Text("Matches the lead or credited artist") },
+                Text("Start with", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Choose a starting point. You can fine-tune it below.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(onClick = {
+                            likedOnly = true
+                            excludeRecent = false
+                            addedDays = ""
+                            playedDays = ""
+                            notPlayedDays = ""
+                            minimumPlays = ""
+                            sortBy = SmartPlaylistSort.MOST_PLAYED
+                            previewCount = null
+                        }) { Text("Liked") }
+                        TextButton(onClick = {
+                            likedOnly = false
+                            playedDays = "30"
+                            notPlayedDays = ""
+                            sortBy = SmartPlaylistSort.RECENTLY_PLAYED
+                            previewCount = null
+                        }) { Text("Recently played") }
+                        TextButton(onClick = {
+                            likedOnly = false
+                            playedDays = ""
+                            notPlayedDays = "30"
+                            sortBy = SmartPlaylistSort.MOST_PLAYED
+                            previewCount = null
+                        }) { Text("Rediscover") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(onClick = {
+                            likedOnly = false
+                            addedDays = "30"
+                            playedDays = ""
+                            notPlayedDays = ""
+                            sortBy = SmartPlaylistSort.RECENTLY_ADDED
+                            previewCount = null
+                        }) { Text("New additions") }
+                        TextButton(onClick = {
+                            likedOnly = false
+                            addedDays = ""
+                            playedDays = ""
+                            notPlayedDays = ""
+                            sortBy = SmartPlaylistSort.MOST_PLAYED
+                            previewCount = null
+                        }) { Text("Most played") }
+                    }
+                }
+                RuleCheckbox("Liked tracks only", likedOnly) { likedOnly = it; previewCount = null }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Sort by: ${sortBy.label()}", modifier = Modifier.weight(1f))
+                    Text("Order: ${sortBy.label()}", modifier = Modifier.weight(1f))
                     TextButton(onClick = { sortMenu = true }) { Text("Change") }
                     DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                         SmartPlaylistSort.entries.forEach { option ->
@@ -362,13 +410,23 @@ private fun SmartPlaylistEditorDialog(
                         }
                     }
                 }
-                RuleCheckbox("Liked tracks only", likedOnly) { likedOnly = it; previewCount = null }
-                RuleCheckbox("Exclude recent history", excludeRecent) { excludeRecent = it; previewCount = null }
-                NumberRuleField("Added within days", addedDays) { addedDays = it; previewCount = null }
-                NumberRuleField("Played within days", playedDays) { playedDays = it; previewCount = null }
-                NumberRuleField("Not played within days", notPlayedDays) { notPlayedDays = it; previewCount = null }
-                NumberRuleField("Minimum play count", minimumPlays) { minimumPlays = it; previewCount = null }
-                NumberRuleField("Maximum tracks", maxTracks) { maxTracks = it; previewCount = null }
+                TextButton(onClick = { advancedExpanded = !advancedExpanded }) {
+                    Text(if (advancedExpanded) "Fewer controls" else "More controls")
+                }
+                if (advancedExpanded) {
+                    RuleCheckbox("Hide recently played tracks", excludeRecent) { excludeRecent = it; previewCount = null }
+                    NumberRuleField("Added in the last (days)", addedDays) { addedDays = it; previewCount = null }
+                    NumberRuleField("Played in the last (days)", playedDays) { playedDays = it; previewCount = null }
+                    NumberRuleField("Not played in the last (days)", notPlayedDays) { notPlayedDays = it; previewCount = null }
+                    NumberRuleField("Minimum number of plays", minimumPlays) { minimumPlays = it; previewCount = null }
+                }
+                Text("Playlist size: $maxTracks tracks", style = MaterialTheme.typography.bodyMedium)
+                Slider(
+                    value = maxTracks.toFloat(),
+                    onValueChange = { maxTracks = (it / 10f).toInt() * 10; previewCount = null },
+                    valueRange = 10f..500f,
+                    steps = 48,
+                )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 previewCount?.let { Text("Preview: $it matching tracks", color = MaterialTheme.colorScheme.primary) }
             }
