@@ -61,4 +61,64 @@ class ProfileTextRulesTest {
     fun bioRejectsDirectionTricks() {
         assertNull(ProfileTextRules.cleanBio("hi \u202E there"))
     }
+
+    // The unit is Unicode code points, not UTF-16 units (String.length) and not grapheme clusters.
+
+    private val grinning = "\uD83D\uDE00" // U+1F600: one code point, two UTF-16 units
+
+    @Test
+    fun codePointCountCountsCodePointsNotUtf16Units() {
+        assertEquals(0, ProfileTextRules.codePointCount(""))
+        assertEquals(3, ProfileTextRules.codePointCount("abc"))
+        assertEquals(1, ProfileTextRules.codePointCount(grinning))
+        assertEquals(2, grinning.length)
+        assertEquals(3, ProfileTextRules.codePointCount("a${grinning}b"))
+    }
+
+    @Test
+    fun combiningSequencesCountEveryCodePoint() {
+        // "e" + U+0301 looks like one letter but is two code points; graphemes are not the unit.
+        assertEquals(2, ProfileTextRules.codePointCount("e\u0301"))
+    }
+
+    @Test
+    fun displayNameLimitCountsEmojiAsOneEach() {
+        val atLimit = grinning.repeat(ProfileTextRules.DISPLAY_NAME_MAX)
+        assertEquals(atLimit, ProfileTextRules.cleanDisplayName(atLimit))
+        assertNull(ProfileTextRules.cleanDisplayName(grinning.repeat(ProfileTextRules.DISPLAY_NAME_MAX + 1)))
+    }
+
+    @Test
+    fun displayNameLimitCountsCombiningMarksAsCodePoints() {
+        val atLimit = "e\u0301".repeat(ProfileTextRules.DISPLAY_NAME_MAX / 2)
+        assertEquals(atLimit, ProfileTextRules.cleanDisplayName(atLimit))
+        assertNull(ProfileTextRules.cleanDisplayName("e\u0301".repeat(ProfileTextRules.DISPLAY_NAME_MAX / 2 + 1)))
+    }
+
+    @Test
+    fun bioLimitCountsEmojiAsOneEach() {
+        val atLimit = grinning.repeat(ProfileTextRules.BIO_MAX)
+        assertEquals(atLimit, ProfileTextRules.cleanBio(atLimit))
+        assertNull(ProfileTextRules.cleanBio(grinning.repeat(ProfileTextRules.BIO_MAX + 1)))
+    }
+
+    @Test
+    fun rejectsUnpairedSurrogates() {
+        listOf("\uD83D", "\uDE00", "ab\uDE00\uD83D", "x\uD83Dy").forEach {
+            assertNull(ProfileTextRules.cleanDisplayName(it), it)
+            assertNull(ProfileTextRules.cleanBio(it), it)
+        }
+    }
+
+    @Test
+    fun acceptsWellFormedSurrogatePairsNextToText() {
+        assertEquals("hi ${grinning}!", ProfileTextRules.cleanDisplayName("hi ${grinning}!"))
+    }
+
+    @Test
+    fun rejectsC1ControlCharacters() {
+        assertNull(ProfileTextRules.cleanDisplayName("a\u0085b"))
+        assertNull(ProfileTextRules.cleanDisplayName("a\u009Fb"))
+        assertNull(ProfileTextRules.cleanBio("a\u0080b"))
+    }
 }

@@ -10,7 +10,9 @@ package com.music.audify.data.social
  * Usernames are ASCII on purpose. Letters from other scripts can look
  * identical to Latin ones, which makes impersonation trivial and makes
  * "unique" meaningless. A display name can hold any text; the username that
- * is stored, searched and made unique cannot.
+ * is stored, searched and made unique cannot. Because every allowed character
+ * is ASCII, a username's length is the same in characters, UTF-16 units, code
+ * points and bytes, so no length-unit disagreement is possible here.
  *
  * The server must apply the same rules and must also enforce uniqueness on
  * the normalized form. This client-side copy only gives fast feedback.
