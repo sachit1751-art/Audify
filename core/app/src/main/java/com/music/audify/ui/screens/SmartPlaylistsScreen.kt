@@ -342,26 +342,40 @@ fun SmartPlaylistsScreen(
 @Composable
 private fun PlaylistArtwork(songs: List<Song>, modifier: Modifier = Modifier) {
     if (songs.isEmpty()) {
-        Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Text("♫", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        ArtworkPlaceholder(modifier)
         return
     }
     Row(modifier) {
-        songs.take(2).forEach { song -> SongArtwork(song, Modifier.weight(1f).fillMaxHeight()) }
-        if (songs.size == 1) {
-            Box(
-                Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("♫", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            SongArtwork(songs[0], Modifier.weight(1f).fillMaxWidth())
+            if (songs.size > 2) {
+                SongArtwork(songs[2], Modifier.weight(1f).fillMaxWidth())
+            } else {
+                ArtworkPlaceholder(Modifier.weight(1f).fillMaxWidth())
             }
         }
-        if (songs.size > 2) {
-            Column(Modifier.weight(1f).fillMaxHeight()) {
-                songs.drop(2).take(2).forEach { song -> SongArtwork(song, Modifier.weight(1f).fillMaxWidth()) }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            if (songs.size > 1) {
+                SongArtwork(songs[1], Modifier.weight(1f).fillMaxWidth())
+            } else {
+                ArtworkPlaceholder(Modifier.weight(1f).fillMaxWidth())
+            }
+            if (songs.size > 3) {
+                SongArtwork(songs[3], Modifier.weight(1f).fillMaxWidth())
+            } else {
+                ArtworkPlaceholder(Modifier.weight(1f).fillMaxWidth())
             }
         }
+    }
+}
+
+@Composable
+private fun ArtworkPlaceholder(modifier: Modifier = Modifier) {
+    Box(
+        modifier.background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("♫", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
