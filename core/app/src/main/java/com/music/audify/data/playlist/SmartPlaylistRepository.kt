@@ -42,9 +42,8 @@ object SmartPlaylistRepository {
     }
 
     /**
-     * Suggest tracks related to the playlist's current artists, ranked by
-     * listening activity. Suggestions are not part of the playlist until the
-     * user explicitly adds them.
+     * Suggest tracks related to a playlist using one listening snapshot per batch.
+     * Unrelated tracks are never presented as recommendations.
      */
     suspend fun recommend(
         definition: SmartPlaylistDefinition,
@@ -52,29 +51,48 @@ object SmartPlaylistRepository {
         library: List<Song>,
         limit: Int = 12,
     ): List<Song> {
-        if (library.isEmpty() || limit <= 0) return emptyList()
-        val currentIds = currentSongs.mapTo(mutableSetOf()) { it.videoId }
-        val anchorArtists = (currentSongs.flatMap { song ->
-            listOf(song.artist) + song.artists.map { it.name }
-        } + definition.artists)
-            .map { it.trim().lowercase(Locale.ROOT) }
-            .filter(String::isNotBlank)
-            .toSet()
-        val listening = ListeningStats.trackSnapshot().associateBy { it.videoId }
-        return library.asSequence()
-            .filter { it.videoId.isNotBlank() && it.videoId !in currentIds }
-            .distinctBy { it.videoId }
-            .sortedWith(
-                compareByDescending<Song> { song ->
-                    if (anchorArtists.isEmpty()) 0
-                    else (listOf(song.artist) + song.artists.map { it.name })
-                        .count { it.trim().lowercase(Locale.ROOT) in anchorArtists }
-                }.thenByDescending { listening[it.videoId]?.plays ?: 0 }
-                    .thenByDescending { listening[it.videoId]?.lastPlayedAtEpochMs ?: 0L }
-                    .thenBy { it.title.lowercase(Locale.ROOT) },
+        val listening = ListeningStats.trackSnapshot().associate { snapshot ->
+            snapshot.videoId to SmartPlaylistListening(
+                plays = snapshot.plays,
+                listenedMs = snapshot.listenedMs,
+                lastPlayedAtEpochMs = snapshot.lastPlayedAtEpochMs,
             )
-            .take(limit.coerceAtMost(50))
-            .toList()
+        }
+        return rankSmartPlaylistRecommendations(
+            currentSongs = currentSongs,
+            definitionArtists = definition.artists,
+            library = library,
+            listening = listening,
+            excludedSongIds = definition.includedSongIds.toSet(),
+            limit = limit,
+        )
+    }
+
+    /** Build recommendations for every playlist from a single stats snapshot. */
+    suspend fun recommendAll(
+        definitions: List<SmartPlaylistDefinition>,
+        currentSongsByPlaylist: Map<String, List<Song>>,
+        library: List<Song>,
+        limit: Int = 12,
+    ): Map<String, List<Song>> {
+        if (definitions.isEmpty() || library.isEmpty() || limit <= 0) return emptyMap()
+        val listening = ListeningStats.trackSnapshot().associate { snapshot ->
+            snapshot.videoId to SmartPlaylistListening(
+                plays = snapshot.plays,
+                listenedMs = snapshot.listenedMs,
+                lastPlayedAtEpochMs = snapshot.lastPlayedAtEpochMs,
+            )
+        }
+        return definitions.associate { definition ->
+            definition.id to rankSmartPlaylistRecommendations(
+                currentSongs = currentSongsByPlaylist[definition.id].orEmpty(),
+                definitionArtists = definition.artists,
+                library = library,
+                listening = listening,
+                excludedSongIds = definition.includedSongIds.toSet(),
+                limit = limit,
+            )
+        }
     }
 
     private fun evaluateWithSnapshot(
@@ -131,6 +149,52 @@ internal fun mergeSmartPlaylistAdditions(
     val byId = library.associateBy { it.videoId }
     val included = includedSongIds.mapNotNull(byId::get)
     return (included + generated).distinctBy { it.videoId }.take(maxTracks.coerceAtLeast(0))
+}
+
+
+/**
+ * Rank only genuine artist-affinity candidates. An empty anchor set produces no
+ * recommendations rather than an arbitrary list of popular library tracks.
+ */
+internal fun rankSmartPlaylistRecommendations(
+    currentSongs: List<Song>,
+    definitionArtists: List<String>,
+    library: List<Song>,
+    listening: Map<String, SmartPlaylistListening>,
+    excludedSongIds: Set<String> = emptySet(),
+    limit: Int = 12,
+): List<Song> {
+    if (library.isEmpty() || limit <= 0) return emptyList()
+    fun normalizedArtists(song: Song): Set<String> =
+        (listOf(song.artist) + song.artists.map { it.name })
+            .map { it.trim().lowercase(Locale.ROOT) }
+            .filter(String::isNotBlank)
+            .toSet()
+
+    val anchorArtists = (currentSongs.flatMap(::normalizedArtists) + definitionArtists)
+        .map { it.trim().lowercase(Locale.ROOT) }
+        .filter(String::isNotBlank)
+        .toSet()
+    if (anchorArtists.isEmpty()) return emptyList()
+
+    val excluded = currentSongs.mapTo(excludedSongIds.toMutableSet()) { it.videoId }
+    return library.asSequence()
+        .filter { it.videoId.isNotBlank() && it.videoId !in excluded }
+        .distinctBy { it.videoId }
+        .mapNotNull { song ->
+            val affinity = normalizedArtists(song).count(anchorArtists::contains)
+            if (affinity == 0) null else song to affinity
+        }
+        .sortedWith(
+            compareByDescending<Pair<Song, Int>> { it.second }
+                .thenByDescending { listening[it.first.videoId]?.plays ?: 0 }
+                .thenByDescending { listening[it.first.videoId]?.lastPlayedAtEpochMs ?: 0L }
+                .thenBy { it.first.title.lowercase(Locale.ROOT) }
+                .thenBy { it.first.videoId },
+        )
+        .take(limit.coerceAtMost(50))
+        .map { it.first }
+        .toList()
 }
 
 /** Merge all device-owned sources once, preserving the first (richest) song record. */
