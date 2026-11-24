@@ -9,6 +9,7 @@ import com.music.audify.data.playlist.SmartPlaylistEngine
 import com.music.audify.data.playlist.SmartPlaylistListening
 import com.music.audify.data.playlist.SmartPlaylistSort
 import com.music.audify.data.playlist.mergeSmartPlaylistCandidates
+import com.music.audify.data.playlist.mergeSmartPlaylistAdditions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -121,6 +122,31 @@ class SmartPlaylistEngineTest {
         )
         assertEquals(listOf("newer", "older", "never"), result.map { it.videoId })
     }
+    @Test fun `explicit smart playlist additions are retained separately and deduplicated`() {
+        val added = song("added")
+        val generated = song("generated")
+        val library = listOf(added, generated)
+        val merged = mergeSmartPlaylistAdditions(
+            generated = listOf(generated, added),
+            library = library,
+            includedSongIds = listOf("added", "missing", "added"),
+            maxTracks = 2,
+        )
+        assertEquals(listOf("added", "generated"), merged.map { it.videoId })
+    }
+
+    @Test fun `explicit smart playlist additions respect the configured track cap`() {
+        val first = song("first")
+        val generated = song("generated")
+        val merged = mergeSmartPlaylistAdditions(
+            generated = listOf(generated),
+            library = listOf(first, generated),
+            includedSongIds = listOf("first"),
+            maxTracks = 1,
+        )
+        assertEquals(listOf("first"), merged.map { it.videoId })
+    }
+
     @Test fun `candidate merge includes played and liked streamed tracks without duplicates`() {
         val local = song("local")
         val played = song("played")
