@@ -206,41 +206,41 @@ fun SmartPlaylistsScreen(
                                             Text(song.artist, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                         }
                                     }
-                                    val suggested = recommendations[definition.id].orEmpty()
-                                    if (suggested.isNotEmpty()) {
-                                        Spacer(Modifier.height(14.dp))
-                                        Text("Recommended for this playlist", style = MaterialTheme.typography.titleSmall)
-                                        Text(
-                                            "Suggestions stay separate until you add them.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                        suggested.forEach { suggestion ->
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Column(Modifier.weight(1f)) {
-                                                    Text(suggestion.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                                                    Text(
-                                                        suggestion.artist,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        maxLines = 1,
-                                                    )
-                                                }
-                                                TextButton(
-                                                    onClick = {
-                                                        SmartPlaylistStore.save(
-                                                            definition.copy(
-                                                                includedSongIds = (definition.includedSongIds + suggestion.videoId)
-                                                                    .distinct()
-                                                                    .take(SmartPlaylistEngine.MAX_TRACKS),
-                                                            ),
-                                                        )
-                                                    },
-                                                ) { Text("Add") }
+                                }
+                                val suggested = recommendations[definition.id].orEmpty()
+                                if (suggested.isNotEmpty()) {
+                                    Spacer(Modifier.height(14.dp))
+                                    Text("Recommended for this playlist", style = MaterialTheme.typography.titleSmall)
+                                    Text(
+                                        "Suggestions stay separate until you add them.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    suggested.forEach { suggestion ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Column(Modifier.weight(1f)) {
+                                                Text(suggestion.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                                                Text(
+                                                    suggestion.artist,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                )
                                             }
+                                            TextButton(
+                                                onClick = {
+                                                    SmartPlaylistStore.save(
+                                                        definition.copy(
+                                                            includedSongIds = (definition.includedSongIds + suggestion.videoId)
+                                                                .distinct()
+                                                                .take(SmartPlaylistEngine.MAX_TRACKS),
+                                                        ),
+                                                    )
+                                                },
+                                            ) { Text("Add") }
                                         }
                                     }
                                 }
