@@ -75,8 +75,10 @@ import java.util.UUID
 fun SmartPlaylistsScreen(
     contentPadding: PaddingValues,
     onPlaySongs: (title: String, songs: List<Song>, startIndex: Int) -> Unit,
+    onPublishToHome: (title: String, browseId: String, thumbnailUrl: String?) -> Unit = { _, _, _ -> },
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
     val history by LocalLibraryStore.history.collectAsStateWithLifecycle()
     val favorites by LocalLibraryStore.favorites.collectAsStateWithLifecycle()
@@ -310,6 +312,23 @@ fun SmartPlaylistsScreen(
             onDismiss = { showEditor = false },
             onSave = { definition ->
                 SmartPlaylistStore.save(definition)
+                scope.launch {
+                    val generated = withContext(Dispatchers.IO) {
+                        SmartPlaylistRepository.evaluate(definition, candidates)
+                    }
+                    if (generated.isNotEmpty()) {
+                        val playlist = com.music.audify.data.spotify.LocalPlaylistStore.saveOrReplacePlaylist(
+                            id = "smart_${definition.id}",
+                            title = definition.title,
+                            songs = generated,
+                        )
+                        onPublishToHome(
+                            playlist.title,
+                            playlist.browseId,
+                            playlist.coverUrl ?: generated.firstOrNull()?.thumbnailUrl,
+                        )
+                    }
+                }
                 expandedId = definition.id
                 showEditor = false
             },

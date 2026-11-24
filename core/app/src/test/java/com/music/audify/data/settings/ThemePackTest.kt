@@ -7,9 +7,9 @@ import org.junit.Test
 
 class ThemePackTest {
     @Test
-    fun allThirteenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
-        assertEquals(13, ThemePacks.builtIns.size)
-        assertEquals(13, ThemePacks.builtIns.map { it.id }.distinct().size)
+    fun remainingBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
+        assertEquals(7, ThemePacks.builtIns.size)
+        assertEquals(7, ThemePacks.builtIns.map { it.id }.distinct().size)
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { color ->
                 assertTrue(color.matches(Regex("^#[0-9A-Fa-f]{6}$")))
@@ -63,10 +63,9 @@ class ThemePackTest {
 
     @Test
     fun builtInsIncludeAccessibleSurfaceVariants() {
-        assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.AMOLED })
-        assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.MIDNIGHT })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.GRAPHITE })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.SLATE })
+        assertTrue(ThemePacks.builtIns.none { it.id in setOf("violet", "sunset", "orchid", "minimal-slate", "slate", "amoled", "midnight", "rose") })
     }
 
     @Test
@@ -78,14 +77,9 @@ class ThemePackTest {
             assertTrue("${pack.name} dark background must be valid", ThemePacks.isValidHex(dark))
             assertNotEquals("${pack.name} light and dark backgrounds must differ", light, dark)
         }
-        assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "amoled" }))
         assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "classic" }))
-        assertEquals("#080D18", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "midnight" }))
         assertEquals("#15171B", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "graphite" }))
-                        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
-        val rose = ThemePacks.builtIns.first { it.id == "rose" }
-        assertNotEquals("#FFFFFF", ThemePacks.lightBackgroundHex(rose))
-        assertTrue(ThemePacks.lightBackgroundHex(rose).startsWith("#F"))
+        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
     }
 
     @Test
@@ -112,7 +106,7 @@ class ThemePackTest {
 
     @Test
     fun minimalPresetsAreVisiblyDistinctFromExistingThemesAndEachOther() {
-        val minimalIds = setOf("minimal-slate", "soft-sage", "warm-sand")
+        val minimalIds = setOf("soft-sage", "warm-sand")
         val minimal = ThemePacks.builtIns.filter { it.id in minimalIds }
         val existing = ThemePacks.builtIns.filterNot { it.id in minimalIds }
 

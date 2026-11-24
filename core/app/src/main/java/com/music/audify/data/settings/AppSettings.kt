@@ -435,7 +435,7 @@ enum class ThemeMode(val label: String) {
 
 /** Built-in app-wide backgrounds; a custom photo takes precedence. */
 enum class AppBackgroundStyle(val label: String) {
-    PLAIN("Plain"), AURORA("Aurora"), OCEAN("Ocean"), SUNSET("Sunset"), NEBULA("Nebula")
+    PLAIN("Plain"), OCEAN("Ocean")
 }
 
 /**
@@ -789,6 +789,7 @@ object AppSettings {
     val customThemePacks = MutableStateFlow<List<ThemePack>>(emptyList())
     val themeBackgroundUri = MutableStateFlow<String?>(null)
     val backgroundStyle = MutableStateFlow(AppBackgroundStyle.PLAIN)
+    val amoledDisplayColors = MutableStateFlow(false)
 
     /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
@@ -1677,6 +1678,7 @@ object AppSettings {
                     ?: AppBackgroundStyle.PLAIN.name,
             )
         }.getOrDefault(AppBackgroundStyle.PLAIN)
+        amoledDisplayColors.value = prefs.getBoolean(KEY_AMOLED_DISPLAY_COLORS, false)
         autoplay.value = prefs.getBoolean(KEY_AUTOPLAY, true)
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
@@ -2289,6 +2291,11 @@ object AppSettings {
     fun setBackgroundStyle(value: AppBackgroundStyle) {
         backgroundStyle.value = value
         prefs.edit {putString(KEY_BACKGROUND_STYLE, value.name)}
+    }
+
+    fun setAmoledDisplayColors(value: Boolean) {
+        amoledDisplayColors.value = value
+        prefs.edit { putBoolean(KEY_AMOLED_DISPLAY_COLORS, value) }
     }
 
     fun setReduceAnimation(value: Boolean) {
@@ -3406,6 +3413,7 @@ object AppSettings {
     private const val KEY_CUSTOM_THEME_PACKS = "custom_theme_packs"
     private const val KEY_THEME_BACKGROUND_URI = "theme_background_uri"
     private const val KEY_BACKGROUND_STYLE = "background_style"
+    private const val KEY_AMOLED_DISPLAY_COLORS = "amoled_display_colors"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"

@@ -32,20 +32,10 @@ object ThemePacks {
 
     val builtIns = listOf(
         ThemePack(CLASSIC_ID, "Classic", "#FFFFFF", "#A1A1AA", "#FA2D48"),
-        ThemePack("amoled", "AMOLED", "#C7D2FE", "#A7F3D0", "#FDBA74", ThemeSurfaceStyle.AMOLED),
-        ThemePack("midnight", "Midnight", "#8AB4FF", "#8BE0D1", "#C5A3FF", ThemeSurfaceStyle.MIDNIGHT),
         ThemePack("graphite", "Graphite", "#D1D5DB", "#9CA3AF", "#93C5FD", ThemeSurfaceStyle.GRAPHITE),
         ThemePack("ocean", "Ocean", "#55C7F2", "#80E0D0", "#3478F6"),
         ThemePack("forest", "Forest", "#80D6A3", "#B5D98C", "#3C9B78"),
-        ThemePack("sunset", "Sunset", "#FFAD78", "#F47D9A", "#B77CFF"),
-        ThemePack("rose", "Rose", "#F48FB1", "#E6A6D8", "#B58CFF"),
-        ThemePack("violet", "Violet", "#B7A1FF", "#83B8FF", "#E5A0E8"),
         ThemePack("jade", "Jade", "#6EE7B7", "#A3E635", "#67E8F9", ThemeSurfaceStyle.SLATE),
-        // Minimal presets intentionally fill a gap in the existing set: muted,
-        // low-saturation accents rather than another bright/neon colour family.
-        // Keep the three roles distinct so primary actions, supporting controls,
-        // and tertiary highlights remain recognisable throughout the app.
-        ThemePack("minimal-slate", "Minimal Slate", "#64748B", "#78716C", "#475569", ThemeSurfaceStyle.GRAPHITE),
         ThemePack("soft-sage", "Soft Sage", "#66806C", "#9AA58A", "#49675C", ThemeSurfaceStyle.SLATE),
         ThemePack("warm-sand", "Warm Sand", "#92765C", "#B59A7B", "#6D766A", ThemeSurfaceStyle.WARM),
     )

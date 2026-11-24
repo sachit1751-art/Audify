@@ -2248,6 +2248,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Add a generated smart playlist to Home as a normal, openable playlist card. */
+    fun addSmartPlaylistToHome(title: String, browseId: String, thumbnailUrl: String?) {
+        val current = (_home.value as? UiState.Success)?.data ?: return
+        val item = ShelfItem(
+            title = title,
+            subtitle = "Smart playlist",
+            thumbnailUrl = thumbnailUrl,
+            videoId = null,
+            browseId = browseId,
+        )
+        val shelfTitle = "Smart Playlists"
+        val existing = current.firstOrNull { it.title == shelfTitle }
+        if (existing?.items?.any {
+                it.browseId == browseId && it.title == title && it.thumbnailUrl == thumbnailUrl
+            } == true
+        ) return
+        val updated = if (existing == null) {
+            current + HomeShelf(shelfTitle, listOf(item))
+        } else {
+            current.map { shelf ->
+                if (shelf.title == shelfTitle) shelf.copy(items = listOf(item) + shelf.items.filterNot { it.browseId == browseId })
+                else shelf
+            }
+        }
+        _home.value = UiState.Success(updated)
+    }
+
     /** Refreshes the core feed without blanking the current Play page first. */
     private suspend fun refreshHome(identity: String?) = coroutineScope {
         val loadGeneration = homeLoadGeneration.get()
@@ -2489,8 +2516,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * history on.
      */
     fun loadHistory() {
+        val localHistory = com.music.audify.data.stats.LocalLibraryStore.history.value
         if (!_signedIn.value) {
-            _history.value = UiState.Error(text(R.string.history_sign_in_required), retryable = false)
+            _history.value = if (localHistory.isNotEmpty()) UiState.Success(localHistory)
+            else UiState.Error(text(R.string.history_empty), retryable = false)
             return
         }
         val identity = listenerKey()
@@ -2498,14 +2527,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val next = YtMusicRepository.history().fold(
                 onSuccess = { songs ->
-                    if (songs.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
-                    else {
-                        val visible = filterExplicitSongs(songs)
-                        if (visible.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
-                        else UiState.Success(visible)
-                    }
+                    val combined = (localHistory + songs).distinctBy { it.videoId }
+                    val visible = filterExplicitSongs(combined)
+                    if (visible.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
+                    else UiState.Success(visible)
                 },
-                onFailure = { UiState.Error(it.friendly()) },
+                onFailure = { failure ->
+                    if (localHistory.isNotEmpty()) UiState.Success(filterExplicitSongs(localHistory))
+                    else UiState.Error(failure.friendly())
+                },
             )
             if (identity == listenerKey()) _history.value = next
         }

@@ -344,9 +344,30 @@ fun SearchScreen(
                         )
                     }
                 }
-                // Keep the initial Search canvas quiet: no mood tiles and no
-                // previous-query rows, regardless of focus or saved history.
-                results == null -> item { MessageState(stringResource(Res.string.search_empty)) }
+                // Give the empty search canvas a clear next action instead of
+                // leaving a blank region before the first query is entered.
+                results == null -> item {
+                    if (query.isBlank() && history.isEmpty() && !searchingLibrary && !searchingAddons) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER, vertical = 56.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(42.dp),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            Text("No recent search right now", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Search anything",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else MessageState(stringResource(Res.string.search_empty))
+                }
                 results is UiState.Loading -> songListSkeleton(circular = filter == SearchFilter.ARTISTS)
                 results is UiState.Error -> item { MessageState(results.message) }
                 results is UiState.Success -> {

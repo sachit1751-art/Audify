@@ -93,6 +93,17 @@ object LocalPlaylistStore {
         return playlist
     }
 
+    /** Creates or refreshes a stable local playlist identity (used by Smart Playlists). */
+    fun saveOrReplacePlaylist(id: String, title: String, songs: List<Song>): LocalPlaylist {
+        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
+        require(id.isNotBlank() && !id.contains(':')) { "Invalid local playlist id" }
+        val playlist = LocalPlaylist(id = id, title = title, songs = songs.distinctBy { it.videoId })
+        val updated = listOf(playlist) + _playlists.value.filterNot { it.id == id }
+        persist(updated, commit = true)
+        _playlists.value = updated
+        return playlist
+    }
+
     fun deletePlaylist(id: String) {
         val updated = _playlists.value.filterNot { it.id == id || it.browseId == id || it.id == id.removePrefix("local:playlist:") }
         _playlists.value = updated

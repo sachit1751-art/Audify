@@ -347,6 +347,7 @@ fun SettingsScreen(
     val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
     val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
     val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+    val amoledDisplayColors by AppSettings.amoledDisplayColors.collectAsStateWithLifecycle()
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
     val outputPcmMode by AppSettings.outputPcmMode.collectAsStateWithLifecycle()
     val preferUsbDac by AppSettings.preferUsbDac.collectAsStateWithLifecycle()
@@ -1502,7 +1503,7 @@ fun SettingsScreen(
                     )
                 }
             }
-            row("Background", "built-in background", "aurora", "ocean", "sunset", "nebula", "custom background", "wallpaper", "image") {
+            row("Background", "built-in background", "ocean", "custom background", "wallpaper", "image") {
                 Text(
                     "Built-in background",
                     style = MaterialTheme.typography.titleMedium,
@@ -2206,6 +2207,20 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
+                )
+            }
+            row("AMOLED display colours", "amoled", "pure black", "oled", "display", "battery") {
+                SettingsRow(
+                    icon = SfIcons.Brightness,
+                    title = "AMOLED display colours",
+                    subtitle = "Use pure black surfaces throughout dark mode while keeping text and controls readable",
+                    trailing = {
+                        IosSwitch(
+                            checked = amoledDisplayColors,
+                            onCheckedChange = AppSettings::setAmoledDisplayColors,
+                        )
+                    },
+                    onClick = { AppSettings.setAmoledDisplayColors(!amoledDisplayColors) },
                 )
             }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {

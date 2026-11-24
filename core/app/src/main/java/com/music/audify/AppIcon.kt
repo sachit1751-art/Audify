@@ -19,10 +19,7 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
     Sunset("LauncherSunset", R.mipmap.ic_launcher_sunset, R.string.app_icon_sunset),
     Violet("LauncherViolet", R.mipmap.ic_launcher_violet, R.string.app_icon_violet),
     Emerald("LauncherEmerald", R.mipmap.ic_launcher_emerald, R.string.app_icon_emerald),
-    Coral("LauncherCoral", R.mipmap.ic_launcher_coral, R.string.app_icon_coral),
-    Amber("LauncherAmber", R.mipmap.ic_launcher_amber, R.string.app_icon_amber),
     Arctic("LauncherArctic", R.mipmap.ic_launcher_arctic, R.string.app_icon_arctic),
-    Rose("LauncherRose", R.mipmap.ic_launcher_rose, R.string.app_icon_rose),
     Mint("LauncherMint", R.mipmap.ic_launcher_mint, R.string.app_icon_mint),
     Lavender("LauncherLavender", R.mipmap.ic_launcher_lavender, R.string.app_icon_lavender),
     Ruby("LauncherRuby", R.mipmap.ic_launcher_ruby, R.string.app_icon_ruby),
@@ -48,6 +45,16 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
          */
         fun repairLauncher(context: Context) {
             val pm = context.packageManager
+            // These aliases existed in earlier releases but are no longer
+            // selectable. Explicitly disable them so an old selection cannot
+            // leave duplicate launcher icons after upgrading.
+            listOf("LauncherCoral", "LauncherAmber", "LauncherRose").forEach { alias ->
+                pm.setComponentEnabledSetting(
+                    ComponentName(context.packageName, "${context.packageName}.$alias"),
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }
             val enabled = entries.filter { it.isEnabled(context) }
             if (enabled.size != 1) apply(context, enabled.firstOrNull() ?: Default)
         }
@@ -67,6 +74,13 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
             entries.filter { it != icon }.forEach {
                 pm.setComponentEnabledSetting(
                     it.component(context),
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }
+            listOf("LauncherCoral", "LauncherAmber", "LauncherRose").forEach { alias ->
+                pm.setComponentEnabledSetting(
+                    ComponentName(context.packageName, "${context.packageName}.$alias"),
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP,
                 )

@@ -17,7 +17,10 @@ import kotlin.random.Random
  * Pick the starting occurrence for a collection-level Shuffle action.
  * Spotify rows that have not resolved to a playable catalogue item are
  * excluded before choosing; selecting one must never silently abort the
- * entire shuffle request or fall back to the first row.
+ * entire shuffle request or fall back to the first row. When there is more
+ * than one playable track, do not pick the first playable row as the lead:
+ * that makes a Shuffle tap look indistinguishable from ordinary Play when
+ * the random draw happens to land on the playlist's first track.
  */
 internal fun randomPlayableShuffleStartIndex(
     songs: List<Song>,
@@ -25,7 +28,8 @@ internal fun randomPlayableShuffleStartIndex(
 ): Int? {
     val playableIndices = songs.indices.filterNot { songs[it].isUnresolvedSpotify }
     if (playableIndices.isEmpty()) return null
-    return playableIndices[random.nextInt(playableIndices.size)]
+    val startingCandidates = playableIndices.drop(1).ifEmpty { playableIndices }
+    return startingCandidates[random.nextInt(startingCandidates.size)]
 }
 
 /**

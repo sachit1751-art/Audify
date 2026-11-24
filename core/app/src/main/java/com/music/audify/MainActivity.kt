@@ -1252,6 +1252,18 @@ private fun AudifyApp(
             browseId = playlist.browseId,
         )
     }
+    LaunchedEffect(homeState, localPlaylists) {
+        if (homeState is UiState.Success) {
+            localPlaylists.filter { it.id.startsWith("smart_") }.forEach { playlist ->
+                viewModel.addSmartPlaylistToHome(
+                    title = playlist.title,
+                    browseId = playlist.browseId,
+                    thumbnailUrl = playlist.coverUrl
+                        ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+                )
+            }
+        }
+    }
     // What a browse id is recorded under in Downloads.collections, when it names
     // a release downloaded whole — see BrowseTarget.downloadId. A downloaded
     // playlist's own page and its card both carry the id under the
@@ -3394,6 +3406,7 @@ private fun AudifyApp(
                                 onPlaySongs = { title, songs, index ->
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
                                 },
+                                onPublishToHome = viewModel::addSmartPlaylistToHome,
                             )
                         } else if (pageRoute is AppRoute.Podcasts) {
                             com.music.audify.ui.screens.PodcastsScreen(
