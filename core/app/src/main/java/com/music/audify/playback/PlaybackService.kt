@@ -143,6 +143,7 @@ import com.music.audify.data.scrobbling.LastFM
 import com.music.audify.data.scrobbling.ListenBrainzManager
 import com.music.audify.data.scrobbling.ScrobbleManager
 import com.music.audify.data.settings.AppSettings
+import com.music.audify.data.settings.activeAt
 import com.music.audify.data.settings.AudioQuality
 import com.music.audify.data.settings.BitPerfectMode
 import com.music.audify.data.settings.permits
@@ -2022,7 +2023,12 @@ class PlaybackService : MediaLibraryService() {
             // the session player at the handoff — so the incoming track is
             // levelled on its own sink before it renders a frame, and the
             // outgoing track keeps its own gain for the rest of the blend.
-            onArmIncoming = { item, nextId -> spareLoudness().track(item.mediaId, nextId) },
+            onArmIncoming = { item, nextId ->
+                spareLoudness().track(item.mediaId, nextId)
+                // If an incoming track begins inside a saved skip range, move
+                // its silent standby deck before it renders the first frame.
+                spare?.let { applySkipSegmentAtArm(item, it) }
+            },
             // Both sinks, not a role: the trim is about what the pair sums to.
             onBlendHeadroom = { trim ->
                 loudnessA.setBlendTrim(trim)
@@ -3492,7 +3498,8 @@ class PlaybackService : MediaLibraryService() {
         exoPlayer.addMediaItems(restored)
     }
 
-    private fun toggleFavoriteFromNotification(videoId: String) {
+    private fun toggleFavoriteFromNotification(song: Song) {
+        val videoId = song.videoId
         favoriteActionJob?.cancel()
         val previous = LikeState.overrides.value[videoId] ?: LikeStatus.INDIFFERENT
         val target = if (previous == LikeStatus.LIKE) {
@@ -3507,6 +3514,11 @@ class PlaybackService : MediaLibraryService() {
         refreshCustomLayouts()
         favoriteActionJob = scope.launch {
             YtMusicRepository.rate(videoId, target)
+                .onSuccess {
+                    if (target == LikeStatus.LIKE && AppSettings.autoDownloadLikedSongs.value) {
+                        Downloads.enqueue(applicationContext, song, "Liked Songs")
+                    }
+                }
                 .onFailure {
                     LikeState.set(videoId, previous)
                     refreshCustomLayouts()
@@ -3711,6 +3723,14 @@ class PlaybackService : MediaLibraryService() {
         alreadyAudible: Boolean = false,
     ) {
         val exoPlayer = player ?: return
+        // A selected in-point is a real playback boundary, not a UI-only cue.
+        // Crossfaded incoming tracks are already started at that point by the
+        // controller before they become audible.
+        if (!alreadyAudible) {
+            AppSettings.playbackWindowForTrack(mediaItem?.mediaId)?.let { window ->
+                if (window.startMs > 0L) exoPlayer.seekTo(window.startMs)
+            }
+        }
         syncBoundedContextCursor(exoPlayer, mediaItem)
         if (boundedContextWindow != null && !ListenTogether.state.value.inParty) {
             saveBoundedContextSnapshot(exoPlayer)
@@ -3738,6 +3758,7 @@ class PlaybackService : MediaLibraryService() {
         // corrects it — see [formatListener]'s onAudioInputFormatChanged.
         // The lyrics offset belongs to the track, so it follows the handoff too.
         AppSettings.setLyricsOffsetTrack(mediaItem?.mediaId)
+        AppSettings.setSkipSegmentsTrack(mediaItem?.mediaId)
         activeTrackIsDolbyAtmos = NerdStats.declaredFormat(mediaItem?.mediaId)?.isDolbyAtmos == true
         applySpatialAudioEnabled(mediaItem?.mediaId)
 
@@ -8098,10 +8119,73 @@ class PlaybackService : MediaLibraryService() {
         if (lyricsTickerJob?.isActive == true) return
         lyricsTickerJob = scope.launch(Dispatchers.Main) {
             while (isActive) {
+                val active = player
+                if (active != null && active.isPlaying) applyCurrentSkipSegment(active)
+                // During a normal crossfade both decks are audible. Apply each
+                // deck's own track rules; never let the incoming deck leak an
+                // intro just because the outgoing deck still owns the session.
+                if (crossfade?.isTransitioning() == true && crossfade?.isLoopMixRunning() != true) {
+                    spare?.takeIf { it !== active && it.isPlaying }?.let(::applyCurrentSkipSegment)
+                }
+                if (active != null && active.isPlaying && crossfade?.isTransitioning() != true) {
+                    val item = active.currentMediaItem
+                    val window = item?.let { AppSettings.playbackWindowForTrack(it.mediaId) }
+                    if (window != null && active.currentPosition >= window.endMs) {
+                        TrackLog.d("Audify", "playback window ended at ${window.endMs}ms", about = item.mediaId)
+                        if (active.hasNextMediaItem()) {
+                            active.seekToNextMediaItem()
+                        } else {
+                            active.pause()
+                            active.seekTo(window.endMs)
+                        }
+                    }
+                }
                 updateLyricSubtitle()
-                delay(500L)
+                delay(SKIP_SEGMENT_TICK_MS)
             }
         }
+    }
+
+    /** Applies the current track's saved skip ranges without changing its queue item. */
+    private fun applyCurrentSkipSegment(active: Player) {
+        // A party or external receiver has a separate authoritative playback
+        // clock. Normal crossfades are handled deck-by-deck above; the loop-deck
+        // mixer is excluded because its DSP owns offset source clocks.
+        if (ListenTogether.state.value.inParty || speakers.active || crossfade?.isLoopMixRunning() == true) return
+        val item = active.currentMediaItem ?: return
+        val duration = active.duration
+        if (duration == C.TIME_UNSET || duration <= 0L) return
+        val position = active.currentPosition
+        val playbackWindow = AppSettings.playbackWindowForTrack(item.mediaId)
+        if (playbackWindow != null && position < playbackWindow.startMs) {
+            active.seekTo(playbackWindow.startMs)
+            return
+        }
+        val segment = AppSettings.skipSegmentsForTrack(item.mediaId).activeAt(position, duration) ?: return
+        TrackLog.d(
+            "Audify",
+            "skip segment ${segment.startMs}..${segment.endMs}ms",
+            about = item.mediaId,
+        )
+        active.seekTo(segment.endMs)
+    }
+
+    private fun applySkipSegmentAtArm(item: MediaItem, incoming: ExoPlayer) {
+        if (ListenTogether.state.value.inParty || speakers.active) return
+        if (incoming.currentMediaItem?.mediaId != item.mediaId) return
+        val position = incoming.currentPosition
+        val duration = incoming.duration
+        val segment = AppSettings.skipSegmentsForTrack(item.mediaId)
+            .firstOrNull { range ->
+                position >= range.startMs && position < range.endMs &&
+                    (duration == C.TIME_UNSET || duration <= 0L || range.endMs <= duration)
+            } ?: return
+        TrackLog.d(
+            "Audify",
+            "pre-skipping incoming segment ${segment.startMs}..${segment.endMs}ms before blend",
+            about = item.mediaId,
+        )
+        incoming.seekTo(segment.endMs)
     }
 
     private fun stopLyricsTicker() {
@@ -8837,7 +8921,7 @@ class PlaybackService : MediaLibraryService() {
                             // reconcile, and the button follows [OfflinePlaylists.liked].
                             OfflinePlaylists.toggleLike(song)
                         } else {
-                            toggleFavoriteFromNotification(item.mediaId)
+                            toggleFavoriteFromNotification(song)
                         }
                     }
                 else -> return Futures.immediateFuture(
@@ -9619,6 +9703,7 @@ class PlaybackService : MediaLibraryService() {
 
         /** How often played-seconds are sampled off the player. */
         const val PROGRESS_SAMPLE_MS = 5_000L
+        const val SKIP_SEGMENT_TICK_MS = 100L
 
         /** How often [driveDirectWindow] checks whether the next track's window has opened. */
         const val DIRECT_WINDOW_STEP_MS = 500L

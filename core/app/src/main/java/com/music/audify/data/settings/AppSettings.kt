@@ -575,6 +575,9 @@ object AppSettings {
      */
     val exportDownloads = MutableStateFlow(false)
 
+    /** Automatically keep tracks downloaded when the user likes them. */
+    val autoDownloadLikedSongs = MutableStateFlow(false)
+
     /**
      * Check the playlists downloaded whole for newly added songs and download
      * them, in the background. On for fresh installs; users can disable it to
@@ -945,6 +948,14 @@ object AppSettings {
     val lyricsOffsetMs = MutableStateFlow(0)
     private var lyricsOffsetByTrack: Map<String, Int> = emptyMap()
     private var lyricsOffsetTrackId: String? = null
+
+    /** Automatic intro/middle-section skips saved independently for each track. */
+    val skipSegments = MutableStateFlow<List<SkipSegment>>(emptyList())
+    private var skipSegmentsByTrack: Map<String, List<SkipSegment>> = emptyMap()
+    private var skipSegmentsTrackId: String? = null
+    val trackPlaybackWindow = MutableStateFlow<TrackPlaybackWindow?>(null)
+    private var playbackWindowsByTrack: Map<String, TrackPlaybackWindow> = emptyMap()
+    private var playbackWindowTrackId: String? = null
 
     /**
      * Which language the lyrics translate button translates *into*.
@@ -1609,6 +1620,7 @@ object AppSettings {
         // New installs have explicit values from seedFirstInstallDefaults(); an
         // upgrade with a missing key must not silently acquire a new preference.
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
+        autoDownloadLikedSongs.value = prefs.getBoolean(KEY_AUTO_DOWNLOAD_LIKED_SONGS, false)
         syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
         crossfadeOnSkip.value = false
@@ -1790,6 +1802,8 @@ object AppSettings {
         liquidFlow.value = prefs.getBoolean(KEY_LIQUID_FLOW, true)
         lyricsSparkle.value = prefs.getBoolean(KEY_LYRICS_SPARKLE, true)
         lyricsOffsetByTrack = readLyricsOffsetByTrack()
+        skipSegmentsByTrack = readSkipSegmentsByTrack()
+        playbackWindowsByTrack = readPlaybackWindowsByTrack()
         translationLanguage.value = prefs.getString(KEY_TRANSLATION_LANGUAGE, "").orEmpty()
         if (highPerformanceMode.value) {
             reduceAnimation.value = false
@@ -2581,6 +2595,102 @@ object AppSettings {
         lyricsOffsetMs.value = lyricsOffsetTrackId?.let { lyricsOffsetByTrack[it] } ?: 0
     }
 
+    /** Points the editor and playback rule at the current media item. */
+    fun setSkipSegmentsTrack(trackId: String?) {
+        skipSegmentsTrackId = trackId?.takeIf { it.isNotBlank() }
+        skipSegments.value = skipSegmentsTrackId?.let { skipSegmentsByTrack[it] }.orEmpty()
+        setPlaybackWindowTrack(trackId)
+    }
+
+    private fun setPlaybackWindowTrack(trackId: String?) {
+        playbackWindowTrackId = trackId?.takeIf { it.isNotBlank() }
+        trackPlaybackWindow.value = playbackWindowTrackId?.let { playbackWindowsByTrack[it] }
+    }
+
+    fun playbackWindowForTrack(trackId: String?): TrackPlaybackWindow? =
+        trackId?.takeIf { it.isNotBlank() }?.let { playbackWindowsByTrack[it] }
+
+    fun setPlaybackWindowForTrack(trackId: String, window: TrackPlaybackWindow?) {
+        if (trackId.isBlank()) return
+        val next = LinkedHashMap(playbackWindowsByTrack)
+        next.remove(trackId)
+        if (window?.isValid == true) next[trackId] = window
+        while (next.size > MAX_SKIP_SEGMENT_TRACKS) next.remove(next.keys.first())
+        playbackWindowsByTrack = next
+        if (playbackWindowTrackId == trackId) trackPlaybackWindow.value = next[trackId]
+        val json = org.json.JSONObject()
+        next.forEach { (id, range) ->
+            val pair = org.json.JSONArray()
+            pair.put(range.startMs)
+            pair.put(range.endMs)
+            json.put(id, pair)
+        }
+        prefs.edit { putString(KEY_TRACK_PLAYBACK_WINDOWS, json.toString()) }
+    }
+
+    private fun readPlaybackWindowsByTrack(): Map<String, TrackPlaybackWindow> {
+        val raw = prefs.getString(KEY_TRACK_PLAYBACK_WINDOWS, null) ?: return emptyMap()
+        return runCatching {
+            val json = org.json.JSONObject(raw)
+            val out = LinkedHashMap<String, TrackPlaybackWindow>()
+            json.keys().forEach { id ->
+                val pair = json.optJSONArray(id) ?: return@forEach
+                if (pair.length() < 2) return@forEach
+                val window = TrackPlaybackWindow(pair.optLong(0, -1L), pair.optLong(1, -1L))
+                if (window.isValid) out[id] = window
+            }
+            out
+        }.getOrDefault(emptyMap())
+    }
+
+    fun skipSegmentsForTrack(trackId: String?): List<SkipSegment> =
+        trackId?.takeIf { it.isNotBlank() }?.let { skipSegmentsByTrack[it] }.orEmpty()
+
+    /** Saves a normalized list; an empty list removes the track's override. */
+    fun setSkipSegmentsForTrack(trackId: String, segments: List<SkipSegment>) {
+        if (trackId.isBlank()) return
+        val normalized = normalizeSkipSegments(segments)
+        val next = LinkedHashMap(skipSegmentsByTrack)
+        next.remove(trackId)
+        if (normalized.isNotEmpty()) next[trackId] = normalized
+        while (next.size > MAX_SKIP_SEGMENT_TRACKS) next.remove(next.keys.first())
+        skipSegmentsByTrack = next
+        if (skipSegmentsTrackId == trackId) skipSegments.value = normalized
+        val json = org.json.JSONObject()
+        next.forEach { (id, ranges) ->
+            val array = org.json.JSONArray()
+            ranges.forEach { range ->
+                val pair = org.json.JSONArray()
+                pair.put(range.startMs)
+                pair.put(range.endMs)
+                array.put(pair)
+            }
+            json.put(id, array)
+        }
+        prefs.edit { putString(KEY_SKIP_SEGMENTS_BY_TRACK, json.toString()) }
+    }
+
+    private fun readSkipSegmentsByTrack(): Map<String, List<SkipSegment>> {
+        val raw = prefs.getString(KEY_SKIP_SEGMENTS_BY_TRACK, null) ?: return emptyMap()
+        return runCatching {
+            val json = org.json.JSONObject(raw)
+            val out = LinkedHashMap<String, List<SkipSegment>>()
+            json.keys().forEach { id ->
+                val array = json.optJSONArray(id) ?: return@forEach
+                val ranges = buildList {
+                    for (index in 0 until array.length()) {
+                        val pair = array.optJSONArray(index) ?: continue
+                        if (pair.length() < 2) continue
+                        add(SkipSegment(pair.optLong(0, -1L), pair.optLong(1, -1L)))
+                    }
+                }
+                val normalized = normalizeSkipSegments(ranges)
+                if (normalized.isNotEmpty()) out[id] = normalized
+            }
+            out
+        }.getOrDefault(emptyMap())
+    }
+
     private fun readLyricsOffsetByTrack(): Map<String, Int> {
         val raw = prefs.getString(KEY_LYRICS_OFFSET_BY_TRACK, null) ?: return emptyMap()
         return runCatching {
@@ -2870,6 +2980,11 @@ object AppSettings {
     fun setExportDownloads(value: Boolean) {
         exportDownloads.value = value
         prefs.edit {putBoolean(KEY_EXPORT_DOWNLOADS, value)}
+    }
+
+    fun setAutoDownloadLikedSongs(value: Boolean) {
+        autoDownloadLikedSongs.value = value
+        prefs.edit { putBoolean(KEY_AUTO_DOWNLOAD_LIKED_SONGS, value) }
     }
 
     fun setSyncDownloadedPlaylists(value: Boolean) {
@@ -3377,6 +3492,7 @@ object AppSettings {
     private const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
     private const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
     private const val KEY_EXPORT_DOWNLOADS = "export_downloads"
+    private const val KEY_AUTO_DOWNLOAD_LIKED_SONGS = "auto_download_liked_songs"
     private const val KEY_SYNC_DOWNLOADED_PLAYLISTS = "sync_downloaded_playlists"
     private const val KEY_CROSSFADE = "crossfade_seconds"
     private const val KEY_CROSSFADE_ON_SKIP = "crossfade_on_skip"
@@ -3492,6 +3608,9 @@ object AppSettings {
     private const val KEY_PLAYBACK_TEMPO = "playback_tempo"
     private const val KEY_LYRICS_OFFSET_BY_TRACK = "lyrics_offset_by_track"
     private const val MAX_LYRICS_OFFSET_TRACKS = 5000
+    private const val KEY_SKIP_SEGMENTS_BY_TRACK = "skip_segments_by_track"
+    private const val MAX_SKIP_SEGMENT_TRACKS = 5000
+    private const val KEY_TRACK_PLAYBACK_WINDOWS = "track_playback_windows"
     private const val KEY_TRANSLATION_LANGUAGE = "translation_language"
     private const val KEY_ANIMATED_CANVAS = "animated_canvas"
     private const val KEY_CANVAS_OVER_CELLULAR = "canvas_over_cellular"

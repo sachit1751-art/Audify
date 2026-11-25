@@ -264,6 +264,7 @@ import com.music.audify.ui.components.menuAnchor
 import com.music.audify.ui.components.macOSPopupMorph
 import com.music.audify.ui.components.IosMenuPopover
 import com.music.audify.ui.components.SongActionsMenu
+import com.music.audify.ui.components.SkipSegmentsDialog
 import com.music.audify.ui.components.HeldContextMenu
 import com.music.audify.ui.components.cancelCoverFlight
 import com.music.audify.ui.components.coverFlightPagesOpen
@@ -817,6 +818,7 @@ private fun AudifyApp(
         mutableStateOf<com.music.audify.ui.components.backdrop.Backdrop?>(null)
     }
     var showLyricsOffset by remember { mutableStateOf(false) }
+    var skipSegmentsTarget by remember { mutableStateOf<Song?>(null) }
     /**
      * Whether the track menu that is up was opened from the player.
      *
@@ -1192,7 +1194,7 @@ private fun AudifyApp(
         }
     }
     val toggleLikeOf: (Song) -> Unit = { song ->
-        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId)
+        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId, song)
     }
     // Which tracks are being held on YouTube's own upload, so the player's menu
     // offers the way back out of a revert rather than the revert again.
@@ -5273,6 +5275,14 @@ private fun AudifyApp(
                 } else {
                     null
                 },
+                onSkipSegments = if (fromPlayer && song.videoId.isNotBlank()) {
+                    {
+                        songActions = null
+                        skipSegmentsTarget = song
+                    }
+                } else {
+                    null
+                },
                 onToggleSpatialAudio = if (fromPlayer && song.videoId.isNotBlank()) {
                     { AppSettings.setSpatialAudioForTrack(song.videoId, !spatialAudioOn) }
                 } else {
@@ -6216,6 +6226,15 @@ private fun AudifyApp(
             LyricsSourcesDialog(
                 hazeState = hazeState,
                 onDismiss = { showLyricsSources = false },
+            )
+        }
+
+        skipSegmentsTarget?.let { target ->
+            SkipSegmentsDialog(
+                trackId = target.videoId,
+                trackTitle = target.title,
+                durationMs = controller?.duration?.takeIf { it > 0L } ?: 0L,
+                onDismiss = { skipSegmentsTarget = null },
             )
         }
 

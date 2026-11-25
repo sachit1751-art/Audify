@@ -9,6 +9,7 @@ import com.music.audify.data.lyrics.LyricAlignment
 import com.music.audify.data.lyrics.LyricLine
 import com.music.audify.data.lyrics.LyricSyllable
 import com.music.audify.data.lyrics.LyricWord
+import com.music.audify.data.lyrics.graphemeRanges
 import com.music.audify.data.lyrics.LyricsPlus
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -450,6 +451,23 @@ class WordSyncTest {
         // Halfway through "one".
         assertEquals(1.5f, line.revealedChars(1_250), 0.01f)
         assertEquals(3f, line.revealedChars(1_500), 0.01f)
+    }
+
+    @Test
+    fun `indic conjuncts are revealed as one grapheme and never split`() {
+        val conjunct = "क्ष"
+        assertEquals(listOf(0..2), graphemeRanges(conjunct))
+        val line = LyricLine(1_000, conjunct, listOf(LyricWord(1_000, 2_000, conjunct)))
+
+        assertEquals(0f, line.revealedChars(999), 0.01f)
+        assertEquals(0f, line.revealedChars(1_500), 0.01f)
+        assertEquals(3f, line.revealedChars(2_000), 0.01f)
+    }
+
+    @Test
+    fun `combining marks and emoji modifiers remain attached to their base`() {
+        assertEquals(listOf(0..1), graphemeRanges("कि"))
+        assertEquals(listOf(0..3), graphemeRanges("👍🏽"))
     }
 
     @Test

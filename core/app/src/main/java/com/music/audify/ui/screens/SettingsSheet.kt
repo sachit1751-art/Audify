@@ -367,6 +367,7 @@ fun SettingsScreen(
     val downloadQuality by AppSettings.downloadQuality.collectAsStateWithLifecycle()
     val wifiOnlyDownloads by AppSettings.wifiOnlyDownloads.collectAsStateWithLifecycle()
     val exportDownloads by AppSettings.exportDownloads.collectAsStateWithLifecycle()
+    val autoDownloadLikedSongs by AppSettings.autoDownloadLikedSongs.collectAsStateWithLifecycle()
     val downloadFolderUri by AppSettings.downloadFolderUri.collectAsStateWithLifecycle()
     val syncDownloadedPlaylists by AppSettings.syncDownloadedPlaylists.collectAsStateWithLifecycle()
     val stopOnTaskRemoved by AppSettings.stopOnTaskRemoved.collectAsStateWithLifecycle()
@@ -961,6 +962,15 @@ fun SettingsScreen(
                     checked = wifiOnlyDownloads,
                     onCheckedChange = AppSettings::setWifiOnlyDownloads,
                     badge = stringResource(R.string.blocking).takeIf { wifiOnlyDownloads && metered == true },
+                )
+            }
+            val autoDownloadLikedTitle = stringResource(R.string.auto_download_liked_songs)
+            row(autoDownloadLikedTitle, "liked", "favourites", "automatic", "background") {
+                SettingsSubRow(
+                    title = autoDownloadLikedTitle,
+                    checked = autoDownloadLikedSongs,
+                    onCheckedChange = AppSettings::setAutoDownloadLikedSongs,
+                    subtitle = stringResource(R.string.auto_download_liked_songs_subtitle),
                 )
             }
             val exportDownloadsTitle = stringResource(R.string.export_compatible_downloads)

@@ -685,11 +685,17 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     val height = source.height
     if (width < 1 || height < 1) return null
 
+    // Video frames commonly carry black bars inside the decoded image. They
+    // are presentation padding, not artwork: including them darkens the mesh
+    // and, worse, makes the row held against the artwork's seam black.
+    val (contentTop, contentBottom) = source.contentVerticalBounds()
+    val contentHeight = (contentBottom - contentTop).coerceAtLeast(1)
+
     // A cell nothing lands in would come out black, so the grid never asks for
     // more cells than the artwork has pixels.
     val cols = MESH_GRID.coerceAtMost(width)
-    val rows = MESH_GRID.coerceAtMost(height)
-    val rowStep = (height / MESH_SAMPLE).coerceAtLeast(1)
+    val rows = MESH_GRID.coerceAtMost(contentHeight)
+    val rowStep = (contentHeight / MESH_SAMPLE).coerceAtLeast(1)
     val colStep = (width / MESH_SAMPLE).coerceAtLeast(1)
 
     val cells = rows * cols
@@ -701,11 +707,11 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     // One row at a time, so the scratch buffer is the width of the artwork
     // rather than the whole of it. A clip frame read whole is megabytes.
     val line = IntArray(width)
-    var y = 0
-    while (y < height) {
-        source.readPixels(line, startX = 0, startY = y, width = width, height = 1)
+    var localY = 0
+    while (localY < contentHeight) {
+        source.readPixels(line, startX = 0, startY = contentTop + localY, width = width, height = 1)
         // Flipped as it is read — see the note above.
-        val rowBase = ((height - 1 - y) * rows / height) * cols
+        val rowBase = ((contentHeight - 1 - localY) * rows / contentHeight) * cols
         var x = 0
         while (x < width) {
             val cell = rowBase + x * cols / width
@@ -716,15 +722,67 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
             count[cell]++
             x += colStep
         }
-        y += rowStep
+        localY += rowStep
     }
 
+    val meanLuma = gridLuminance(red, green, blue, count)
+    val softenWhiteArtwork = meanLuma >= WHITE_ARTWORK_LUMA
     val grid = IntArray(cells) { cell ->
         val n = count[cell].coerceAtLeast(1)
-        argb((red[cell] / n).toInt(), (green[cell] / n).toInt(), (blue[cell] / n).toInt()).lifted()
+        argb((red[cell] / n).toInt(), (green[cell] / n).toInt(), (blue[cell] / n).toInt())
+            .lifted(softenWhiteArtwork)
     }
     val texels = grid.rotatedBelowSeam(cols, rows, seed).resampled(cols, rows, MESH_TEX)
     return ArtworkMesh(imageBitmapOf(texels, MESH_TEX, MESH_TEX))
+}
+
+/** Detects paired, near-black, low-variance bars without cropping dark covers. */
+private fun ImageBitmap.contentVerticalBounds(): Pair<Int, Int> {
+    if (height < 24 || width < 8) return 0 to height
+    val row = IntArray(width)
+    fun isBar(y: Int): Boolean {
+        readPixels(row, startX = 0, startY = y, width = width, height = 1)
+        var total = 0L
+        var darkest = 255
+        var brightest = 0
+        var x = 0
+        while (x < width) {
+            val pixel = row[x]
+            val luma = ((pixel shr 16 and 0xFF) * 0.2126 +
+                (pixel shr 8 and 0xFF) * 0.7152 + (pixel and 0xFF) * 0.0722).toInt()
+            total += luma
+            darkest = minOf(darkest, luma)
+            brightest = maxOf(brightest, luma)
+            x += (width / 96).coerceAtLeast(1)
+        }
+        val samples = ((width - 1) / (width / 96).coerceAtLeast(1)) + 1
+        return total / samples < LETTERBOX_MAX_LUMA && brightest - darkest < LETTERBOX_MAX_SPREAD
+    }
+
+    var top = 0
+    while (top < height / 3 && isBar(top)) top++
+    var bottom = height
+    while (bottom > height * 2 / 3 && isBar(bottom - 1)) bottom--
+    val minimumBar = (height * LETTERBOX_MIN_SHARE).roundToInt().coerceAtLeast(3)
+    return if (top >= minimumBar && height - bottom >= minimumBar && bottom > top) {
+        top to bottom
+    } else {
+        0 to height
+    }
+}
+
+private fun gridLuminance(red: LongArray, green: LongArray, blue: LongArray, count: IntArray): Float {
+    var total = 0.0
+    var samples = 0
+    for (index in count.indices) {
+        val n = count[index].coerceAtLeast(1)
+        val r = red[index].toDouble() / n
+        val g = green[index].toDouble() / n
+        val b = blue[index].toDouble() / n
+        total += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
+        samples++
+    }
+    return (total / samples.coerceAtLeast(1)).toFloat()
 }
 
 /**
@@ -826,12 +884,25 @@ private fun argb(red: Int, green: Int, blue: Int): Int =
  * find an edge. Neither touches the *proportions*, which is the whole point of
  * this backdrop: a sleeve that is mostly black stays mostly black.
  */
-private fun Int.lifted(): Int {
+private fun Int.lifted(softenWhiteArtwork: Boolean = false): Int {
     val hsl = FloatArray(3).also { ColorUtils.colorToHSL(this, it) }
     hsl[1] = (hsl[1] * MESH_VIBRANCE).coerceAtMost(1f)
+    if (softenWhiteArtwork) {
+        // White and near-white covers otherwise turn the whole player into a
+        // bright sheet. Compress only the high-lightness palette, not the
+        // artwork itself, and keep its hue relationships intact.
+        hsl[1] *= WHITE_ARTWORK_SATURATION
+        hsl[2] = minOf(hsl[2], WHITE_ARTWORK_LIGHTNESS_CAP)
+    }
     hsl[2] = hsl[2].coerceAtLeast(MESH_FLOOR)
     return ColorUtils.HSLToColor(hsl)
 }
 
 private const val MESH_VIBRANCE = 1.12f
 private const val MESH_FLOOR = 0.045f
+private const val WHITE_ARTWORK_LUMA = 0.76f
+private const val WHITE_ARTWORK_SATURATION = 0.82f
+private const val WHITE_ARTWORK_LIGHTNESS_CAP = 0.64f
+private const val LETTERBOX_MAX_LUMA = 20L
+private const val LETTERBOX_MAX_SPREAD = 22
+private const val LETTERBOX_MIN_SHARE = 0.035f

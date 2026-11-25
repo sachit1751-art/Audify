@@ -659,6 +659,9 @@ class CrossfadeController(
      */
     fun isTransitioning(): Boolean = phase != Phase.IDLE
 
+    /** The loop-deck mixer owns a second, offset playback clock while active. */
+    fun isLoopMixRunning(): Boolean = phase == Phase.LOOP_RUNNING
+
     /** Applies the listener's speed without exposing AudioTrack's parameter-change click. */
     fun applyPlaybackSpeed(speed: Float) {
         if (isTransitioning()) return
@@ -696,8 +699,28 @@ class CrossfadeController(
         ) {
             // The listener moving the playhead is something no half-finished
             // crossfade should survive. Nothing this class does registers here
-            // any more: the handoff is a role swap, not a seek.
-            if (reason == Player.DISCONTINUITY_REASON_SEEK) bail()
+            // any more: the handoff is a role swap, not a seek. Saved skip
+            // ranges and playback-window in-points are the exception: their
+            // seeks are part of the track's playback rules, not a listener
+            // changing the song underneath the blend.
+            if (reason == Player.DISCONTINUITY_REASON_SEEK && !isAutomaticTrackBoundarySeek(oldPosition, newPosition)) {
+                bail()
+            }
+        }
+
+        private fun isAutomaticTrackBoundarySeek(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+        ): Boolean {
+            val mediaId = oldPosition.mediaItem?.mediaId ?: newPosition.mediaItem?.mediaId ?: return false
+            val from = oldPosition.positionMs
+            val to = newPosition.positionMs
+            val skipsToBoundary = AppSettings.skipSegmentsForTrack(mediaId).any { range ->
+                from >= range.startMs && from < range.endMs && to == range.endMs
+            }
+            if (skipsToBoundary) return true
+            val window = AppSettings.playbackWindowForTrack(mediaId) ?: return false
+            return from < window.startMs && to == window.startMs
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -1020,10 +1043,11 @@ class CrossfadeController(
         // duration until play: the runtime the item was queued with stands in,
         // then the analysed one.
         val item = player.currentMediaItem ?: return
-        val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
+        val actualDuration = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
             ?: queuedDurationMs(item).takeIf { it > 0L }
             ?: (analysisFor(item).duration * 1000).roundToLong().takeIf { it > 0L }
             ?: return
+        val duration = effectivePlaybackEndMs(item, actualDuration)
         considerSmartTransition(duration, markerOnly = true)
     }
 
@@ -1087,8 +1111,10 @@ class CrossfadeController(
             return
         }
 
-        val duration = player.duration
-        if (duration == C.TIME_UNSET || duration <= 0L) return
+        val actualDuration = player.duration
+        if (actualDuration == C.TIME_UNSET || actualDuration <= 0L) return
+        val item = player.currentMediaItem ?: return
+        val duration = effectivePlaybackEndMs(item, actualDuration)
 
         // Repeating one track would crossfade it into itself, so nothing is
         // armed and no window is marked — but the queue behind the loop has not
@@ -1234,7 +1260,7 @@ class CrossfadeController(
         val loop = loopPlanFor(
             player, currentItem, nextItem, currentAnalysis, nextAnalysis, duration, nextDuration, analysisState,
         )
-        if (loop != null && nextStreamReady(nextItem)) {
+        if (loop != null && AppSettings.playbackWindowForTrack(currentItem.mediaId) == null && nextStreamReady(nextItem)) {
             val loopStartMs = (loop.out.loopStart * 1000).roundToLong()
             AppSettings.smartTransitionWindow.value = TransitionWindow(
                 start = (loopStartMs.toFloat() / duration).coerceIn(0f, 1f),
@@ -1467,6 +1493,12 @@ class CrossfadeController(
         return queuedDurationMs(item)
     }
 
+    /** The selected out-point is the logical end for all transition planning. */
+    private fun effectivePlaybackEndMs(item: MediaItem, actualDurationMs: Long): Long {
+        val window = AppSettings.playbackWindowForTrack(item.mediaId) ?: return actualDurationMs
+        return minOf(actualDurationMs, window.endMs).takeIf { it > 0L } ?: actualDurationMs
+    }
+
     /**
      * The runtime the queue row carried, in milliseconds, or 0 when the item
      * doesn't state one — a local file, or a track queued without a duration.
@@ -1544,7 +1576,13 @@ class CrossfadeController(
         fadeMs = fade
         fadeEndMs = endMs
         smartFadeActive = smart
-        incomingCueTimeMs = cueTimeMs.coerceAtLeast(0L)
+        val incomingId = out.getMediaItemAt(nextIndex).mediaId
+        val incomingWindow = AppSettings.playbackWindowForTrack(incomingId)
+        incomingCueTimeMs = if (incomingWindow != null) {
+            cueTimeMs.coerceIn(incomingWindow.startMs, (incomingWindow.endMs - 1L).coerceAtLeast(incomingWindow.startMs))
+        } else {
+            cueTimeMs.coerceAtLeast(0L)
+        }
         incomingPlaybackRate = playbackRate
         outgoingPlaybackRate = outgoingRate
         rampSteps = if (beatMs > 0L) rampStepsFor(outgoingRate) else 0

@@ -1626,10 +1626,11 @@ fun NowPlayingScreen(
         }
     }
     val fullBleedSetting by PlayerSettings.fullBleedArtwork.collectAsStateWithLifecycle()
-    // Lagu tipe video yang tidak punya canvas hanya punya frame 16:9 sebagai
-    // cover. Dibentangkan full screen hasilnya buruk, jadi tetap jadi kartu
-    // walau pengaturan full-bleed menyala. Dengan canvas, aturannya tidak berubah.
-    val fullBleedArt = fullBleedSetting && !(song.isVideo && canvas == null)
+    // An actual moving music video owns its 16:9 surface. A video-origin track
+    // that is presenting still artwork is still artwork, though: let the
+    // full-bleed preference apply instead of forcing every such track into a
+    // landscape card merely because its source is tagged as video.
+    val fullBleedArt = fullBleedSetting && !videoMode
     // Full-bleed is a phone idiom. What the width has to rule out is a player
     // running a foot wider than the column of controls under it — edge to edge
     // meaning "a picture, and separately some controls" rather than "the
@@ -2406,7 +2407,8 @@ fun NowPlayingScreen(
                         PlayerScrubber(
                             shown = shown,
                             durationMs = durationMs,
-                            loading = versionAligning || audioVersionSwitching,
+                            loading = versionAligning || audioVersionSwitching ||
+                                (isLoading && !scrub.scrubbing && scrub.pendingSeek == null),
                             mixing = mixing && !scrub.scrubbing,
                             transitionWindow = transitionWindow
                                 ?.takeIf { !scrub.scrubbing && it.end > it.start }
@@ -2426,8 +2428,6 @@ fun NowPlayingScreen(
                     transport = {
                         TransportRow(
                             isPlaying = isPlaying,
-                            isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
-                                audioVersionSwitching,
                             previousEnabled = !controlsLocked && (hasPrevious || pastRestartPoint),
                             nextEnabled = !controlsLocked && hasNext,
                             onPrevious = skipPrevious,
@@ -2675,7 +2675,8 @@ fun NowPlayingScreen(
                                 PlayerScrubber(
                                     shown = shown,
                                     durationMs = durationMs,
-                                    loading = versionAligning || audioVersionSwitching,
+                                    loading = versionAligning || audioVersionSwitching ||
+                                        (isLoading && !scrub.scrubbing && scrub.pendingSeek == null),
                                     mixing = mixing && !scrub.scrubbing,
                                     transitionWindow = transitionWindow
                                         ?.takeIf { !scrub.scrubbing && it.end > it.start }
@@ -2695,8 +2696,6 @@ fun NowPlayingScreen(
                             transport = {
                                 TransportRow(
                                     isPlaying = isPlaying,
-                                    isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
-                                        audioVersionSwitching,
                                     previousEnabled = !controlsLocked &&
                                         (hasPrevious || pastRestartPoint),
                                     nextEnabled = !controlsLocked && hasNext,
@@ -5028,7 +5027,8 @@ Spacer(Modifier.width(12.dp))
                     PlayerScrubber(
                         shown = shown,
                         durationMs = durationMs,
-                        loading = versionSwitching,
+                        loading = versionSwitching ||
+                            (isLoading && !scrub.scrubbing && scrub.pendingSeek == null),
                         mixing = mixing && !scrub.scrubbing,
                         // Hidden while scrubbing: the planner is still describing
                         // where the transition *would* be, and a marker sitting under
@@ -5058,8 +5058,6 @@ Spacer(Modifier.width(12.dp))
 
                     TransportRow(
                         isPlaying = isPlaying,
-                        isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
-                            audioVersionSwitching,
                         previousEnabled = !controlsLocked &&
                             (hasPrevious || pastRestartPoint),
                         nextEnabled = !controlsLocked && hasNext,

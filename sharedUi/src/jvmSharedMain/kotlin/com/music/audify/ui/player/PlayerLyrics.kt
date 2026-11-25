@@ -1068,19 +1068,20 @@ private fun ContentDrawScope.glowGrown(
 ) {
     if (!line.isGrowing(positionMs)) return
     val em = layout.layoutInput.style.fontSize.toPx()
-    val length = layout.layoutInput.text.length
     for (word in line.growingWords) {
         if (positionMs < word.startMs || positionMs > word.restsAtMs) continue
         val span = line.wordSpans[word.index]
         val fall = line.wordFall(word.index, positionMs)
-        for (char in span.first..minOf(span.last, length - 1)) {
-            word.sampleInto(char - span.first, positionMs, growth)
-            if (growth.bloom <= 0.01f) continue
+        word.graphemes.forEachIndexed { clusterIndex, cluster ->
+            val char = span.first + cluster.first
+            val clusterEnd = span.first + cluster.last + 1
+            word.sampleInto(clusterIndex, positionMs, growth)
+            if (growth.bloom <= 0.01f) return@forEachIndexed
             val visualLine = layout.getLineForOffset(char)
             // Row-aware, for the same reason the sweep is; see [xOn].
             val from = layout.xOn(char, visualLine, inset)
-            val to = layout.xOn(char + 1, visualLine, inset)
-            if (to <= from) continue
+            val to = layout.xOn(clusterEnd, visualLine, inset)
+            if (to <= from) return@forEachIndexed
             val dx = growth.shift * em
             val dy = -growth.rise * peak * fall
             val rowTop = layout.getLineTop(visualLine) + inset
@@ -1232,11 +1233,14 @@ private fun ContentDrawScope.growEach(
     // walk every letter downwards as it grew.
     val ceiling = top - peak * GROW_HEADROOM
     val middle = (top + bottom) / 2f
-    for (char in start until end) {
-        word.sampleInto(char - first, positionMs, growth)
+    word.graphemes.forEachIndexed { clusterIndex, cluster ->
+        val char = first + cluster.first
+        val clusterEnd = first + cluster.last + 1
+        if (char < start || clusterEnd > end) return@forEachIndexed
+        word.sampleInto(clusterIndex, positionMs, growth)
         val from = layout.xOn(char, visualLine, inset)
-        val to = layout.xOn(char + 1, visualLine, inset)
-        if (to <= from) continue
+        val to = layout.xOn(clusterEnd, visualLine, inset)
+        if (to <= from) return@forEachIndexed
         val dx = growth.shift * em
         val dy = -growth.rise * peak * fall
         val overhang = (to - from) * (growth.scale - 1f) / 2f

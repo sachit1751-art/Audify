@@ -494,8 +494,6 @@ internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
 @Composable
 internal fun TransportRow(
     isPlaying: Boolean,
-    /** While the stream resolves and buffers, the play glyph would be a lie. */
-    isLoading: Boolean,
     /**
      * Lit whenever back has something to do — a track to step to, or enough
      * elapsed to restart this one. Faded and inert, not removed, while a party
@@ -508,6 +506,8 @@ internal fun TransportRow(
     onNext: () -> Unit,
     compact: Boolean = false,
 ) {
+    var displayedPlaying by remember { mutableStateOf(isPlaying) }
+    LaunchedEffect(isPlaying) { displayedPlaying = isPlaying }
     val playSize = if (compact) 58.dp else 78.dp
     val playTouch = if (compact) 76.dp else 84.dp
     val skipSize = if (compact) 44.dp else PLAYER_SKIP_ICON_SIZE
@@ -529,26 +529,18 @@ internal fun TransportRow(
             haptic = Haptic.SkipPrevious,
             direction = -1,
         )
-        if (isLoading) {
-            // Same footprint as the play/pause target — a smaller box here
-            // would shunt everything below it on every load.
-            Box(Modifier.size(playTouch), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(if (compact) 30.dp else 38.dp),
-                )
-            }
-        } else {
-            TransportGlyph(
-                icon = if (isPlaying) Res.drawable.ic_player_pause else Res.drawable.ic_player_play,
-                contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
-                size = playSize,
-                touchSize = playTouch,
-                onClick = onPlayPause,
-                haptic = if (isPlaying) Haptic.Pause else Haptic.Resume,
-            )
-        }
+        TransportGlyph(
+            icon = if (displayedPlaying) Res.drawable.ic_player_pause else Res.drawable.ic_player_play,
+            contentDescription = stringResource(if (displayedPlaying) Res.string.pause else Res.string.play),
+            size = playSize,
+            touchSize = playTouch,
+            onClick = {
+                displayedPlaying = !displayedPlaying
+                onPlayPause()
+            },
+            haptic = if (displayedPlaying) Haptic.Pause else Haptic.Resume,
+            morphPlaying = displayedPlaying,
+        )
         TransportGlyph(
             icon = Res.drawable.ic_player_next,
             contentDescription = stringResource(Res.string.widget_next),
@@ -851,6 +843,8 @@ private fun TransportGlyph(
     heightScale: Float = 1f,
     /** -1 kicks the glyph left, 1 kicks it right on tap; 0 means no kick. */
     direction: Int = 0,
+    /** Non-null only for the central transport control, which morphs as one path. */
+    morphPlaying: Boolean? = null,
 ) {
     val haptics = rememberHaptics()
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -912,7 +906,20 @@ private fun TransportGlyph(
     ) {
         // Play and pause morph into each other (scale + fade, springy) instead of
         // swapping in one frame; skip glyphs never change so they never animate.
-        AnimatedContent(
+        if (morphPlaying != null) {
+            PlayPauseMorphIcon(
+                isPlaying = morphPlaying,
+                tint = Color.White.copy(alpha = alpha),
+                size = size,
+                modifier = Modifier.graphicsLayer {
+                    val k = if (reduceAnimation) 0f else kick.value
+                    translationX = k * 12.dp.toPx()
+                    scaleX = pressScale.value * (1f + kotlin.math.abs(k) * 0.15f)
+                    scaleY = pressScale.value * (1f - kotlin.math.abs(k) * 0.06f)
+                },
+                contentDescription = contentDescription,
+            )
+        } else AnimatedContent(
             targetState = icon,
             transitionSpec = {
                 if (reduceAnimation) {

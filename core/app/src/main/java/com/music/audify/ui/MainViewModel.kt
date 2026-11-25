@@ -761,7 +761,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * on a round trip before the heart fills reads as the tap not having
      * registered, and people tap again.
      */
-    fun setLike(videoId: String, status: LikeStatus) {
+    fun setLike(videoId: String, status: LikeStatus, songForAutoDownload: Song? = null) {
         if (!requireSignIn()) return
         val previous = likeStatusOf(videoId)
         if (previous == status) return
@@ -771,6 +771,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 onSuccess = {
                     // Liked Music is now out of date either way.
                     libraryStale = true
+                    if (status == LikeStatus.LIKE && AppSettings.autoDownloadLikedSongs.value) {
+                        songForAutoDownload
+                            ?.takeIf { it.localUri == null && it.videoId == videoId }
+                            ?.let { Downloads.enqueue(getApplication(), it, "Liked Songs") }
+                    }
                     if (status != LikeStatus.LIKE) dropFromLikedLists(videoId)
                     // Clearing the heart means forgetting the song, not
                     // demoting it — see [forgetFromLibrary].
@@ -842,9 +847,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The heart: liked becomes neutral, anything else becomes liked. */
-    fun toggleLike(videoId: String) = setLike(
+    fun toggleLike(videoId: String, songForAutoDownload: Song? = null) = setLike(
         videoId,
         if (likeStatusOf(videoId) == LikeStatus.LIKE) LikeStatus.INDIFFERENT else LikeStatus.LIKE,
+        songForAutoDownload,
     )
 
     /** As [toggleLike], for the thumb-down. */

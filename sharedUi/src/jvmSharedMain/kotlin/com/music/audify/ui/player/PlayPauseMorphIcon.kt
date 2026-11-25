@@ -68,7 +68,7 @@ fun PlayPauseMorphIcon(
     val progress by animateFloatAsState(
         targetValue = if (isPlaying) 1f else 0f,
         animationSpec = tween(
-            durationMillis = if (reduceAnimation) 0 else MotionTokens.ICON_STATE_MS,
+            durationMillis = if (reduceAnimation) 0 else 170,
             easing = MotionTokens.STANDARD_EASING,
         ),
         label = "playPausePathMorph",

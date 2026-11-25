@@ -19,12 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -68,7 +62,6 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.ExplicitSongTitle
 import com.music.audify.ui.components.FadingLine
 import com.music.audify.ui.components.TrackTextSwitch
-import com.music.audify.ui.components.VideoThumbnails
 import com.music.audify.ui.components.LocalLiquidGlassEnabled
 import com.music.audify.ui.components.MiniPlayerNextButton
 import com.music.audify.ui.components.MiniPlayerPlayPauseButton
@@ -364,10 +357,11 @@ private fun PanelMiniRow(
         ) {
             val artSize = if (glass) MINI_ART_SIZE else 40.dp
             val artShape = RoundedCornerShape(if (glass) MINI_ART_CORNER else 8.dp)
-            val artWidth = when {
-                !song.isVideo || VideoThumbnails.square -> artSize
-                else -> artSize * (9f / 16f)
-            }
+            // The mini row always carries a square still-cover slot. A video
+            // track's moving surface belongs to the expanded player; a narrow
+            // 16:9 thumbnail here made the glass row visibly misalign with the
+            // navigation-bar player beside it.
+            val artWidth = artSize
             Box(
                 Modifier
                     .size(width = artWidth, height = artSize)
@@ -381,7 +375,7 @@ private fun PanelMiniRow(
                 AsyncImage(
                     model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                     contentDescription = null,
-                    contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -398,26 +392,19 @@ private fun PanelMiniRow(
                     FadingLine(text = shown.artist, style = artistStyle, color = secondary)
                 }
             }
-            if (isLoading) {
-                Box(Modifier.size(glyphSlot), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(
-                        color = contentColor,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(if (!glass) 22.dp else if (showNext) 20.dp else 18.dp),
-                    )
-                }
-            } else {
-                MiniPlayerPlayPauseButton(
-                    isPlaying = isPlaying,
-                    tint = contentColor,
-                    slot = glyphSlot,
-                    glyphSize = glyphSize,
-                    onClick = {
-                        haptics.play(if (isPlaying) Haptic.Pause else Haptic.Resume)
-                        onPlayPause()
-                    },
-                )
-            }
+            // Buffering is reported by the seek-bar sheen in the full player.
+            // Keep this control live while that work is happening: replacing
+            // it with a spinner made the transport temporarily untappable.
+            MiniPlayerPlayPauseButton(
+                isPlaying = isPlaying,
+                tint = contentColor.copy(alpha = if (isLoading) 0.82f else 1f),
+                slot = glyphSlot,
+                glyphSize = glyphSize,
+                onClick = {
+                    haptics.play(if (isPlaying) Haptic.Pause else Haptic.Resume)
+                    onPlayPause()
+                },
+            )
             if (showNext) {
                 Spacer(Modifier.width(8.dp))
                 MiniPlayerNextButton(

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Untranslatable">
     <string name="playback_channel_name">지금 재생 중</string>
     
     
@@ -1330,4 +1330,23 @@
 
   
   
+  <string name="skip_segments">건너뛸 구간</string>
+  <string name="skip_segments_description">이 트랙을 재생할 때 선택한 구간을 자동으로 건너뜁니다.</string>
+  <string name="skip_segments_empty">이 트랙에 저장된 건너뛰기 구간이 없습니다.</string>
+  <string name="skip_segment_from">시작 (m:ss)</string>
+  <string name="skip_segment_to">종료 (m:ss)</string>
+  <string name="skip_segment_add">구간 추가</string>
+  <string name="skip_segment_update">구간 업데이트</string>
+  <string name="skip_segment_invalid">올바른 구간을 입력하세요. m:ss 또는 h:mm:ss 형식을 사용하고 종료 시간은 시작 시간보다 뒤여야 합니다.</string>
+  <string name="skip_segment_out_of_track">종료 시간은 트랙 길이 이내여야 합니다.</string>
+  <string name="skip_segment_edit">수정</string>
+  <string name="skip_segment_remove">삭제</string>
+  <string name="track_playback_window">선택한 부분만 재생</string>
+  <string name="track_playback_window_description">시작 지점부터 재생하고 종료 지점에서 다음 트랙으로 전환합니다.</string>
+  <string name="track_play_from">재생 시작</string>
+  <string name="track_play_until">재생 종료</string>
+  <string name="track_playback_window_save">재생 구간 저장</string>
+  <string name="track_playback_window_clear">재생 구간 지우기</string>
+  <string name="auto_download_liked_songs">좋아요한 노래 자동 다운로드</string>
+  <string name="auto_download_liked_songs_subtitle">노래에 좋아요를 누르면 다운로드에 저장합니다. Wi-Fi 전용 설정이 적용됩니다.</string>
 </resources>
