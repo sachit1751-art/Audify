@@ -42,6 +42,11 @@
 - The expanded player now shows a lightweight 160px artwork preview while the full-resolution cover loads, then hands off to the sharp cover without changing the existing artwork transition.
 - Library startup keeps its loading state in the account-collections position and holds the On device shelf until the account shelves have settled, preventing it from appearing first and shifting the rest of the page afterward.
 - The mini-to-full-player and full-player-to-mini spring is slightly quicker while remaining critically damped and velocity-aware, keeping tap, drag-release, close and interrupted-reopen motion on the same timing curve.
+- Local Spotify playlist shelf models are memoized instead of being rebuilt on unrelated recompositions.
+- Successful lyrics now use the existing bounded 20 MB / 30-day disk cache, initialized in the app-private cache directory; cache reads and writes run on the I/O dispatcher.
+- The full-screen Canvas dissolve and lower glass-deck transition use narrower blur radii to reduce repeated GPU work while retaining the layered transition.
+- The decoded artwork memory cache is released when Android reports running-low (or more severe) memory pressure; the disk cache remains intact for reloads.
+- The YouTube Music login WebView now stops loading and destroys its view when released, rather than retaining its browser resources after leaving the screen.
 
 ## Onboarding and listening intent
 

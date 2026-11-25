@@ -1244,15 +1244,18 @@ private fun AudifyApp(
         }
     }
     val localPlaylists by com.music.audify.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
-    val localPlaylistItems = localPlaylists.map { playlist ->
-        ShelfItem(
-            title = playlist.title,
-            subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
-            thumbnailUrl = playlist.coverUrl
-                ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
-            videoId = null,
-            browseId = playlist.browseId,
-        )
+    val localPlaylistSubtitleFormat = stringResource(R.string.local_playlist_subtitle)
+    val localPlaylistItems = remember(localPlaylists, localPlaylistSubtitleFormat) {
+        localPlaylists.map { playlist ->
+            ShelfItem(
+                title = playlist.title,
+                subtitle = String.format(java.util.Locale.getDefault(), localPlaylistSubtitleFormat, playlist.songs.size),
+                thumbnailUrl = playlist.coverUrl
+                    ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+                videoId = null,
+                browseId = playlist.browseId,
+            )
+        }
     }
     LaunchedEffect(homeState, localPlaylists) {
         if (homeState is UiState.Success) {

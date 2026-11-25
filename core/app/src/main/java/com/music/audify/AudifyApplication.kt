@@ -23,6 +23,7 @@ import com.music.audify.auth.SignedIn
 import com.music.audify.data.DebugLog
 import com.music.audify.data.Http
 import com.music.audify.data.lyrics.LyricsTranslation
+import com.music.audify.data.lyrics.LyricsDiskCache
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.ui.player.AndroidPlayerHost
 import com.music.audify.ui.player.PlayerPlatform
@@ -58,6 +59,17 @@ internal fun imageMemoryCacheHeapFraction(isLowRamDevice: Boolean): Double =
 
 class AudifyApplication : Application(), SingletonImageLoader.Factory {
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Artwork is recoverable from the bounded disk cache/network. Release
+        // decoded bitmaps when Android reports real process memory pressure,
+        // rather than shrinking the cache during ordinary backgrounding.
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            runCatching { SingletonImageLoader.get(this).memoryCache?.clear() }
+                .onFailure { android.util.Log.w("Audify", "Could not trim artwork memory cache", it) }
+        }
+    }
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
@@ -91,6 +103,10 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         Innertube.appLanguage = { AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag() }
         migrateScriptOnlyAppLocale()
         LyricsTranslation.cacheDir = cacheDir
+        // Successful lyric lookups are shared by the player and service. Give
+        // the existing bounded disk cache its app-private location before either
+        // side can request lyrics; cache I/O itself runs on Dispatchers.IO.
+        LyricsDiskCache.dir = java.io.File(cacheDir, "lyrics")
         // PlaybackService shares this process, so seeding the cookie here means
         // stream resolution is authenticated from the first play onwards.
         authStore = AuthStore(this)
