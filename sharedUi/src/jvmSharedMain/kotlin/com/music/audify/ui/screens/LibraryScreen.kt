@@ -5,6 +5,7 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -204,56 +205,6 @@ fun LibraryScreen(
             fun section(key: String, emit: LazyListScope.() -> Unit) {
                 sections += key to emit
             }
-            section(LIBRARY_SLOT_REPLAY) {
-                item(key = "replay-heading") {
-                    Column(Modifier.padding(horizontal = PAGE_GUTTER).padding(top = 12.dp, bottom = 2.dp)) {
-                        Text(
-                            text = "Your Replay",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                        Text(
-                            text = "A look at what you have been listening to.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                item(key = "replay") { replay() }
-            }
-            if (onSmartPlaylists != null) {
-                section(LIBRARY_SLOT_SMART_PLAYLISTS) {
-                    item(key = "smart-playlists") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onSmartPlaylists)
-                                .padding(horizontal = PAGE_GUTTER, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = AudifyIcons.StarFilled,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp),
-                            )
-                            Column(Modifier.padding(start = 16.dp).weight(1f)) {
-                                Text(stringResource(Res.string.smart_playlists), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                                Text(stringResource(Res.string.smart_playlists_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        HorizontalDivider(
-                            modifier = Modifier.padding(start = PAGE_GUTTER),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                        )
-                    }
-                }
-            }
-            section(LIBRARY_SLOT_LINKS) {
-                if (links.isNotEmpty()) {
-                    item(key = "links") { LibraryLinkList(links = links, onClick = onShelfItemClick) }
-                }
-            }
             section(LIBRARY_SLOT_PINNED) {
                 if (pinnedItems.isNotEmpty()) {
                     item(key = "pinned") {
@@ -263,6 +214,11 @@ fun LibraryScreen(
                             onLongPress = onShelfItemLongPress,
                         )
                     }
+                }
+            }
+            section(LIBRARY_SLOT_LINKS) {
+                if (links.isNotEmpty()) {
+                    item(key = "links") { LibraryLinkList(links = links, onClick = onShelfItemClick) }
                 }
             }
             if (!signedIn) {
@@ -362,6 +318,74 @@ fun LibraryScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+            section(LIBRARY_SLOT_REPLAY) {
+                item(key = "replay-heading") {
+                    Column(Modifier.padding(horizontal = PAGE_GUTTER).padding(top = 12.dp, bottom = 2.dp)) {
+                        Text(
+                            text = "Your Replay",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            text = "A look at what you have been listening to.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                item(key = "replay") { replay() }
+            }
+            if (onSmartPlaylists != null) {
+                section(LIBRARY_SLOT_SMART_PLAYLISTS) {
+                    item(key = "smart-playlists") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(onClick = onSmartPlaylists)
+                                .padding(horizontal = PAGE_GUTTER, vertical = 8.dp)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f))
+                                .padding(horizontal = 16.dp, vertical = 15.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = AudifyIcons.StarFilled,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(25.dp),
+                                )
+                            }
+                            Column(Modifier.padding(start = 14.dp).weight(1f)) {
+                                Text(
+                                    stringResource(Res.string.smart_playlists),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    stringResource(Res.string.smart_playlists_subtitle),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Icon(
+                                imageVector = AudifyIcons.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
                     }
                 }

@@ -157,13 +157,24 @@ fun SmartPlaylistsScreen(
             )
         }
         if (definitions.isEmpty()) {
-            Text(
-                if (loadingLibrary) "Loading your library and listening history..."
-                else "No smart playlists yet. Start with liked tracks, recent listening, new additions or music you want to rediscover.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 24.dp),
-            )
+            Card(Modifier.fillMaxWidth().padding(top = 18.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("Your playlists, on autopilot", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        if (loadingLibrary) "Loading your library and listening history..."
+                        else "Create a playlist that stays fresh using liked tracks, recent listening, new additions or music you want to rediscover.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = { editing = null; showEditor = true },
+                        enabled = !loadingLibrary || candidates.isNotEmpty(),
+                    ) { Text("Create your first Smart Playlist") }
+                }
+            }
         } else {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val columns = if (maxWidth >= 340.dp) 2 else 1
@@ -177,14 +188,25 @@ fun SmartPlaylistsScreen(
                     items(definitions, key = { it.id }) { definition ->
                         val songs = results[definition.id].orEmpty()
                         val expanded = expandedId == definition.id
-                        Card(Modifier.fillMaxWidth()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                        ) {
                             Column(Modifier.padding(12.dp)) {
                                 Box(
-                                    Modifier.fillMaxWidth().height(if (columns == 1) 184.dp else 132.dp)
+                                    Modifier.fillMaxWidth().height(if (columns == 1) 190.dp else 154.dp)
                                         .clip(RoundedCornerShape(14.dp))
                                         .clickable { expandedId = if (expanded) null else definition.id },
                                 ) {
                                     PlaylistArtwork(songs.take(4), Modifier.fillMaxSize())
+                                    Text(
+                                        "SMART",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(50))
+                                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                                    )
                                     if (definition.paused) {
                                         Text(
                                             "PAUSED",
@@ -205,12 +227,19 @@ fun SmartPlaylistsScreen(
                                     )
                                 }
                                 Spacer(Modifier.height(10.dp))
-                                Text(definition.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
-                                    if (definition.paused) "Paused" else "Updates automatically",
+                                    definition.title,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    if (definition.paused) "Paused · ${songs.size} tracks"
+                                    else "${definition.summaryLabel()} · Updates automatically",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -360,6 +389,15 @@ fun SmartPlaylistsScreen(
     }
 }
 
+
+private fun SmartPlaylistDefinition.summaryLabel(): String = buildList {
+    if (likedOnly) add("Liked tracks")
+    addedWithinDays?.let { add("Added in ${it}d") }
+    playedWithinDays?.let { add("Played in ${it}d") }
+    notPlayedWithinDays?.let { add("Not played in ${it}d") }
+    minimumPlays?.let { add("At least $it plays") }
+    if (excludeRecentHistory) add("Hides recent tracks")
+}.take(2).joinToString(" · ").ifBlank { "Based on your library" }
 
 @Composable
 private fun PlaylistArtwork(songs: List<Song>, modifier: Modifier = Modifier) {
