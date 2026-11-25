@@ -342,6 +342,9 @@ struct Values {
     /// Whether the listener put Audify offline, so it shows and plays only what was downloaded
     /// until they go online again.
     offline_mode: bool,
+    /// Per-track intervals the listener wants skipped during playback, in milliseconds.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    skip_segments: BTreeMap<String, Vec<SkipSegment>>,
     /// Whether the first-run introduction has been completed.
     onboarding_complete: bool,
     equalizer: bool,
@@ -585,6 +588,7 @@ impl Default for Values {
             gapless: true,
             keep_tracks: true,
             offline_mode: false,
+            skip_segments: BTreeMap::new(),
             onboarding_complete: false,
             cache_gb: crate::vault::CACHE_GB,
             equalizer: false,
@@ -664,6 +668,19 @@ impl Values {
 pub enum FilterValue {
     Flag(bool),
     Range(f32, f32),
+}
+
+/// A half-open interval of a track to omit during playback. Times are media milliseconds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SkipSegment {
+    pub start_ms: u64,
+    pub end_ms: u64,
+}
+
+impl SkipSegment {
+    pub fn is_valid(self) -> bool {
+        self.start_ms < self.end_ms
+    }
 }
 
 /// Everything `state.sqlite` holds under the `runtime` key: values the app changes on its own
@@ -964,6 +981,44 @@ impl AppSettings {
 
     pub fn keep_tracks(&self) -> bool {
         self.values.keep_tracks
+    }
+
+    /// The ordered, non-overlapping intervals omitted from this track.
+    pub fn skip_segments(&self, track_id: &str) -> &[SkipSegment] {
+        self.values
+            .skip_segments
+            .get(track_id)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    /// Saves a track's skip intervals, merging overlaps so playback has one unambiguous target.
+    pub fn set_skip_segments(
+        &mut self,
+        track_id: String,
+        mut segments: Vec<SkipSegment>,
+        cx: &mut Context<Self>,
+    ) {
+        if track_id.is_empty() {
+            return;
+        }
+        segments.retain(|segment| segment.is_valid());
+        segments.sort_by_key(|segment| segment.start_ms);
+        let mut normalized: Vec<SkipSegment> = Vec::with_capacity(segments.len());
+        for segment in segments {
+            if let Some(last) = normalized.last_mut()
+                && segment.start_ms <= last.end_ms
+            {
+                last.end_ms = last.end_ms.max(segment.end_ms);
+            } else {
+                normalized.push(segment);
+            }
+        }
+        if normalized.is_empty() {
+            self.values.skip_segments.remove(&track_id);
+        } else {
+            self.values.skip_segments.insert(track_id, normalized);
+        }
+        self.schedule_save(cx);
     }
 
     /// The cache limit in gigabytes, held within the setting's bounds whatever a hand-edited
@@ -3066,6 +3121,23 @@ mod tests {
             values.lyrics_provider_priority
         );
         assert_eq!(loaded.lyrics_providers, values.lyrics_providers);
+    }
+
+    #[test]
+    fn skip_segments_are_backward_compatible_and_round_trip_by_track() {
+        let mut values: Values = serde_json::from_str("{}").unwrap();
+        assert!(values.skip_segments.is_empty());
+        values.skip_segments.insert(
+            "local:track-one".into(),
+            vec![SkipSegment {
+                start_ms: 12_000,
+                end_ms: 18_500,
+            }],
+        );
+        let loaded: Values =
+            serde_json::from_str(&serde_json::to_string(&values).unwrap()).unwrap();
+        assert_eq!(loaded.skip_segments, values.skip_segments);
+        assert!(loaded.skip_segments["local:track-one"][0].is_valid());
     }
 
     #[test]

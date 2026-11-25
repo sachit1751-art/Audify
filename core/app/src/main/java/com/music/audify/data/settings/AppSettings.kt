@@ -951,6 +951,9 @@ object AppSettings {
     val lyricsOffsetMs = MutableStateFlow(0)
     private var lyricsOffsetByTrack: Map<String, Int> = emptyMap()
     private var lyricsOffsetTrackId: String? = null
+    /** Playback-time multiplier used only by the lyrics clock, saved per track. */
+    val lyricsSpeed = MutableStateFlow(1f)
+    private var lyricsSpeedByTrack: Map<String, Float> = emptyMap()
 
     /** Automatic intro/middle-section skips saved independently for each track. */
     val skipSegments = MutableStateFlow<List<SkipSegment>>(emptyList())
@@ -1806,6 +1809,7 @@ object AppSettings {
         liquidFlow.value = prefs.getBoolean(KEY_LIQUID_FLOW, true)
         lyricsSparkle.value = prefs.getBoolean(KEY_LYRICS_SPARKLE, true)
         lyricsOffsetByTrack = readLyricsOffsetByTrack()
+        lyricsSpeedByTrack = readLyricsSpeedByTrack()
         skipSegmentsByTrack = readSkipSegmentsByTrack()
         playbackWindowsByTrack = readPlaybackWindowsByTrack()
         translationLanguage.value = prefs.getString(KEY_TRANSLATION_LANGUAGE, "").orEmpty()
@@ -2602,6 +2606,23 @@ object AppSettings {
     fun setLyricsOffsetTrack(trackId: String?) {
         lyricsOffsetTrackId = trackId?.takeIf { it.isNotBlank() }
         lyricsOffsetMs.value = lyricsOffsetTrackId?.let { lyricsOffsetByTrack[it] } ?: 0
+        lyricsSpeed.value = lyricsOffsetTrackId?.let { lyricsSpeedByTrack[it] } ?: 1f
+    }
+
+    /** Saves the lyrics-only timing multiplier for the track now playing. */
+    fun setLyricsSpeed(value: Float) {
+        val normalized = (Math.round(value.coerceIn(0.75f, 1.25f) * 20f).coerceIn(15, 25) / 20f)
+        if (lyricsSpeed.value == normalized) return
+        lyricsSpeed.value = normalized
+        val trackId = lyricsOffsetTrackId ?: return
+        val next = LinkedHashMap(lyricsSpeedByTrack)
+        next.remove(trackId)
+        if (normalized != 1f) next[trackId] = normalized
+        while (next.size > MAX_LYRICS_OFFSET_TRACKS) next.remove(next.keys.first())
+        lyricsSpeedByTrack = next
+        val json = org.json.JSONObject()
+        next.forEach { (id, speed) -> json.put(id, speed.toDouble()) }
+        prefs.edit { putString(KEY_LYRICS_SPEED_BY_TRACK, json.toString()) }
     }
 
     /** Points the editor and playback rule at the current media item. */
@@ -2709,6 +2730,19 @@ object AppSettings {
                 out[it] = json.getInt(it).coerceIn(MIN_LYRICS_OFFSET_MS, MAX_LYRICS_OFFSET_MS)
             }
             out as Map<String, Int>
+        }.getOrDefault(emptyMap())
+    }
+
+    private fun readLyricsSpeedByTrack(): Map<String, Float> {
+        val raw = prefs.getString(KEY_LYRICS_SPEED_BY_TRACK, null) ?: return emptyMap()
+        return runCatching {
+            val json = org.json.JSONObject(raw)
+            val out = LinkedHashMap<String, Float>()
+            json.keys().forEach { id ->
+                val speed = json.getDouble(id).toFloat().coerceIn(0.75f, 1.25f)
+                if (speed != 1f) out[id] = (speed * 100f).toInt() / 100f
+            }
+            out as Map<String, Float>
         }.getOrDefault(emptyMap())
     }
 
@@ -3617,6 +3651,7 @@ object AppSettings {
     private const val KEY_PLAYBACK_RATE = "playback_rate"
     private const val KEY_PLAYBACK_TEMPO = "playback_tempo"
     private const val KEY_LYRICS_OFFSET_BY_TRACK = "lyrics_offset_by_track"
+    private const val KEY_LYRICS_SPEED_BY_TRACK = "lyrics_speed_by_track"
     private const val MAX_LYRICS_OFFSET_TRACKS = 5000
     private const val KEY_SKIP_SEGMENTS_BY_TRACK = "skip_segments_by_track"
     private const val MAX_SKIP_SEGMENT_TRACKS = 5000

@@ -284,10 +284,19 @@ internal fun TvNowPlayingStage(
                     SyncedLyricsPanel(
                         lines = lyrics,
                         trackKey = song.videoId,
+                        artworkUrl = song.thumbnailUrl,
                         position = position,
                         looking = lyricsLoading,
                         isPlaying = isPlaying,
-                        onSeekToLine = onSeek,
+                        onSeekToLine = { lineTime ->
+                            onSeek(
+                                com.music.audify.ui.player.adjustedLyricsSeekTarget(
+                                    lineTime,
+                                    AppSettings.lyricsOffsetMs.value,
+                                    AppSettings.lyricsSpeed.value,
+                                ),
+                            )
+                        },
                         centerFocus = true,
                         modifier = Modifier.fillMaxSize(),
                     )

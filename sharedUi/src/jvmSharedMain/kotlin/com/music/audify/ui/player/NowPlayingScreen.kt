@@ -1089,11 +1089,12 @@ fun NowPlayingScreen(
     val lyricStripSetting by PlayerSettings.lyricStrip.collectAsStateWithLifecycle()
     val lyricStripEnabled = syncedLyricsEnabled && lyricStripSetting
     val lyricsOffsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
+    val lyricsSpeed by PlayerSettings.lyricsSpeed.collectAsStateWithLifecycle()
     // A lambda, not a value: read by the lyric strip and panel in scopes of
     // their own, so a tick recomposes them and not the player around them.
     val lyricsPlayhead = rememberLyricPlayhead(position)
     val seekToLyric: (Long) -> Unit = { lineTimeMs ->
-        onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs))
+        onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs, lyricsSpeed))
     }
     val hideVolumeBar by PlayerSettings.hideVolumeBar.collectAsStateWithLifecycle()
     val hideSongStatus by PlayerSettings.hideSongStatus.collectAsStateWithLifecycle()
@@ -2772,6 +2773,7 @@ fun NowPlayingScreen(
                                 LyricsPanel(
                                     lines = lyrics.orEmpty(),
                                     subLines = lyricsTranslation.subLines,
+                                    artworkUrl = remoteArt,
                                     trackKey = song.videoId,
                                     playhead = lyricsPlayhead,
                                     looking = !lyricsUnavailable,
@@ -4786,6 +4788,7 @@ Spacer(Modifier.width(12.dp))
                                         } else {
                                             lyricsTranslation.subLines
                                         },
+                                        artworkUrl = remoteArt,
                                         trackKey = lyricsLeaving?.trackId ?: song.videoId,
                                         playhead = lyricsPlayhead,
                                         looking = lyricsLeaving?.looking ?: !lyricsUnavailable,

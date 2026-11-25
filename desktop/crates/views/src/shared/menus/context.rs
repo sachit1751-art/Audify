@@ -18,6 +18,7 @@ use crate::shared::confirm::Confirm;
 use crate::shared::local;
 use crate::shared::pins::Pinned as _;
 use crate::shared::playlist_editor::{Edit, PlaylistEditor};
+use crate::shared::skip_editor::SkipEditor;
 use crate::shared::tag_editor::TagEditor;
 
 /// The narrowest the menu of one song, album, artist or playlist gets, which is wide enough for
@@ -491,6 +492,12 @@ impl ItemMenu {
                 .icon("icons/pencil.svg")
                 .on_click(move |_, window, cx| TagEditor::open(track.clone(), window, cx))
         });
+        let skip_segments = (!many && imported).then(|| {
+            let track = track.clone();
+            MenuItem::new("edit-skip-segments", "Edit skip segments")
+                .icon("icons/music.svg")
+                .on_click(move |_, window, cx| SkipEditor::open(track.clone(), window, cx))
+        });
 
         let delete_files = imported.then(|| {
             let ids = ids.clone();
@@ -528,6 +535,7 @@ impl ItemMenu {
                 go_to
                     .into_iter()
                     .chain(edit)
+                    .chain(skip_segments)
                     .chain(copy)
                     .chain(delete_files)
                     .collect(),

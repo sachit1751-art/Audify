@@ -16,6 +16,7 @@ import com.music.audify.playback.PlaybackPosition
 fun SyncedLyricsPanel(
     lines: List<LyricLine>,
     trackKey: String,
+    artworkUrl: String? = null,
     position: PlaybackPosition,
     looking: Boolean,
     isPlaying: Boolean,
@@ -26,6 +27,7 @@ fun SyncedLyricsPanel(
 ) {
     LyricsPanel(
         lines = lines,
+        artworkUrl = artworkUrl,
         trackKey = trackKey,
         playhead = rememberLyricPlayhead(position),
         looking = looking,

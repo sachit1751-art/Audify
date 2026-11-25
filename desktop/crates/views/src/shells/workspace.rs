@@ -18,6 +18,7 @@ use crate::chrome::{
 use crate::shared::confirm::Confirm;
 use crate::shared::menus::CardMenu;
 use crate::shared::playlist_editor::PlaylistEditor;
+use crate::shared::skip_editor::SkipEditor;
 use crate::shared::tag_editor::TagEditor;
 use crate::shared::widevine::WidevinePrompt;
 use crate::shells::Shell;
@@ -33,6 +34,7 @@ pub(crate) struct Workspace {
     sidebar_right: Entity<SidebarRight>,
     playlist_editor: Entity<PlaylistEditor>,
     tag_editor: Entity<TagEditor>,
+    skip_editor: Entity<SkipEditor>,
     confirm: Entity<Confirm>,
     card_menu: Entity<CardMenu>,
     widevine: Entity<WidevinePrompt>,
@@ -74,6 +76,7 @@ impl Workspace {
             sidebar_right,
             playlist_editor: PlaylistEditor::entity(cx),
             tag_editor: TagEditor::entity(cx),
+            skip_editor: SkipEditor::entity(cx),
             confirm: Confirm::entity(cx),
             card_menu: CardMenu::entity(cx),
             widevine: cx.new(WidevinePrompt::new),
@@ -391,6 +394,7 @@ impl Render for Workspace {
             .child(self.card_menu.clone())
             .child(self.playlist_editor.clone())
             .child(self.tag_editor.clone())
+            .child(self.skip_editor.clone())
             .child(self.confirm.clone())
             .child(self.widevine.clone())
             .child(self.jam_join.clone())

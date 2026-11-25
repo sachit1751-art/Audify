@@ -131,6 +131,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.music.audify.playback.PlaybackPosition
 import com.music.audify.sharedui.resources.*
 import com.music.audify.data.LocaleTags
@@ -604,11 +605,11 @@ internal fun LyricsStatusWithChange(
     }
 }
 
-internal fun adjustedLyricsPosition(positionMs: Long, offsetMs: Int): Long =
-    (positionMs - offsetMs.toLong()).coerceAtLeast(0L)
+internal fun adjustedLyricsPosition(positionMs: Long, offsetMs: Int, speed: Float = 1f): Long =
+    (positionMs * speed.coerceIn(0.75f, 1.25f) - offsetMs).toLong().coerceAtLeast(0L)
 
-internal fun adjustedLyricsSeekTarget(lineTimeMs: Long, offsetMs: Int): Long =
-    (lineTimeMs + offsetMs.toLong()).coerceAtLeast(0L)
+fun adjustedLyricsSeekTarget(lineTimeMs: Long, offsetMs: Int, speed: Float = 1f): Long =
+    ((lineTimeMs + offsetMs.toLong()) / speed.coerceIn(0.75f, 1.25f)).toLong().coerceAtLeast(0L)
 
 /**
  * The current lyric, one line, directly above the scrubber — or the line
@@ -711,8 +712,9 @@ internal fun CurrentLyricStrip(
 internal class LyricPlayhead(
     private val position: PlaybackPosition,
     private val offsetMs: State<Int>,
+    private val speed: State<Float>,
 ) {
-    val positionMs: Long get() = adjustedLyricsPosition(position.positionMs, offsetMs.value)
+    val positionMs: Long get() = adjustedLyricsPosition(position.positionMs, offsetMs.value, speed.value)
 
     val sampledAtNanos: Long get() = position.sampledAtNanos
 
@@ -722,13 +724,16 @@ internal class LyricPlayhead(
      * without saying so would look like a reading gone wrong.
      */
     val discontinuity: Long
-        get() = (position.seeks.toLong() shl 32) or (offsetMs.value.toLong() and 0xFFFF_FFFFL)
+        get() = (position.seeks.toLong() shl 32) xor
+            (offsetMs.value.toLong() and 0xFFFF_FFFFL) xor
+            (speed.value.toBits().toLong() shl 1)
 }
 
 @Composable
 internal fun rememberLyricPlayhead(position: PlaybackPosition): LyricPlayhead {
     val offset = PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
-    return remember(position, offset) { LyricPlayhead(position, offset) }
+    val speed = PlayerSettings.lyricsSpeed.collectAsStateWithLifecycle()
+    return remember(position, offset, speed) { LyricPlayhead(position, offset, speed) }
 }
 
 private fun nanosToMs(nanos: Long): Double = nanos / 1_000_000.0
@@ -2627,6 +2632,7 @@ private fun LyricsPanelList(
 internal fun LyricsPanel(
     lines: List<LyricLine>,
     subLines: List<LyricLine>? = null,
+    artworkUrl: String? = null,
     trackKey: String,
     playhead: LyricPlayhead,
     looking: Boolean,
@@ -2667,6 +2673,7 @@ internal fun LyricsPanel(
     )
     val returnDescription = stringResource(Res.string.now_playing)
     Box(modifier) {
+        LyricsArtworkBackdrop(artworkUrl = artworkUrl, modifier = Modifier.fillMaxSize())
         LyricsPanelList(
             lines = lines,
             subLines = subLines,
@@ -2732,6 +2739,51 @@ internal fun LyricsPanel(
                     },
             )
         }
+    }
+}
+
+/** Album artwork, kept deliberately soft and low-contrast behind the lyric text. */
+@Composable
+private fun LyricsArtworkBackdrop(artworkUrl: String?, modifier: Modifier = Modifier) {
+    if (artworkUrl.isNullOrBlank()) return
+    val reduceMotion by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val motion = rememberInfiniteTransition(label = "lyricsArtworkDrift")
+    val driftX by motion.animateFloat(
+        initialValue = -18f,
+        targetValue = 18f,
+        animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing)),
+        label = "lyricsArtworkDriftX",
+    )
+    val driftY by motion.animateFloat(
+        initialValue = 14f,
+        targetValue = -14f,
+        animationSpec = infiniteRepeatable(tween(31_000, easing = LinearEasing)),
+        label = "lyricsArtworkDriftY",
+    )
+    Box(modifier.clipToBounds()) {
+        AsyncImage(
+            model = artworkUrl,
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = 1.16f
+                    scaleY = 1.16f
+                    translationX = if (reduceMotion) 0f else driftX.dp.toPx()
+                    translationY = if (reduceMotion) 0f else driftY.dp.toPx()
+                }
+                .blur(46.dp, BlurredEdgeTreatment.Unbounded),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Black.copy(alpha = 0.48f), Color.Black.copy(alpha = 0.66f)),
+                    ),
+                ),
+        )
     }
 }
 
