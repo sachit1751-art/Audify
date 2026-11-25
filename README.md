@@ -84,6 +84,42 @@ See Audify as it actually looks. These are captures from the app, not concept mo
   </tr>
 </table>
 
+## Desktop preview
+
+The Audify desktop client is an important part of the project and remains under active development. The screenshots below show the desktop experience and its current interface; they are product previews, not a claim that every planned desktop feature or release is complete. Follow the [desktop project guide](desktop/README.md) for build instructions and development status.
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/desktop/screenshots/home screen desktop.png" alt="Audify desktop home screen" width="100%">
+      <strong>Desktop home</strong>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/desktop/screenshots/desktop explore.png" alt="Audify desktop Explore view" width="100%">
+      <strong>Explore</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/desktop/screenshots/dsktop fullscreen palyer.png" alt="Audify desktop fullscreen player" width="100%">
+      <strong>Fullscreen player</strong>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/desktop/screenshots/artist preview desktop.png" alt="Audify desktop artist preview" width="100%">
+      <strong>Artist preview</strong>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/audit-artifacts/desktop/screenshots/avaliable provider desktop.png" alt="Audify desktop available providers" width="100%">
+      <strong>Available providers</strong>
+    </td>
+    <td width="50%" align="center">
+      <sub>Desktop development and release status is documented in the desktop guide.</sub>
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 <table>

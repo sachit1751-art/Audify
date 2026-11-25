@@ -1257,18 +1257,6 @@ private fun AudifyApp(
             )
         }
     }
-    LaunchedEffect(homeState, localPlaylists) {
-        if (homeState is UiState.Success) {
-            localPlaylists.filter { it.id.startsWith("smart_") }.forEach { playlist ->
-                viewModel.addSmartPlaylistToHome(
-                    title = playlist.title,
-                    browseId = playlist.browseId,
-                    thumbnailUrl = playlist.coverUrl
-                        ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
-                )
-            }
-        }
-    }
     // What a browse id is recorded under in Downloads.collections, when it names
     // a release downloaded whole — see BrowseTarget.downloadId. A downloaded
     // playlist's own page and its card both carry the id under the
@@ -3411,7 +3399,6 @@ private fun AudifyApp(
                                 onPlaySongs = { title, songs, index ->
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
                                 },
-                                onPublishToHome = viewModel::addSmartPlaylistToHome,
                             )
                         } else if (pageRoute is AppRoute.Podcasts) {
                             com.music.audify.ui.screens.PodcastsScreen(
@@ -4228,7 +4215,9 @@ private fun AudifyApp(
                                 pullState = libraryPull,
                                 contentPadding = listPadding,
                                 links = libraryLinks(),
-                                deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
+                                deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems.filterNot {
+                                    it.browseId?.startsWith("local:playlist:smart_") == true
+                                },
                                 pinnedExtraItems = spotifyPinnedItems,
                                 artistsRow = libraryArtistsRow,
                                 onArtistsRowChange = AppSettings::setLibraryArtistsRow,
@@ -5784,8 +5773,9 @@ private fun AudifyApp(
             // playlist — but they have no YouTube Music page, so Share stays
             // on [remote] alone. The device-folder ids ("local:downloads",
             // "local:all", …) are neither.
-            val downloadable = remote ||
-                target.browseId?.startsWith("local:playlist:sp_local_") == true
+            val downloadable = remote || target.browseId?.let {
+                it.startsWith("local:playlist:sp_local_") || it.startsWith("local:playlist:smart_")
+            } == true
             val pinnedPlaylists by AppSettings.pinnedPlaylists.collectAsStateWithLifecycle()
             // Device playlists and directories have nowhere on the Library
             // page to be pinned to that would still mean anything off-device.

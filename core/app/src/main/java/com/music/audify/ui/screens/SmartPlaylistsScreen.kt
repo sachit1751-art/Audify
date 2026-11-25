@@ -75,10 +75,8 @@ import java.util.UUID
 fun SmartPlaylistsScreen(
     contentPadding: PaddingValues,
     onPlaySongs: (title: String, songs: List<Song>, startIndex: Int) -> Unit,
-    onPublishToHome: (title: String, browseId: String, thumbnailUrl: String?) -> Unit = { _, _, _ -> },
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
     val history by LocalLibraryStore.history.collectAsStateWithLifecycle()
     val favorites by LocalLibraryStore.favorites.collectAsStateWithLifecycle()
@@ -104,8 +102,22 @@ fun SmartPlaylistsScreen(
         }
         loadingLibrary = false
     }
-    LaunchedEffect(definitions, candidates, refreshVersion) {
-        results = SmartPlaylistRepository.evaluateAll(candidates)
+    LaunchedEffect(definitions, candidates, refreshVersion, loadingLibrary) {
+        if (loadingLibrary) return@LaunchedEffect
+        val evaluated = withContext(Dispatchers.IO) {
+            val currentResults = SmartPlaylistRepository.evaluateAll(candidates)
+            com.music.audify.data.spotify.LocalPlaylistStore.syncSmartPlaylists(
+                definitions.map { definition ->
+                    com.music.audify.data.spotify.LocalPlaylist(
+                        id = "smart_${definition.id}",
+                        title = definition.title,
+                        songs = currentResults[definition.id].orEmpty(),
+                    )
+                },
+            )
+            currentResults
+        }
+        results = evaluated
     }
     LaunchedEffect(definitions, candidates, results) {
         recommendations = SmartPlaylistRepository.recommendAll(
@@ -341,23 +353,6 @@ fun SmartPlaylistsScreen(
             onDismiss = { showEditor = false },
             onSave = { definition ->
                 SmartPlaylistStore.save(definition)
-                scope.launch {
-                    val generated = withContext(Dispatchers.IO) {
-                        SmartPlaylistRepository.evaluate(definition, candidates)
-                    }
-                    if (generated.isNotEmpty()) {
-                        val playlist = com.music.audify.data.spotify.LocalPlaylistStore.saveOrReplacePlaylist(
-                            id = "smart_${definition.id}",
-                            title = definition.title,
-                            songs = generated,
-                        )
-                        onPublishToHome(
-                            playlist.title,
-                            playlist.browseId,
-                            playlist.coverUrl ?: generated.firstOrNull()?.thumbnailUrl,
-                        )
-                    }
-                }
                 expandedId = definition.id
                 showEditor = false
             },
