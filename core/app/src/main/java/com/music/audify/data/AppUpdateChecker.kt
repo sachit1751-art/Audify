@@ -3,7 +3,6 @@
 package com.music.audify.data
 
 import androidx.core.net.toUri
-import androidx.core.net.toUri
 
 import android.content.Context
 import android.content.Intent
@@ -18,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
@@ -55,6 +55,7 @@ object AppUpdateChecker {
         val apkUrl: String?,
         val notes: String?,
         val updateAvailable: Boolean,
+        val isPrerelease: Boolean = false,
     )
 
     private const val CACHE_SUBDIR = "updates"
@@ -91,23 +92,36 @@ object AppUpdateChecker {
     @Volatile
     private var activeDownloadCall: Call? = null
 
-    suspend fun check(): Boolean? = withContext(Dispatchers.IO) {
+    suspend fun check(includePrerelease: Boolean = false): Boolean? = withContext(Dispatchers.IO) {
         _checking.value = true
         try {
             runCatching {
-            val request = Request.Builder().url(LATEST_RELEASE_URL).build()
+            val endpoint = if (includePrerelease) {
+                "https://api.github.com/repos/sachit1751-art/Audify/releases?per_page=20"
+            } else LATEST_RELEASE_URL
+            val request = Request.Builder().url(endpoint).build()
             val body = Http.client.newCall(request).execute().use { response ->
                 check(response.isSuccessful) { "Update check failed: HTTP ${response.code}" }
-                response.body?.string() ?: error("Empty update response")
+                response.body.string()
             }
-            val release = json.parseToJsonElement(body) as? JsonObject
-                ?: error("Invalid update response")
+            val parsed = json.parseToJsonElement(body)
+            val release = if (includePrerelease) {
+                val releases = parsed as? JsonArray ?: error("Invalid releases response")
+                releases.mapNotNull { it as? JsonObject }
+                    .firstOrNull { it["prerelease"]?.jsonPrimitive?.contentOrNull == "true" &&
+                        it["draft"]?.jsonPrimitive?.contentOrNull != "true" }
+                    ?: (releases.firstOrNull() as? JsonObject)
+                    ?: error("No published GitHub releases found")
+            } else {
+                parsed as? JsonObject ?: error("Invalid update response")
+            }
             val tag = release["tag_name"]?.jsonPrimitive?.contentOrNull
                 ?: error("Release tag missing")
             val url = release["html_url"]?.jsonPrimitive?.contentOrNull
                 ?: error("Release URL missing")
             val apkUrl = apkAssetUrl(release)
             val notes = release["body"]?.jsonPrimitive?.contentOrNull
+            val isPrerelease = release["prerelease"]?.jsonPrimitive?.contentOrNull == "true"
             val latest = tag.removePrefix("v")
             val updateAvailable = isNewer(latest, BuildConfig.VERSION_NAME)
             val latestInfo = LatestReleaseInfo(
@@ -116,6 +130,7 @@ object AppUpdateChecker {
                 apkUrl = apkUrl,
                 notes = notes,
                 updateAvailable = updateAvailable,
+                isPrerelease = isPrerelease,
             )
             val result = if (updateAvailable) {
                 _available.value = UpdateInfo(
@@ -253,7 +268,7 @@ object AppUpdateChecker {
         try {
             call.execute().use { response ->
                 check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
-                val body = response.body ?: error("Empty download body")
+                val body = response.body
                 val total = body.contentLength().takeIf { it > 0 }
 
                 body.byteStream().use { input ->
@@ -311,7 +326,7 @@ object AppUpdateChecker {
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         context.startActivity(
-            Intent(Intent.ACTION_INSTALL_PACKAGE)
+            Intent(Intent.ACTION_VIEW)
                 .setDataAndType(uri, "application/vnd.android.package-archive")
                 .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
                 .putExtra(Intent.EXTRA_RETURN_RESULT, true)

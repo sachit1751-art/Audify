@@ -1687,6 +1687,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // A leftover APK only means "Install Now" for the session that
             // downloaded it — see AppUpdateChecker.clearCache.
             AppUpdateChecker.clearCache(getApplication())
+            // Beta builds are opt-in. When enabled, fetch the newest published
+            // pre-release and cache its APK in the background; installation
+            // remains an explicit action in the updater UI.
+            if (AppSettings.betaUpdatesEnabled.value && AppSettings.downloadsAllowedNow) {
+                if (AppUpdateChecker.check(includePrerelease = true) == true) {
+                    AppUpdateChecker.downloadApk(getApplication())
+                }
+            }
         }
     }
 

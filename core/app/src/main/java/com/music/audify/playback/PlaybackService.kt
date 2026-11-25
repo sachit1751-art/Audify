@@ -8162,30 +8162,46 @@ class PlaybackService : MediaLibraryService() {
             return
         }
         val segment = AppSettings.skipSegmentsForTrack(item.mediaId).activeAt(position, duration) ?: return
+        val playbackEndMs = minOf(duration, playbackWindow?.endMs ?: duration)
+        val seekTargetMs = segment.endMs.coerceAtMost(playbackEndMs)
         TrackLog.d(
             "Audify",
-            "skip segment ${segment.startMs}..${segment.endMs}ms",
+            "skip segment ${segment.startMs}..${segment.endMs}ms -> $seekTargetMs ms",
             about = item.mediaId,
         )
-        active.seekTo(segment.endMs)
+        // A skip range can extend beyond the selected playback window. Never
+        // seek past the out-point: that would briefly play audio the user
+        // explicitly excluded before the next ticker pass notices the end.
+        active.seekTo(seekTargetMs)
     }
 
     private fun applySkipSegmentAtArm(item: MediaItem, incoming: ExoPlayer) {
         if (ListenTogether.state.value.inParty || speakers.active) return
         if (incoming.currentMediaItem?.mediaId != item.mediaId) return
-        val position = incoming.currentPosition
         val duration = incoming.duration
-        val segment = AppSettings.skipSegmentsForTrack(item.mediaId)
-            .firstOrNull { range ->
-                position >= range.startMs && position < range.endMs &&
-                    (duration == C.TIME_UNSET || duration <= 0L || range.endMs <= duration)
-            } ?: return
+        val playbackWindow = AppSettings.playbackWindowForTrack(item.mediaId)
+        val playbackEndMs = minOf(
+            duration.takeIf { it != C.TIME_UNSET && it > 0L } ?: Long.MAX_VALUE,
+            playbackWindow?.endMs ?: Long.MAX_VALUE,
+        )
+        var targetMs = incoming.currentPosition
+        var skipped = false
+        val ranges = AppSettings.skipSegmentsForTrack(item.mediaId)
+        while (true) {
+            val segment = ranges.firstOrNull { range ->
+                targetMs >= range.startMs && targetMs < range.endMs
+            } ?: break
+            skipped = true
+            targetMs = minOf(segment.endMs, playbackEndMs)
+            if (targetMs >= playbackEndMs) break
+        }
+        if (!skipped) return
         TrackLog.d(
             "Audify",
-            "pre-skipping incoming segment ${segment.startMs}..${segment.endMs}ms before blend",
+            "pre-skipping incoming audio to $targetMs ms before blend",
             about = item.mediaId,
         )
-        incoming.seekTo(segment.endMs)
+        incoming.seekTo(targetMs)
     }
 
     private fun stopLyricsTicker() {

@@ -1115,6 +1115,12 @@ class CrossfadeController(
         if (actualDuration == C.TIME_UNSET || actualDuration <= 0L) return
         val item = player.currentMediaItem ?: return
         val duration = effectivePlaybackEndMs(item, actualDuration)
+        if (duration <= (AppSettings.playbackWindowForTrack(item.mediaId)?.startMs ?: 0L) ||
+            player.currentPosition >= duration
+        ) {
+            AppSettings.smartTransitionWindow.value = null
+            return
+        }
 
         // Repeating one track would crossfade it into itself, so nothing is
         // armed and no window is marked — but the queue behind the loop has not
@@ -1151,25 +1157,39 @@ class CrossfadeController(
         if (configuredFadeMs() <= 0L) return
         val fade = fadeFor(duration)
         if (fade <= 0L) return
+        val playbackWindow = AppSettings.playbackWindowForTrack(item.mediaId)
+        val transitionWindow = audibleTransitionWindow(
+            requestedStartMs = duration - fade,
+            requestedEndMs = duration,
+            currentPositionMs = player.currentPosition,
+            playbackStartMs = playbackWindow?.startMs ?: 0L,
+            playbackEndMs = duration,
+            skipSegments = AppSettings.skipSegmentsForTrack(item.mediaId),
+        ) ?: run {
+            AppSettings.smartTransitionWindow.value = null
+            return
+        }
+        val effectiveFade = transitionWindow.durationMs
+        if (effectiveFade <= 0L) return
 
-        player.currentMediaItem?.mediaId?.let { plannedTransition = it to duration - fade }
-        val remaining = duration - player.currentPosition
+        player.currentMediaItem?.mediaId?.let { plannedTransition = it to transitionWindow.startMs }
+        val remaining = transitionWindow.startMs - player.currentPosition
         if (SleepTimer.afterTrack.value) {
             // The sleep timer is due when this track ends. There is no next
             // track to arm a crossfade into, so run the same fade-out this
             // pair would otherwise have used against silence instead — see
             // [beginSleepFadeOut]. No arm-lead margin: nothing is buffering.
-            if (remaining > fade) return
-            beginSleepFadeOut(fade)
+            if (remaining > effectiveFade) return
+            beginSleepFadeOut(effectiveFade)
             return
         }
         holdAhead(player, duration)
         // Arm early: the standby has to open the incoming track and buffer to
         // its cue point, and that work has to be finished by the time the fade
         // is due rather than started then.
-        if (remaining > fade + ARM_LEAD_MS) return
+        if (remaining > effectiveFade + ARM_LEAD_MS) return
 
-        begin(fade, endMs = duration, smart = false)
+        begin(effectiveFade, endMs = transitionWindow.endMs, smart = false)
     }
 
     /**
@@ -1190,6 +1210,13 @@ class CrossfadeController(
     private fun considerSmartTransition(duration: Long, markerOnly: Boolean = false) {
         val player = active()
         val currentItem = player.currentMediaItem ?: return
+        if (duration <= (AppSettings.playbackWindowForTrack(currentItem.mediaId)?.startMs ?: 0L) ||
+            player.currentPosition >= duration
+        ) {
+            AppSettings.smartTransitionWindow.value = null
+            plannedTransition = null
+            return
+        }
         val nextIndex = player.nextMediaItemIndex
         if (nextIndex == C.INDEX_UNSET) return
         val nextItem = player.getMediaItemAt(nextIndex)
@@ -1225,7 +1252,7 @@ class CrossfadeController(
         // The DJ planner is Automix now; there is no separate mode switch.
         val advanced = true
 
-        val plan = planTransition(
+        val rawPlan = planTransition(
             analysis = currentAnalysis,
             nextAnalysis = nextAnalysis,
             currentTrack = currentItem.toTransitionInfo(duration),
@@ -1236,6 +1263,30 @@ class CrossfadeController(
             mode = CrossfadeMode.SMART,
             advanced = advanced,
         )
+        val playbackWindow = AppSettings.playbackWindowForTrack(currentItem.mediaId)
+        val audibleWindow = if (rawPlan.blocked) null else audibleTransitionWindow(
+            requestedStartMs = (rawPlan.transitionStart * 1000.0).roundToLong(),
+            requestedEndMs = (rawPlan.transitionEnd * 1000.0).roundToLong(),
+            currentPositionMs = player.currentPosition,
+            playbackStartMs = playbackWindow?.startMs ?: 0L,
+            playbackEndMs = duration,
+            skipSegments = AppSettings.skipSegmentsForTrack(currentItem.mediaId),
+        )
+        val plan = when {
+            rawPlan.blocked -> rawPlan
+            audibleWindow == null -> rawPlan.copy(
+                shouldStart = false,
+                markerVisible = false,
+                blocked = true,
+                reason = "no audible mix-out window after playback exclusions",
+            )
+            else -> rawPlan.copy(
+                shouldStart = rawPlan.shouldStart || player.currentPosition >= audibleWindow.startMs,
+                transitionStart = audibleWindow.startMs / 1000.0,
+                transitionEnd = audibleWindow.endMs / 1000.0,
+                fadeSeconds = audibleWindow.durationMs / 1000.0,
+            )
+        }
         // One line per distinct verdict rather than one per 250ms tick, so the
         // log says what the planner decided for this pair without burying it.
         val verdict = "${plan.reason}|${plan.transitionStyle}|fade=${plan.fadeMs}" +
@@ -1260,7 +1311,9 @@ class CrossfadeController(
         val loop = loopPlanFor(
             player, currentItem, nextItem, currentAnalysis, nextAnalysis, duration, nextDuration, analysisState,
         )
-        if (loop != null && AppSettings.playbackWindowForTrack(currentItem.mediaId) == null && nextStreamReady(nextItem)) {
+        if (loop != null && playbackWindow == null &&
+            AppSettings.skipSegmentsForTrack(currentItem.mediaId).isEmpty() && nextStreamReady(nextItem)
+        ) {
             val loopStartMs = (loop.out.loopStart * 1000).roundToLong()
             AppSettings.smartTransitionWindow.value = TransitionWindow(
                 start = (loopStartMs.toFloat() / duration).coerceIn(0f, 1f),
@@ -1493,10 +1546,17 @@ class CrossfadeController(
         return queuedDurationMs(item)
     }
 
-    /** The selected out-point is the logical end for all transition planning. */
+    /** The last audible point is the logical end for all transition planning. */
     private fun effectivePlaybackEndMs(item: MediaItem, actualDurationMs: Long): Long {
-        val window = AppSettings.playbackWindowForTrack(item.mediaId) ?: return actualDurationMs
-        return minOf(actualDurationMs, window.endMs).takeIf { it > 0L } ?: actualDurationMs
+        val window = AppSettings.playbackWindowForTrack(item.mediaId)
+        // A skip range that reaches the selected out-point makes its start the
+        // last audible position. Planning against the physical end would place
+        // the fade entirely inside audio the ticker immediately skips.
+        return effectiveAudiblePlaybackEndMs(
+            actualDurationMs = actualDurationMs,
+            selectedEndMs = window?.endMs,
+            skipSegments = AppSettings.skipSegmentsForTrack(item.mediaId),
+        )
     }
 
     /**
@@ -1573,16 +1633,32 @@ class CrossfadeController(
         // player is about to be the outgoing side of a new one.
         endEase(clickless = false)
 
-        fadeMs = fade
-        fadeEndMs = endMs
-        smartFadeActive = smart
         val incomingId = out.getMediaItemAt(nextIndex).mediaId
         val incomingWindow = AppSettings.playbackWindowForTrack(incomingId)
-        incomingCueTimeMs = if (incomingWindow != null) {
+        val incomingItem = out.getMediaItemAt(nextIndex)
+        val requestedIncomingCueMs = if (incomingWindow != null) {
             cueTimeMs.coerceIn(incomingWindow.startMs, (incomingWindow.endMs - 1L).coerceAtLeast(incomingWindow.startMs))
         } else {
             cueTimeMs.coerceAtLeast(0L)
         }
+        val incomingDurationMs = nextItemDurationMs(nextIndex, incomingItem)
+        val incomingEndMs = minOf(
+            incomingDurationMs.takeIf { it > 0L } ?: Long.MAX_VALUE,
+            incomingWindow?.endMs ?: Long.MAX_VALUE,
+        )
+        incomingCueTimeMs = audibleIncomingCueMs(
+            requestedCueMs = requestedIncomingCueMs,
+            overlapMs = fade,
+            playbackStartMs = incomingWindow?.startMs ?: 0L,
+            playbackEndMs = incomingEndMs,
+            skipSegments = AppSettings.skipSegmentsForTrack(incomingId),
+        ) ?: run {
+            Log.d(TAG, "arm declined: $incomingId has no audible incoming cue after playback exclusions")
+            return false
+        }
+        fadeMs = fade
+        fadeEndMs = endMs
+        smartFadeActive = smart
         incomingPlaybackRate = playbackRate
         outgoingPlaybackRate = outgoingRate
         rampSteps = if (beatMs > 0L) rampStepsFor(outgoingRate) else 0

@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
@@ -20,9 +24,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,11 +42,16 @@ import com.music.audify.data.settings.formatSkipTimestamp
 import com.music.audify.data.settings.normalizeSkipSegments
 import com.music.audify.data.settings.parseSkipTimestamp
 import com.music.audify.ui.player.ThinSlider
+import coil3.compose.AsyncImage
+import kotlin.math.abs
+import kotlin.random.Random
 
 @Composable
 internal fun SkipSegmentsDialog(
     trackId: String,
     trackTitle: String,
+    artistName: String,
+    artworkUrl: String?,
     durationMs: Long,
     onDismiss: () -> Unit,
 ) {
@@ -55,8 +68,14 @@ internal fun SkipSegmentsDialog(
     val sliderDuration = durationMs.coerceAtLeast(1_000L)
     val sliderActive = androidx.compose.material3.MaterialTheme.colorScheme.primary
     val sliderInactive = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f)
+    val latestStartMs by rememberUpdatedState(startMs)
+    val latestEndMs by rememberUpdatedState(endMs)
     LaunchedEffect(trackId) {
         AppSettings.setSkipSegmentsTrack(trackId)
+        startMs = 0L
+        endMs = sliderDuration
+        fromText = formatSkipTimestamp(0L)
+        toText = formatSkipTimestamp(sliderDuration)
         AppSettings.trackPlaybackWindow.value?.let { window ->
             playbackWindowEnabled = true
             playbackStartMs = window.startMs
@@ -70,10 +89,21 @@ internal fun SkipSegmentsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.skip_segments)) },
+        title = { Text(if (editingIndex >= 0) "Edit Skip Segment" else stringResource(R.string.skip_segments)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(trackTitle, style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AsyncImage(
+                        model = artworkUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(trackTitle, style = androidx.compose.material3.MaterialTheme.typography.titleSmall, maxLines = 1)
+                        Text(artistName, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                    }
+                    Text(formatSkipTimestamp(durationMs), style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+                }
                 Text(stringResource(R.string.skip_segments_description))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = playbackWindowEnabled, onCheckedChange = { playbackWindowEnabled = it })
@@ -157,59 +187,115 @@ internal fun SkipSegmentsDialog(
                         }
                     }
                 }
+                Text(
+                    text = "TRACK WAVEFORM  ·  ${formatSkipTimestamp(durationMs)}",
+                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 68.dp, max = 68.dp)
+                        .pointerInput(trackId, sliderDuration) {
+                            var draggingStart = true
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    val startX = latestStartMs.toFloat() / sliderDuration * size.width
+                                    val endX = latestEndMs.toFloat() / sliderDuration * size.width
+                                    draggingStart = abs(offset.x - startX) <= abs(offset.x - endX)
+                                    val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                    val value = ((fraction * sliderDuration).toLong() / 100L) * 100L
+                                    if (draggingStart) {
+                                        startMs = value.coerceIn(0L, (endMs - 100L).coerceAtLeast(0L))
+                                        fromText = formatSkipTimestamp(startMs)
+                                    } else {
+                                        endMs = value.coerceIn((startMs + 100L).coerceAtMost(sliderDuration), sliderDuration)
+                                        toText = formatSkipTimestamp(endMs)
+                                    }
+                                    error = 0
+                                },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    val fraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                    val value = ((fraction * sliderDuration).toLong() / 100L) * 100L
+                                    if (draggingStart) {
+                                        startMs = value.coerceIn(0L, (endMs - 100L).coerceAtLeast(0L))
+                                        fromText = formatSkipTimestamp(startMs)
+                                    } else {
+                                        endMs = value.coerceIn((startMs + 100L).coerceAtMost(sliderDuration), sliderDuration)
+                                        toText = formatSkipTimestamp(endMs)
+                                    }
+                                    error = 0
+                                },
+                            )
+                        },
+                ) {
+                    val width = size.width
+                    val centerY = size.height / 2f
+                    val startX = (startMs.toFloat() / sliderDuration * width).coerceIn(0f, width)
+                    val endX = (endMs.toFloat() / sliderDuration * width).coerceIn(0f, width)
+                    drawRoundRect(
+                        color = sliderInactive.copy(alpha = 0.18f),
+                        topLeft = Offset.Zero,
+                        size = size,
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
+                    )
+                    val random = Random(trackId.hashCode())
+                    val barCount = 72
+                    val step = width / barCount
+                    repeat(barCount) { index ->
+                        val amplitude = 5.dp.toPx() + random.nextFloat() * 23.dp.toPx()
+                        val x = index * step + step / 2f
+                        val selected = x in startX..endX
+                        drawLine(
+                            color = if (selected) sliderActive else sliderInactive,
+                            start = Offset(x, centerY - amplitude / 2f),
+                            end = Offset(x, centerY + amplitude / 2f),
+                            strokeWidth = 2.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        )
+                    }
+                    drawRoundRect(
+                        color = sliderActive.copy(alpha = 0.12f),
+                        topLeft = Offset(startX, 0f),
+                        size = androidx.compose.ui.geometry.Size((endX - startX).coerceAtLeast(0f), size.height),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()),
+                    )
+                    listOf(startX, endX).forEach { x ->
+                        drawLine(sliderActive, Offset(x, 0f), Offset(x, size.height), 2.dp.toPx())
+                        drawCircle(sliderActive, radius = 5.dp.toPx(), center = Offset(x, centerY))
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    Text(stringResource(R.string.skip_segment_from), modifier = Modifier.weight(0.7f), style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+                    TextButton(onClick = { startMs = (startMs - 500L).coerceAtLeast(0L); fromText = formatSkipTimestamp(startMs) }) { Text("−0.5") }
                     OutlinedTextField(
                         value = fromText,
-                        onValueChange = {
-                            fromText = it
-                            parseSkipTimestamp(it)?.let { parsed -> startMs = parsed }
-                            error = 0
-                        },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.skip_segment_from)) },
+                        onValueChange = { fromText = it; parseSkipTimestamp(it)?.let { value -> startMs = value.coerceIn(0L, (endMs - 100L).coerceAtLeast(0L)) }; error = 0 },
+                        modifier = Modifier.weight(1.4f),
                         singleLine = true,
                     )
+                    TextButton(onClick = { startMs = (startMs + 500L).coerceAtMost((endMs - 100L).coerceAtLeast(0L)); fromText = formatSkipTimestamp(startMs) }) { Text("+0.5") }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.skip_segment_to), modifier = Modifier.weight(0.7f), style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+                    TextButton(onClick = { endMs = (endMs - 500L).coerceAtLeast(startMs + 100L); toText = formatSkipTimestamp(endMs) }) { Text("−0.5") }
                     OutlinedTextField(
                         value = toText,
-                        onValueChange = {
-                            toText = it
-                            parseSkipTimestamp(it)?.let { parsed -> endMs = parsed }
-                            error = 0
-                        },
-                        modifier = Modifier.weight(1f),
-                        label = { Text(stringResource(R.string.skip_segment_to)) },
+                        onValueChange = { toText = it; parseSkipTimestamp(it)?.let { value -> endMs = value.coerceIn(startMs + 100L, sliderDuration) }; error = 0 },
+                        modifier = Modifier.weight(1.4f),
                         singleLine = true,
                     )
+                    TextButton(onClick = { endMs = (endMs + 500L).coerceAtMost(sliderDuration); toText = formatSkipTimestamp(endMs) }) { Text("+0.5") }
                 }
-                Text("${stringResource(R.string.skip_segment_from)} · ${formatSkipTimestamp(startMs)}")
-                ThinSlider(
-                    value = (startMs.toFloat() / sliderDuration).coerceIn(0f, 1f),
-                    onValueChange = { fraction ->
-                        startMs = ((fraction * sliderDuration).toLong() / 1_000L) * 1_000L
-                        fromText = formatSkipTimestamp(startMs)
-                        error = 0
-                    },
-                    activeColor = sliderActive,
-                    inactiveColor = sliderInactive,
-                    idleHeight = 5.dp,
-                    activeHeight = 8.dp,
-                )
-                Text("${stringResource(R.string.skip_segment_to)} · ${formatSkipTimestamp(endMs)}")
-                ThinSlider(
-                    value = (endMs.toFloat() / sliderDuration).coerceIn(0f, 1f),
-                    onValueChange = { fraction ->
-                        endMs = ((fraction * sliderDuration).toLong() / 1_000L) * 1_000L
-                        toText = formatSkipTimestamp(endMs)
-                        error = 0
-                    },
-                    activeColor = sliderActive,
-                    inactiveColor = sliderInactive,
-                    idleHeight = 5.dp,
-                    activeHeight = 8.dp,
-                )
                 if (error != 0) {
                     Text(stringResource(error), color = androidx.compose.material3.MaterialTheme.colorScheme.error)
                 }

@@ -2428,6 +2428,8 @@ fun NowPlayingScreen(
                     transport = {
                         TransportRow(
                             isPlaying = isPlaying,
+                            isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
+                                audioVersionSwitching,
                             previousEnabled = !controlsLocked && (hasPrevious || pastRestartPoint),
                             nextEnabled = !controlsLocked && hasNext,
                             onPrevious = skipPrevious,
@@ -2696,6 +2698,8 @@ fun NowPlayingScreen(
                             transport = {
                                 TransportRow(
                                     isPlaying = isPlaying,
+                                    isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
+                                        audioVersionSwitching,
                                     previousEnabled = !controlsLocked &&
                                         (hasPrevious || pastRestartPoint),
                                     nextEnabled = !controlsLocked && hasNext,
@@ -5058,6 +5062,8 @@ Spacer(Modifier.width(12.dp))
 
                     TransportRow(
                         isPlaying = isPlaying,
+                        isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
+                            audioVersionSwitching,
                         previousEnabled = !controlsLocked &&
                             (hasPrevious || pastRestartPoint),
                         nextEnabled = !controlsLocked && hasNext,

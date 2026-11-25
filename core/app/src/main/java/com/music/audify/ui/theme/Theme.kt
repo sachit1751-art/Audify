@@ -386,9 +386,7 @@ fun AudifyTheme(
         backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme, amoledDisplayColors,
     ) {
         val base = scheme.background
-        if (amoledDisplayColors && darkTheme) {
-            Brush.verticalGradient(listOf(Color.Black, Color.Black))
-        } else when (backgroundStyle) {
+        when (backgroundStyle) {
             AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
             AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
                 if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), base)
@@ -428,7 +426,7 @@ fun AudifyTheme(
             Box(
                 Modifier.fillMaxSize().drawBehind { drawRect(appBackgroundBrush) },
             ) {
-                if (!backgroundUri.isNullOrBlank() && !(amoledDisplayColors && darkTheme)) {
+                if (!backgroundUri.isNullOrBlank()) {
                     AsyncImage(
                         model = backgroundUri,
                         contentDescription = null,

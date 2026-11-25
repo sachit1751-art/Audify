@@ -567,6 +567,9 @@ object AppSettings {
      */
     val wifiOnlyDownloads = MutableStateFlow(true)
 
+    /** Include GitHub pre-releases in update checks and download their APKs without installing them. */
+    val betaUpdatesEnabled = MutableStateFlow(false)
+
     /**
      * Keep ordinary downloads in Music/BitChord where other music apps can see
      * them. Off (the default) keeps downloads in this app's private storage.
@@ -1616,6 +1619,7 @@ object AppSettings {
         migrateDownloadQuality()
         downloadQuality.value = readDownloadQuality()
         wifiOnlyDownloads.value = prefs.getBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
+        betaUpdatesEnabled.value = prefs.getBoolean(KEY_BETA_UPDATES_ENABLED, false)
         // These fallback values are intentionally the pre-default-change values.
         // New installs have explicit values from seedFirstInstallDefaults(); an
         // upgrade with a missing key must not silently acquire a new preference.
@@ -2056,6 +2060,11 @@ object AppSettings {
     fun setWifiOnlyDownloads(value: Boolean) {
         wifiOnlyDownloads.value = value
         prefs.edit {putBoolean(KEY_WIFI_ONLY_DOWNLOADS, value)}
+    }
+
+    fun setBetaUpdatesEnabled(value: Boolean) {
+        betaUpdatesEnabled.value = value
+        prefs.edit { putBoolean(KEY_BETA_UPDATES_ENABLED, value) }
     }
 
     fun setCrossfadeSeconds(value: Int) {
@@ -3491,6 +3500,7 @@ object AppSettings {
     private const val KEY_UPGRADE_LENGTH_SLACK_SECONDS = "upgrade_length_slack_seconds"
     private const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
     private const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
+    private const val KEY_BETA_UPDATES_ENABLED = "beta_updates_enabled"
     private const val KEY_EXPORT_DOWNLOADS = "export_downloads"
     private const val KEY_AUTO_DOWNLOAD_LIKED_SONGS = "auto_download_liked_songs"
     private const val KEY_SYNC_DOWNLOADED_PLAYLISTS = "sync_downloaded_playlists"

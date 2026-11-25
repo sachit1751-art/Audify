@@ -6233,6 +6233,8 @@ private fun AudifyApp(
             SkipSegmentsDialog(
                 trackId = target.videoId,
                 trackTitle = target.title,
+                artistName = target.artist,
+                artworkUrl = target.thumbnailUrl,
                 durationMs = controller?.duration?.takeIf { it > 0L } ?: 0L,
                 onDismiss = { skipSegmentsTarget = null },
             )

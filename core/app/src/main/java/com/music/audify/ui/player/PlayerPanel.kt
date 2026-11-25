@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -160,7 +161,7 @@ fun PlayerPanel(
         dock == null || covered -> Modifier
         glassOn && glassNeeded -> Modifier.liquidGlass(shape)
         glassOn -> Modifier
-        else -> Modifier.background(dock?.panelColor ?: PanelFallbackFill, shape)
+        else -> Modifier.background(dock.panelColor, shape)
     }
 
     Box(
@@ -392,19 +393,26 @@ private fun PanelMiniRow(
                     FadingLine(text = shown.artist, style = artistStyle, color = secondary)
                 }
             }
-            // Buffering is reported by the seek-bar sheen in the full player.
-            // Keep this control live while that work is happening: replacing
-            // it with a spinner made the transport temporarily untappable.
-            MiniPlayerPlayPauseButton(
-                isPlaying = isPlaying,
-                tint = contentColor.copy(alpha = if (isLoading) 0.82f else 1f),
-                slot = glyphSlot,
-                glyphSize = glyphSize,
-                onClick = {
-                    haptics.play(if (isPlaying) Haptic.Pause else Haptic.Resume)
-                    onPlayPause()
-                },
-            )
+            if (isLoading) {
+                Box(Modifier.size(glyphSlot), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = contentColor,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(if (!glass) 22.dp else if (showNext) 20.dp else 18.dp),
+                    )
+                }
+            } else {
+                MiniPlayerPlayPauseButton(
+                    isPlaying = isPlaying,
+                    tint = contentColor,
+                    slot = glyphSlot,
+                    glyphSize = glyphSize,
+                    onClick = {
+                        haptics.play(if (isPlaying) Haptic.Pause else Haptic.Resume)
+                        onPlayPause()
+                    },
+                )
+            }
             if (showNext) {
                 Spacer(Modifier.width(8.dp))
                 MiniPlayerNextButton(
