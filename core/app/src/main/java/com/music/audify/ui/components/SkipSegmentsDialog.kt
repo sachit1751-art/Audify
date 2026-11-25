@@ -1,5 +1,6 @@
 package com.music.audify.ui.components
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,17 +43,22 @@ import com.music.audify.data.settings.formatSkipTimestamp
 import com.music.audify.data.settings.normalizeSkipSegments
 import com.music.audify.data.settings.parseSkipTimestamp
 import com.music.audify.ui.player.ThinSlider
+import com.music.audify.playback.smart.MixWaveform
+import com.music.audify.playback.smart.TrackAnalyzer
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
-import kotlin.random.Random
 
 @Composable
+@androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 internal fun SkipSegmentsDialog(
     trackId: String,
     trackTitle: String,
     artistName: String,
     artworkUrl: String?,
     durationMs: Long,
+    audioUri: Uri?,
     onDismiss: () -> Unit,
 ) {
     val segments by AppSettings.skipSegments.collectAsStateWithLifecycle()
@@ -65,6 +71,8 @@ internal fun SkipSegmentsDialog(
     var playbackWindowEnabled by remember(trackId) { mutableStateOf(false) }
     var playbackStartMs by remember(trackId) { mutableLongStateOf(0L) }
     var playbackEndMs by remember(trackId) { mutableLongStateOf(durationMs) }
+    var waveform by remember(trackId, audioUri) { mutableStateOf<MixWaveform.Bands?>(null) }
+    var waveformLoading by remember(trackId, audioUri) { mutableStateOf(audioUri != null && durationMs > 0L) }
     val sliderDuration = durationMs.coerceAtLeast(1_000L)
     val sliderActive = androidx.compose.material3.MaterialTheme.colorScheme.primary
     val sliderInactive = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.28f)
@@ -84,6 +92,17 @@ internal fun SkipSegmentsDialog(
             playbackWindowEnabled = false
             playbackStartMs = 0L
             playbackEndMs = durationMs
+        }
+    }
+    LaunchedEffect(trackId, audioUri, durationMs) {
+        waveform = null
+        waveformLoading = audioUri != null && durationMs > 0L
+        val uri = audioUri
+        if (uri != null && durationMs > 0L) {
+            waveform = withContext(Dispatchers.IO) {
+                runCatching { TrackAnalyzer.editorWaveform(trackId, uri, durationMs) }.getOrNull()
+            }
+            waveformLoading = false
         }
     }
 
@@ -240,15 +259,18 @@ internal fun SkipSegmentsDialog(
                         size = size,
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(14.dp.toPx()),
                     )
-                    val random = Random(trackId.hashCode())
-                    val barCount = 72
+                    val decoded = waveform
+                    val barCount = decoded?.low?.size ?: 72
                     val step = width / barCount
                     repeat(barCount) { index ->
-                        val amplitude = 5.dp.toPx() + random.nextFloat() * 23.dp.toPx()
+                        val amplitude = if (decoded != null) {
+                            val peak = maxOf(decoded.low[index], decoded.mid[index], decoded.high[index])
+                            (4.dp.toPx() + peak * 26.dp.toPx()).coerceAtMost(size.height * 0.92f)
+                        } else 2.dp.toPx()
                         val x = index * step + step / 2f
                         val selected = x in startX..endX
                         drawLine(
-                            color = if (selected) sliderActive else sliderInactive,
+                            color = if (decoded == null) sliderInactive.copy(alpha = 0.45f) else if (selected) sliderActive else sliderInactive,
                             start = Offset(x, centerY - amplitude / 2f),
                             end = Offset(x, centerY + amplitude / 2f),
                             strokeWidth = 2.dp.toPx(),
@@ -265,6 +287,11 @@ internal fun SkipSegmentsDialog(
                         drawLine(sliderActive, Offset(x, 0f), Offset(x, size.height), 2.dp.toPx())
                         drawCircle(sliderActive, radius = 5.dp.toPx(), center = Offset(x, centerY))
                     }
+                }
+                if (waveformLoading) {
+                    Text("Decoding track waveform…", style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                } else if (waveform == null) {
+                    Text("Real waveform is unavailable until this track's audio is cached and readable. Selection controls remain available.", style = androidx.compose.material3.MaterialTheme.typography.labelSmall, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),

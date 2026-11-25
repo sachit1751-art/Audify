@@ -6236,6 +6236,9 @@ private fun AudifyApp(
                 artistName = target.artist,
                 artworkUrl = target.thumbnailUrl,
                 durationMs = controller?.duration?.takeIf { it > 0L } ?: 0L,
+                audioUri = controller?.currentMediaItem
+                    ?.takeIf { it.mediaId == target.videoId }
+                    ?.localConfiguration?.uri,
                 onDismiss = { skipSegmentsTarget = null },
             )
         }
