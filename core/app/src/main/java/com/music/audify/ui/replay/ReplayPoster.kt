@@ -434,7 +434,7 @@ private fun drawTotals(
     top: Float,
 ): Float {
     canvas.drawText(
-        formatMinutes(summary.totalMs),
+        formatListening(context, summary.totalMs),
         MARGIN,
         top + 120f,
         type.heading(148f, Color.WHITE),

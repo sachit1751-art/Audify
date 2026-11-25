@@ -41,7 +41,7 @@ fun formatSkipTimestamp(positionMs: Long): String {
     return if (minutes >= 60L) {
         "%d:%02d:%02d".format(minutes / 60L, minutes % 60L, remainder)
     } else {
-        "%d:%02d".format(minutes, remainder)
+        "%02d:%02d".format(minutes, remainder)
     }
 }
 

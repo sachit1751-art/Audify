@@ -6235,10 +6235,10 @@ private fun AudifyApp(
                 trackTitle = target.title,
                 artistName = target.artist,
                 artworkUrl = target.thumbnailUrl,
-                durationMs = controller?.duration?.takeIf { it > 0L } ?: 0L,
-                audioUri = controller?.currentMediaItem
-                    ?.takeIf { it.mediaId == target.videoId }
-                    ?.localConfiguration?.uri,
+                durationMs = target.durationMillis().takeIf { it > 0L }
+                    ?: controller?.takeIf { it.currentMediaItem?.mediaId == target.videoId }
+                        ?.duration?.takeIf { it > 0L }
+                    ?: 0L,
                 onDismiss = { skipSegmentsTarget = null },
             )
         }

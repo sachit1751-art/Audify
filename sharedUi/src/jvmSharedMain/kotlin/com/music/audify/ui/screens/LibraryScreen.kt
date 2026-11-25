@@ -204,8 +204,6 @@ fun LibraryScreen(
             fun section(key: String, emit: LazyListScope.() -> Unit) {
                 sections += key to emit
             }
-            // Status muat/gagal selalu di akhir dan tidak ikut diatur.
-            val status = ArrayList<LazyListScope.() -> Unit>()
             section(LIBRARY_SLOT_REPLAY) {
                 item(key = "replay-heading") {
                     Column(Modifier.padding(horizontal = PAGE_GUTTER).padding(top = 12.dp, bottom = 2.dp)) {
@@ -290,9 +288,11 @@ fun LibraryScreen(
                 }
             } else {
                 when (state) {
-                    is UiState.Loading -> status.add { librarySkeleton() }
-                    is UiState.Error -> status.add {
-                        item {
+                    is UiState.Loading -> section("library-status") {
+                        librarySkeleton()
+                    }
+                    is UiState.Error -> section("library-status") {
+                        item(key = "library-error") {
                             MessageState(
                                 state.message,
                                 actionLabel = stringResource(Res.string.retry).takeIf { state.retryable },
@@ -369,7 +369,11 @@ fun LibraryScreen(
             // Device-only collections follow Playlists and are absent until
             // this device actually has saved albums or playlists. The shelf
             // itself supplies the single On Device heading.
-            if (deviceItems.isNotEmpty()) {
+            // While the account shelves are loading, keep the device-only
+            // section out of the first composition. Otherwise it can appear
+            // above the loading skeleton and then jump down when remote shelves
+            // arrive. Render the local section after the account result settles.
+            if (deviceItems.isNotEmpty() && (!signedIn || state !is UiState.Loading)) {
                 section(LIBRARY_SLOT_ON_DEVICE) {
                     val unpinnedDevice = deviceItems.filterNot {
                         it.browseId != null && it.browseId in pinnedPlaylists
@@ -388,6 +392,23 @@ fun LibraryScreen(
                 }
             }
             val arrangedSections = layout.arrange(sections) { it.first }.toMutableList()
+            // Loading/error content is not a user-arrangeable shelf. Place it
+            // where the account collections belong instead of letting its
+            // unknown key fall to the end of a customised layout.
+            val statusIndex = arrangedSections.indexOfFirst { it.first == "library-status" }
+            if (statusIndex >= 0) {
+                val statusSection = arrangedSections.removeAt(statusIndex)
+                val playlistsIndex = arrangedSections.indexOfLast { it.first == homeShelfKey(PLAYLISTS) }
+                val pinnedIndex = arrangedSections.indexOfLast { it.first == LIBRARY_SLOT_PINNED }
+                val linksIndex = arrangedSections.indexOfLast { it.first == LIBRARY_SLOT_LINKS }
+                val targetIndex = when {
+                    playlistsIndex >= 0 -> playlistsIndex + 1
+                    pinnedIndex >= 0 -> pinnedIndex + 1
+                    linksIndex >= 0 -> linksIndex + 1
+                    else -> arrangedSections.size
+                }
+                arrangedSections.add(targetIndex.coerceAtMost(arrangedSections.size), statusSection)
+            }
             // Playlists always precede the device shelf, even when an older
             // saved layout recorded the previous order.
             val deviceIndex = arrangedSections.indexOfFirst { it.first == LIBRARY_SLOT_ON_DEVICE }
@@ -398,7 +419,6 @@ fun LibraryScreen(
                 arrangedSections.add(targetIndex.coerceAtMost(arrangedSections.size), deviceSection)
             }
             arrangedSections.forEach { it.second(this) }
-            status.forEach { it(this) }
         }
         }
     }

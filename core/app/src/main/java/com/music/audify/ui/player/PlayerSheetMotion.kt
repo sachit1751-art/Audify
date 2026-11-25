@@ -24,14 +24,14 @@ import kotlin.math.abs
 
 /**
  * The spring every open and close runs on: critically damped, so it never
- * bounces, with about 0.45s of response — the way Apple Music's player sheet
- * moves. Unlike a timed ease it has no fast end: it leaves briskly and then
- * spends most of its time settling, slower and slower, into place, which is
- * where the eye is following the artwork home.
+ * bounces. A modest stiffness increase shortens the travel without turning
+ * the landing into a hard stop; unlike a timed ease it remains velocity-aware
+ * when a finger releases or a close is interrupted and reversed.
  */
-// Match the pre-1.9.3 player spring. This is the established open/close feel;
-// changing it alters both the artwork flight and the panel's settling time.
-private const val SLIDE_STIFFNESS = 195f
+// Slightly quicker than the old 195f spring while retaining the same critically
+// damped curve. Keep this shared by tap, drag-release, close and reopen so the
+// artwork and panel never settle on different timings.
+private const val SLIDE_STIFFNESS = 225f
 
 /** Close enough to stop, in pixels — rather than a spring's whole long tail. */
 private const val SLIDE_SETTLED_PX = 0.5f

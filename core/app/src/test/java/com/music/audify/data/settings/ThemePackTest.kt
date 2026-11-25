@@ -8,8 +8,10 @@ import org.junit.Test
 class ThemePackTest {
     @Test
     fun remainingBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
-        assertEquals(7, ThemePacks.builtIns.size)
-        assertEquals(7, ThemePacks.builtIns.map { it.id }.distinct().size)
+        assertEquals(6, ThemePacks.builtIns.size)
+        assertEquals(6, ThemePacks.builtIns.map { it.id }.distinct().size)
+        assertTrue(ThemePacks.builtIns.none { it.id == "jade" })
+        assertEquals(ThemePacks.builtIns.first(), ThemePacks.resolve("jade", emptyList()))
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { color ->
                 assertTrue(color.matches(Regex("^#[0-9A-Fa-f]{6}$")))
@@ -79,7 +81,6 @@ class ThemePackTest {
         }
         assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "classic" }))
         assertEquals("#15171B", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "graphite" }))
-        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
     }
 
     @Test

@@ -21,7 +21,8 @@ class SkipSegmentTest {
 
     @Test
     fun formatsPositionsAndKeepsHourPrecision() {
-        assertEquals("1:17", formatSkipTimestamp(77_900L))
+        assertEquals("00:04", formatSkipTimestamp(4_000L))
+        assertEquals("01:17", formatSkipTimestamp(77_900L))
         assertEquals("1:02:03", formatSkipTimestamp(3_723_000L))
     }
 

@@ -35,7 +35,6 @@ object ThemePacks {
         ThemePack("graphite", "Graphite", "#D1D5DB", "#9CA3AF", "#93C5FD", ThemeSurfaceStyle.GRAPHITE),
         ThemePack("ocean", "Ocean", "#55C7F2", "#80E0D0", "#3478F6"),
         ThemePack("forest", "Forest", "#80D6A3", "#B5D98C", "#3C9B78"),
-        ThemePack("jade", "Jade", "#6EE7B7", "#A3E635", "#67E8F9", ThemeSurfaceStyle.SLATE),
         ThemePack("soft-sage", "Soft Sage", "#66806C", "#9AA58A", "#49675C", ThemeSurfaceStyle.SLATE),
         ThemePack("warm-sand", "Warm Sand", "#92765C", "#B59A7B", "#6D766A", ThemeSurfaceStyle.WARM),
     )

@@ -275,7 +275,7 @@ private fun SpeedDialShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle)
-        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
         val shuffleSongs = remember(shelf.items) {
             shelf.items.mapNotNull { item ->
                 val id = item.videoId ?: return@mapNotNull null
@@ -598,11 +598,15 @@ private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Bool
     song ?: return { false }
     // The card that was played, when the shelf holds it, and only that one —
     // see [com.music.audify.data.model.playingRowMatcher], which rows use.
-    if (any { it.videoId == song.videoId }) return { it.videoId == song.videoId }
+    if (firstOrNull { it.videoId == song.videoId } != null) return { it.videoId == song.videoId }
     val byName = firstOrNull { it.videoId != null && it.title == song.title && it.subtitle == song.artist }
         ?: return { false }
     return { it == byName }
 }
+
+@Composable
+private fun rememberPlayingItemMatcher(items: List<ShelfItem>, song: Song?): (ShelfItem) -> Boolean =
+    remember(items, song?.videoId, song?.title, song?.artist) { items.playingItemMatcher(song) }
 
 /**
  * Quick Picks is a compact three-row track shelf on Home: each horizontal
@@ -621,14 +625,15 @@ private fun QuickPicksShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle)
-        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
+        val columns = remember(shelf.items) { quickPicksColumns(shelf.items) }
         ShelfRow(
             state = rememberShelfListState("quick-picks:${homeShelfKey(shelf.title)}"),
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(QUICK_PICK_COLUMN_SPACING),
         ) {
             itemsIndexed(
-                quickPicksColumns(shelf.items),
+                columns,
                 key = { index, column -> "quick-picks:${column.firstOrNull()?.videoId ?: index}" },
                 contentType = { _, _ -> "quick-picks-column" },
             ) { _, column ->
@@ -803,16 +808,6 @@ fun HomeScreen(
     }
     // Held from the first frame, so the row's slot never opens up after the feed is drawn.
     val topPicksWaiting = topPicks == null && (topPicksLoading || state is UiState.Loading)
-    var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
-    LaunchedEffect(feedReady) {
-        if (!feedReady || onPodcastsClick == null) return@LaunchedEffect
-        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
-        homePodcastShows = saved
-        YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
-            .flatMap { it.shows }
-            .let { discovered -> (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12) }
-            .also { homePodcastShows = it }
-    }
     CompositionLocalProvider(
         LocalArtworkMotion provides (artworkMotion && feedReady),
         LocalArtworkImages provides feedReady,
@@ -966,7 +961,6 @@ fun HomeScreen(
                         onPlaySongs = onPlaySongs,
                         homeLayout = homeLayout,
                         onListenTogetherClick = onListenTogetherClick,
-                        podcastShows = homePodcastShows,
                         onPodcastsClick = onPodcastsClick,
                         revealSeenState = revealSeenState,
                         revealEnabled = revealEnabled,
@@ -1080,7 +1074,6 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     /** Recents is still loading: a skeleton holds the slot it will land in. */
     recentsPending: Boolean = false,
     onListenTogetherClick: (() -> Unit)? = null,
-    podcastShows: List<PodcastProviderShow> = emptyList(),
     onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
     revealSeenState: RevealSeenState,
     revealEnabled: Boolean,
@@ -1202,7 +1195,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             if (onPodcastsClick != null) {
                 item(key = "home-podcasts") {
                     Box(Modifier.fillMaxWidth().revealOnAppear("home:podcasts", revealSeenState, revealEnabled)) {
-                        HomePodcastsShelf(podcastShows, onPodcastsClick)
+                        HomePodcastsShelf(onPodcastsClick)
                     }
                 }
             }
@@ -1265,7 +1258,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
         }
         item(key = "home-podcasts") {
             Box(Modifier.fillMaxWidth().revealOnAppear("home:podcasts", revealSeenState, revealEnabled)) {
-                HomePodcastsShelf(podcastShows, onPodcastsClick)
+                HomePodcastsShelf(onPodcastsClick)
             }
         }
     }
@@ -1307,9 +1300,18 @@ private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?)
 
 @Composable
 private fun HomePodcastsShelf(
-    shows: List<PodcastProviderShow>,
     onOpen: (PodcastProviderShow?) -> Unit,
 ) {
+    var shows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
+        shows = saved
+        val discovered = YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
+            .flatMap { it.shows }
+        shows = (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12)
+        loading = false
+    }
     Column(Modifier.padding(bottom = 22.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
@@ -1330,7 +1332,7 @@ private fun HomePodcastsShelf(
             if (shows.isEmpty()) {
                 item(key = "home-podcasts-discover") {
                     Column(
-                        modifier = Modifier.width(SHELF_CARD_WIDTH).clickable { onOpen(null) },
+                        modifier = Modifier.width(SHELF_CARD_WIDTH).clickable(enabled = !loading) { onOpen(null) },
                     ) {
                         Box(
                             Modifier.size(SHELF_CARD_WIDTH)
@@ -1345,8 +1347,8 @@ private fun HomePodcastsShelf(
                                 modifier = Modifier.size(42.dp),
                             )
                         }
-                        Text("Discover podcasts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
-                        Text("Browse shows and episodes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (loading) "Loading podcasts…" else "Discover podcasts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+                        Text(if (loading) "Your podcast shelf will appear here" else "Browse shows and episodes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -1395,7 +1397,7 @@ internal fun RecentShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         RecentSectionHeader(title = localizeShelfTitle(shelf.title), subtitle = localizeShelfSubtitle(shelf.subtitle))
-        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
         BoxWithConstraints {
             val columnWidth = trackColumnWidth(maxWidth)
             val recentColumns = remember(shelf.items) { shelf.items.chunked(RECENT_TRACKS_PER_COLUMN) }
@@ -2040,7 +2042,7 @@ private fun HeroShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle, emphasized = true)
-        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
         val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         // Measured rather than taken as a share of the parent, because the card
         // has a ceiling as well as a fraction — see [heroCardWidth]. A fixed
@@ -2160,7 +2162,7 @@ internal fun Shelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         if (homeStyle) HomeSectionHeader(shelf.title, shelf.subtitle) else SectionHeader(shelf.title, shelf.subtitle)
-        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
+        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
         val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         ShelfRow(
             state = rememberShelfListState(homeShelfKey(shelf.title)),

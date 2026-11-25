@@ -4012,6 +4012,21 @@ fun NowPlayingScreen(
                                     )
                                 }
                             }
+                            // Show a small, fast cover while the full player
+                            // resolution is still downloading/decoding. It sits
+                            // under the main request and disappears as soon as
+                            // that request succeeds, so transitions and Canvas
+                            // compositing keep their existing ownership.
+                            if (!art.loaded && art.url != null) {
+                                AsyncImage(
+                                    model = art.previewRequest,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { alpha = if (art.loaded) 0f else 1f },
+                                )
+                            }
                             AsyncImage(
                                 // Decode at the sleeve's *expanded* size, always.
                                 // Coil otherwise sizes the decode to however large

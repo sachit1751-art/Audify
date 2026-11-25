@@ -1163,7 +1163,7 @@ class CrossfadeController(
             requestedEndMs = duration,
             currentPositionMs = player.currentPosition,
             playbackStartMs = playbackWindow?.startMs ?: 0L,
-            playbackEndMs = duration,
+            playbackEndMs = playbackWindow?.endMs ?: duration,
             skipSegments = AppSettings.skipSegmentsForTrack(item.mediaId),
         ) ?: run {
             AppSettings.smartTransitionWindow.value = null
@@ -1269,7 +1269,7 @@ class CrossfadeController(
             requestedEndMs = (rawPlan.transitionEnd * 1000.0).roundToLong(),
             currentPositionMs = player.currentPosition,
             playbackStartMs = playbackWindow?.startMs ?: 0L,
-            playbackEndMs = duration,
+            playbackEndMs = playbackWindow?.endMs ?: duration,
             skipSegments = AppSettings.skipSegmentsForTrack(currentItem.mediaId),
         )
         val plan = when {
