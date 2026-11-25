@@ -59,17 +59,6 @@ internal fun imageMemoryCacheHeapFraction(isLowRamDevice: Boolean): Double =
 
 class AudifyApplication : Application(), SingletonImageLoader.Factory {
 
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        // Artwork is recoverable from the bounded disk cache/network. Release
-        // decoded bitmaps when Android reports real process memory pressure,
-        // rather than shrinking the cache during ordinary backgrounding.
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
-            runCatching { SingletonImageLoader.get(this).memoryCache?.clear() }
-                .onFailure { android.util.Log.w("Audify", "Could not trim artwork memory cache", it) }
-        }
-    }
-
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()

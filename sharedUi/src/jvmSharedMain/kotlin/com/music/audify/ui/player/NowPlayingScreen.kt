@@ -2983,11 +2983,7 @@ fun NowPlayingScreen(
                             scaleX = zoom
                             scaleY = zoom
                             renderEffect = if (active && renderEffectBlurSupported) {
-                                // This is a transient full-screen layer. A 20px
-                                // terminal radius keeps the dissolve visibly soft
-                                // without asking the GPU to blur a large surface
-                                // as heavily on every animation frame.
-                                val radius = 20f * smootherStep((p * 1.4f).coerceIn(0f, 1f))
+                                val radius = 30f * smootherStep((p * 1.4f).coerceIn(0f, 1f))
                                 if (radius > 0.5f) BlurEffect(radius, radius, TileMode.Clamp) else null
                             } else {
                                 null
@@ -3014,10 +3010,7 @@ fun NowPlayingScreen(
                     if (dissolve.fullFrame != null && dissolve.fullFrameDeck) {
                         val deckFlat = PlayerSettings.reduceDynamicBlur.collectAsStateWithLifecycle().value ||
                             !renderEffectBlurSupported
-                        // The deck is already a cropped copy of the blurred
-                        // transition frame; avoid an unnecessarily wide second
-                        // blur pass over the lower third of the display.
-                        val deckBlurPx = with(density) { 32.dp.toPx() }
+                        val deckBlurPx = with(density) { 48.dp.toPx() }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
