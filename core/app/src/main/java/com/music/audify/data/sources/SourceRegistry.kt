@@ -124,7 +124,13 @@ object SourceRegistry {
 
     fun init(context: Context) {
         // Same repair and degradation as AuthStore; see EncryptedPrefs.
-        prefs = EncryptedPrefs.open(context, "bitchord_sources", "bitchord_sources_plain")
+        prefs = EncryptedPrefs.open(
+            context,
+            "bitchord_sources",
+            "bitchord_sources_plain",
+            legacyName = "audify_sources",
+            legacyPlainName = "audify_sources_plain",
+        )
 
         val stored = prefs.getString(KEY_SOURCES, null)?.let(::decodeStored) ?: emptyList()
         val jioOptInMigrationDone = prefs.getBoolean(KEY_JIOSAAVN_OPT_IN_V1, false)

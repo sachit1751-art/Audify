@@ -3,6 +3,7 @@ package com.music.audify.playback
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.music.audify.data.storage.PreferenceMigration
 import com.music.audify.data.model.ArtistRef
 import com.music.audify.data.model.PlaybackSourceType
 import com.music.audify.data.model.QueueTier
@@ -50,6 +51,7 @@ object BoundedContextPersistence {
     @Synchronized
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        PreferenceMigration.migrate(context, PREFS_NAME, "audify_bounded_context")
     }
 
     /** Test-only dependency injection; production uses [init]. */

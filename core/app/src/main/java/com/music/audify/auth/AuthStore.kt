@@ -19,7 +19,13 @@ import android.content.SharedPreferences
 class AuthStore(context: Context) {
 
     private val prefs: SharedPreferences =
-        EncryptedPrefs.open(context, "bitchord_auth", "bitchord_auth_plain")
+        EncryptedPrefs.open(
+            context,
+            "bitchord_auth",
+            "bitchord_auth_plain",
+            legacyName = "audify_auth",
+            legacyPlainName = "audify_auth_plain",
+        )
 
     init {
         // Purge the old self-account token when upgrading to Social SDK RPC.

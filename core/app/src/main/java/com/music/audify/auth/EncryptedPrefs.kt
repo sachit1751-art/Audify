@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.music.audify.data.DebugLog as Log
+import com.music.audify.data.storage.PreferenceMigration
 
 /**
  * Encrypted preferences that repair themselves when their keyset stops
@@ -33,8 +34,58 @@ internal object EncryptedPrefs {
     private val opened = HashMap<String, SharedPreferences>()
 
     @Synchronized
-    fun open(context: Context, name: String, plainName: String): SharedPreferences =
-        opened.getOrPut(name) { resolve(context.applicationContext, name, plainName) }
+    fun open(
+        context: Context,
+        name: String,
+        plainName: String,
+        legacyName: String? = null,
+        legacyPlainName: String? = null,
+    ): SharedPreferences = opened.getOrPut(name) {
+        val appContext = context.applicationContext
+        resolve(appContext, name, plainName).also { target ->
+            if (legacyName != null) migrateLegacy(appContext, target, legacyName, legacyPlainName)
+        }
+    }
+
+    /**
+     * 1.9.4 changed the encrypted preference filenames without migrating them.
+     * Open the old encrypted file with the same Keystore master key, merge any
+     * plain fallback first, then the encrypted values, and retain both sources.
+     * If the old keyset cannot be opened, leave it untouched and retry later.
+     */
+    private fun migrateLegacy(
+        context: Context,
+        target: SharedPreferences,
+        legacyName: String,
+        legacyPlainName: String?,
+    ) {
+        val marker = "__audify_legacy_encrypted_store_migrated_$legacyName"
+        if (target.getBoolean(marker, false)) return
+
+        var success = true
+        if (legacyPlainName != null) {
+            val legacyPlain = context.getSharedPreferences(legacyPlainName, Context.MODE_PRIVATE)
+            if (!PreferenceMigration.mergeMissing(target, legacyPlain)) success = false
+        }
+
+        val legacyRaw = context.getSharedPreferences(legacyName, Context.MODE_PRIVATE)
+        if (legacyRaw.contains(KEYSET_ENTRY)) {
+            val legacyEncrypted = try {
+                create(context, legacyName)
+            } catch (error: Throwable) {
+                success = false
+                Log.w(TAG, "Could not open legacy encrypted preferences $legacyName; retaining the original store: ${describe(error)}")
+                null
+            }
+            if (legacyEncrypted != null && !PreferenceMigration.mergeMissing(target, legacyEncrypted)) {
+                success = false
+            }
+        }
+
+        if (success && !target.edit().putBoolean(marker, true).commit()) {
+            Log.w(TAG, "Could not persist encrypted-store migration marker for $legacyName")
+        }
+    }
 
     private fun resolve(context: Context, name: String, plainName: String): SharedPreferences {
         val encrypted = try {

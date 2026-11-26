@@ -9,6 +9,7 @@ import android.net.Network
 import com.music.audify.AudifyApplication
 import com.music.audify.BuildConfig
 import com.music.audify.data.DebugLog as Log
+import com.music.audify.data.storage.PreferenceMigration
 import com.music.audify.data.settings.AppSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -662,6 +663,7 @@ object ListenTogether {
 
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        PreferenceMigration.migrate(context, PREFS, "audify_listen_together")
         val rawSaved = prefs.getString(KEY_SERVER, null)?.trim().orEmpty()
         val normalizedSaved = when (val res = parseAndNormalizeServerUrl(rawSaved)) {
             is ServerUrlValidationResult.Valid -> res.normalizedUrl
