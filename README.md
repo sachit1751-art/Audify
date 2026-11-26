@@ -19,7 +19,7 @@ Project: AUDIFY
   <img src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white" alt="Android 8.0+">
   <img src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin and Jetpack Compose">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="GPL-3.0"></a>
-  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/badge/downloads-27.5k-green" alt="GitHub downloads"></a>
+  <a href="https://github.com/sachit1751-art/Audify/releases"><img src="https://img.shields.io/badge/downloads-27.6k-green" alt="GitHub downloads"></a>
 </p>
 
 <p align="center">
