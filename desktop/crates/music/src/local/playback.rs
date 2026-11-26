@@ -35,6 +35,39 @@ impl PlaybackFactory for Factory {
     }
 }
 
+/// Decodes a local track and returns one normalised peak per time bin. This is derived from the
+/// actual PCM samples, not artwork, random bars or the live spectrum meter.
+pub fn waveform(id: &str, duration: Duration, bins: usize) -> Result<Vec<f32>> {
+    let bins = bins.clamp(1, 1024);
+    let mut decoder = decode(id)?;
+    let channels = u64::from(decoder.channels().get());
+    let sample_rate = u64::from(decoder.sample_rate().get());
+    let total_frames = ((duration.as_secs_f64() * sample_rate as f64).ceil() as u64).max(1);
+    Ok(peak_bins(decoder.by_ref(), channels, total_frames, bins))
+}
+
+fn peak_bins(
+    samples: impl Iterator<Item = f32>,
+    channels: u64,
+    total_frames: u64,
+    bins: usize,
+) -> Vec<f32> {
+    let mut peaks = vec![0.0_f32; bins.max(1)];
+    for (sample_index, sample) in samples.enumerate() {
+        let frame = sample_index as u64 / channels;
+        let bin = ((frame.saturating_mul(peaks.len() as u64)) / total_frames.max(1))
+            .min((peaks.len() - 1) as u64) as usize;
+        peaks[bin] = peaks[bin].max(sample.abs().min(1.0));
+    }
+    let maximum = peaks.iter().copied().fold(0.0_f32, f32::max);
+    if maximum > f32::EPSILON {
+        for peak in &mut peaks {
+            *peak /= maximum;
+        }
+    }
+    peaks
+}
+
 struct Local;
 
 #[async_trait]
@@ -141,4 +174,33 @@ fn decode(id: &str) -> Result<rodio::Decoder<BufReader<Audio>>> {
         builder = builder.with_byte_len(length.saturating_sub(skip));
     }
     builder.build().context("cannot decode audio")
+}
+
+#[cfg(test)]
+mod waveform_tests {
+    use super::peak_bins;
+
+    #[test]
+    fn waveform_bins_use_real_pcm_peaks_across_stereo_frames() {
+        let peaks = peak_bins(
+            [0.1, -0.2, 0.4, -0.3, 0.0, 0.8, -0.6, 0.1].into_iter(),
+            2,
+            4,
+            2,
+        );
+        assert_eq!(peaks, [0.5, 1.0]);
+    }
+
+    #[test]
+    fn waveform_silence_stays_silent() {
+        let peaks = peak_bins([0.0, 0.0, 0.0, 0.0].into_iter(), 2, 2, 2);
+        assert_eq!(peaks, [0.0, 0.0]);
+    }
+
+    #[test]
+    fn waveform_clamps_samples_and_handles_empty_input() {
+        let peaks = peak_bins([2.0, -0.5].into_iter(), 1, 2, 3);
+        assert_eq!(peaks, [1.0, 0.5, 0.0]);
+        assert_eq!(peak_bins(std::iter::empty(), 1, 1, 0), [0.0]);
+    }
 }

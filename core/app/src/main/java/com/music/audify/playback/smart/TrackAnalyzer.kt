@@ -79,6 +79,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
     )
 
     init {
+        editorInstance = this
         // The shared trackers report model failures and their timings through
         // this; with no sink they went nowhere on the phone, which is how a
         // beat model that found nothing went unnoticed.
@@ -1655,6 +1656,7 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
     }
 
     fun release() {
+        if (editorInstance === this) editorInstance = null
         executor.shutdownNow()
         sourceResolutionScope.cancel()
         sourceAnalysisUris.clear()
@@ -1672,7 +1674,17 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
         vocals.release()
     }
 
-    private companion object {
+    companion object {
+        @Volatile
+        private var editorInstance: TrackAnalyzer? = null
+
+        /** Decode the currently available rendition for the skip editor, off the UI thread. */
+        fun editorWaveform(trackId: String, uri: Uri, durationMs: Long, bins: Int = 180): MixWaveform.Bands? {
+            val analyzer = editorInstance ?: return null
+            if (durationMs <= 0L) return null
+            return analyzer.mixWaveform(trackId, uri, durationMs / 1000.0, 0.0, durationMs / 1000.0, bins)
+        }
+
         const val TAG = "AudifyTrackAnalyzer"
 
         /**

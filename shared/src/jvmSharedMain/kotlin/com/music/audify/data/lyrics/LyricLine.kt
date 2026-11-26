@@ -1,5 +1,64 @@
 package com.music.audify.data.lyrics
 
+/** UTF-16 ranges for the extended grapheme clusters in [text]. */
+fun graphemeRanges(text: String): List<IntRange> {
+    if (text.isEmpty()) return emptyList()
+    val boundaries = ArrayList<Int>()
+    boundaries += 0
+    var offset = 0
+    var previous = -1
+    var regionalRun = 0
+    while (offset < text.length) {
+        val current = text.codePointAt(offset)
+        if (offset > 0 && shouldBreakGrapheme(previous, current, regionalRun)) boundaries += offset
+        regionalRun = if (isRegionalIndicator(current)) regionalRun + 1 else 0
+        previous = current
+        offset += Character.charCount(current)
+    }
+    boundaries += text.length
+    return boundaries.zipWithNext { start, end -> start until end }
+}
+
+/** Snap a fractional UTF-16 offset back to the preceding grapheme boundary. */
+internal fun graphemeSafeOffset(text: String, offset: Float): Float {
+    if (text.isEmpty() || offset <= 0f) return 0f
+    if (offset >= text.length) return text.length.toFloat()
+    val target = offset.toInt()
+    var safe = 0
+    for (range in graphemeRanges(text)) {
+        val start = range.first
+        val end = range.last + 1
+        if (target < end) return if (end - start == 1) offset else start.toFloat()
+        safe = end
+    }
+    return safe.toFloat()
+}
+
+private fun shouldBreakGrapheme(previous: Int, current: Int, regionalRun: Int): Boolean {
+    if (previous == '\r'.code && current == '\n'.code) return false
+    if (previous == 0x200C || previous == 0x200D || current == 0x200D) return false
+    if (isExtend(current) || Character.getType(current) == Character.COMBINING_SPACING_MARK.toInt()) return false
+    if (isIndicConsonant(current) && isVirama(previous)) return false
+    if (isRegionalIndicator(previous) && isRegionalIndicator(current)) return regionalRun % 2 == 0
+    return true
+}
+
+private fun isExtend(codePoint: Int): Boolean = when (Character.getType(codePoint)) {
+    Character.NON_SPACING_MARK.toInt(), Character.ENCLOSING_MARK.toInt() -> true
+    else -> codePoint in 0xFE00..0xFE0F || codePoint in 0xE0100..0xE01EF ||
+        codePoint in 0x1F3FB..0x1F3FF || codePoint == 0x200C
+}
+
+private fun isRegionalIndicator(codePoint: Int): Boolean = codePoint in 0x1F1E6..0x1F1FF
+private fun isVirama(codePoint: Int): Boolean = when (codePoint) {
+    0x094D, 0x09CD, 0x0A4D, 0x0ACD, 0x0B4D, 0x0BCD, 0x0C4D, 0x0CCD,
+    0x0D4D, 0x0DCA, 0x1039, 0x17D2, 0x1A60, 0xA806, 0xA8C4, 0xA953,
+    0xAAF6, 0xABED -> true
+    else -> false
+}
+private fun isIndicConsonant(codePoint: Int): Boolean =
+    codePoint in 0x0900..0x0DFF && Character.isLetter(codePoint)
+
 /**
  * One word of a line, with the stretch of the song it is sung over.
  *
@@ -33,11 +92,16 @@ data class LyricWord(
             return (positionMs - startMs).toFloat() / span * text.length
         }
         for (syllable in syllables) {
-            if (positionMs < syllable.startMs) return syllable.startChar.toFloat()
+            if (positionMs < syllable.startMs) {
+                return graphemeSafeOffset(text, syllable.startChar.toFloat())
+            }
             if (positionMs < syllable.endMs) {
                 val span = (syllable.endMs - syllable.startMs).coerceAtLeast(1L)
                 val through = (positionMs - syllable.startMs).toFloat() / span
-                return syllable.startChar + through * (syllable.endChar - syllable.startChar)
+                return graphemeSafeOffset(
+                    text,
+                    syllable.startChar + through * (syllable.endChar - syllable.startChar),
+                )
             }
         }
         return text.length.toFloat()
@@ -288,8 +352,11 @@ data class LyricLine(
     fun revealedChars(positionMs: Long): Float {
         timingSource?.let { source ->
             if (source.text.isEmpty()) return 0f
-            return (source.revealedChars(positionMs) / source.text.length)
-                .coerceIn(0f, 1f) * text.length
+            return graphemeSafeOffset(
+                text,
+                (source.revealedChars(positionMs) / source.text.length)
+                    .coerceIn(0f, 1f) * text.length,
+            )
         }
         if (words.isEmpty()) return if (positionMs >= timeMs) text.length.toFloat() else 0f
         var offset = 0
@@ -298,8 +365,10 @@ data class LyricLine(
             // searching, so a word repeated in the line still lines up.
             val start = text.indexOf(word.text, offset).takeIf { it >= 0 } ?: offset
             val end = start + word.text.length
-            if (positionMs < word.startMs) return start.toFloat()
-            if (positionMs < word.endMs) return start + word.charsSungAt(positionMs)
+            if (positionMs < word.startMs) return graphemeSafeOffset(text, start.toFloat())
+            if (positionMs < word.endMs) {
+                return graphemeSafeOffset(text, start + word.charsSungAt(positionMs))
+            }
             // Past this word: the trailing space fills over the pause before
             // the next one, so the highlight keeps creeping instead of resting
             // on the word's last letter.
@@ -308,7 +377,7 @@ data class LyricLine(
                 val gapStart = text.indexOf(next.text, end).takeIf { it >= 0 } ?: end
                 val pause = (next.startMs - word.endMs).coerceAtLeast(1L)
                 val through = (positionMs - word.endMs).toFloat() / pause
-                return end + through * (gapStart - end)
+                return graphemeSafeOffset(text, end + through * (gapStart - end))
             }
             offset = end
         }
@@ -367,7 +436,7 @@ data class LyricLine(
 /**
  * One word held long enough to be animated a letter at a time.
  *
- * Every letter runs the same three-beat move — swell up and forward, hold, then
+ * Every grapheme cluster runs the same three-beat move — swell up and forward, hold, then
  * settle back to the small lift every sung word carries — but each one starts
  * [GROW_STAGGER] of the word's own length after the one before it, so the
  * movement travels along the word instead of the whole thing pulsing at once.
@@ -389,7 +458,9 @@ class GrowingWord internal constructor(
     val startMs: Long = word.startMs
     val endMs: Long = word.endMs
 
-    private val chars: Int = word.text.length
+    /** Cached layout units: one timed animation sample per visible grapheme. */
+    val graphemes: List<IntRange> = graphemeRanges(word.text)
+    private val chars: Int = graphemes.size
     private val scalePeak = FloatArray(chars)
     private val shiftPeak = FloatArray(chars)
     private val risePeak = FloatArray(chars)

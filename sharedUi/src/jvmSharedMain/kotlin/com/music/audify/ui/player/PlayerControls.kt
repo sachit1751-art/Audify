@@ -530,8 +530,7 @@ internal fun TransportRow(
             direction = -1,
         )
         if (isLoading) {
-            // Same footprint as the play/pause target — a smaller box here
-            // would shunt everything below it on every load.
+            // Preserve the original loading indicator and its fixed footprint.
             Box(Modifier.size(playTouch), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     color = Color.White,

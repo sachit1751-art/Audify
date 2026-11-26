@@ -252,6 +252,7 @@ interface PlayerSettingsSource {
     /** Efek lirik LiquidFlow nyala: efek Motion dipakai. Mati: efek bawaan. */
     val liquidFlow: StateFlow<Boolean>
     val lyricsOffsetMs: StateFlow<Int>
+    val lyricsSpeed: StateFlow<Float>
     val lyricsSourceOrder: StateFlow<List<LyricsSource>>
     val meteredConnection: StateFlow<Boolean?>
     /** A temporary cap over both ceilings, null when none applies — the watch's, on the phone. */
@@ -304,6 +305,7 @@ interface PlayerSettingsSource {
 
     fun setLastPlayerScreen(value: LastPlayerScreen)
     fun setLyricsOffsetMs(value: Int)
+    fun setLyricsSpeed(value: Float)
 }
 
 /** The player's name for the installed host's settings, read where AppSettings used to be. */

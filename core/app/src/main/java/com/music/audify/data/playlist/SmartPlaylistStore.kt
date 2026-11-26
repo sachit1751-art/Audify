@@ -77,6 +77,7 @@ object SmartPlaylistStore {
                     put("sortBy", definition.sortBy.name)
                     put("maxTracks", definition.maxTracks)
                     put("paused", definition.paused)
+                    put("includedSongIds", JSONArray(definition.includedSongIds.distinct().take(SmartPlaylistEngine.MAX_TRACKS)))
                 })
             }
         }.toString()
@@ -114,6 +115,9 @@ object SmartPlaylistStore {
                     .getOrDefault(SmartPlaylistSort.LIBRARY_ORDER),
                 maxTracks = item.optInt("maxTracks", 100).coerceIn(1, SmartPlaylistEngine.MAX_TRACKS),
                 paused = item.optBoolean("paused"),
+                includedSongIds = item.optJSONArray("includedSongIds")?.let { values ->
+                    (0 until values.length()).mapNotNull { values.optString(it).takeIf(String::isNotBlank) }
+                }.orEmpty().distinct().take(SmartPlaylistEngine.MAX_TRACKS),
             ).takeIf { SmartPlaylistEngine.validate(it) == null }
         }.distinctBy { it.id }.take(SmartPlaylistEngine.MAX_PLAYLISTS)
     }.getOrDefault(emptyList())

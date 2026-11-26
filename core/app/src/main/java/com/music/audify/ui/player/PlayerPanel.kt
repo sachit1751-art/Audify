@@ -19,12 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -68,7 +63,6 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.ExplicitSongTitle
 import com.music.audify.ui.components.FadingLine
 import com.music.audify.ui.components.TrackTextSwitch
-import com.music.audify.ui.components.VideoThumbnails
 import com.music.audify.ui.components.LocalLiquidGlassEnabled
 import com.music.audify.ui.components.MiniPlayerNextButton
 import com.music.audify.ui.components.MiniPlayerPlayPauseButton
@@ -167,7 +161,7 @@ fun PlayerPanel(
         dock == null || covered -> Modifier
         glassOn && glassNeeded -> Modifier.liquidGlass(shape)
         glassOn -> Modifier
-        else -> Modifier.background(dock?.panelColor ?: PanelFallbackFill, shape)
+        else -> Modifier.background(dock.panelColor, shape)
     }
 
     Box(
@@ -364,10 +358,11 @@ private fun PanelMiniRow(
         ) {
             val artSize = if (glass) MINI_ART_SIZE else 40.dp
             val artShape = RoundedCornerShape(if (glass) MINI_ART_CORNER else 8.dp)
-            val artWidth = when {
-                !song.isVideo || VideoThumbnails.square -> artSize
-                else -> artSize * (9f / 16f)
-            }
+            // The mini row always carries a square still-cover slot. A video
+            // track's moving surface belongs to the expanded player; a narrow
+            // 16:9 thumbnail here made the glass row visibly misalign with the
+            // navigation-bar player beside it.
+            val artWidth = artSize
             Box(
                 Modifier
                     .size(width = artWidth, height = artSize)
@@ -381,7 +376,7 @@ private fun PanelMiniRow(
                 AsyncImage(
                     model = rememberRemoteArtworkUrl(song)?.artworkAt(ROW_ART_PX),
                     contentDescription = null,
-                    contentScale = if (song.isVideo) ContentScale.Fit else ContentScale.Crop,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

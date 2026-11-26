@@ -264,6 +264,7 @@ import com.music.audify.ui.components.menuAnchor
 import com.music.audify.ui.components.macOSPopupMorph
 import com.music.audify.ui.components.IosMenuPopover
 import com.music.audify.ui.components.SongActionsMenu
+import com.music.audify.ui.components.SkipSegmentsDialog
 import com.music.audify.ui.components.HeldContextMenu
 import com.music.audify.ui.components.cancelCoverFlight
 import com.music.audify.ui.components.coverFlightPagesOpen
@@ -817,6 +818,7 @@ private fun AudifyApp(
         mutableStateOf<com.music.audify.ui.components.backdrop.Backdrop?>(null)
     }
     var showLyricsOffset by remember { mutableStateOf(false) }
+    var skipSegmentsTarget by remember { mutableStateOf<Song?>(null) }
     /**
      * Whether the track menu that is up was opened from the player.
      *
@@ -1192,7 +1194,7 @@ private fun AudifyApp(
         }
     }
     val toggleLikeOf: (Song) -> Unit = { song ->
-        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId)
+        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId, song)
     }
     // Which tracks are being held on YouTube's own upload, so the player's menu
     // offers the way back out of a revert rather than the revert again.
@@ -1242,15 +1244,18 @@ private fun AudifyApp(
         }
     }
     val localPlaylists by com.music.audify.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
-    val localPlaylistItems = localPlaylists.map { playlist ->
-        ShelfItem(
-            title = playlist.title,
-            subtitle = stringResource(R.string.local_playlist_subtitle, playlist.songs.size),
-            thumbnailUrl = playlist.coverUrl
-                ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
-            videoId = null,
-            browseId = playlist.browseId,
-        )
+    val localPlaylistSubtitleFormat = stringResource(R.string.local_playlist_subtitle)
+    val localPlaylistItems = remember(localPlaylists, localPlaylistSubtitleFormat) {
+        localPlaylists.map { playlist ->
+            ShelfItem(
+                title = playlist.title,
+                subtitle = String.format(java.util.Locale.getDefault(), localPlaylistSubtitleFormat, playlist.songs.size),
+                thumbnailUrl = playlist.coverUrl
+                    ?: playlist.songs.firstOrNull { !it.thumbnailUrl.isNullOrBlank() }?.thumbnailUrl,
+                videoId = null,
+                browseId = playlist.browseId,
+            )
+        }
     }
     // What a browse id is recorded under in Downloads.collections, when it names
     // a release downloaded whole — see BrowseTarget.downloadId. A downloaded
@@ -4210,7 +4215,9 @@ private fun AudifyApp(
                                 pullState = libraryPull,
                                 contentPadding = listPadding,
                                 links = libraryLinks(),
-                                deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
+                                deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems.filterNot {
+                                    it.browseId?.startsWith("local:playlist:smart_") == true
+                                },
                                 pinnedExtraItems = spotifyPinnedItems,
                                 artistsRow = libraryArtistsRow,
                                 onArtistsRowChange = AppSettings::setLibraryArtistsRow,
@@ -5260,6 +5267,14 @@ private fun AudifyApp(
                 } else {
                     null
                 },
+                onSkipSegments = if (fromPlayer && song.videoId.isNotBlank()) {
+                    {
+                        songActions = null
+                        skipSegmentsTarget = song
+                    }
+                } else {
+                    null
+                },
                 onToggleSpatialAudio = if (fromPlayer && song.videoId.isNotBlank()) {
                     { AppSettings.setSpatialAudioForTrack(song.videoId, !spatialAudioOn) }
                 } else {
@@ -5758,8 +5773,9 @@ private fun AudifyApp(
             // playlist — but they have no YouTube Music page, so Share stays
             // on [remote] alone. The device-folder ids ("local:downloads",
             // "local:all", …) are neither.
-            val downloadable = remote ||
-                target.browseId?.startsWith("local:playlist:sp_local_") == true
+            val downloadable = remote || target.browseId?.let {
+                it.startsWith("local:playlist:sp_local_") || it.startsWith("local:playlist:smart_")
+            } == true
             val pinnedPlaylists by AppSettings.pinnedPlaylists.collectAsStateWithLifecycle()
             // Device playlists and directories have nowhere on the Library
             // page to be pinned to that would still mean anything off-device.
@@ -6203,6 +6219,20 @@ private fun AudifyApp(
             LyricsSourcesDialog(
                 hazeState = hazeState,
                 onDismiss = { showLyricsSources = false },
+            )
+        }
+
+        skipSegmentsTarget?.let { target ->
+            SkipSegmentsDialog(
+                trackId = target.videoId,
+                trackTitle = target.title,
+                artistName = target.artist,
+                artworkUrl = target.thumbnailUrl,
+                durationMs = target.durationMillis().takeIf { it > 0L }
+                    ?: controller?.takeIf { it.currentMediaItem?.mediaId == target.videoId }
+                        ?.duration?.takeIf { it > 0L }
+                    ?: 0L,
+                onDismiss = { skipSegmentsTarget = null },
             )
         }
 

@@ -47,6 +47,7 @@ object ListeningRecorder {
     private var lastSampleAt: Long = 0L
     private var playedThisTrack: Long = 0L
     private var playCounted = false
+    private var historyRecorded = false
     private var samplesSinceFlush = 0
 
     /**
@@ -66,12 +67,22 @@ object ListeningRecorder {
             lastSampleAt = now
             playedThisTrack = 0L
             playCounted = false
+            historyRecorded = false
             return
         }
         val step = (now - lastSampleAt).coerceIn(0L, MAX_STEP_MS)
         lastSampleAt = now
         if (step <= 0L) return
         playedThisTrack += step
+
+        // The Library's Listening History is a lightweight record of anything
+        // genuinely played, not only a scrobble-qualified play. Record once the
+        // track has been audible for two seconds; this sampler only runs while
+        // the player is actually playing.
+        if (!historyRecorded && playedThisTrack >= HISTORY_ENTRY_THRESHOLD_MS) {
+            historyRecorded = true
+            LocalLibraryStore.recordPlay(enriched(song))
+        }
 
         val length = durationMs.takeIf { it > 0 } ?: song.durationMillis()
         val threshold = if (length > 0) {
@@ -102,6 +113,7 @@ object ListeningRecorder {
         currentId = null
         playedThisTrack = 0L
         playCounted = false
+        historyRecorded = false
         samplesSinceFlush = 0
         ListeningStats.flush()
     }
@@ -176,6 +188,8 @@ object ListeningRecorder {
 
     /** Under half a minute is not a listen, however it ended. */
     private const val PLAY_FLOOR_MS = 30_000L
+
+    private const val HISTORY_ENTRY_THRESHOLD_MS = 2_000L
 
     /** Past four minutes, half a track is more listening than anyone disputes. */
     private const val PLAY_CEILING_MS = 4 * 60 * 1000L

@@ -47,7 +47,7 @@ import dev.chrisbanes.haze.materials.HazeMaterials
  * fade exists to hide.
  */
 private val FADE_RUN = 32.dp
-private val BLUR_MAX = 24.dp
+private val BLUR_MAX = 30.dp
 
 /**
  * How much blur the fade reaches at its outer edge — short of all of it.
@@ -58,7 +58,7 @@ private val BLUR_MAX = 24.dp
  * content, and the more that edge reads as a band of colour laid over the page.
  * Stopping at three quarters keeps the ramp and loses the band.
  */
-private const val PEAK = 0.75f
+private const val PEAK = 0.84f
 
 /**
  * How dark the readability scrim starts, at the very top of the strip.

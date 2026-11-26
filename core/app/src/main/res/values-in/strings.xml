@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Untranslatable">
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">Sedang diputar</string>
     
@@ -1678,4 +1678,23 @@
 
   
   
+    <string name="skip_segments">Bagian yang dilewati</string>
+    <string name="skip_segments_description">Lewati bagian yang dipilih secara otomatis setiap kali lagu ini diputar.</string>
+    <string name="skip_segments_empty">Belum ada rentang yang disimpan untuk lagu ini.</string>
+    <string name="skip_segment_from">Dari (m:ss)</string>
+    <string name="skip_segment_to">Sampai (m:ss)</string>
+    <string name="skip_segment_add">Tambah rentang</string>
+    <string name="skip_segment_update">Perbarui rentang</string>
+    <string name="skip_segment_invalid">Masukkan rentang yang valid. Gunakan m:ss atau j:mm:ss, dengan waktu akhir setelah waktu mulai.</string>
+    <string name="skip_segment_out_of_track">Waktu akhir harus berada dalam durasi lagu.</string>
+    <string name="skip_segment_edit">Edit</string>
+    <string name="skip_segment_remove">Hapus</string>
+    <string name="track_playback_window">Putar hanya bagian yang dipilih</string>
+    <string name="track_playback_window_description">Pemutaran dimulai dari titik masuk dan beralih ke lagu berikutnya pada titik keluar.</string>
+    <string name="track_play_from">Putar dari</string>
+    <string name="track_play_until">Putar sampai</string>
+    <string name="track_playback_window_save">Simpan rentang pemutaran</string>
+    <string name="track_playback_window_clear">Hapus rentang pemutaran</string>
+    <string name="auto_download_liked_songs">Unduh otomatis lagu yang disukai</string>
+    <string name="auto_download_liked_songs_subtitle">Simpan lagu ke Download saat Anda menyukainya. Aturan Wi-Fi saja tetap berlaku.</string>
 </resources>

@@ -21,8 +21,8 @@ import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 
-private const val SCROLL_EDGE_BLUR_PEAK = 0.38f
-private val EDGE_BLUR_RADIUS = 24.dp
+private const val SCROLL_EDGE_BLUR_PEAK = 0.5f
+private val EDGE_BLUR_RADIUS = 30.dp
 
 /** A restrained progressive backdrop blur that feathers scroll content at one screen edge. */
 @OptIn(ExperimentalHazeApi::class)
@@ -38,8 +38,8 @@ fun ProgressiveScrollEdgeBlur(
     if (reduceDynamicBlur || !progressiveBlur) return
 
     val height: Dp = when (edge) {
-        ScrollBlurEdge.Top -> 116.dp
-        ScrollBlurEdge.Bottom -> 132.dp
+        ScrollBlurEdge.Top -> 128.dp
+        ScrollBlurEdge.Bottom -> 144.dp
     }
     Box(
         modifier = modifier

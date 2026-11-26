@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
  */
 
 /** How long one highlight sweep takes to cross a placeholder. */
-private const val SHIMMER_PERIOD_MS = 1650
+private const val SHIMMER_PERIOD_MS = 1200
 
 private val LocalSkeletonSweep = staticCompositionLocalOf<State<Float>?> { null }
 

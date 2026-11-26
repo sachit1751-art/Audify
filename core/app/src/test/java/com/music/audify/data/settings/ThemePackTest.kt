@@ -7,9 +7,11 @@ import org.junit.Test
 
 class ThemePackTest {
     @Test
-    fun allTenBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
-        assertEquals(10, ThemePacks.builtIns.size)
-        assertEquals(10, ThemePacks.builtIns.map { it.id }.distinct().size)
+    fun remainingBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
+        assertEquals(6, ThemePacks.builtIns.size)
+        assertEquals(6, ThemePacks.builtIns.map { it.id }.distinct().size)
+        assertTrue(ThemePacks.builtIns.none { it.id == "jade" })
+        assertEquals(ThemePacks.builtIns.first(), ThemePacks.resolve("jade", emptyList()))
         ThemePacks.builtIns.forEach { pack ->
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { color ->
                 assertTrue(color.matches(Regex("^#[0-9A-Fa-f]{6}$")))
@@ -63,10 +65,9 @@ class ThemePackTest {
 
     @Test
     fun builtInsIncludeAccessibleSurfaceVariants() {
-        assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.AMOLED })
-        assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.MIDNIGHT })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.GRAPHITE })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.SLATE })
+        assertTrue(ThemePacks.builtIns.none { it.id in setOf("violet", "sunset", "orchid", "minimal-slate", "slate", "amoled", "midnight", "rose") })
     }
 
     @Test
@@ -78,14 +79,8 @@ class ThemePackTest {
             assertTrue("${pack.name} dark background must be valid", ThemePacks.isValidHex(dark))
             assertNotEquals("${pack.name} light and dark backgrounds must differ", light, dark)
         }
-        assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "amoled" }))
         assertEquals("#000000", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "classic" }))
-        assertEquals("#080D18", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "midnight" }))
         assertEquals("#15171B", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "graphite" }))
-                        assertEquals("#101820", ThemePacks.darkBackgroundHex(ThemePacks.builtIns.first { it.id == "jade" }))
-        val rose = ThemePacks.builtIns.first { it.id == "rose" }
-        assertNotEquals("#FFFFFF", ThemePacks.lightBackgroundHex(rose))
-        assertTrue(ThemePacks.lightBackgroundHex(rose).startsWith("#F"))
     }
 
     @Test
@@ -106,6 +101,27 @@ class ThemePackTest {
             listOf(pack.primaryHex, pack.secondaryHex, pack.tertiaryHex).forEach { accent ->
                 val content = ThemePacks.contentColorHex(accent)
                 assertTrue("$content on $accent must meet 4.5:1", contrastRatio(accent, content) >= 4.5)
+            }
+        }
+    }
+
+    @Test
+    fun minimalPresetsAreVisiblyDistinctFromExistingThemesAndEachOther() {
+        val minimalIds = setOf("soft-sage", "warm-sand")
+        val minimal = ThemePacks.builtIns.filter { it.id in minimalIds }
+        val existing = ThemePacks.builtIns.filterNot { it.id in minimalIds }
+
+        assertEquals(minimalIds, minimal.map { it.id }.toSet())
+        minimal.forEach { candidate ->
+            val minimumDistance = existing.minOf { paletteDistance(candidate, it) }
+            assertTrue("${candidate.name} must not duplicate an existing palette ($minimumDistance)", minimumDistance > 40.0)
+        }
+        minimal.indices.forEach { index ->
+            for (other in index + 1 until minimal.size) {
+                assertTrue(
+                    "${minimal[index].name} and ${minimal[other].name} must remain distinct",
+                    paletteDistance(minimal[index], minimal[other]) > 20.0,
+                )
             }
         }
     }
@@ -132,5 +148,18 @@ class ThemePackTest {
         val first = luminance(firstHex)
         val second = luminance(secondHex)
         return (maxOf(first, second) + 0.05) / (minOf(first, second) + 0.05)
+    }
+
+    /** RMS RGB distance across all three semantic swatches (0..255 scale). */
+    private fun paletteDistance(first: ThemePack, second: ThemePack): Double {
+        val firstColors = listOf(first.primaryHex, first.secondaryHex, first.tertiaryHex)
+        val secondColors = listOf(second.primaryHex, second.secondaryHex, second.tertiaryHex)
+        val squared = firstColors.zip(secondColors).flatMap { (a, b) ->
+            a.drop(1).chunked(2).zip(b.drop(1).chunked(2)).map { (left, right) ->
+                val difference = left.toInt(16) - right.toInt(16)
+                difference * difference
+            }
+        }
+        return kotlin.math.sqrt(squared.average())
     }
 }

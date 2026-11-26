@@ -10,6 +10,7 @@ mod tags;
 mod wire;
 
 pub use lyrics::LocalLyrics;
+pub use playback::waveform;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

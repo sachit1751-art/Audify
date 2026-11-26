@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -104,7 +105,7 @@ object LyricsRepository {
         val key = "$videoId|${sequence.joinToString(",") { it.name }}|$prioritizeSyllableSync"
         val cacheable = videoId.isNotBlank() && sequence.isNotEmpty()
         if (cacheable) {
-            LyricsDiskCache.read(key)?.let { cached ->
+            withContext(Dispatchers.IO) { LyricsDiskCache.read(key) }?.let { cached ->
                 onSourceStarted?.invoke(cached.source)
                 onSourceResult?.invoke(cached.source, cached)
                 return cached
@@ -114,7 +115,9 @@ object LyricsRepository {
             videoId, title, artist, durationMs, album, sources, order,
             prioritizeSyllableSync, isrc, onSourceStarted, onSourceResult, onSourceCancelled,
         )
-        if (cacheable && found != null) LyricsDiskCache.write(key, found)
+        if (cacheable && found != null) withContext(Dispatchers.IO) {
+            LyricsDiskCache.write(key, found)
+        }
         return found
     }
 

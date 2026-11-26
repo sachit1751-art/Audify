@@ -47,6 +47,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prepare the pinned GPUI dependency and Audify patch
+        shell: pwsh
+        run: |
+          $gpui = Join-Path $env:GITHUB_WORKSPACE "vendor/gpui"
+          git clone --filter=blob:none --no-checkout https://github.com/sonorahq/gpui.git $gpui
+          git -C $gpui checkout 494c588e2950ebf1ca952ef03abbc07e7f0bb3c0
+          git -C $gpui apply "$env:GITHUB_WORKSPACE/desktop/patches/gpui-request-animation-frame.patch"
+
       - uses: ilammy/msvc-dev-cmd@v1
         if: matrix.target == 'i686-pc-windows-msvc'
         with:

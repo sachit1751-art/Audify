@@ -116,6 +116,13 @@ fun YtMusicLoginScreen(
                 loadUrl(if (mode == WebSessionMode.SIGN_IN) LOGIN_URL else "$MUSIC_ORIGIN/")
             }
         },
+        onRelease = { released ->
+            if (webView === released) webView = null
+            released.stopLoading()
+            released.webViewClient = WebViewClient()
+            released.removeAllViews()
+            released.destroy()
+        },
     )
 }
 

@@ -34,6 +34,8 @@ data class SmartPlaylistDefinition(
     val sortBy: SmartPlaylistSort = SmartPlaylistSort.LIBRARY_ORDER,
     val maxTracks: Int = 100,
     val paused: Boolean = false,
+    /** Explicit user additions; kept separate from rule-generated matches. */
+    val includedSongIds: List<String> = emptyList(),
 )
 
 object SmartPlaylistEngine {

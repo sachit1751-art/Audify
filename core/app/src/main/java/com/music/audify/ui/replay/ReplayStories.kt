@@ -2,6 +2,8 @@
 
 package com.music.audify.ui.replay
 
+import android.content.Context
+
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -1290,13 +1292,15 @@ private fun MinutesHeadline(parts: List<HeadlineRun>, textSize: Int, modifier: M
 /** Angka monumental di atas latar, tanpa kartu; ukuran ditentukan dari lebar angka akhir. */
 @Composable
 private fun MinutesNumber(target: Long, reveal: Animatable<Float, *>, modifier: Modifier = Modifier) {
-    val finalText = remember(target) { grouped(target) }
+    val context = LocalContext.current
+    val finalText = remember(target, context) { formatListening(context, target * 60_000L) }
     BoxWithConstraints(modifier) {
         val digits = finalText.count { it.isDigit() }
         val em = digits * 0.60f + (finalText.length - digits) * 0.30f
         val fontSize = (maxWidth.value / em).coerceIn(48f, 176f).sp
         MinutesCount(
             target = target,
+            context = context,
             reveal = reveal,
             fontSize = fontSize,
             modifier = Modifier.graphicsLayer {
@@ -1313,6 +1317,7 @@ private fun MinutesNumber(target: Long, reveal: Animatable<Float, *>, modifier: 
 @Composable
 private fun MinutesCount(
     target: Long,
+    context: Context,
     reveal: Animatable<Float, *>,
     fontSize: TextUnit,
     modifier: Modifier = Modifier,
@@ -1323,7 +1328,7 @@ private fun MinutesCount(
         }
     }
     Text(
-        text = grouped(shown),
+        text = formatListening(context, shown * 60_000L),
         style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
         fontSize = fontSize,
         lineHeight = fontSize * 0.95f,
@@ -1482,7 +1487,7 @@ private fun ColumnScope.ArtistsStory(
     }
     Spacer(Modifier.height(2.dp))
     Text(
-        text = "${formatMinutes(lead.ms)} ${stringResource(R.string.minutes)}",
+        text = formatListening(LocalContext.current, lead.ms),
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.W600,
         color = Color.White.copy(alpha = 0.95f),
@@ -1937,7 +1942,7 @@ private fun ColumnScope.RecapStory(
         modifier = Modifier.fillMaxWidth().staged(reveal, 0.04f),
     )
     Text(
-        text = "${formatMinutes(summary.totalMs)} ${stringResource(R.string.minutes).lowercase(LocalLocale.current.platformLocale)}" +
+        text = formatListening(LocalContext.current, summary.totalMs) +
             " · ${context.replayCount(summary.totalPlays, R.plurals.replay_play_count)}",
         style = MaterialTheme.typography.titleMedium,
         color = Color.White.copy(alpha = 0.6f),

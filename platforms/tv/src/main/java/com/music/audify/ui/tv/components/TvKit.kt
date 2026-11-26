@@ -14,6 +14,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -138,6 +139,11 @@ fun Modifier.tvLift(
         animationSpec = tween(if (reduceMotion) 0 else 220),
         label = "tvLiftShadow",
     )
+    val focusRing by animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(if (reduceMotion) 0 else 150),
+        label = "tvFocusRing",
+    )
     return this
         .focusRequester(requester)
         .zIndex(if (focused) 1f else 0f)
@@ -150,6 +156,11 @@ fun Modifier.tvLift(
             ambientShadowColor = Color.Black
             spotShadowColor = Color.Black
         }
+        .border(
+            width = 2.dp,
+            color = Color.White.copy(alpha = focusRing),
+            shape = shape,
+        )
 }
 
 /** Click (and optional long-press) with no ripple; on TV this is also the focus target. */

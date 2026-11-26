@@ -65,18 +65,18 @@ object LocalPlaylistStore {
                         videoId = sObj.optString("videoId", ""),
                         title = sObj.optString("title", ""),
                         artist = sObj.optString("artist", ""),
-                        thumbnailUrl = sObj.optString("thumbnailUrl", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                        durationText = sObj.optString("durationText", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                        artistId = sObj.optString("artistId", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                        albumId = sObj.optString("albumId", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                        albumName = sObj.optString("albumName", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                        thumbnailUrl = sObj.optString("thumbnailUrl", "").takeIf { it.isNotBlank() && it != "null" },
+                        durationText = sObj.optString("durationText", "").takeIf { it.isNotBlank() && it != "null" },
+                        artistId = sObj.optString("artistId", "").takeIf { it.isNotBlank() && it != "null" },
+                        albumId = sObj.optString("albumId", "").takeIf { it.isNotBlank() && it != "null" },
+                        albumName = sObj.optString("albumName", "").takeIf { it.isNotBlank() && it != "null" },
                         isVideo = sObj.optBoolean("isVideo", false),
                     )
                     songs.add(song)
                 }
-                val coverUrl = obj.optString("coverUrl", null).takeIf { !it.isNullOrBlank() && it != "null" }
-                val youtubePlaylistId = obj.optString("youtubePlaylistId", null)
-                    .takeIf { !it.isNullOrBlank() && it != "null" }
+                val coverUrl = obj.optString("coverUrl", "").takeIf { it.isNotBlank() && it != "null" }
+                val youtubePlaylistId = obj.optString("youtubePlaylistId", "")
+                    .takeIf { it.isNotBlank() && it != "null" }
                 list.add(LocalPlaylist(id, title, songs, coverUrl, youtubePlaylistId))
             }
             _playlists.value = list
@@ -91,6 +91,39 @@ object LocalPlaylistStore {
         persist(updated, commit = true)
         _playlists.value = updated
         return playlist
+    }
+
+    /** Creates or refreshes a stable local playlist identity (used by Smart Playlists). */
+    fun saveOrReplacePlaylist(id: String, title: String, songs: List<Song>): LocalPlaylist {
+        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
+        require(id.isNotBlank() && !id.contains(':')) { "Invalid local playlist id" }
+        val playlist = LocalPlaylist(id = id, title = title, songs = songs.distinctBy { it.videoId })
+        val updated = listOf(playlist) + _playlists.value.filterNot { it.id == id }
+        persist(updated, commit = true)
+        _playlists.value = updated
+        return playlist
+    }
+
+    /**
+     * Reconcile the generated Smart Playlist snapshots as one durable update.
+     * Smart rules remain the source of truth; these local entries are only the
+     * normal-playlist UI projection. Removing missing IDs also clears orphaned
+     * snapshots after a Smart Playlist is deleted.
+     */
+    fun syncSmartPlaylists(playlists: List<LocalPlaylist>) {
+        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
+        val currentSmart = _playlists.value.filter { it.id.startsWith("smart_") }
+            .associateBy { it.id }
+        val synchronizedSmart = playlists
+            .filter { it.id.startsWith("smart_") }
+            .distinctBy { it.id }
+            .map { playlist ->
+                require(!playlist.id.contains(':')) { "Invalid Smart Playlist id" }
+                playlist.copy(coverUrl = currentSmart[playlist.id]?.coverUrl)
+            }
+        val updated = synchronizedSmart + _playlists.value.filterNot { it.id.startsWith("smart_") }
+        persist(updated, commit = true)
+        _playlists.value = updated
     }
 
     fun deletePlaylist(id: String) {
@@ -173,11 +206,11 @@ object LocalPlaylistStore {
                             videoId = videoId,
                             title = song.optString("title", ""),
                             artist = song.optString("artist", ""),
-                            thumbnailUrl = song.optString("thumbnailUrl", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                            durationText = song.optString("durationText", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                            artistId = song.optString("artistId", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                            albumId = song.optString("albumId", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                            albumName = song.optString("albumName", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                            thumbnailUrl = song.optString("thumbnailUrl", "").takeIf { it.isNotBlank() && it != "null" },
+                            durationText = song.optString("durationText", "").takeIf { it.isNotBlank() && it != "null" },
+                            artistId = song.optString("artistId", "").takeIf { it.isNotBlank() && it != "null" },
+                            albumId = song.optString("albumId", "").takeIf { it.isNotBlank() && it != "null" },
+                            albumName = song.optString("albumName", "").takeIf { it.isNotBlank() && it != "null" },
                             isVideo = song.optBoolean("isVideo", false),
                         ))
                     }
@@ -186,8 +219,8 @@ object LocalPlaylistStore {
                     id = id,
                     title = title,
                     songs = songs,
-                    coverUrl = obj.optString("coverUrl", null).takeIf { !it.isNullOrBlank() && it != "null" },
-                    youtubePlaylistId = obj.optString("youtubePlaylistId", null).takeIf { !it.isNullOrBlank() && it != "null" },
+                    coverUrl = obj.optString("coverUrl", "").takeIf { it.isNotBlank() && it != "null" },
+                    youtubePlaylistId = obj.optString("youtubePlaylistId", "").takeIf { it.isNotBlank() && it != "null" },
                 ))
             }
         }.distinctBy { it.id }

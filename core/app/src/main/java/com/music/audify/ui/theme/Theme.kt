@@ -241,10 +241,11 @@ fun AudifyTheme(
 ) {
     val selectedThemePackId by AppSettings.selectedThemePackId.collectAsStateWithLifecycle()
     val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
+    val amoledDisplayColors by AppSettings.amoledDisplayColors.collectAsStateWithLifecycle()
     val activeThemePack = remember(themePack, selectedThemePackId, customThemePacks) {
         themePack ?: ThemePacks.resolve(selectedThemePackId, customThemePacks)
     }
-    val scheme = remember(darkTheme, activeThemePack) {
+    val scheme = remember(darkTheme, activeThemePack, amoledDisplayColors) {
         val primaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.tertiaryHex else activeThemePack.primaryHex
         val tertiaryHex = if (activeThemePack.id == ThemePacks.CLASSIC_ID) activeThemePack.primaryHex else activeThemePack.tertiaryHex
         // Bright palette accents can disappear on the light canvas. Preserve
@@ -269,7 +270,23 @@ fun AudifyTheme(
                 onSurfaceVariant = Color(0xFF55515C),
             )
         } else {
-            when (activeThemePack.surfaceStyle) {
+            if (amoledDisplayColors) {
+                DarkColors.copy(
+                    background = Color.Black,
+                    onBackground = Color.White,
+                    surface = Color.Black,
+                    onSurface = Color.White,
+                    surfaceVariant = Color.Black,
+                    onSurfaceVariant = Color(0xFFBDBDBD),
+                    surfaceContainerLowest = Color.Black,
+                    surfaceContainerLow = Color.Black,
+                    surfaceContainer = Color.Black,
+                    surfaceContainerHigh = Color.Black,
+                    surfaceContainerHighest = Color.Black,
+                    outline = Color(0xFF202020),
+                    outlineVariant = Color(0xFF181818),
+                )
+            } else when (activeThemePack.surfaceStyle) {
                 ThemeSurfaceStyle.DEFAULT -> DarkColors.copy(
                     background = ThemePacks.darkBackgroundHex(activeThemePack).toThemeColor(),
                 )
@@ -325,7 +342,7 @@ fun AudifyTheme(
         // every other pack a restrained accent wash across Material surfaces
         // in both modes; this avoids a coloured selector sitting on an entirely
         // unrelated black/white page.
-        val themedSurfaces = if (activeThemePack.id == ThemePacks.CLASSIC_ID) {
+        val themedSurfaces = if (amoledDisplayColors || activeThemePack.id == ThemePacks.CLASSIC_ID) {
             baseColors
         } else {
             val lift = if (darkTheme) 0.045f else 0.075f
@@ -352,7 +369,7 @@ fun AudifyTheme(
             onSecondaryContainer = if (secondaryContainer.luminance() > 0.5f) Color.Black else Color.White,
             tertiary = tertiary,
             onTertiary = ThemePacks.contentColorHex(renderedTertiaryHex).toThemeColor(),
-            surfaceTint = primary,
+            surfaceTint = if (amoledDisplayColors && darkTheme) Color.Black else primary,
             inversePrimary = secondary,
         )
     }
@@ -366,26 +383,14 @@ fun AudifyTheme(
     // Match the original 1.9.3 built-in wallpaper treatment: restrained,
     // theme-derived vertical gradients without the later radial bloom overlays.
     val appBackgroundBrush = remember(
-        backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme,
+        backgroundStyle, scheme.background, scheme.primary, scheme.secondary, scheme.tertiary, darkTheme, amoledDisplayColors,
     ) {
         val base = scheme.background
         when (backgroundStyle) {
             AppBackgroundStyle.PLAIN -> Brush.verticalGradient(listOf(base, base))
-            AppBackgroundStyle.AURORA -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.primary, .30f), base.withAccent(scheme.secondary, .25f), base.withAccent(scheme.tertiary, .20f), base)
-                else listOf(base.withAccent(scheme.primary, .43f), base.withAccent(scheme.secondary, .36f), base.withAccent(scheme.tertiary, .30f), base),
-            )
             AppBackgroundStyle.OCEAN -> Brush.verticalGradient(
                 if (darkTheme) listOf(base.withAccent(scheme.secondary, .32f), base.withAccent(scheme.primary, .27f), base.withAccent(scheme.tertiary, .20f), base)
                 else listOf(base.withAccent(scheme.secondary, .48f), base.withAccent(scheme.primary, .40f), base.withAccent(scheme.tertiary, .31f), base),
-            )
-            AppBackgroundStyle.SUNSET -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .30f), base.withAccent(scheme.primary, .26f), base.withAccent(scheme.secondary, .22f), base)
-                else listOf(base.withAccent(scheme.tertiary, .46f), base.withAccent(scheme.primary, .39f), base.withAccent(scheme.secondary, .33f), base),
-            )
-            AppBackgroundStyle.NEBULA -> Brush.verticalGradient(
-                if (darkTheme) listOf(base.withAccent(scheme.tertiary, .32f), base.withAccent(scheme.secondary, .26f), base.withAccent(scheme.primary, .21f), base)
-                else listOf(base.withAccent(scheme.tertiary, .48f), base.withAccent(scheme.secondary, .40f), base.withAccent(scheme.primary, .34f), base),
             )
         }
     }
