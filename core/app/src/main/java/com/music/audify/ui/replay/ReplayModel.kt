@@ -350,16 +350,14 @@ enum class ReplayStoryPage {
 /**
  * Listening time, in the largest unit that still says something.
  *
- * Minutes up to a day's worth, then hours: "1,284 minutes" is a number people
- * read as a number, and "21 hours" is one they read as an amount. Past a
- * thousand hours neither works and it becomes days.
+ * Keep listening durations human-readable: minutes below an hour, then hours
+ * and remaining minutes. Do not switch back to large minute counts.
  */
 fun formatListening(context: Context, ms: Long): String {
     val minutes = ms / 60_000
     return when {
         minutes < 60 -> context.getString(R.string.minutes_short, minutes)
-        minutes < 1_440 -> context.getString(R.string.hours_minutes_short, minutes / 60, minutes % 60)
-        else -> context.getString(R.string.minutes_grouped_short, grouped(minutes))
+        else -> context.getString(R.string.hours_minutes_short, minutes / 60, minutes % 60)
     }
 }
 
@@ -490,7 +488,7 @@ fun ReplaySummary.cards(context: Context): List<ReplayHeroCard> = buildList {
     add(
         ReplayHeroCard(
             label = context.getString(R.string.minutes_listened),
-            value = formatMinutes(totalMs),
+            value = formatListening(context, totalMs),
             detail = "${context.replayCount(totalPlays, R.plurals.replay_play_count)} · " +
                 localizedLabel(context),
             artworkUrl = songs.firstOrNull()?.song?.thumbnailUrl,

@@ -111,6 +111,7 @@ import com.music.audify.ui.components.IosSlider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -347,6 +348,7 @@ fun SettingsScreen(
     val customThemePacks by AppSettings.customThemePacks.collectAsStateWithLifecycle()
     val themeBackgroundUri by AppSettings.themeBackgroundUri.collectAsStateWithLifecycle()
     val backgroundStyle by AppSettings.backgroundStyle.collectAsStateWithLifecycle()
+    val amoledDisplayColors by AppSettings.amoledDisplayColors.collectAsStateWithLifecycle()
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
     val outputPcmMode by AppSettings.outputPcmMode.collectAsStateWithLifecycle()
     val preferUsbDac by AppSettings.preferUsbDac.collectAsStateWithLifecycle()
@@ -365,7 +367,9 @@ fun SettingsScreen(
     val canvasCacheLimitBytes by AppSettings.canvasCacheLimitBytes.collectAsStateWithLifecycle()
     val downloadQuality by AppSettings.downloadQuality.collectAsStateWithLifecycle()
     val wifiOnlyDownloads by AppSettings.wifiOnlyDownloads.collectAsStateWithLifecycle()
+    val betaUpdatesEnabled by AppSettings.betaUpdatesEnabled.collectAsStateWithLifecycle()
     val exportDownloads by AppSettings.exportDownloads.collectAsStateWithLifecycle()
+    val autoDownloadLikedSongs by AppSettings.autoDownloadLikedSongs.collectAsStateWithLifecycle()
     val downloadFolderUri by AppSettings.downloadFolderUri.collectAsStateWithLifecycle()
     val syncDownloadedPlaylists by AppSettings.syncDownloadedPlaylists.collectAsStateWithLifecycle()
     val stopOnTaskRemoved by AppSettings.stopOnTaskRemoved.collectAsStateWithLifecycle()
@@ -724,9 +728,10 @@ fun SettingsScreen(
     }
     val latestRelease by AppUpdateChecker.latestRelease.collectAsStateWithLifecycle()
     val updateChecking by AppUpdateChecker.checking.collectAsStateWithLifecycle()
+    val updateDownload by AppUpdateChecker.download.collectAsStateWithLifecycle()
     LaunchedEffect(section) {
         if (section == SettingsCategory.UPDATES && latestRelease == null) {
-            AppUpdateChecker.check()
+            AppUpdateChecker.check(betaUpdatesEnabled)
         }
     }
 
@@ -960,6 +965,15 @@ fun SettingsScreen(
                     checked = wifiOnlyDownloads,
                     onCheckedChange = AppSettings::setWifiOnlyDownloads,
                     badge = stringResource(R.string.blocking).takeIf { wifiOnlyDownloads && metered == true },
+                )
+            }
+            val autoDownloadLikedTitle = stringResource(R.string.auto_download_liked_songs)
+            row(autoDownloadLikedTitle, "liked", "favourites", "automatic", "background") {
+                SettingsSubRow(
+                    title = autoDownloadLikedTitle,
+                    checked = autoDownloadLikedSongs,
+                    onCheckedChange = AppSettings::setAutoDownloadLikedSongs,
+                    subtitle = stringResource(R.string.auto_download_liked_songs_subtitle),
                 )
             }
             val exportDownloadsTitle = stringResource(R.string.export_compatible_downloads)
@@ -1502,7 +1516,7 @@ fun SettingsScreen(
                     )
                 }
             }
-            row("Background", "built-in background", "aurora", "ocean", "sunset", "nebula", "custom background", "wallpaper", "image") {
+            row("Background", "built-in background", "ocean", "custom background", "wallpaper", "image") {
                 Text(
                     "Built-in background",
                     style = MaterialTheme.typography.titleMedium,
@@ -2208,6 +2222,20 @@ fun SettingsScreen(
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
                 )
             }
+            row("AMOLED display colours", "amoled", "pure black", "oled", "display", "battery") {
+                SettingsRow(
+                    icon = SfIcons.Brightness,
+                    title = "AMOLED display colours",
+                    subtitle = "Use pure black surfaces throughout dark mode while keeping text and controls readable",
+                    trailing = {
+                        IosSwitch(
+                            checked = amoledDisplayColors,
+                            onCheckedChange = AppSettings::setAmoledDisplayColors,
+                        )
+                    },
+                    onClick = { AppSettings.setAmoledDisplayColors(!amoledDisplayColors) },
+                )
+            }
             row(stringResource(R.string.wear_os_section), "watch", "wear os", "wearable") {
                 WearOsSettingsRow(onClick = onWearOs)
             }
@@ -2371,11 +2399,16 @@ fun SettingsScreen(
             if (section == SettingsCategory.UPDATES) {
                 var releaseNotesExpanded by rememberSaveable(latestRelease?.version) { mutableStateOf(true) }
                 val updateAvailable = latestRelease?.updateAvailable == true
-                val statusTitle = when {
+                val statusTitle = when (updateDownload) {
+                    is AppUpdateChecker.DownloadState.Downloading -> "Downloading update…"
+                    is AppUpdateChecker.DownloadState.Ready -> "Update ready to install"
+                    is AppUpdateChecker.DownloadState.Failed -> "Download failed"
+                    else -> when {
                     updateChecking -> "Checking for updates…"
                     updateAvailable -> "An update is available"
                     latestRelease != null -> "Your software is up to date"
                     else -> "Check for updates"
+                    }
                 }
                 val statusColor = if (updateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
 
@@ -2408,7 +2441,12 @@ fun SettingsScreen(
                             )
                         }
                         Text(
-                            text = if (updateChecking) "CHECKING" else if (updateAvailable) "UPDATE AVAILABLE" else "UP TO DATE",
+                            text = when (updateDownload) {
+                                is AppUpdateChecker.DownloadState.Downloading -> "DOWNLOADING"
+                                is AppUpdateChecker.DownloadState.Ready -> "READY TO INSTALL"
+                                is AppUpdateChecker.DownloadState.Failed -> "DOWNLOAD FAILED"
+                                else -> if (updateChecking) "CHECKING" else if (updateAvailable) "UPDATE AVAILABLE" else "UP TO DATE"
+                            },
                             modifier = Modifier
                                 .padding(top = 14.dp)
                                 .clip(RoundedCornerShape(50))
@@ -2441,6 +2479,28 @@ fun SettingsScreen(
                                 textAlign = TextAlign.Center,
                             )
                         }
+                        val downloading = updateDownload as? AppUpdateChecker.DownloadState.Downloading
+                        if (downloading != null) {
+                            LinearProgressIndicator(
+                                progress = { downloading.fraction },
+                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp).height(4.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                            )
+                            Text(
+                                text = "${(downloading.fraction * 100).toInt()}% downloaded",
+                                modifier = Modifier.padding(top = 6.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(
+                                onClick = { AppUpdateChecker.cancelDownload() },
+                                modifier = Modifier.align(Alignment.End),
+                            ) { Text("Cancel download") }
+                        }
+                        (updateDownload as? AppUpdateChecker.DownloadState.Failed)?.let { failed ->
+                            Text(failed.message, modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2448,19 +2508,71 @@ fun SettingsScreen(
                                 .height(48.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(MaterialTheme.colorScheme.primary)
-                                .clickable(enabled = !updateChecking) {
+                                .clickable(enabled = !updateChecking && downloading == null && updateDownload !is AppUpdateChecker.DownloadState.Ready) {
                                     backupScope.launch {
-                                        val result = AppUpdateChecker.check()
-                                        if (result == null) Toast.makeText(context, "Couldn't check GitHub. Check your connection.", Toast.LENGTH_LONG).show()
+                                        val result = if (updateAvailable) true else AppUpdateChecker.check(betaUpdatesEnabled)
+                                        if (result == true) {
+                                            if (AppUpdateChecker.available.value?.apkUrl != null) {
+                                                AppUpdateChecker.downloadApk(context)
+                                            } else {
+                                                AppUpdateChecker.available.value?.releaseUrl?.let(context::openLink)
+                                            }
+                                        } else if (result == null) {
+                                            Toast.makeText(context, "Couldn't check GitHub. Check your connection.", Toast.LENGTH_LONG).show()
+                                        }
                                     }
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = if (updateChecking) "Checking…" else "↻  Check for update",
+                                text = when {
+                                    updateChecking -> "Checking…"
+                                    downloading != null -> "Downloading…"
+                                    updateDownload is AppUpdateChecker.DownloadState.Ready -> "Downloaded"
+                                    updateAvailable -> "↓  Download update"
+                                    else -> "↻  Check for update"
+                                },
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+
+                    if (updateDownload is AppUpdateChecker.DownloadState.Ready) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(50))
+                                .background(MaterialTheme.colorScheme.primary)
+                                .clickable {
+                                    (updateDownload as? AppUpdateChecker.DownloadState.Ready)?.let { AppUpdateChecker.installApk(context, it.file) }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("Install update", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f))
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Beta updates", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text("Automatically download the latest GitHub pre-release APK. It will never install without your approval.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IosSwitch(
+                                checked = betaUpdatesEnabled,
+                                onCheckedChange = { enabled ->
+                                    AppSettings.setBetaUpdatesEnabled(enabled)
+                                    if (enabled) backupScope.launch {
+                                        val result = AppUpdateChecker.check(includePrerelease = true)
+                                        if (result == true && AppSettings.downloadsAllowedNow) {
+                                            AppUpdateChecker.downloadApk(context)
+                                        }
+                                    }
+                                },
                             )
                         }
                     }

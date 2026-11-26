@@ -121,7 +121,7 @@ impl PartyTrack {
             title: track.name.clone(),
             artist: track.artists.clone(),
             thumbnail_url: track.cover.clone(),
-            duration_ms: (!track.duration.is_zero()).then(|| track.duration.as_millis() as u64),
+            duration_ms: (!track.duration.is_zero()).then_some(track.duration.as_millis() as u64),
             from_autoplay: false,
         })
     }

@@ -65,7 +65,9 @@ use crate::{
     SessionEvent, SessionState, Target, Toast, Toasts,
 };
 
-const POSITION_INTERVAL: Duration = Duration::from_millis(500);
+// Keep skip-range seeks responsive; at 500ms the engine could play too far into a skipped part
+// before Playback received its next position report.
+const POSITION_INTERVAL: Duration = Duration::from_millis(100);
 const CLOCK_SETTLE: Duration = Duration::from_secs(1);
 /// Position reports that can still arrive from before a seek: one already in the channel and
 /// one for a packet decoded before the engine read the command. A successful seek keeps the
@@ -2163,6 +2165,7 @@ impl Playback {
     /// audio from it, and a second seek meanwhile waits for the first to land. A restored track
     /// not yet held by the engine only moves its resume point.
     pub fn seek(&mut self, position: Duration, cx: &mut Context<Self>) {
+        let position = self.skip_destination(position, cx).unwrap_or(position);
         if !self.local {
             self.seeks += 1;
         }
@@ -2201,6 +2204,26 @@ impl Playback {
             (false, _) => self.send_seek(position),
         }
         cx.notify();
+    }
+
+    /// If a media position falls inside a configured skip interval, returns its exclusive end.
+    /// Enforcement lives in Playback rather than the UI clock, so seeks and restored positions
+    /// are covered as well as ordinary progress reports.
+    fn skip_destination(&self, position: Duration, cx: &App) -> Option<Duration> {
+        let track = self.track.as_ref()?;
+        let id = track.id.as_deref()?;
+        let position_ms = u64::try_from(position.as_millis()).unwrap_or(u64::MAX);
+        let duration_ms = u64::try_from(track.duration.as_millis()).unwrap_or(u64::MAX);
+        self.settings
+            .read(cx)
+            .skip_segments(id)
+            .iter()
+            .find(|segment| {
+                segment.start_ms < duration_ms
+                    && position_ms >= segment.start_ms
+                    && position_ms < segment.end_ms.min(duration_ms)
+            })
+            .map(|segment| Duration::from_millis(segment.end_ms.min(duration_ms)))
     }
 
     fn send_seek(&self, position: Duration) {
@@ -2814,6 +2837,10 @@ impl Playback {
                 if started {
                     cx.emit(PlaybackEvent::StartedPlayback);
                 }
+                if let Some(skip_to) = self.skip_destination(at, cx) {
+                    self.seek(skip_to, cx);
+                    return;
+                }
                 self.follow_up_seek(cx);
             }
             BackendEvent::Paused { at, .. } => {
@@ -2831,11 +2858,19 @@ impl Playback {
                 let at = self.landed(at);
                 self.position = at;
                 self.clock.reset(at, self.state == PlaybackState::Playing);
+                if let Some(skip_to) = self.skip_destination(at, cx) {
+                    self.seek(skip_to, cx);
+                    return;
+                }
                 self.remember(true, cx);
                 cx.emit(PlaybackEvent::Seeked);
                 self.follow_up_seek(cx);
             }
             BackendEvent::Position { at, .. } => {
+                if let Some(skip_to) = self.skip_destination(at, cx) {
+                    self.seek(skip_to, cx);
+                    return;
+                }
                 let mut failed = false;
                 if self.seek_in_flight.is_some() {
                     self.stale_positions += 1;

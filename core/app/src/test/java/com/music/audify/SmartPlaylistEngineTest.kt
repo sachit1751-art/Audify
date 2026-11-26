@@ -9,6 +9,8 @@ import com.music.audify.data.playlist.SmartPlaylistEngine
 import com.music.audify.data.playlist.SmartPlaylistListening
 import com.music.audify.data.playlist.SmartPlaylistSort
 import com.music.audify.data.playlist.mergeSmartPlaylistCandidates
+import com.music.audify.data.playlist.mergeSmartPlaylistAdditions
+import com.music.audify.data.playlist.rankSmartPlaylistRecommendations
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -121,6 +123,58 @@ class SmartPlaylistEngineTest {
         )
         assertEquals(listOf("newer", "older", "never"), result.map { it.videoId })
     }
+    @Test fun `explicit smart playlist additions are retained separately and deduplicated`() {
+        val added = song("added")
+        val generated = song("generated")
+        val library = listOf(added, generated)
+        val merged = mergeSmartPlaylistAdditions(
+            generated = listOf(generated, added),
+            library = library,
+            includedSongIds = listOf("added", "missing", "added"),
+            maxTracks = 2,
+        )
+        assertEquals(listOf("added", "generated"), merged.map { it.videoId })
+    }
+
+    @Test fun `explicit smart playlist additions respect the configured track cap`() {
+        val first = song("first")
+        val generated = song("generated")
+        val merged = mergeSmartPlaylistAdditions(
+            generated = listOf(generated),
+            library = listOf(first, generated),
+            includedSongIds = listOf("first"),
+            maxTracks = 1,
+        )
+        assertEquals(listOf("first"), merged.map { it.videoId })
+    }
+
+
+    @Test fun `recommendations require real artist affinity and exclude existing tracks`() {
+        val current = song("current", artist = "Anchor Artist")
+        val matching = song("matching", artist = "Anchor Artist")
+        val unrelated = song("unrelated", artist = "Different Artist")
+        val ranked = rankSmartPlaylistRecommendations(
+            currentSongs = listOf(current),
+            definitionArtists = emptyList(),
+            library = listOf(current, unrelated, matching, matching),
+            listening = mapOf(
+                "matching" to SmartPlaylistListening(4, 120_000, now * 1_000),
+            ),
+            limit = 12,
+        )
+        assertEquals(listOf("matching"), ranked.map { it.videoId })
+    }
+
+    @Test fun `recommendations are empty when no artist anchors exist`() {
+        val ranked = rankSmartPlaylistRecommendations(
+            currentSongs = emptyList(),
+            definitionArtists = emptyList(),
+            library = listOf(song("popular")),
+            listening = mapOf("popular" to SmartPlaylistListening(100, 900_000, now * 1_000)),
+        )
+        assertTrue(ranked.isEmpty())
+    }
+
     @Test fun `candidate merge includes played and liked streamed tracks without duplicates`() {
         val local = song("local")
         val played = song("played")

@@ -75,6 +75,7 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
         override val lyricsBlur get() = AppSettings.lyricsBlur
         override val liquidFlow get() = AppSettings.liquidFlow
         override val lyricsOffsetMs get() = AppSettings.lyricsOffsetMs
+        override val lyricsSpeed get() = AppSettings.lyricsSpeed
         override val lyricsSourceOrder get() = AppSettings.lyricsSourceOrder
         override val meteredConnection get() = AppSettings.meteredConnection
         override val streamCeilingOverride get() = AppSettings.streamCeilingOverride
@@ -111,6 +112,7 @@ class AndroidPlayerHost(context: Context) : PlayerHost {
 
         override fun setLastPlayerScreen(value: LastPlayerScreen) = AppSettings.setLastPlayerScreen(value)
         override fun setLyricsOffsetMs(value: Int) = AppSettings.setLyricsOffsetMs(value)
+        override fun setLyricsSpeed(value: Float) = AppSettings.setLyricsSpeed(value)
     }
 
     override fun cachedCanvas(song: Song): CanvasArtwork? = CanvasRepository.cached(song)

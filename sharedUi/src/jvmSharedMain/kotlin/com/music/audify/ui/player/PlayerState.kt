@@ -168,6 +168,20 @@ internal class PlayerArtwork(val url: String?, private val context: PlatformCont
             .build()
     }
 
+    /**
+     * A small first-paint copy of the same cover. The full sleeve request can
+     * take a couple of seconds on a cold network/cache; drawing this 160px
+     * version underneath it gives the player real artwork as soon as the small
+     * response lands, while the full-resolution request continues unchanged.
+     */
+    val previewRequest: ImageRequest by derivedStateOf {
+        ImageRequest.Builder(context)
+            .data(url?.artworkAt(160))
+            .size(160)
+            .crossfade(false)
+            .build()
+    }
+
     /** Fed from each painter drawing [request]. */
     fun onState(state: AsyncImagePainter.State) {
         loaded = state is AsyncImagePainter.State.Success

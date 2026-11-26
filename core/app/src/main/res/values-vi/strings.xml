@@ -3,7 +3,7 @@
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Untranslatable">
     <string name="app_name">Audify</string>
     <string name="playback_channel_name">Đang phát</string>
 <string name="download_notification_title">Đang tải xuống</string>
@@ -1231,4 +1231,23 @@ Project: AUDIFY
 
   
   
+  <string name="skip_segments">Đoạn bỏ qua</string>
+  <string name="skip_segments_description">Tự động bỏ qua các đoạn đã chọn mỗi khi phát bản nhạc này.</string>
+  <string name="skip_segments_empty">Chưa có đoạn bỏ qua nào được lưu cho bản nhạc này.</string>
+  <string name="skip_segment_from">Từ (m:ss)</string>
+  <string name="skip_segment_to">Đến (m:ss)</string>
+  <string name="skip_segment_add">Thêm đoạn</string>
+  <string name="skip_segment_update">Cập nhật đoạn</string>
+  <string name="skip_segment_invalid">Hãy nhập khoảng thời gian hợp lệ theo dạng m:ss hoặc h:mm:ss; thời điểm kết thúc phải sau thời điểm bắt đầu.</string>
+  <string name="skip_segment_out_of_track">Thời điểm kết thúc phải nằm trong thời lượng bản nhạc.</string>
+  <string name="skip_segment_edit">Chỉnh sửa</string>
+  <string name="skip_segment_remove">Xóa</string>
+  <string name="track_playback_window">Chỉ phát đoạn đã chọn</string>
+  <string name="track_playback_window_description">Phát từ điểm bắt đầu và chuyển sang bản nhạc tiếp theo tại điểm kết thúc.</string>
+  <string name="track_play_from">Phát từ</string>
+  <string name="track_play_until">Phát đến</string>
+  <string name="track_playback_window_save">Lưu đoạn phát</string>
+  <string name="track_playback_window_clear">Xóa đoạn phát</string>
+  <string name="auto_download_liked_songs">Tự động tải bài hát đã thích</string>
+  <string name="auto_download_liked_songs_subtitle">Lưu bài hát vào mục Tải xuống khi bạn thích. Quy tắc chỉ dùng Wi-Fi vẫn được áp dụng.</string>
 </resources>

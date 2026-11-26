@@ -82,6 +82,9 @@
     <string name="lyrics_not_available">Lyrics not available</string>
     <string name="lyrics_offset">Lyrics offset</string>
     <string name="lyrics_offset_description">Positive values show lyrics later. Saved for this song only.</string>
+    <string name="lyrics_timing_title">Lyrics timing</string>
+    <string name="lyrics_timing_description">Fine-tune how quickly the lyrics follow the song, then adjust their timing offset below.</string>
+    <string name="lyrics_speed">Lyrics speed</string>
     <string name="lyrics_offset_reset">Reset</string>
     <string name="lyrics_provider_current">Current provider</string>
     <string name="lyrics_provider_fetching">Fetching lyrics…</string>

@@ -761,7 +761,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * on a round trip before the heart fills reads as the tap not having
      * registered, and people tap again.
      */
-    fun setLike(videoId: String, status: LikeStatus) {
+    fun setLike(videoId: String, status: LikeStatus, songForAutoDownload: Song? = null) {
         if (!requireSignIn()) return
         val previous = likeStatusOf(videoId)
         if (previous == status) return
@@ -771,6 +771,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 onSuccess = {
                     // Liked Music is now out of date either way.
                     libraryStale = true
+                    if (status == LikeStatus.LIKE && AppSettings.autoDownloadLikedSongs.value) {
+                        songForAutoDownload
+                            ?.takeIf { it.localUri == null && it.videoId == videoId }
+                            ?.let { Downloads.enqueue(getApplication(), it, "Liked Songs") }
+                    }
                     if (status != LikeStatus.LIKE) dropFromLikedLists(videoId)
                     // Clearing the heart means forgetting the song, not
                     // demoting it — see [forgetFromLibrary].
@@ -842,9 +847,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The heart: liked becomes neutral, anything else becomes liked. */
-    fun toggleLike(videoId: String) = setLike(
+    fun toggleLike(videoId: String, songForAutoDownload: Song? = null) = setLike(
         videoId,
         if (likeStatusOf(videoId) == LikeStatus.LIKE) LikeStatus.INDIFFERENT else LikeStatus.LIKE,
+        songForAutoDownload,
     )
 
     /** As [toggleLike], for the thumb-down. */
@@ -1681,6 +1687,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // A leftover APK only means "Install Now" for the session that
             // downloaded it — see AppUpdateChecker.clearCache.
             AppUpdateChecker.clearCache(getApplication())
+            // Beta builds are opt-in. When enabled, fetch the newest published
+            // pre-release and cache its APK in the background; installation
+            // remains an explicit action in the updater UI.
+            if (AppSettings.betaUpdatesEnabled.value && AppSettings.downloadsAllowedNow) {
+                if (AppUpdateChecker.check(includePrerelease = true) == true) {
+                    AppUpdateChecker.downloadApk(getApplication())
+                }
+            }
         }
     }
 
@@ -2248,6 +2262,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Add a generated smart playlist to Home as a normal, openable playlist card. */
+    fun addSmartPlaylistToHome(title: String, browseId: String, thumbnailUrl: String?) {
+        val current = (_home.value as? UiState.Success)?.data ?: return
+        val item = ShelfItem(
+            title = title,
+            subtitle = "Smart playlist",
+            thumbnailUrl = thumbnailUrl,
+            videoId = null,
+            browseId = browseId,
+        )
+        val shelfTitle = "Smart Playlists"
+        val existing = current.firstOrNull { it.title == shelfTitle }
+        if (existing?.items?.any {
+                it.browseId == browseId && it.title == title && it.thumbnailUrl == thumbnailUrl
+            } == true
+        ) return
+        val updated = if (existing == null) {
+            current + HomeShelf(shelfTitle, listOf(item))
+        } else {
+            current.map { shelf ->
+                if (shelf.title == shelfTitle) shelf.copy(items = listOf(item) + shelf.items.filterNot { it.browseId == browseId })
+                else shelf
+            }
+        }
+        _home.value = UiState.Success(updated)
+    }
+
     /** Refreshes the core feed without blanking the current Play page first. */
     private suspend fun refreshHome(identity: String?) = coroutineScope {
         val loadGeneration = homeLoadGeneration.get()
@@ -2489,8 +2530,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * history on.
      */
     fun loadHistory() {
+        val localHistory = com.music.audify.data.stats.LocalLibraryStore.history.value
         if (!_signedIn.value) {
-            _history.value = UiState.Error(text(R.string.history_sign_in_required), retryable = false)
+            _history.value = if (localHistory.isNotEmpty()) UiState.Success(localHistory)
+            else UiState.Error(text(R.string.history_empty), retryable = false)
             return
         }
         val identity = listenerKey()
@@ -2498,14 +2541,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val next = YtMusicRepository.history().fold(
                 onSuccess = { songs ->
-                    if (songs.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
-                    else {
-                        val visible = filterExplicitSongs(songs)
-                        if (visible.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
-                        else UiState.Success(visible)
-                    }
+                    val combined = (localHistory + songs).distinctBy { it.videoId }
+                    val visible = filterExplicitSongs(combined)
+                    if (visible.isEmpty()) UiState.Error(text(R.string.history_empty), retryable = false)
+                    else UiState.Success(visible)
                 },
-                onFailure = { UiState.Error(it.friendly()) },
+                onFailure = { failure ->
+                    if (localHistory.isNotEmpty()) UiState.Success(filterExplicitSongs(localHistory))
+                    else UiState.Error(failure.friendly())
+                },
             )
             if (identity == listenerKey()) _history.value = next
         }

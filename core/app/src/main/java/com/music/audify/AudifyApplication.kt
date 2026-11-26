@@ -23,6 +23,7 @@ import com.music.audify.auth.SignedIn
 import com.music.audify.data.DebugLog
 import com.music.audify.data.Http
 import com.music.audify.data.lyrics.LyricsTranslation
+import com.music.audify.data.lyrics.LyricsDiskCache
 import androidx.appcompat.app.AppCompatDelegate
 import com.music.audify.ui.player.AndroidPlayerHost
 import com.music.audify.ui.player.PlayerPlatform
@@ -91,6 +92,10 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         Innertube.appLanguage = { AppCompatDelegate.getApplicationLocales().get(0)?.toLanguageTag() }
         migrateScriptOnlyAppLocale()
         LyricsTranslation.cacheDir = cacheDir
+        // Successful lyric lookups are shared by the player and service. Give
+        // the existing bounded disk cache its app-private location before either
+        // side can request lyrics; cache I/O itself runs on Dispatchers.IO.
+        LyricsDiskCache.dir = java.io.File(cacheDir, "lyrics")
         // PlaybackService shares this process, so seeding the cookie here means
         // stream resolution is authenticated from the first play onwards.
         authStore = AuthStore(this)

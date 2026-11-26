@@ -238,18 +238,6 @@ impl OtpInput {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::normalise_code;
-
-    #[test]
-    fn session_codes_accept_letters_digits_and_pasted_separators() {
-        assert_eq!(normalise_code(" a7-k2q9 ", 6), "A7K2Q9");
-        assert_eq!(normalise_code("zzzzzz99", 6), "ZZZZZZ");
-        assert_eq!(normalise_code("--!?", 6), "");
-    }
-}
-
 impl Focusable for OtpInput {
     fn focus_handle(&self, _: &App) -> FocusHandle {
         self.focus_handle.clone()
@@ -377,5 +365,17 @@ impl EntityInputHandler for OtpInput {
         _: &mut Context<Self>,
     ) -> Option<usize> {
         Some(self.value.len())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalise_code;
+
+    #[test]
+    fn session_codes_accept_letters_digits_and_pasted_separators() {
+        assert_eq!(normalise_code(" a7-k2q9 ", 6), "A7K2Q9");
+        assert_eq!(normalise_code("zzzzzz99", 6), "ZZZZZZ");
+        assert_eq!(normalise_code("--!?", 6), "");
     }
 }

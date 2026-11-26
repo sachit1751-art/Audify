@@ -51,9 +51,10 @@ fun LyricsSidePanel(
 ) {
     val haptics = rememberHaptics()
     val lyricsOffsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
+    val lyricsSpeed by PlayerSettings.lyricsSpeed.collectAsStateWithLifecycle()
     val lyricsPlayhead = rememberLyricPlayhead(position)
     val seekToLyric: (Long) -> Unit = { lineTimeMs ->
-        onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs))
+        onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs, lyricsSpeed))
     }
     val lyricsLoadingLines = stringArrayResource(Res.array.lyrics_loading_lines)
     val lyricsLoadingText = remember(song.videoId, lyricsLoadingLines) {
@@ -110,6 +111,7 @@ fun LyricsSidePanel(
                     LyricsPanel(
                         lines = lyrics.orEmpty(),
                         subLines = lyricsTranslation.subLines,
+                        artworkUrl = song.thumbnailUrl,
                         trackKey = song.videoId,
                         playhead = lyricsPlayhead,
                         looking = !lyricsUnavailable,

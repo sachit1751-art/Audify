@@ -28,4 +28,12 @@ class LyricsOffsetTest {
         assertEquals(11_500L, adjustedLyricsSeekTarget(lineTimeMs = 10_000L, offsetMs = 1_500))
         assertEquals(8_500L, adjustedLyricsSeekTarget(lineTimeMs = 10_000L, offsetMs = -1_500))
     }
+
+    @Test
+    fun `lyrics speed scales the clock and reverses when seeking`() {
+        assertEquals(12_000L, adjustedLyricsPosition(10_000L, 0, 1.2f))
+        assertEquals(8_000L, adjustedLyricsPosition(10_000L, 0, 0.8f))
+        assertEquals(10_000L, adjustedLyricsSeekTarget(12_000L, 0, 1.2f))
+        assertEquals(10_000L, adjustedLyricsSeekTarget(8_000L, 0, 0.8f))
+    }
 }

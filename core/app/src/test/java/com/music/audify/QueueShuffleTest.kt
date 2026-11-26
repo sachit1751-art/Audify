@@ -52,8 +52,8 @@ class QueueShuffleTest {
             randomPlayableShuffleStartIndex(songs, Random(seed))
         }
 
-        assertTrue(picks.all { it == 1 || it == 3 || it == 4 })
-        assertEquals(setOf(1, 3, 4), picks.toSet())
+        assertTrue(picks.all { it == 3 || it == 4 })
+        assertEquals(setOf(3, 4), picks.toSet())
     }
 
     @Test

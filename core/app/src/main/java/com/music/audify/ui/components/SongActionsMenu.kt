@@ -174,6 +174,8 @@ fun SongActionsMenu(
     onCopyLog: (() -> Unit)? = null,
     /** Opens the timing control offered only by the main player's menu. */
     onLyricsOffset: (() -> Unit)? = null,
+    /** Opens the per-track automatic skip-range editor. */
+    onSkipSegments: (() -> Unit)? = null,
     /**
      * Flips spatial audio for the playing track and saves the choice for it.
      * Null hides the row; only the player's menu offers it.
@@ -433,7 +435,7 @@ fun SongActionsMenu(
 
         // The player's own: about the track playing right now rather than
         // about the song as a thing in a library.
-        if (showSleepTimer || onLyricsOffset != null || onCopyLog != null || onToggleSpatialAudio != null) {
+        if (showSleepTimer || onLyricsOffset != null || onSkipSegments != null || onCopyLog != null || onToggleSpatialAudio != null) {
             if (startsGroup()) IosMenuSeparator()
             if (showSleepTimer) {
                 ActionRow(
@@ -470,6 +472,14 @@ fun SongActionsMenu(
                 ActionRow(
                     icon = SfIcons.Sliders,
                     label = stringResource(R.string.lyrics_offset),
+                    accent = palette.accent,
+                    onClick = it,
+                )
+            }
+            onSkipSegments?.let {
+                ActionRow(
+                    icon = SfIcons.Sliders,
+                    label = stringResource(R.string.skip_segments),
                     accent = palette.accent,
                     onClick = it,
                 )

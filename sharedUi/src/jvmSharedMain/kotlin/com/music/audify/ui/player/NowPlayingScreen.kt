@@ -1089,11 +1089,12 @@ fun NowPlayingScreen(
     val lyricStripSetting by PlayerSettings.lyricStrip.collectAsStateWithLifecycle()
     val lyricStripEnabled = syncedLyricsEnabled && lyricStripSetting
     val lyricsOffsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
+    val lyricsSpeed by PlayerSettings.lyricsSpeed.collectAsStateWithLifecycle()
     // A lambda, not a value: read by the lyric strip and panel in scopes of
     // their own, so a tick recomposes them and not the player around them.
     val lyricsPlayhead = rememberLyricPlayhead(position)
     val seekToLyric: (Long) -> Unit = { lineTimeMs ->
-        onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs))
+        onSeek(adjustedLyricsSeekTarget(lineTimeMs, lyricsOffsetMs, lyricsSpeed))
     }
     val hideVolumeBar by PlayerSettings.hideVolumeBar.collectAsStateWithLifecycle()
     val hideSongStatus by PlayerSettings.hideSongStatus.collectAsStateWithLifecycle()
@@ -1626,10 +1627,11 @@ fun NowPlayingScreen(
         }
     }
     val fullBleedSetting by PlayerSettings.fullBleedArtwork.collectAsStateWithLifecycle()
-    // Lagu tipe video yang tidak punya canvas hanya punya frame 16:9 sebagai
-    // cover. Dibentangkan full screen hasilnya buruk, jadi tetap jadi kartu
-    // walau pengaturan full-bleed menyala. Dengan canvas, aturannya tidak berubah.
-    val fullBleedArt = fullBleedSetting && !(song.isVideo && canvas == null)
+    // An actual moving music video owns its 16:9 surface. A video-origin track
+    // that is presenting still artwork is still artwork, though: let the
+    // full-bleed preference apply instead of forcing every such track into a
+    // landscape card merely because its source is tagged as video.
+    val fullBleedArt = fullBleedSetting && !videoMode
     // Full-bleed is a phone idiom. What the width has to rule out is a player
     // running a foot wider than the column of controls under it — edge to edge
     // meaning "a picture, and separately some controls" rather than "the
@@ -2406,7 +2408,8 @@ fun NowPlayingScreen(
                         PlayerScrubber(
                             shown = shown,
                             durationMs = durationMs,
-                            loading = versionAligning || audioVersionSwitching,
+                            loading = versionAligning || audioVersionSwitching ||
+                                (isLoading && !scrub.scrubbing && scrub.pendingSeek == null),
                             mixing = mixing && !scrub.scrubbing,
                             transitionWindow = transitionWindow
                                 ?.takeIf { !scrub.scrubbing && it.end > it.start }
@@ -2675,7 +2678,8 @@ fun NowPlayingScreen(
                                 PlayerScrubber(
                                     shown = shown,
                                     durationMs = durationMs,
-                                    loading = versionAligning || audioVersionSwitching,
+                                    loading = versionAligning || audioVersionSwitching ||
+                                        (isLoading && !scrub.scrubbing && scrub.pendingSeek == null),
                                     mixing = mixing && !scrub.scrubbing,
                                     transitionWindow = transitionWindow
                                         ?.takeIf { !scrub.scrubbing && it.end > it.start }
@@ -2769,6 +2773,7 @@ fun NowPlayingScreen(
                                 LyricsPanel(
                                     lines = lyrics.orEmpty(),
                                     subLines = lyricsTranslation.subLines,
+                                    artworkUrl = remoteArt,
                                     trackKey = song.videoId,
                                     playhead = lyricsPlayhead,
                                     looking = !lyricsUnavailable,
@@ -4007,6 +4012,21 @@ fun NowPlayingScreen(
                                     )
                                 }
                             }
+                            // Show a small, fast cover while the full player
+                            // resolution is still downloading/decoding. It sits
+                            // under the main request and disappears as soon as
+                            // that request succeeds, so transitions and Canvas
+                            // compositing keep their existing ownership.
+                            if (!art.loaded && art.url != null) {
+                                AsyncImage(
+                                    model = art.previewRequest,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { alpha = if (art.loaded) 0f else 1f },
+                                )
+                            }
                             AsyncImage(
                                 // Decode at the sleeve's *expanded* size, always.
                                 // Coil otherwise sizes the decode to however large
@@ -4783,6 +4803,7 @@ Spacer(Modifier.width(12.dp))
                                         } else {
                                             lyricsTranslation.subLines
                                         },
+                                        artworkUrl = remoteArt,
                                         trackKey = lyricsLeaving?.trackId ?: song.videoId,
                                         playhead = lyricsPlayhead,
                                         looking = lyricsLeaving?.looking ?: !lyricsUnavailable,
@@ -5028,7 +5049,8 @@ Spacer(Modifier.width(12.dp))
                     PlayerScrubber(
                         shown = shown,
                         durationMs = durationMs,
-                        loading = versionSwitching,
+                        loading = versionSwitching ||
+                            (isLoading && !scrub.scrubbing && scrub.pendingSeek == null),
                         mixing = mixing && !scrub.scrubbing,
                         // Hidden while scrubbing: the planner is still describing
                         // where the transition *would* be, and a marker sitting under

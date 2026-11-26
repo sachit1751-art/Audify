@@ -79,6 +79,7 @@ internal fun LyricsOffsetSheet(
     visible: Boolean = true,
 ) {
     val offsetMs by PlayerSettings.lyricsOffsetMs.collectAsStateWithLifecycle()
+    val speed by PlayerSettings.lyricsSpeed.collectAsStateWithLifecycle()
     val haptics = rememberHaptics()
     var drag by remember { mutableFloatStateOf(0f) }
     var height by remember { mutableIntStateOf(0) }
@@ -168,7 +169,7 @@ internal fun LyricsOffsetSheet(
                         .background(Color.White.copy(alpha = 0.25f)),
                 )
                 Text(
-                    text = stringResource(Res.string.lyrics_offset),
+                    text = stringResource(Res.string.lyrics_timing_title),
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
@@ -177,13 +178,49 @@ internal fun LyricsOffsetSheet(
                     modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
                 )
                 Text(
-                    text = stringResource(Res.string.lyrics_offset_description),
+                    text = stringResource(Res.string.lyrics_timing_description),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.55f),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 4.dp, top = 3.dp, bottom = 14.dp),
                 )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ControlShape)
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .padding(horizontal = 12.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.lyrics_speed),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
+                    )
+                    Text(
+                        text = String.format(Locale.getDefault(), "%.2fx", speed),
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = Color.White,
+                    )
+                    ThinSlider(
+                        value = ((speed - 0.75f) / 0.5f).coerceIn(0f, 1f),
+                        onValueChange = {
+                            PlayerSettings.setLyricsSpeed(0.75f + it.coerceIn(0f, 1f) * 0.5f)
+                        },
+                        onValueChangeFinished = onDismiss,
+                        idleHeight = 6.dp,
+                        activeHeight = 10.dp,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("0.75x", color = Color.White.copy(alpha = 0.45f), style = MaterialTheme.typography.labelSmall)
+                        Text("1.25x", color = Color.White.copy(alpha = 0.45f), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
 
                 Column(
                     modifier = Modifier
