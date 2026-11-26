@@ -6,7 +6,7 @@ Project: AUDIFY
 
 # Plan 091 — Phase 0: Audit and Backend Decision (DRAFT)
 
-**Status: decisions recorded in section 9 (November 2026). Sections 10 and 11 raise technical issues for the maintainer to settle before Phase 2. Sections 1 to 8 are the original audit.**
+**Status: decisions recorded in sections 9 and 13 (November 2026). Section 14 lists conflicts with the existing Cloudflare setup that must be resolved before Phase 2. Sections 1 to 8 are the original audit; sections 10 and 11 are the findings and proposals the maintainer responded to.**
 **Parent plan:** [091 — AUDIFY Identity and Lightweight Social Layer](091-audify-identity-and-social-layer.md)
 **Related issue:** #23 — User Search & Following System
 
@@ -188,16 +188,51 @@ Each item has a proposal. The maintainer decides.
 
 ## 12. Updated acceptance criteria
 
-A backend implementation of the social layer is not done until all of these are tested.
+Every item is a requirement. A backend implementation of the social layer is not done until all of them are tested.
 
 1. The acting user comes from a verified session, never from client-supplied ids.
 2. Every account has a permanent, server-assigned, never-reused internal id; username and email are attributes.
 3. Privacy settings, blocks and relationship state are computed and enforced on the server on every request.
-4. Username uniqueness is enforced by the database on the lowercase key; the cooldown uses the server clock.
+4. Username uniqueness is enforced by the database on the lowercase key, including names that are being held (item 14); the cooldown uses the server clock.
 5. Public reads work without a session and expose only content that the audience rules make public from discoverable profiles. They are rate limited per client.
 6. Page limits are clamped to 1..50 independently of any client; cursors are validated, and every bad cursor returns `INVALID_INPUT`.
 7. Text and username rules, including the code-point length unit, the explicit trim set, and rejection of control, invisible and unpaired-surrogate characters, are applied on the server.
 8. The server passes every case in `shared/testvectors/social-v1.json`, in CI, and so does the Kotlin code.
-9. The Worker's tests run in CI, so a social change cannot silently break Listen Together.
+9. The Worker's tests, including the existing Listen Together regression suite, run in CI, so a social change cannot silently break Listen Together.
 10. Sign-in is an extensible identity model (provider plus subject), starting with Google.
 11. Account deletion removes the profile, follows, blocks, sessions and avatar, and has a test.
+12. Public profiles may be viewed signed out. The limits of blocking for signed-out visitors are documented here and stated in the interface.
+13. Sensitive content, including pinned playlists and statistics, has an explicit audience control and defaults to private (`Audience.NOBODY`).
+14. A released username is held for 30 days before anyone else can take it. Every name that starts with `audify`, and the other reserved names, is unavailable. Registration does not start the change cooldown, and a capitalization-only change is not a change.
+15. The server verifies Google's token signature, issuer, audience, expiry and a server-issued nonce. No OAuth secret, signing key or other credential is committed to the repository.
+16. Search requires a prefix of at least 2 characters, is debounced in the app, is rate limited per client **without** routing through a single global object or sharing Listen Together's limiter tables, and public reads may be cached briefly.
+17. Session tokens are stored only as hashes. Tokens, ID tokens and search queries are never written to logs.
+18. Rollback never discards social data: a documented, tested export and restore procedure exists, and migrations are forward-only.
+19. Listen Together stays isolated: social code does not change the existing party routes, limits or storage, and the regression suite for them passes unchanged.
+
+## 13. The maintainer's resolutions of section 11
+
+1. **Database.** D1 is not required. Evaluate D1 in the existing account and Worker, with its own migrations and quota checks. If Durable Objects alone are kept, do not send all social traffic through one global object.
+2. **Worker structure and CI.** Keep the existing Worker if practical. Isolate the social routes and modules under `/api/social/`. Worker tests and the shared vectors must run in CI before any social code merges.
+3. **Quota.** Debounced search, a sensible minimum prefix length, per-client rate limits and short-lived caching. No move to a paid plan without reviewing actual usage and cost first.
+4. **Privacy and blocks.** Public profiles stay publicly viewable; document the limits of blocking for signed-out visitors. Sensitive content has explicit audience controls and defaults to private.
+5. **Authentication.** Permanent internal ids independent of username and email. Verify issuer, audience, expiry and nonce on the server. Never commit OAuth secrets or signing credentials.
+6. **Usernames.** Hold released names for 30 days. Reserve the `audify` namespace. Registration does not start the cooldown. Capitalization-only changes do not count.
+7. **Rollback.** Document that reverting to the Go service makes social features unavailable. Social data is never silently discarded; define how it is preserved and restored.
+8. **Acceptance criteria.** Every item in section 12 is a requirement, especially server-side authorization, database-enforced username uniqueness, privacy enforcement and shared-vector parity.
+
+## 14. Conflicts with the existing Cloudflare setup (resolve before Phase 2)
+
+Found by reading `core/backend/cloudflare/` on `upstream/main`. Each has a proposal; none is implemented yet.
+
+1. **CORS allows only GET, POST and OPTIONS** (`access-control-allow-methods` in `worker.js`, applied to every route). The social API needs PATCH and DELETE for browser clients. *Proposal:* the social router builds its own CORS headers and the Listen Together ones stay untouched.
+2. **All rate limiting runs through one global object.** Create, join, authentication, feedback and presence limits all go to the single Durable Object named `__audify_global__`, and its `rate_limits` table has a shared entry cap (`JAM_RATE_LIMIT_MAX_ENTRIES`, 10,000 by default) for create, join and auth keys. Social traffic through it would both create the single hot object the maintainer wants to avoid and use up Listen Together's cap, which returns "too many source addresses are being tracked". *Proposal:* social rate limiting uses a separate mechanism, such as Cloudflare's Workers rate limiting binding or counters spread over many keys, and never the same object or table. Check availability and limits on the Free plan before choosing.
+3. **There is no staging environment.** `wrangler.toml` has one configuration, so any social deploy goes straight to the Worker that serves Listen Together in production. *Proposal:* add a staging environment with its own D1 database, and run migrations there first.
+4. **Tooling is not pinned.** `package.json` has no dependencies and there is no lockfile, and the README says to run `npx wrangler deploy`, so the Wrangler version is whatever `npx` fetches. D1 migrations, the declarative `[exports.PartyRoom]` configuration and local D1 development all depend on the Wrangler version. *Proposal:* add Wrangler as a pinned dev dependency with a lockfile, used by CI and by contributors.
+5. **The Worker's integration suite needs a running server.** It expects a local Worker at `127.0.0.1:8787`, and some cases are skipped against a remote one. *Proposal:* a CI job that installs the pinned Wrangler, starts `wrangler dev`, waits for `/healthz`, runs `npm test` and `npm run test:integration`, and also runs the vectors suite, which needs no server. Today none of these run in CI (section 10).
+6. **Routing is one long chain inside `fetch`.** The social router must be dispatched first on `/api/social/`, before any party logic, and must leave Listen Together's 404, 405 and CORS behaviour unchanged. The Worker also has observability enabled, so no tokens, ID tokens or search queries may be logged.
+7. **Configuration naming and secrets.** Existing variables are prefixed `JAM_`; social ones should be prefixed `SOCIAL_`. A cursor-signing key and a token pepper are secrets set with `wrangler secret put`, which only the account owner can do. Google's client id is public and is a normal variable. A D1 `database_id` in `wrangler.toml` ties the repository to one account; check that contributors can still run `wrangler dev` with local D1 and that CI works without the production id.
+8. **`wrangler.toml` starts with a UTF-8 byte-order mark.** Harmless to Wrangler today, but it can confuse other TOML tools. *Proposal:* remove it in the same change that adds the D1 binding.
+9. **Android configuration has one server URL.** The build field is `LISTEN_TOGETHER_SERVER`, set in `core/app/build.gradle.kts`, in CI's `local.properties`, and shared by the TV build through the same source tree. *Proposal:* a `SOCIAL_SERVER` field that defaults to the same value, so there is one place to point at a different Worker.
+10. **Rollback needs a procedure, not only a statement.** Reverting clients to the Go service makes social features unavailable (section 11, item 8) while the data stays in D1. *Proposal:* migrations are forward-only; before any rollback, export the database (`wrangler d1 export`) and note the Time Travel window, which depends on the plan and must be checked; the Worker stays deployed so data is intact; clients show social as unavailable when the endpoint is missing; restore is a re-point, not a data migration. Test the export and restore on staging.
+11. **Listen Together isolation.** The party code is a single file with the routing chain above. *Proposal:* social pull requests do not refactor or reformat existing party code, the existing integration suite is the regression guard, and it must pass unchanged in CI.
