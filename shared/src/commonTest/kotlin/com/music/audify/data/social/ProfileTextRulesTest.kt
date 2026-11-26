@@ -121,4 +121,33 @@ class ProfileTextRulesTest {
         assertNull(ProfileTextRules.cleanDisplayName("a\u009Fb"))
         assertNull(ProfileTextRules.cleanBio("a\u0080b"))
     }
+
+    // Trimming uses an explicit set, not the platform's trim().
+
+    @Test
+    fun trimRemovesExactlyTheDocumentedSet() {
+        assertEquals("x", ProfileTextRules.trim("\u00A0\t\n\u2003\u3000x\u2028 "))
+        // Not trimmed: BOM, NEL, and the information separators U+001C..U+001F.
+        assertEquals("\uFEFFx", ProfileTextRules.trim("\uFEFFx"))
+        assertEquals("\u0085x", ProfileTextRules.trim("\u0085x"))
+        assertEquals("\u001Fx", ProfileTextRules.trim("\u001Fx"))
+    }
+
+    @Test
+    fun charactersThatPlatformsTrimDifferentlyAreRejectedNotRepaired() {
+        listOf("\uFEFFZaid", "\u0085Zaid", "\u001FZaid", "Zaid\u001F").forEach {
+            assertNull(ProfileTextRules.cleanDisplayName(it), it)
+        }
+    }
+
+    @Test
+    fun deleteAndCarriageReturnAreRejected() {
+        assertNull(ProfileTextRules.cleanDisplayName("a\u007Fb"))
+        assertNull(ProfileTextRules.cleanBio("line1\r\nline2"))
+    }
+
+    @Test
+    fun nonBreakingSpacesAreTrimmed() {
+        assertEquals("Zaid", ProfileTextRules.cleanDisplayName("\u00A0Zaid\u00A0"))
+    }
 }

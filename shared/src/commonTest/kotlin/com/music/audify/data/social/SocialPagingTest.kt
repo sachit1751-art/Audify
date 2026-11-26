@@ -30,4 +30,23 @@ class SocialPagingTest {
     fun theDefaultIsInsideTheAllowedRange() {
         assertTrue(SocialPaging.DEFAULT_PAGE_SIZE in 1..SocialPaging.MAX_PAGE_SIZE)
     }
+
+    @Test
+    fun theFirstPageHasNoCursor() {
+        assertTrue(SocialPaging.isWellFormedCursor(null))
+    }
+
+    @Test
+    fun wellFormedCursorsUseOnlyUrlSafeCharactersAndAreBounded() {
+        assertTrue(SocialPaging.isWellFormedCursor("a"))
+        assertTrue(SocialPaging.isWellFormedCursor("abcDEF_-0123"))
+        assertTrue(SocialPaging.isWellFormedCursor("x".repeat(SocialPaging.MAX_CURSOR_LENGTH)))
+    }
+
+    @Test
+    fun malformedCursorsAreRejected() {
+        listOf("", " ", "a b", "a/b", "a=", "a+b", "\u00E9", "a\n", "x".repeat(SocialPaging.MAX_CURSOR_LENGTH + 1)).forEach {
+            assertTrue(!SocialPaging.isWellFormedCursor(it), it)
+        }
+    }
 }

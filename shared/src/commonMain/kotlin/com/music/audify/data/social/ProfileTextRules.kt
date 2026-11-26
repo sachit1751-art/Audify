@@ -33,14 +33,25 @@ package com.music.audify.data.social
  * Apply these same rules itself and never rely on this client copy: the same
  * unit, the same trimming, the same rejected characters. Lone surrogates are
  * rejected because they cannot be encoded as UTF-8, and different platforms
- * silently repair them in different ways. Trimming follows Kotlin's `trim()`
- * (Unicode white space); a server whose trim differs on exotic spaces must
- * reject, not repair, any leading or trailing white space it would not have
- * removed itself.
+ * silently repair them in different ways.
+ *
+ * ## Trimming is explicit
+ *
+ * Every platform's built-in `trim()` removes a slightly different set of
+ * characters, so none is used. [trim] removes exactly: U+0009 to U+000D,
+ * U+0020, U+00A0, U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F and
+ * U+3000. Anything else is left alone, and if it is a control or invisible
+ * character it is then rejected rather than silently removed. For example
+ * U+FEFF (which JavaScript's `trim()` strips), U+0085 (which Go's strips) and
+ * U+001F (which Kotlin's strips) are all rejected, never trimmed. The shared
+ * test vectors cover each of these.
  */
 object ProfileTextRules {
     const val DISPLAY_NAME_MAX = 40
     const val BIO_MAX = 160
+
+    /** Removes leading and trailing white space, using exactly the set listed in the class documentation. */
+    fun trim(raw: String): String = raw.trim { it.isTrimmable() }
 
     /** The number of Unicode code points in [text]; a lone surrogate counts as one. */
     fun codePointCount(text: String): Int {
@@ -55,7 +66,7 @@ object ProfileTextRules {
 
     /** The trimmed display name, or null when it is empty, too long or unsafe. */
     fun cleanDisplayName(raw: String): String? {
-        val name = raw.trim()
+        val name = trim(raw)
         if (name.isEmpty() || codePointCount(name) > DISPLAY_NAME_MAX) return null
         return name.takeIf { isSafe(it, allowLineBreak = false) }
     }
@@ -65,7 +76,7 @@ object ProfileTextRules {
      * unsafe. Line breaks are allowed in a bio; other control characters are not.
      */
     fun cleanBio(raw: String): String? {
-        val bio = raw.trim()
+        val bio = trim(raw)
         if (codePointCount(bio) > BIO_MAX) return null
         return bio.takeIf { isSafe(it, allowLineBreak = true) }
     }
@@ -89,6 +100,11 @@ object ProfileTextRules {
         }
         return false
     }
+
+    private fun Char.isTrimmable(): Boolean =
+        code in 0x09..0x0D || code == 0x20 || code == 0xA0 || code == 0x1680 ||
+            code in 0x2000..0x200A || code == 0x2028 || code == 0x2029 ||
+            code == 0x202F || code == 0x205F || code == 0x3000
 
     /** The ASCII and C1 control characters, line breaks included. */
     private fun Char.isControlCode(): Boolean = code < 32 || code in 127..159

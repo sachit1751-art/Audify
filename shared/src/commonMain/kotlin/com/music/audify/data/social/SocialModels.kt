@@ -82,7 +82,8 @@ enum class Audience {
  * section 7, question 4). These rules describe intent. The server is the
  * authority: it must check them itself and must never rely on a client to hide
  * something. Things added later, such as a pinned playlist or listening
- * statistics, would each carry their own [Audience] and default to [Audience.NOBODY].
+ * statistics, must each carry an explicit [Audience] control and default to
+ * [Audience.NOBODY] (private).
  */
 data class PrivacySettings(
     /** Whether the profile can turn up in username search. */
@@ -99,13 +100,25 @@ data class PrivacySettings(
     fun canOpenProfile(relationship: Relationship): Boolean = profile.allows(relationship)
 }
 
-/** The few fields shown in search results and in follower or following lists. */
+/**
+ * The few fields shown in search results and in follower or following lists.
+ *
+ * [userId] is the account's permanent identity: random, assigned by the server
+ * once, never reused and never derived from the username, an email address or
+ * any provider's account id. Follows, blocks and links must use it, because a
+ * username can change.
+ *
+ * [username] is shown with the person's own capitalization. Compare and match
+ * on [usernameKey].
+ */
 data class ProfileSummary(
     val userId: String,
     val username: String,
     val displayName: String,
     val avatarUrl: String? = null,
-)
+) {
+    val usernameKey: String get() = UsernameRules.normalize(username)
+}
 
 /**
  * What a viewer sees when they open someone's profile.
@@ -126,10 +139,18 @@ data class OwnProfile(
     val summary: ProfileSummary,
     val bio: String = "",
     val privacy: PrivacySettings = PrivacySettings(),
+    /**
+     * When the username may be changed again, in epoch milliseconds on the
+     * **server's** clock; null means it can be changed now. Show this value;
+     * do not work it out from the phone's clock.
+     */
+    val usernameChangeAvailableAtMillis: Long? = null,
 )
 
 /** A change to the signed-in person's profile; null means "leave as it is". */
 data class ProfileUpdate(
+    /** A new username; subject to the change cooldown ([UsernameRules.CHANGE_COOLDOWN_DAYS]). */
+    val username: String? = null,
     val displayName: String? = null,
     val bio: String? = null,
     val privacy: PrivacySettings? = null,
