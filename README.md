@@ -32,6 +32,16 @@ Project: AUDIFY
   <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/badge/Get%20it%20on-GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="Get the latest release on GitHub" height="44"></a>
 </p>
 
+## See it
+
+<p align="center">
+  <img src="docs/audify-launch-loop.gif" alt="Full 45-second Audify launch video, looping" width="300">
+  <br>
+  <sub>Full 45-second launch video, playing on loop directly in this README.</sub>
+  <br>
+  <sub><a href="docs/audify-launch.mp4">Watch the original MP4 with sound</a></sub>
+</p>
+
 <p align="center">
   <a href="#screenshots">Screenshots</a> ·
   <a href="#features">Features</a> ·
