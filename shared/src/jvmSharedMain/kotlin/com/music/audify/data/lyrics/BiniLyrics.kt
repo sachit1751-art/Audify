@@ -5,7 +5,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import java.util.Locale
 
 /**
  * Apple Music TTML again, from a third host — and the only one here that will
@@ -82,15 +81,15 @@ object BiniLyrics {
 
     /** Select only the same recording; search ranking alone is not identity. */
     internal fun bestHit(hits: List<Hit>, title: String, artist: String, durationMs: Long): Hit? {
-        val wantedTitle = title.identityText()
-        val wantedArtist = artist.identityText().removeTopicSuffix()
+        val wantedTitle = title.accentFoldedIdentity()
+        val wantedArtist = artist.accentFoldedIdentity().removeTopicSuffix()
         if (wantedTitle.isBlank() || wantedArtist.isBlank()) return null
         val expectedSeconds = (durationMs / 1_000L).takeIf { it > 0L }
         return hits.mapNotNull { hit ->
-            val hitTitle = hit.trackName?.identityText() ?: return@mapNotNull null
+            val hitTitle = hit.trackName?.accentFoldedIdentity() ?: return@mapNotNull null
             if (hitTitle != wantedTitle) return@mapNotNull null
             val artists = hit.artistName.orEmpty().split(Regex("\\s*(?:,|&|\\band\\b)\\s*"))
-                .map { it.identityText().removeTopicSuffix() }
+                .map { it.accentFoldedIdentity().removeTopicSuffix() }
             if (wantedArtist !in artists) return@mapNotNull null
             val distance = if (expectedSeconds != null && hit.duration != null) {
                 kotlin.math.abs(hit.duration.toLong() - expectedSeconds)
@@ -99,9 +98,6 @@ object BiniLyrics {
             hit to distance
         }.minByOrNull { it.second }?.first
     }
-
-    private fun String.identityText(): String = lowercase(Locale.ROOT)
-        .replace(Regex("\\s+"), " ").trim()
 
     private fun String.removeTopicSuffix(): String = removeSuffix(" - topic").trim()
 

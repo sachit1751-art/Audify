@@ -20,4 +20,15 @@ class ReorderPlaylistIdentityTest {
         assertEquals(entries[2].key, moved[0].key)
         assertNotEquals(moved[0].key, moved[1].key)
     }
+
+    @Test
+    fun cancelledDragRestoresOriginalOccurrenceOrder() {
+        val repeated = Song(videoId = "same-track", title = "Same", artist = "Artist", thumbnailUrl = null)
+        val original = createReorderPlaylistEntries(listOf(repeated, repeated, repeated))
+        val order = original.toMutableList().apply { add(0, removeAt(2)) }
+
+        restoreReorderPlaylistEntries(order, original)
+
+        assertEquals(original.map { it.key }, order.map { it.key })
+    }
 }

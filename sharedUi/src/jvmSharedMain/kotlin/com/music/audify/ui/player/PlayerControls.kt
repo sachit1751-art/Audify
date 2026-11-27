@@ -31,7 +31,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -100,7 +99,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.vectorResource
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -494,8 +492,6 @@ internal fun SleeveNerdStats(song: Song, modifier: Modifier = Modifier) {
 @Composable
 internal fun TransportRow(
     isPlaying: Boolean,
-    /** While the stream resolves and buffers, the play glyph would be a lie. */
-    isLoading: Boolean,
     /**
      * Lit whenever back has something to do — a track to step to, or enough
      * elapsed to restart this one. Faded and inert, not removed, while a party
@@ -529,25 +525,16 @@ internal fun TransportRow(
             haptic = Haptic.SkipPrevious,
             direction = -1,
         )
-        if (isLoading) {
-            // Preserve the original loading indicator and its fixed footprint.
-            Box(Modifier.size(playTouch), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    color = Color.White,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(if (compact) 30.dp else 38.dp),
-                )
-            }
-        } else {
-            TransportGlyph(
-                icon = if (isPlaying) Res.drawable.ic_player_pause else Res.drawable.ic_player_play,
-                contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
-                size = playSize,
-                touchSize = playTouch,
-                onClick = onPlayPause,
-                haptic = if (isPlaying) Haptic.Pause else Haptic.Resume,
-            )
-        }
+        // Keep transport live while a source resolves or buffers. The player
+        // state owns the icon morph; a loading spinner must never take its slot.
+        TransportGlyph(
+            icon = if (isPlaying) Res.drawable.ic_player_pause else Res.drawable.ic_player_play,
+            contentDescription = stringResource(if (isPlaying) Res.string.pause else Res.string.play),
+            size = playSize,
+            touchSize = playTouch,
+            onClick = onPlayPause,
+            haptic = if (isPlaying) Haptic.Pause else Haptic.Resume,
+        )
         TransportGlyph(
             icon = Res.drawable.ic_player_next,
             contentDescription = stringResource(Res.string.widget_next),
@@ -852,11 +839,9 @@ private fun TransportGlyph(
     direction: Int = 0,
 ) {
     val haptics = rememberHaptics()
-    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     // Faded rather than hidden: the row keeps its shape at the ends of a queue.
     val alpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.3f,
-        animationSpec = tween(durationMillis = if (reduceAnimation) 120 else 300),
         label = "transportAlpha",
     )
     // Apple Music style press: the glyph shrinks under the finger and springs
@@ -866,16 +851,13 @@ private fun TransportGlyph(
     val pressed by interaction.collectIsPressedAsState()
     val pressScale = animateFloatAsState(
         targetValue = if (pressed && enabled) 0.72f else 1f,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = 0.45f,
-            stiffness = Spring.StiffnessMedium,
-        ),
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
         label = "transportPress",
     )
     // Soft disc under the finger while it is held.
     val pressDisc by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.18f else 0f,
-        animationSpec = tween(durationMillis = if (reduceAnimation) 120 else if (pressed) 70 else 260),
+        animationSpec = tween(durationMillis = if (pressed) 70 else 260),
         label = "transportDisc",
     )
     // On tap: the glyph is kicked the way it points and rebounds, with a ring.
@@ -898,7 +880,7 @@ private fun TransportGlyph(
                 enabled = enabled,
             ) {
                 haptics.play(haptic)
-                if (direction != 0 && !reduceAnimation) {
+                if (direction != 0) {
                     scope.launch {
                         kick.snapTo(0f)
                         kick.animateTo(direction.toFloat(), tween(durationMillis = 80, easing = FastOutSlowInEasing))
@@ -914,20 +896,16 @@ private fun TransportGlyph(
         AnimatedContent(
             targetState = icon,
             transitionSpec = {
-                if (reduceAnimation) {
-                    fadeIn(tween(120)) togetherWith fadeOut(tween(120))
-                } else {
-                    (
-                        fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                            scaleIn(
-                                initialScale = 0.55f,
-                                animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow),
-                            )
-                        ) togetherWith (
-                        fadeOut(tween(90)) +
-                            scaleOut(targetScale = 0.55f, animationSpec = tween(120))
+                (
+                    fadeIn(tween(durationMillis = 120, easing = FastOutSlowInEasing)) +
+                        scaleIn(
+                            initialScale = 0.78f,
+                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
                         )
-                }
+                    ) togetherWith (
+                    fadeOut(tween(75)) +
+                        scaleOut(targetScale = 0.78f, animationSpec = tween(90, easing = FastOutSlowInEasing))
+                    )
             },
             contentAlignment = Alignment.Center,
             label = "transportGlyph",
@@ -939,7 +917,7 @@ private fun TransportGlyph(
                 modifier = Modifier
                     .size(size)
                     .graphicsLayer {
-                        val k = if (reduceAnimation) 0f else kick.value
+                        val k = kick.value
                         translationX = k * 12.dp.toPx()
                         scaleX = pressScale.value * (1f + kotlin.math.abs(k) * 0.15f)
                         scaleY = pressScale.value * (1f - kotlin.math.abs(k) * 0.06f)

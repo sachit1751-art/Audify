@@ -67,6 +67,7 @@ fun List<SkipSegment>.activeAt(positionMs: Long, durationMs: Long): SkipSegment?
 
 /** Small, fail-closed codec and lookup helpers for the per-track skip-range store. */
 object SkipSegmentStore {
+    const val MAX_SEGMENTS_PER_TRACK = 25
     fun normalize(segments: List<SkipSegment>): List<SkipSegment> = normalizeSkipSegments(segments)
 
     fun encode(ranges: Map<String, List<SkipSegment>>): String {

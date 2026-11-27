@@ -43,7 +43,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 |---|---|---|
 | [01 - Artist new-release notifications](01-artist-new-release-notifications.md) | Followed-artist release alerts | **Not started - reconcile with 04** |
 | [02 - Accessibility-first lyrics](02-accessibility-first-lyrics.md) | Accessible lyrics presentation | **Not started - reconcile against current lyrics implementation** |
-| [03 - Complete playlist importer](03-selected-02-playlist-importer.md) | Playlist import and portability | **Planned - canonical import pipeline; reconcile with 078** |
+| [03 - Complete playlist importer](03-selected-02-playlist-importer.md) | Playlist import and portability | **In progress - parser/matcher/preview/rollback implementation and unit tests pass; SAF device verification remains** |
 | [04 - Artist release alerts](04-selected-06-artist-release-alerts.md) | Robust followed-artist release alerts | **Planned - unified scope with 01** |
 | [05 - Advanced search filters](05-selected-13-advanced-search-filters.md) | Capability-aware search filters | **Planned - provider audit required** |
 | [06 - AUDIFY Statistics](06-selected-17-statistics-dashboard.md) | Personal music intelligence | **Planned - aggregate-first; schema changes require approval** |
@@ -51,17 +51,17 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [08 - Music recognition](08-music-recognition.md) | Foreground recognition and history | **Proposal - provider/privacy/battery review required** |
 | [09 - Player Studio](09-player-studio.md) | Player layouts, backgrounds, gestures, motion | **Proposal - extend existing player components** |
 | [10 - Local metadata intelligence](10-local-metadata-intelligence.md) | Rich local tags and reconciliation | **Proposal - reconcile older plans** |
-| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | Output-aware tuning | **Historical proposal file missing from current tree; recovered from Git history by Micro Improvement 06; blocked on licensed measured data/output attachment** |
+| [11 - Headphone audio profiles](11-headphone-audio-profiles.md) | Output-aware tuning | **Proposal - reconcile audio pipeline** |
 | [12 - Lyrics quality and language tools](12-lyrics-quality-language-tools.md) | Lyrics fallback, correction, translation | **Proposal - reconcile lyrics foundation** |
 | [13 - Casting protocol expansion](13-casting-protocol-expansion.md) | FCast and DLNA research | **Research proposal** |
 | [14 - Podcast library](14-podcast-library.md) | Podcast subscriptions and playback | **Blocked - Plan 15 prerequisite** |
 | [15 - Typed playable-media boundary](15-typed-playable-media.md) | Multi-type Media3 identity foundation | **Designed - implementation not started** |
 | [069 - Artwork-to-detail continuity](069-artwork-to-detail-continuity.md) | Artwork-to-detail transition | **TODO - existing Android artwork continuity proposal; separate from page navigation** |
-| [070 - Playback-state transitions](070-playback-state-transitions.md) | Playback feedback | **IN PROGRESS ? motion timing and reduced-motion transport fixes; lifecycle/device checks remain** |
-| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity | **IN PROGRESS ? reduced-motion placement and notice feedback; queue/device acceptance remains** |
+| [070 - Playback-state transitions](070-playback-state-transitions.md) | Playback feedback | **TODO** |
+| [071 - Queue interaction identity](071-queue-interaction-identity.md) | Stable queue occurrence identity | **TODO** |
 | [072 - Settings and expandable continuity](072-settings-expandable-continuity.md) | Settings state feedback | **TODO** |
-| [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | TV motion accessibility | **RECONCILE - current TvApp already wires reduced-motion transitions; inspect remaining TV call sites before changing** |
-| [074 - Wear OS accessibility review](074-wearos-accessibility-review.md) | Wear OS accessibility | **IN PROGRESS ? optional queue occurrence IDs and stale-snapshot guards; device/rotary acceptance remains** |
+| [073 - Android TV reduced motion](073-android-tv-reduced-motion.md) | TV motion accessibility | **In progress - transition audit and duration/reduced-motion fixes implemented; TV remote/device verification remains** |
+| [074 - Wear OS accessibility](074-wearos-accessibility-review.md) | Wear OS accessibility | **In progress - selected semantics, action labels, accessible seeking and hit-target-preserving press feedback implemented; watch TalkBack verification remains** |
 | [075 - Collaborative Playlists](075-collaborative-playlists.md) | Persistent shared playlists | **Planned - blocked on verified identity, durable storage and portable track IDs** |
 | [076 - Smart Playlists](076-smart-playlists.md) | Rule-based auto-updating playlists | **Implemented in v1.9.0** |
 | [077 - Android Auto](077-android-auto.md) | Car-safe browse and playback | **Media3 browse/playback integration in v1.9.0; real vehicle validation remains** |
@@ -80,7 +80,7 @@ Only plan files currently present in this directory are listed below. Plans remo
 | [090 - Personalization Engine and Control Centre](090-personalization-and-control-center.md) | Appearance, Home layout, player presentation, configurable gestures and personalization profiles | **Planned for v1.9.2; reconcile with Plans 09, 11, 080 and 081 before implementation** |
 | [091 - AUDIFY Identity and Lightweight Social Layer](091-audify-identity-and-social-layer.md) | First-party accounts, profiles, username discovery, follow graph and shared identity foundation | **P0 — FIRST PRIORITY; prerequisite for Plan 075 and Issue #23** |
 | [092 - Differentiated Listening Experience Roadmap](092-differentiated-listening-experience-roadmap.md) | Umbrella roadmap for personal music identity, intelligent discovery, social music, deeper exploration and cross-device continuity | **Roadmap - reuse Plans 06, 07, 075, 079, 082, 083 and 091; Plan 083 is the easiest first slice** |
-| [Micro Improvements](micro-improvements/README.md) | Ten focused improvements across playback, queue, offline use, search, Home, audio, accessibility, onboarding, context and recovery | **In progress — source/test changes across all ten plans; Plan 06's measured headphone correction prerequisites and Plan 09's per-track explainability/diversity acceptance remain open** |
+| [Micro Improvements](micro-improvements/README.md) | Ten focused proposals for playback reliability, queue, offline use, search, home personalization, audio, accessibility, onboarding, context-aware listening and recovery | **01 Playback Reliability and 02 Queue Experience are in progress; remaining proposals are not started** |
 
 ## Critical execution priority
 

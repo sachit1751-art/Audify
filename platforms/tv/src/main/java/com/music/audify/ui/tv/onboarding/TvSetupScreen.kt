@@ -104,8 +104,8 @@ fun TvSetupScreen(
             if (reduceMotion) {
                 fadeIn(tween(120)).togetherWith(fadeOut(tween(120)))
             } else {
-                (slideInHorizontally(tween(320)) { if (forward) it / 6 else -it / 6 } + fadeIn(tween(320)))
-                    .togetherWith(slideOutHorizontally(tween(240)) { if (forward) -it / 6 else it / 6 } + fadeOut(tween(200)))
+                (slideInHorizontally(tween(260)) { if (forward) it / 6 else -it / 6 } + fadeIn(tween(260)))
+                    .togetherWith(slideOutHorizontally(tween(220)) { if (forward) -it / 6 else it / 6 } + fadeOut(tween(180)))
             }
         },
         label = "setupStep",

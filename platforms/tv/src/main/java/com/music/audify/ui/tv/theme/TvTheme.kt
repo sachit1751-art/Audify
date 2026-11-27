@@ -558,7 +558,6 @@ fun AudifyTvTheme(
     val secondary = parse(themePack.secondaryHex)
     val tertiary = parse(tertiaryHex)
     val themedBackground = when (themePack.surfaceStyle) {
-        ThemeSurfaceStyle.AMOLED -> Color.Black
         ThemeSurfaceStyle.MIDNIGHT -> Color(0xFF080F20)
         ThemeSurfaceStyle.GRAPHITE -> Color(0xFF17191D)
         ThemeSurfaceStyle.DEEP_PURPLE -> Color(0xFF170F24)

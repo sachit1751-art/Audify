@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 02 — Queue Control and Listening Session Management
 
-**Status: in progress — playlist rows use stable occurrence keys, queue notices preserve reduced-motion feedback, and Wear OS validates optional occurrence IDs. Queue operation and device acceptance remain.**
+**Status: in-progress — stable queue-occurrence IDs, duplicate-row identity tests and production queue mutation paths already exist; this execution adds drag-cancellation rollback and occurrence-aware playback recovery. Device interaction and cross-client verification remain outstanding.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 071 — Queue Interaction Identity and the existing Media3 queue/session implementation.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -162,10 +162,6 @@ The canonical owner is **Plan 071 — Queue Interaction Identity and the existin
 - Queue mutations remain correct under rapid actions and process restoration.
 - No database migration or parallel queue store is introduced.
 
-## Additional regression: Spotify collection Shuffle
-
-Spotify Liked Songs and playlist pages stream placeholder rows before YouTube Music matching finishes. `playFrom` correctly refuses to start an unresolved `sp:` or `sp-miss:` row, but the previous Shuffle handler selected from the entire page list; selecting a placeholder therefore rejected the entire start request and left the previous track playing. `randomPlayableShuffleStartIndex` now selects only from resolved playable occurrences. If the page contains rows but none is playable yet, the user receives an explicit matching-in-progress message. `QueueShuffleTest` covers mixed resolved/unresolved rows, deterministic distribution across playable entries, and the all-unresolved/empty cases. No shuffle policy, provider queue, or persistence boundary was changed.
-
 
 ## Execution model: eight gated stages
 
@@ -268,28 +264,20 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
-## Execution evidence — 2026-11-22
-
-- `ReorderPlaylistPage` assigns a stable UUID to each playlist occurrence, so duplicate media IDs remain independently draggable. `ReorderPlaylistIdentityTest` verifies distinct keys and key preservation through reorder.
-- `QueueActionNotice` keeps a short opacity confirmation under reduced motion and snaps size changes. `QueueActionNoticeMotionTest` covers the reduced-motion duration policy.
-- `WearBridge` carries optional queue occurrence IDs for compatibility with older peers and validates identity before a remote queue jump. `WearBridgeQueueIdentityTest` covers the identity rules. `QueueCoordinatorTest` covers queue ordering and mutation invariants.
-- The focused `:app:testDevDebugUnitTest` run reached app Kotlin compilation but failed while the compiler tried to read a missing/zero-byte generated `AutoplayKt.class`; other workers were compiling the same shared build tree concurrently. A serialized retry remains necessary. Phone/Wear device checks for duplicate reorders, drag cancellation, rotary navigation and session consistency remain outstanding.
-- No queue schema, migration, persistence contract or playback-order semantics were changed in this execution.
-
 ## Implementation tracking
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Complete |
-| 2 | Contract and acceptance design | Complete |
-| 3 | Foundation and domain implementation | Existing source and tests present; broader queue acceptance pending |
-| 4 | User interface and interaction | Implemented; device check pending |
-| 5 | Platform and integration coverage | Source review partial; device check pending |
-| 6 | Reliability, performance and privacy | Source review partial |
-| 7 | Full verification and regression pass | JVM tests, phone/Wear/TV DevDebug compilation and unit tests, and all three platform lint tasks passed in the serialized 2026-11-22 run; device acceptance remains open |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Complete — baseline `4c0828ce`; `QueueTimeline`, `QueueCoordinator`, `QueueShuffle` and `ReorderPlaylistPage` are the verified owners |
+| 2 | Contract and acceptance design | Complete — queue actions use occurrence identity; cancelled drag must restore the exact pre-drag order |
+| 3 | Foundation and domain implementation | Complete for existing stable queue identity; no parallel queue owner or schema added |
+| 4 | User interface and interaction | In progress — reorder cancellation now restores the original occurrence list |
+| 5 | Platform and integration coverage | Not started |
+| 6 | Reliability, performance and privacy | In progress — duplicate identity and cancellation regression tests added; device checks pending |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-Progress is **2/8 complete; source implementation and automated verification passed; queue interaction and device acceptance remain open**. See the consolidated verification matrix in this directory's README. Estimates are planning ranges, not delivery commitments.
+Progress is **3/8 stages complete**; UI, integration and device verification remain in progress. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 

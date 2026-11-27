@@ -23,15 +23,22 @@ private val QUICK_PICKS_ALIASES = listOf("Quick picks", "Speed dial", "Panggilan
  * A stable key for a feed shelf. The same shelf keeps its key across app
  * languages where its title is known in several, so a saved order survives.
  */
-fun homeShelfKey(title: String): String {
+fun homeShelfKey(title: String, stableBrowseId: String? = null): String {
     val clean = title.trim().replace('\n', ' ')
-    return when {
+    val known = when {
         LISTEN_AGAIN_ALIASES.any { it.equals(clean, ignoreCase = true) } -> "shelf:listen-again"
         QUICK_PICKS_ALIASES.any { it.equals(clean, ignoreCase = true) } -> "shelf:quick-picks"
-        else -> "shelf:" + clean.lowercase()
+        else -> null
     }
+    if (known != null) return known
+    stableBrowseId?.trim()?.takeIf { it.isNotEmpty() && '\n' !in it && '\r' !in it }?.let {
+        return "shelf:browse:$it"
+    }
+    return "shelf:" + clean.lowercase()
 }
 
+/** Provider browse identity keeps shelf layout stable when titles are translated. */
+fun homeShelfKey(shelf: HomeShelf): String = homeShelfKey(shelf.title, shelf.moreBrowseId)
 /** One place on Home: where it sits in [HomeLayout.slots] is its position, [hidden] takes it off the page. */
 data class HomeSlot(
     val key: String,
@@ -109,6 +116,24 @@ data class HomeLayout(val slots: List<HomeSlot> = emptyList()) {
         return (known + fresh).filterNot { dropHidden && isHidden(keyOf(it)) }
     }
 
+    /** Remap legacy title-derived shelf keys to stable provider IDs without losing flags or order. */
+    fun remapShelfKeys(shelves: List<HomeShelf>): HomeLayout {
+        val aliases = shelves.groupBy { homeShelfKey(it.title) }.mapNotNull { (legacy, matches) ->
+            val stableKeys = matches.map(::homeShelfKey).distinct()
+            stableKeys.singleOrNull()?.takeIf { it != legacy }?.let { legacy to it }
+        }.toMap()
+        if (aliases.isEmpty()) return this
+        val merged = LinkedHashMap<String, HomeSlot>()
+        slots.forEach { slot ->
+            val key = aliases[slot.key] ?: slot.key
+            val existing = merged[key]
+            merged[key] = if (existing == null) slot.copy(key = key) else existing.copy(
+                hidden = existing.hidden || slot.hidden,
+                pinned = existing.pinned || slot.pinned,
+            )
+        }
+        return HomeLayout(merged.values.toList())
+    }
     fun encode(): String = slots.joinToString("\n") {
         val flag = when {
             it.hidden && it.pinned -> '3'
@@ -139,3 +164,13 @@ data class HomeLayout(val slots: List<HomeSlot> = emptyList()) {
 /** Keep at least one Home/Library section visible so its tab cannot be made empty by layout edits. */
 fun canHideLayoutSlot(isVisible: Boolean, visibleCount: Int): Boolean =
     !isVisible || visibleCount > 1
+
+/** Move a row within its pinned or unpinned group without crossing the priority boundary. */
+fun moveHomeSlotWithinPinGroup(order: List<String>, pinned: Set<String>, key: String, delta: Int): List<String> {
+    val index = order.indexOf(key)
+    if (index < 0 || delta == 0) return order
+    val group = order.indices.filter { (order[it] in pinned) == (key in pinned) }
+    if (group.isEmpty()) return order
+    val target = (index + delta).coerceIn(group.first(), group.last())
+    return if (target == index) order else order.toMutableList().apply { add(target, removeAt(index)) }
+}

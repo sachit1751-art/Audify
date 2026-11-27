@@ -132,19 +132,19 @@ Project: AUDIFY
     <string name="app_language">アプリの言語</string>
     <string name="app_language_description">Audifyで使用する言語を選択してください。</string>
     <string name="english">英語</string>
-    
-    
-    
-    
-    
-    
-    
-    
 
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
     <string name="show_all">すべて表示</string>
 <string name="switch_to_grid_view">グリッド表示に切り替え</string>
     <string name="switch_to_list_view">リスト表示に切り替え</string>
@@ -152,7 +152,7 @@ Project: AUDIFY
     <string name="playback">再生</string>
     <string name="appearance">外観</string>
     <string name="storage">ストレージ</string>
-    
+
     <string name="miscellaneous">その他</string>
 <string name="on_wifi">Wi-Fi接続時</string>
     <string name="on_mobile_data">モバイルデータ接続時</string>
@@ -220,36 +220,36 @@ Project: AUDIFY
     <string name="enable_high_performance_confirmation">Audifyのバッテリー使用が「制限なし」に設定されている場合のみ有効にしてください。デバイスが熱くなったり電力が少なくなったりすると、Androidがリフレッシュレートを制限することがあります。</string>
     <string name="enable">有効にする</string>
     <string name="not_yet">今はしない</string>
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
     <string name="add_to_queue">再生キューに追加</string>
     <string name="after_this_song">この曲の後に</string>
     <string name="always_on">常にオン</string>
     <string name="api_token">APIトークン</string>
     <string name="audio_quality_connection">%1$s接続時</string>
     <string name="back_in_future_version">今後のバージョンで復活予定</string>
-    
+
     <string name="clear_name">名前を消去</string>
-    
-    
+
+
     <string name="copy_log">ログをコピー</string>
     <string name="couldnt_find">%1$sが見つかりませんでした</string>
     <string name="couldnt_open_link">リンクを開けませんでした</string>
     <string name="create_playlist">プレイリストを作成</string>
-    
-    
+
+
     <string name="delete">削除</string>
-    
+
     <string name="discord">Discord</string>
     <string name="discord_button_variables">{song_name}、{artist_name}、{album_name}は現在の曲に置き換えられます。</string>
     <string name="discord_buttons_footer">{song_name}、{artist_name}、{album_name}は曲の情報に置き換えられます。1つ目のボタンはYouTube Musicで曲を開き、2つ目はこのプロジェクトを開きます。</string>
-    
-    
+
+
     <string name="discord_show_audio_quality_subtitle">ステータスカードにハイレゾ・ロスレス・Dolbyの仕様を表示</string>
     <string name="dislike">低評価</string>
     <string name="done">完了</string>
@@ -260,7 +260,7 @@ Project: AUDIFY
     <string name="enabled">有効</string>
     <string name="enter_token_to_enable">有効にするにはトークンを入力してください</string>
     <string name="first_button">1つ目のボタン</string>
-    
+
     <string name="pause">一時停止</string>
     <string name="shuffle_on">シャッフル: オン</string>
     <string name="shuffle_off">シャッフル: オフ</string>
@@ -324,7 +324,7 @@ Project: AUDIFY
     <string name="lastfm_login">Last.fmログイン</string>
     <string name="lastfm_login_description">Last.fmアカウントでログインするとスクロブリングが有効になります。</string>
     <string name="lastfm_now_playing_subtitle">今聴いているものをLast.fmに反映します</string>
-    
+
     <string name="lead_with_song_subtitle">太字の行にアーティストではなく曲名を表示します</string>
     <string name="like">高評価</string>
     <string name="listenbrainz_token">ListenBrainzトークン</string>
@@ -336,20 +336,20 @@ Project: AUDIFY
     <string name="min_song_duration">最小の曲の長さ</string>
     <string name="min_song_duration_subtitle">これより短い曲はスクロブルされません</string>
     <string name="monthly_listeners">月間リスナー数 %1$s人</string>
-    
+
     <string name="no_playlists_yet">プレイリストはまだありません。上の行から作成してください。</string>
     <string name="no_tracks_here">ここにはトラックがありません</string>
-    
+
     <string name="one_hour">1時間</string>
     <string name="open_album">アルバムを開く</string>
     <string name="open_artist">アーティストを開く</string>
     <string name="pause_after_a_while">しばらくしたら再生を一時停止</string>
     <string name="pause_after_song">この曲が終わったら一時停止します</string>
     <string name="pause_countdown">あと%1$sで再生が一時停止します</string>
-    
+
     <string name="playlist_name">プレイリスト名</string>
-    
-    
+
+
     <string name="prioritize_syllable_lyrics">音節単位の歌詞を優先</string>
     <string name="prioritize_syllable_lyrics_subtitle">行単位で一致しても、単語ごとの歌詞を求めて検索を続けます</string>
     <string name="quality_hourly">%1$s · %2$s</string>
@@ -378,9 +378,9 @@ Project: AUDIFY
 <string name="search_this_list">このリスト内を検索</string>
     <string name="second_button">2つ目のボタン</string>
     <string name="share">共有</string>
-    
+
     <string name="sharing_listens">再生履歴を共有中</string>
-    
+
     <string name="signed_in_as">%1$sとしてログイン済み</string>
     <string name="signing_in">ログイン中…</string>
     <string name="sleep_timer">スリープタイマー</string>
@@ -405,25 +405,25 @@ Project: AUDIFY
     <string name="spotify_canvas_auto_hide_subtitle">Spotify Canvasの再生中、5秒後にハーフプレーヤーを折りたたみます</string>
     <string name="prioritize_spotify_canvas">Spotify Canvasを優先</string>
     <string name="prioritize_spotify_canvas_subtitle">Apple Musicなどのアニメーションカバーより先にSpotifyを試します</string>
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
     <string name="subscribers">登録者数 %1$s人</string>
     <string name="tap_to_connect">タップして接続</string>
     <string name="tap_to_sign_in">タップしてログイン</string>
-    
-    
+
+
     <string name="turn_off_timer">タイマーをオフにする</string>
-    
-    
-    
+
+
+
     <string name="verb_playing">プレイ中</string>
-    
+
     <plurals name="minute_count">
         <item quantity="other">%1$d分</item>
     </plurals>
@@ -452,36 +452,36 @@ Project: AUDIFY
     <string name="not_enough_listening">再生履歴がまだ十分ではありません</string>
     <string name="not_enough_this_month">今月もう少し曲を再生するとReplayが解放されます。</string>
 <string name="replay_across">にわたって</string>
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
     <string name="replay_empty_description">もう少し聴くと、Audifyがあなたの履歴からReplayを作成します。</string>
-    
-    
-    
+
+
+
     <string name="replay_habits_middle">、そのきっかけは</string>
     <string name="replay_habits_start">あなたが探求したのは</string>
     <string name="replay_hours_across">%1$s時間</string>
-    
-    
-    
-    
+
+
+
+
 
 <string name="replay_private_counting">このデバイス内の再生履歴から非公開で集計されています</string>
     <string name="replay_share_card_description">主な再生ハイライトをまとめた、洗練されたカードです。</string>
     <string name="replay_share_summary_description">曲、アーティスト、アルバム、ジャンル、傾向をまとめた全体像です。</string>
-    
-    
-    
+
+
+
     <string name="saved">保存済み</string>
     <string name="saved_bang">保存しました！</string>
     <string name="share_my_replay">自分のReplayを共有</string>
     <string name="share_your_lyrics">歌詞カードを送る</string>
     <string name="share_your_replay">あなたのReplayを共有</string>
-    
+
     <string name="top_album">トップアルバム</string>
     <string name="top_artist">トップアーティスト</string>
     <string name="top_genre">トップジャンル</string>
@@ -546,7 +546,7 @@ Project: AUDIFY
     <string name="delete_download">ダウンロードを削除</string>
     <string name="delete_playlist_confirmation">「%1$s」を削除しますか？もう一度タップして確定します。</string>
     <string name="delete_download_confirmation">「%1$s」をこのデバイスから削除しますか？もう一度タップして確定します。</string>
-    
+
 <string name="automix_enabled_subtitle">トラック自体からすべての切り替えのタイミングとブレンドを計算します。端末が熱くなったり再生が途切れたりする場合はオフにしてください。</string>
     <string name="automix_disabled_subtitle">スライダーなしで切り替えのタイミングとブレンドを自動的に計算します。低スペック端末ではパフォーマンスが変わることがあります。</string>
 <string name="no_lyrics_sources_enabled">なし。歌詞は取得されません。</string>
@@ -580,12 +580,12 @@ Project: AUDIFY
     <string name="listen_together_subtitle">コードを共有して、同じ音楽を同時に再生</string>
     <string name="listen_together_in_party">パーティー中 · %1$s</string>
     <string name="listen_together_sign_in_footer">一緒に聴くにはアカウントが必要です。パーティーの全員が、ほかに誰がいるかを見られるようにするためです。</string>
-    
+
     <string name="listen_together_server_online">オンライン · %1$d ms</string>
-    
+
     <string name="listen_together_server_offline">今は接続できません</string>
     <string name="listen_together_server_checking">確認中…</string>
-    
+
     <string name="listen_together_custom_server">自分のサーバーを使う</string>
     <string name="listen_together_custom_server_footer">空のままにすると内蔵サーバーを使います。自分でコピーを動かしている場合は、パーティーの全員が同じサーバーを指している必要があります。</string>
     <string name="listen_together_using_default">内蔵サーバーを使用中</string>
@@ -823,9 +823,9 @@ Project: AUDIFY
 
     <string name="settings_search_empty">No settings match “%1$s”</string>
 
-    
 
-    
+
+
     <string name="smart_version_alignment">スマート音声同期</string>
     <string name="smart_version_alignment_subtitle">波形を解析して、対応する再生位置を正確に合わせます</string>
 
@@ -1015,15 +1015,15 @@ Project: AUDIFY
     <string name="source_downloads_off">ストリーミングのみ</string>
     <string name="lossless_output_permission">Bluetoothコーデックを確認</string>
     <string name="lossless_output_permission_detail">付近のデバイスを許可すると、LDACまたはLHDCのヘッドホンでロスレス専用アドオンを使えます</string>
-    
-    
+
+
     <string name="cached_songs_empty">キャッシュ済みの曲はまだありません。YouTubeやJioSaavnで再生した曲がここに表示されます。</string>
     <string name="cached_song_partial">一部のみ</string>
     <string name="remove_from_cache">キャッシュから削除</string>
     <string name="cached_song_remove">削除</string>
     <string name="removed_from_cache">曲のキャッシュから削除しました</string>
-    
-    
+
+
     <string name="song_cache_unlimited">無制限</string>
     <string name="song_cache_unlimited_subtitle">上限なし。キャッシュされた音声はストレージがいっぱいになるまで増え続けます。</string>
     <string name="clear_song_cache_title">曲キャッシュを消去しますか？</string>
@@ -1037,7 +1037,7 @@ Project: AUDIFY
     <string name="spotify_connect_subtitle">サインインしてプレイリストを読み込みます。再生は YouTube Music を使います。</string>
     <string name="spotify_disconnect">切断</string>
 <string name="spotify_empty_tracks">このプレイリストには曲がありません</string>
-    <string name="spotify_import_button">インポート</string>
+
     <string name="spotify_import_description">公開プレイリストのリンクを貼り付けます。楽曲は YouTube Music で照合されます。</string>
     <string name="spotify_import_description_local">公開プレイリストのリンクを貼り付けます。楽曲は YouTube Music で照合され、この端末に保存されます。</string>
     <string name="spotify_import_done">「%1$s」をインポートしました</string>
@@ -1048,7 +1048,7 @@ Project: AUDIFY
     <string name="spotify_import_invalid">Spotify のプレイリストのリンクではありません。</string>
     <string name="spotify_import_local_fallback">YouTube Music に作成できなかったため、「%1$s」をこの端末に保存しました。</string>
     <string name="spotify_import_matching">楽曲を照合中 %1$d / %2$d</string>
-    <string name="spotify_import_none">それらの曲は YouTube Music で見つかりませんでした。</string>
+
     <string name="spotify_import_title">Spotify プレイリストをインポート</string>
     <string name="spotify_library_subtitle">あなたの Spotify プレイリスト</string>
     <string name="spotify_sign_in">Spotify でサインイン</string>
@@ -1064,9 +1064,9 @@ Project: AUDIFY
     <string name="show_queue_history">キューの履歴を表示</string>
     <string name="show_queue_history_subtitle">キューの「再生中」の上に、再生済みの曲を最大25曲表示します</string>
     <string name="not_enough_this_week">今週もう少し曲を再生するとReplayが解放されます。</string>
-    
-    
-    
+
+
+
     <string name="replay_this_week">今週</string>
     <string name="replay_period_weekly">週間</string>
     <string name="replay_period_monthly">月間</string>
@@ -1077,9 +1077,9 @@ Project: AUDIFY
     <string name="onboarding_name_hint">あなたの名前</string>
     <string name="onboarding_name_footer">いっしょに聴くを使うと、友だちにこの名前が表示されます。あとから設定で変更できます。</string>
     <string name="onboarding_next">次へ</string>
-    
-    
-    
+
+
+
     <string name="onboarding_skip_sign_in">ログインをスキップ</string>
     <string name="onboarding_back">戻る</string>
     <string name="wear_os_section">Wear OS 向け Audify</string>
@@ -1125,53 +1125,53 @@ Project: AUDIFY
     <string name="song_info_unavailable">情報なし</string>
     <string name="song_info_error">一部の情報を読み込めませんでした。</string>
     <string name="song_info_retry">再試行</string>
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
     <string name="sachit_listening_summary_save">再生サマリーを保存（CSV）</string>
     <string name="sachit_listening_summary_share">再生サマリーを共有（CSV）</string>
     <string name="sachit_listening_summary_note">各曲について保持されている月ごとの合計です。個々の再生時刻は保存されません。</string>
     <string name="sachit_listening_summary_chooser">再生サマリーを共有</string>
     <string name="sachit_listening_summary_saved">再生サマリーを保存しました。</string>
     <string name="sachit_listening_summary_save_failed">再生サマリーを保存できませんでした。</string>
-    
-    
-    
-    
-    
-    
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     <string name="upload_notification_queued">%1$s · ほか%2$d曲が待機中</string>
     <string name="pinned_playlist_limit">ピン留めできるプレイリストは%1$d件までです</string>
     <string name="party_queue_full">キューがいっぱいです（パーティーの上限は%d曲）</string>
     <string name="webdav_upload_summary">アップロード %1$d · スキップ %2$d · 失敗 %3$d</string>
     <string name="listen_together_members_footer">パーティーには %1$d 台まで入れます。参加者は誰でも音楽を操作できます。</string>
-    <string name="spotify_import_unmatched">%1$d 曲が YouTube Music で見つかりませんでした</string>
-    <string name="local_playlist_subtitle">%1$d 曲 · この端末内</string>
+
+
 
 
 
@@ -1187,15 +1187,15 @@ Project: AUDIFY
 
     <string name="audify_selected">Selected</string>
 
-    
 
-    
+
+
 
     <string name="pipeline_pcm_data_rate">PCM Data Rate</string>
 
-    
 
-    
+
+
 
     <string name="search_source_youtube">YouTube</string>
 
@@ -1205,10 +1205,10 @@ Project: AUDIFY
     <string name="backup">バックアップ</string>
     <string name="updates">アップデート</string>
     <string name="smart_playlists">スマートプレイリスト</string>
-    
-    
-    
-    
+
+
+
+
     <string name="liquid_flow">LiquidFlow の歌詞</string>
     <string name="liquid_flow_subtitle">単語ごとの動き、発光、パーティクル効果</string>
-<string name="restore_preview_body">Favorites: %1$d\nListening history: %2$d\nPlaylists: %3$d\nListening-stat months: %4$d\nSettings: %5$d\n\nBackup version: %6$s\nCreated: %7$s\n\nRestoring replaces this deviceâ€™s backed-up data.</string><string name="addon_blocked_title">Can\'t play this song</string><string name="addon_blocked_quality">Audio quality on %1$s is set to %2$s. Songs from %3$s only play at Lossless â€” change it in Settings â†’ Audio quality to play this one.</string><string name="addon_blocked_watch">Music is playing through your watch, which limits audio below Lossless. Songs from %1$s play again once your phone takes the music back.</string><string name="download_addon_left_out_title">Downloading without %1$s</string><string name="download_addon_not_allowed">%1$s doesn\'t allow downloads, so your songs are being saved from your other sources instead.</string><string name="download_addon_needs_lossless_output">%1$s only serves music while wired, USB or LDAC-class headphones are connected. Downloads skip it until one is, so your songs are being saved from your other sources instead.</string><string name="on_device">On Device</string><string name="direct_source_stream">Direct Source Stream</string><string name="direct_source_stream_in_party">Off while you\'re in a Listen Together party</string><string name="spotify_empty_playlists">No playlists on this account</string><string name="playback_speed_tempo">Speed &amp; tempo</string><string name="playback_speed_tempo_hint">Change how fast the song plays</string><string name="playback_speed">Speed</string><string name="playback_speed_hint">Faster or slower, pitch changes too</string><string name="playback_tempo">Tempo</string><string name="playback_tempo_hint">Faster or slower, pitch stays the same</string><string name="playback_reset">Reset to normal</string><string name="spatial_audio_prefer_off">Prefer Spatial Audio Off</string><string name="spatial_audio_prefer_on">Prefer Spatial Audio On</string><string name="indonesian">Indonesian</string><string name="korean">Korean</string><string name="crossfade_on_skip">Crossfade on next/previous</string><string name="crossfade_on_skip_subtitle">Fades into the song you skip to, and the cover dissolves along with it</string><string name="auto_music_only">Audio over video</string><string name="auto_music_only_subtitle">Music videos play as audio automatically</string><string name="content_feed">Content &amp; Feed</string><string name="hide_home_videos">Hide videos on Home</string><string name="hide_home_videos_subtitle">Rows made only of videos go too. Search, artists and playlists still list them</string><string name="hide_home_branding">Hide Home branding</string><string name="hide_home_branding_subtitle">Shows only the Home title, without the logo</string><string name="customize_home">Customize Home</string><string name="customize_home_subtitle">Reorder rows and choose which ones show</string><string name="home_layout_description">Drag a row by its handle to move it. Untick a row to hide it from Home.</string><string name="customize_library">Customize Library</string><string name="library_layout_description">Drag a row by its handle to move it. Untick a row to hide it from Library.</string><string name="library_row_pinned">Pinned playlists</string><string name="library_row_links">Folders</string><string name="home_layout_empty">Home is still loading. Open this again once the rows have appeared.</string><string name="home_row_top_picks">Top Picks for You</string><string name="still_video_covers">Cover instead of video</string><string name="still_video_covers_subtitle">Never plays the video in the player. Songs with no audio version show their cover</string><string name="square_video_covers">Square video covers</string><string name="square_video_covers_subtitle">Shows every music video as a square, in lists, cards and the player</string><string name="bar_title_account">Account</string><string name="bar_title_advanced">Advanced</string><string name="bar_title_automix">Automix</string><string name="bar_title_bit_perfect">Bit-perfect</string><string name="bar_title_mobile_data">Mobile data</string><string name="show_listen_together_button">Show Listen Together button</string><string name="listen_together_tab">Together</string><string name="clear_canvas_cache_title">Clear animated cover cache?</string><string name="clear_canvas_cache_warning">All stored cover clips will be deleted. They will be downloaded again the next time they play.</string><string name="clear_image_cache_title">Clear image cache?</string><string name="clear_image_cache_warning">All stored album artwork will be deleted. It will be downloaded again when needed.</string><string name="show_listen_together_tab">Show Listen Together tab</string><string name="show_listen_together_tab_subtitle">Adds a Together tab to the navigation bar, right of Explore</string><string name="show_listen_together_button_subtitle">Off, the player shows only the audio output button between lyrics and the queue</string><string name="app_icon">App icon</string><string name="app_icon_default">Default</string><string name="app_icon_liquid_glass">Liquid Glass</string><string name="font">Font</string><string name="font_default">Default</string><string name="font_legacy">Legacy</string><string name="font_default_subtitle">SF Pro Display Â· Apple Music weights</string><string name="font_legacy_subtitle">SF Pro Display Â· Original heavy weights</string><string name="font_footer">Legacy brings back the heavier, tighter type the app used before it was matched to Apple Music.</string><string name="cover_slide_animation">Cover animation</string><string name="cover_slide_animation_subtitle">Slide the cover to the new song when the song changes</string><string name="cover_fluid_animation">Fluid cover effect</string><string name="cover_fluid_animation_subtitle">The cover melts and morphs organically into the new song</string><string name="cover_fluid_animation_locked">Turn on cover change animation first</string><string name="cover_mix_only_animation">Animate only during mix</string><string name="cover_mix_only_animation_subtitle">Cover animation plays only at the end of a song, during Automix or crossfade</string><string name="cover_style_off">Off</string><string name="cover_style_slide">Slide</string><string name="cover_style_fluid">Fluid</string><string name="cover_section_transition">Cover transition</string><string name="cover_section_animated">Animated cover</string><string name="cover_section_spotify">Spotify Canvas</string><string name="animated_cover_locked">Turn on animated cover art first</string><string name="progressive_blur">Progressive Blur</string><string name="frosted_glass">Lightweight Glass</string><string name="glass_clarity">Glass clarity</string><string name="glass_clarity_clear">Clear</string><string name="glass_clarity_balanced">Balanced</string><string name="glass_clarity_frosted">Frosted</string><string name="glass_settings">Liquid Glass settings</string><string name="glass_settings_subtitle">Blur, refraction, rainbow edge, tint, shadow and more</string><string name="glass_enable_hint">Turn on Liquid Glass to use these settings.</string><string name="glass_section_preset">Clarity preset</string><string name="glass_section_ready_presets">Ready-made presets</string><string name="glass_footer_ready_presets">Applies several values at once. The sliders below can still fine-tune it.</string><string name="glass_preset_default">Default</string><string name="glass_preset_default_subtitle">Audify\'s default glass</string><string name="glass_section_color">Blur &amp; color</string><string name="glass_section_refraction">Refraction</string><string name="glass_section_edge">Edge &amp; shadow</string><string name="glass_section_performance">Performance</string><string name="glass_footer_preset">Drag between Clear, Balanced and Frosted. The sliders below fine-tune on top of this preset; 100%% is the default look.</string><string name="glass_footer_refraction">Refraction and rainbow edge need Android 13+ and are turned off by Lightweight Glass. Rainbow \"Auto\" follows the clarity preset.</string><string name="glass_footer_performance">Higher quality is sharper but uses more GPU.</string><string name="glass_blur">Blur strength</string><string name="glass_saturation">Color vibrancy</string><string name="glass_tint">Tint opacity</string><string name="glass_refraction_amount">Refraction strength</string><string name="glass_refraction_width">Refraction width</string><string name="glass_rainbow">Rainbow edge (chromatic aberration)</string><string name="glass_auto">Auto</string><string name="glass_depth">Depth effect</string><string name="glass_depth_subtitle">Bends light toward the center of the glass.</string><string name="glass_rim">Edge highlight</string><string name="glass_shadow">Shadow</string><string name="glass_quality">Render quality</string><string name="glass_frosted_subtitle">No lens and no shadow. Much lighter on low-end phones.</string><string name="glass_progressive_subtitle">Blurs content scrolling under the status bar and top controls. Uses more GPU.</string><string name="glass_reset">Reset all glass settings</string><string name="glass_ind_section_rest">Indicator at rest</string><string name="glass_ind_footer_rest">The selection indicator keeps its curved glass edge even when you are not dragging. Needs Android 13+.</string><string name="glass_ind_rest_lens">Curved edge at rest</string><string name="glass_ind_rest_lens_subtitle">Keep the lens bend on the indicator while it is idle.</string><string name="glass_ind_rest_refraction">Rest refraction strength</string><string name="glass_ind_rest_width">Rest refraction width</string><string name="glass_ind_section_lift">Indicator while moving</string><string name="glass_ind_lift_refraction">Lifted refraction strength</string><string name="glass_ind_lift_width">Lifted refraction width</string><string name="glass_ind_rainbow">Lifted rainbow edge</string><string name="glass_ind_lift_height">Lift size</string><string name="glass_ind_icon_lift">Icon zoom while lifted</string><string name="glass_ind_squash">Stretch while moving</string><string name="glass_ind_section_surface">Indicator surface</string><string name="glass_ind_blur">Indicator blur</string><string name="glass_ind_saturation">Indicator vibrancy</string><string name="glass_ind_brightness">Indicator brightness</string><string name="glass_ind_fill">Indicator fill opacity</string><string name="glass_ind_rim">Indicator edge highlight</string><string name="glass_ind_inner_shadow">Indicator inner shadow</string><string name="glass_ind_inner_radius">Inner shadow spread</string><string name="glass_ind_shadow">Lifted shadow</string><string name="lyric_strip">Lyric line under the title</string><string name="lyric_strip_subtitle">Show the current lyric below the song title and artist</string><string name="cache_shrink_title">Lower the cache limit?</string><string name="cache_shrink_warning">%1$s is currently stored. Lowering the limit to %2$s will delete the oldest cached files to fit.</string><string name="cache_shrink_confirm">Lower</string><string name="song_cache_usage">Song cache usage</string><string name="cache_usage_songs">%1$s stored Â· %2$d songs</string><string name="canvas_cache_limit">Animated cover cache limit</string><string name="canvas_cache_limit_subtitle">Keeps looping cover clips on disk so they are not downloaded again</string><string name="canvas_cache_usage">Animated cover cache</string><string name="canvas_cache_usage_detail">%1$s stored Â· %2$d clips</string><string name="clear_canvas_cache">Clear animated cover cache</string><string name="clear_canvas_cache_subtitle">Frees space used by cover clips</string><string name="canvas_cache_cleared">Animated cover cache cleared</string><string name="opened_file">Opened file</string><string name="saved_to_audify_folder">Saved to Music/Audify</string><string name="playlist_cover_add">Add cover</string><string name="playlist_cover_change">Change cover</string><string name="playlist_cover_remove">Remove cover</string><string name="playlist_privacy_private_hint">Only you</string><string name="playlist_privacy_unlisted_hint">Anyone with the link</string><string name="playlist_privacy_public_hint">Anyone can find it</string><string name="add_songs_to_playlist">Add Songs to Playlist</string><string name="playlist_add_songs">Add songs</string><string name="sleep_timer_custom">Custom</string><string name="start_sleep_timer">Start timer</string><string name="replay_brand">Audify Replay</string><string name="replay_story_intro_a">Your year\n</string><string name="replay_story_intro_b">in music.</string><string name="replay_story_intro_sub">A year filled with the music you love.</string><string name="replay_cta_relive">Relive your year</string><string name="replay_cta_again">Replay again</string><string name="replay_story_minutes_a">Music was always </string><string name="replay_story_minutes_b">there.</string><string name="replay_story_artist_a">Your year had a </string><string name="replay_story_artist_b">favorite voice.</string><string name="replay_story_songs_a">These songs </string><string name="replay_story_songs_b">stayed with you.</string><string name="replay_story_albums_a">Albums that became </string><string name="replay_story_albums_b">part of your story.</string><string name="replay_story_personality_a">Your music </string><string name="replay_story_personality_b">personality.</string><string name="replay_story_final_a">Every song </string><string name="replay_story_final_b">tells a story.</string><string name="replay_story_final_sub">This was yours.</string><string name="replay_total_minutes">Total listening minutes</string><string name="replay_stat_hours">Hours</string><string name="replay_stat_per_day">Per day</string><string name="replay_stat_busiest">Busiest day</string><string name="replay_kicker_top_artist">Your top artist</string><string name="replay_kicker_personality">Your music personality</string><string name="replay_share_of_listening">%1$d%% of everything you played</string><string name="replay_persona_night_title">The Night Explorer</string><string name="replay_persona_night_desc">Your best listening happens after dark, when the world goes quiet and the music gets louder.</string><string name="replay_persona_dreamer_title">The Melodic Dreamer</string><string name="replay_persona_dreamer_desc">You drift through songs that feel like a place, steady and full of feeling.</string><string name="replay_persona_adventurer_title">The Sonic Adventurer</string><string name="replay_persona_adventurer_desc">You keep wandering to new artists, and no two stretches of your year sound the same.</string><string name="replay_persona_rhythm_title">The Rhythm Seeker</string><string name="replay_persona_rhythm_desc">When you find a groove, you stay in it, and your favorites earned every replay.</string><string name="replay_behavior_peak">Most active around %1$s</string><string name="replay_behavior_night">%1$d%% of your listening happens after dark</string><string name="replay_behavior_repeat">%1$s plays per song on average</string><string name="replay_behavior_day">Your biggest day was %1$s</string><string name="replay_kicker_habits">Your listening habits</string><string name="replay_stat_peak">Peak hour</string><string name="replay_stat_plays">Plays</string><string name="replay_stat_songs">Songs</string><string name="replay_stat_artists">Artists</string><string name="replay_stat_albums">Albums</string><string name="replay_stat_night">After dark</string><string name="replay_stat_repeat">Plays / song</string><string name="automix_model_title">Download Automix models</string><string name="automix_model_message">Automix needs two small analysis models (about 30 MB). They download once and stay on this device.</string><string name="automix_model_download">Download</string><string name="selected_account">Selected account</string><string name="edit_profile">Edit profile</string><string name="profile_display_name">Display name</string><string name="profile_change_photo">Change photo</string><string name="profile_reset">Reset to Google profile</string><string name="profile_local_only_note">Shown only in this app. Your Google account is not changed.</string><string name="sync_downloaded_playlists">Keep playlists updated</string><string name="sync_downloaded_playlists_subtitle">Checks twice a day and downloads songs newly added to your downloaded playlists</string><string name="playlist_sync_ask_title">New songs in %1$s: %2$d</string><string name="playlist_sync_ask_text">Tap to download</string><string name="playlist_sync_done_title">Added to %1$s: %2$d</string><string name="playlist_updates_channel">Playlist updates</string><string name="bit_perfect_output">Bit-perfect output</string><string name="bit_perfect_bypassed_footer">Bit-perfect output is ready, so the faded settings are bypassed and Dolby Atmos versions aren\'t requested. They work again when the DAC is disconnected or the mode is off.</string><string name="bit_perfect_sheet_warning">Sends the track to the DAC unchanged. The equalizer, loudness normalization, crossfade, Automix, playback speed and Audify\'s volume are bypassed.</string><string name="bit_perfect_mode_off_subtitle">Audio goes through Android\'s mixer and Audify\'s effects.</string><string name="bit_perfect_mode_usb_android">USB DAC</string><string name="bit_perfect_mode_usb_android_subtitle">Android 14 opens the DAC at each track\'s own rate and bit depth, without mixing or resampling.</string><string name="bit_perfect_requires_android_14">Requires Android 14 or later</string><string name="bit_perfect_mode_dap_exclusive">Built-in DAC (AAudio exclusive)</string><string name="bit_perfect_mode_dap_exclusive_subtitle">For music players with their own DAC. Opens the headphone or line output exclusively at each track\'s own rate. Not every device grants exclusive mode.</string><string name="bit_perfect_requires_android_8_1">Requires Android 8.1 or later</string><string name="bit_perfect_mode_usb_direct">USB DAC (direct driver)</string><string name="bit_perfect_mode_usb_direct_subtitle">Audify drives the DAC itself, on any Android version, and sets its volume on the DAC. Asks for USB permission. Can be much louder than normal output.</string><string name="dac_volume">DAC volume</string><string name="dac_volume_subtitle">Set on the DAC itself; the music is not scaled</string><string name="usb_allow_fixed_volume">Allow DACs without volume control</string><string name="usb_allow_fixed_volume_subtitle">Otherwise such a DAC plays through normal output</string><string name="usb_allow_fixed_volume_confirm_title">Play at full scale?</string><string name="usb_allow_fixed_volume_confirm_message">Audify can\'t set this kind of DAC\'s volume, so it plays at full scale and only the DAC\'s own knob, if it has one, controls loudness. This can be dangerously loud with sensitive headphones.</string><string name="convert_for_limited_dac">Convert for lower-spec DACs</string><string name="convert_for_limited_dac_subtitle">Converts tracks above your DAC\'s limit to its highest format. Tracks may take longer to start and won\'t be bit-perfect to the original.</string><string name="bit_perfect_confirm_title">Turn on bit-perfect output?</string><string name="bit_perfect_confirm_message">The DAC gets the music at full scale, and the phone\'s volume buttons may stop working. Turn the DAC or amplifier down before you play.</string><string name="bit_perfect_status_active">%1$s Â· %2$s kHz Â· %3$d-bit</string><string name="bit_perfect_status_dac_limited">%1$s Â· %2$s kHz Â· %3$d-bit Â· DAC max, converted from this track\'s format</string><string name="bit_perfect_status_inexact">%1$s Â· not exact: this source isn\'t lossless PCM</string><string name="bit_perfect_status_waiting">Waiting for a lossless track on a supported output</string><string name="bit_perfect_status_unavailable">Not available for this track (%1$s)</string><string name="lyrics_sparkle">Lyric sparkle</string><string name="lyrics_sparkle_subtitle">Tiny glimmers around held letters in LiquidFlow</string><string name="source_downloads_on">Downloads allowed</string><string name="remove_from_history">Remove from history</string><string name="remove_from_history_failed">Couldn\'t remove from history</string><string name="folders">Folders</string><string name="folder">Folder</string><string name="no_local_folders">No folders with music in them</string><string name="offline_playlist_empty">Nothing in this playlist yet. Add songs to it from their menu.</string><string name="offline_liked_empty">Songs you like on this device show up here</string><string name="saved_on_this_device">Saved on this device</string><string name="song_info_credits">Credits</string><string name="song_info_writers">Writers</string><string name="song_info_producers">Producers</string><string name="song_info_additional_vocals">Additional vocals</string><string name="song_info_sample">Sample</string><string name="footer_github">GitHub</string><string name="footer_developer">Developer</string><string name="find_your_mood">Find Your Mood</string><string name="no_audio_version">No audio version found for this video</string><string name="no_video_version">No video version found for this song</string><string name="version_switch_in_party">Everyone in Listen Together hears the same version</string></resources>
+<string name="restore_preview_body">Favorites: %1$d\nListening history: %2$d\nPlaylists: %3$d\nListening-stat months: %4$d\nSettings: %5$d\n\nBackup version: %6$s\nCreated: %7$s\n\nRestoring replaces this deviceâ€™s backed-up data.</string><string name="addon_blocked_title">Can\'t play this song</string><string name="addon_blocked_quality">Audio quality on %1$s is set to %2$s. Songs from %3$s only play at Lossless â€” change it in Settings â†’ Audio quality to play this one.</string><string name="addon_blocked_watch">Music is playing through your watch, which limits audio below Lossless. Songs from %1$s play again once your phone takes the music back.</string><string name="download_addon_left_out_title">Downloading without %1$s</string><string name="download_addon_not_allowed">%1$s doesn\'t allow downloads, so your songs are being saved from your other sources instead.</string><string name="download_addon_needs_lossless_output">%1$s only serves music while wired, USB or LDAC-class headphones are connected. Downloads skip it until one is, so your songs are being saved from your other sources instead.</string><string name="on_device">On Device</string><string name="direct_source_stream">Direct Source Stream</string><string name="direct_source_stream_in_party">Off while you\'re in a Listen Together party</string><string name="spotify_empty_playlists">No playlists on this account</string><string name="playback_speed_tempo">Speed &amp; tempo</string><string name="playback_speed_tempo_hint">Change how fast the song plays</string><string name="playback_speed">Speed</string><string name="playback_speed_hint">Faster or slower, pitch changes too</string><string name="playback_tempo">Tempo</string><string name="playback_tempo_hint">Faster or slower, pitch stays the same</string><string name="playback_reset">Reset to normal</string><string name="spatial_audio_prefer_off">Prefer Spatial Audio Off</string><string name="spatial_audio_prefer_on">Prefer Spatial Audio On</string><string name="indonesian">Indonesian</string><string name="korean">Korean</string><string name="auto_music_only">Audio over video</string><string name="auto_music_only_subtitle">Music videos play as audio automatically</string><string name="content_feed">Content &amp; Feed</string><string name="hide_home_videos">Hide videos on Home</string><string name="hide_home_videos_subtitle">Rows made only of videos go too. Search, artists and playlists still list them</string><string name="hide_home_branding">Hide Home branding</string><string name="hide_home_branding_subtitle">Shows only the Home title, without the logo</string><string name="customize_home">Customize Home</string><string name="customize_home_subtitle">Reorder rows and choose which ones show</string><string name="home_layout_description">Drag a row by its handle to move it. Untick a row to hide it from Home.</string><string name="customize_library">Customize Library</string><string name="library_layout_description">Drag a row by its handle to move it. Untick a row to hide it from Library.</string><string name="library_row_pinned">Pinned playlists</string><string name="library_row_links">Folders</string><string name="home_layout_empty">Home is still loading. Open this again once the rows have appeared.</string><string name="home_row_top_picks">Top Picks for You</string><string name="still_video_covers">Cover instead of video</string><string name="still_video_covers_subtitle">Never plays the video in the player. Songs with no audio version show their cover</string><string name="square_video_covers">Square video covers</string><string name="square_video_covers_subtitle">Shows every music video as a square, in lists, cards and the player</string><string name="bar_title_account">Account</string><string name="bar_title_advanced">Advanced</string><string name="bar_title_automix">Automix</string><string name="bar_title_bit_perfect">Bit-perfect</string><string name="bar_title_mobile_data">Mobile data</string><string name="show_listen_together_button">Show Listen Together button</string><string name="listen_together_tab">Together</string><string name="clear_canvas_cache_title">Clear animated cover cache?</string><string name="clear_canvas_cache_warning">All stored cover clips will be deleted. They will be downloaded again the next time they play.</string><string name="clear_image_cache_title">Clear image cache?</string><string name="clear_image_cache_warning">All stored album artwork will be deleted. It will be downloaded again when needed.</string><string name="show_listen_together_tab">Show Listen Together tab</string><string name="show_listen_together_tab_subtitle">Adds a Together tab to the navigation bar, right of Explore</string><string name="show_listen_together_button_subtitle">Off, the player shows only the audio output button between lyrics and the queue</string><string name="app_icon">App icon</string><string name="app_icon_default">Default</string><string name="app_icon_liquid_glass">Liquid Glass</string><string name="font">Font</string><string name="font_default">Default</string><string name="font_legacy">Legacy</string><string name="font_default_subtitle">SF Pro Display Â· Apple Music weights</string><string name="font_legacy_subtitle">SF Pro Display Â· Original heavy weights</string><string name="font_footer">Legacy brings back the heavier, tighter type the app used before it was matched to Apple Music.</string><string name="cover_slide_animation">Cover animation</string><string name="cover_slide_animation_subtitle">Slide the cover to the new song when the song changes</string><string name="cover_fluid_animation">Fluid cover effect</string><string name="cover_fluid_animation_subtitle">The cover melts and morphs organically into the new song</string><string name="cover_fluid_animation_locked">Turn on cover change animation first</string><string name="cover_mix_only_animation">Animate only during mix</string><string name="cover_mix_only_animation_subtitle">Cover animation plays only at the end of a song, during Automix or crossfade</string><string name="cover_style_off">Off</string><string name="cover_style_slide">Slide</string><string name="cover_style_fluid">Fluid</string><string name="cover_section_transition">Cover transition</string><string name="cover_section_animated">Animated cover</string><string name="cover_section_spotify">Spotify Canvas</string><string name="animated_cover_locked">Turn on animated cover art first</string><string name="progressive_blur">Progressive Blur</string><string name="frosted_glass">Lightweight Glass</string><string name="glass_clarity">Glass clarity</string><string name="glass_clarity_clear">Clear</string><string name="glass_clarity_balanced">Balanced</string><string name="glass_clarity_frosted">Frosted</string><string name="glass_settings">Liquid Glass settings</string><string name="glass_settings_subtitle">Blur, refraction, rainbow edge, tint, shadow and more</string><string name="glass_enable_hint">Turn on Liquid Glass to use these settings.</string><string name="glass_section_preset">Clarity preset</string><string name="glass_section_ready_presets">Ready-made presets</string><string name="glass_footer_ready_presets">Applies several values at once. The sliders below can still fine-tune it.</string><string name="glass_preset_default">Default</string><string name="glass_preset_default_subtitle">Audify\'s default glass</string><string name="glass_section_color">Blur &amp; color</string><string name="glass_section_refraction">Refraction</string><string name="glass_section_edge">Edge &amp; shadow</string><string name="glass_section_performance">Performance</string><string name="glass_footer_preset">Drag between Clear, Balanced and Frosted. The sliders below fine-tune on top of this preset; 100%% is the default look.</string><string name="glass_footer_refraction">Refraction and rainbow edge need Android 13+ and are turned off by Lightweight Glass. Rainbow \"Auto\" follows the clarity preset.</string><string name="glass_footer_performance">Higher quality is sharper but uses more GPU.</string><string name="glass_blur">Blur strength</string><string name="glass_saturation">Color vibrancy</string><string name="glass_tint">Tint opacity</string><string name="glass_refraction_amount">Refraction strength</string><string name="glass_refraction_width">Refraction width</string><string name="glass_rainbow">Rainbow edge (chromatic aberration)</string><string name="glass_auto">Auto</string><string name="glass_depth">Depth effect</string><string name="glass_depth_subtitle">Bends light toward the center of the glass.</string><string name="glass_rim">Edge highlight</string><string name="glass_shadow">Shadow</string><string name="glass_quality">Render quality</string><string name="glass_frosted_subtitle">No lens and no shadow. Much lighter on low-end phones.</string><string name="glass_progressive_subtitle">Blurs content scrolling under the status bar and top controls. Uses more GPU.</string><string name="glass_reset">Reset all glass settings</string><string name="glass_ind_section_rest">Indicator at rest</string><string name="glass_ind_footer_rest">The selection indicator keeps its curved glass edge even when you are not dragging. Needs Android 13+.</string><string name="glass_ind_rest_lens">Curved edge at rest</string><string name="glass_ind_rest_lens_subtitle">Keep the lens bend on the indicator while it is idle.</string><string name="glass_ind_rest_refraction">Rest refraction strength</string><string name="glass_ind_rest_width">Rest refraction width</string><string name="glass_ind_section_lift">Indicator while moving</string><string name="glass_ind_lift_refraction">Lifted refraction strength</string><string name="glass_ind_lift_width">Lifted refraction width</string><string name="glass_ind_rainbow">Lifted rainbow edge</string><string name="glass_ind_lift_height">Lift size</string><string name="glass_ind_icon_lift">Icon zoom while lifted</string><string name="glass_ind_squash">Stretch while moving</string><string name="glass_ind_section_surface">Indicator surface</string><string name="glass_ind_blur">Indicator blur</string><string name="glass_ind_saturation">Indicator vibrancy</string><string name="glass_ind_brightness">Indicator brightness</string><string name="glass_ind_fill">Indicator fill opacity</string><string name="glass_ind_rim">Indicator edge highlight</string><string name="glass_ind_inner_shadow">Indicator inner shadow</string><string name="glass_ind_inner_radius">Inner shadow spread</string><string name="glass_ind_shadow">Lifted shadow</string><string name="lyric_strip">Lyric line under the title</string><string name="lyric_strip_subtitle">Show the current lyric below the song title and artist</string><string name="cache_shrink_title">Lower the cache limit?</string><string name="cache_shrink_warning">%1$s is currently stored. Lowering the limit to %2$s will delete the oldest cached files to fit.</string><string name="cache_shrink_confirm">Lower</string><string name="song_cache_usage">Song cache usage</string><string name="cache_usage_songs">%1$s stored Â· %2$d songs</string><string name="canvas_cache_limit">Animated cover cache limit</string><string name="canvas_cache_limit_subtitle">Keeps looping cover clips on disk so they are not downloaded again</string><string name="canvas_cache_usage">Animated cover cache</string><string name="canvas_cache_usage_detail">%1$s stored Â· %2$d clips</string><string name="clear_canvas_cache">Clear animated cover cache</string><string name="clear_canvas_cache_subtitle">Frees space used by cover clips</string><string name="canvas_cache_cleared">Animated cover cache cleared</string><string name="opened_file">Opened file</string><string name="saved_to_audify_folder">Saved to Music/Audify</string><string name="playlist_cover_add">Add cover</string><string name="playlist_cover_change">Change cover</string><string name="playlist_cover_remove">Remove cover</string><string name="playlist_privacy_private_hint">Only you</string><string name="playlist_privacy_unlisted_hint">Anyone with the link</string><string name="playlist_privacy_public_hint">Anyone can find it</string><string name="add_songs_to_playlist">Add Songs to Playlist</string><string name="playlist_add_songs">Add songs</string><string name="sleep_timer_custom">Custom</string><string name="start_sleep_timer">Start timer</string><string name="replay_brand">Audify Replay</string><string name="replay_story_intro_a">Your year\n</string><string name="replay_story_intro_b">in music.</string><string name="replay_story_intro_sub">A year filled with the music you love.</string><string name="replay_cta_relive">Relive your year</string><string name="replay_cta_again">Replay again</string><string name="replay_story_minutes_a">Music was always </string><string name="replay_story_minutes_b">there.</string><string name="replay_story_artist_a">Your year had a </string><string name="replay_story_artist_b">favorite voice.</string><string name="replay_story_songs_a">These songs </string><string name="replay_story_songs_b">stayed with you.</string><string name="replay_story_albums_a">Albums that became </string><string name="replay_story_albums_b">part of your story.</string><string name="replay_story_personality_a">Your music </string><string name="replay_story_personality_b">personality.</string><string name="replay_story_final_a">Every song </string><string name="replay_story_final_b">tells a story.</string><string name="replay_story_final_sub">This was yours.</string><string name="replay_total_minutes">Total listening minutes</string><string name="replay_stat_hours">Hours</string><string name="replay_stat_per_day">Per day</string><string name="replay_stat_busiest">Busiest day</string><string name="replay_kicker_top_artist">Your top artist</string><string name="replay_kicker_personality">Your music personality</string><string name="replay_share_of_listening">%1$d%% of everything you played</string><string name="replay_persona_night_title">The Night Explorer</string><string name="replay_persona_night_desc">Your best listening happens after dark, when the world goes quiet and the music gets louder.</string><string name="replay_persona_dreamer_title">The Melodic Dreamer</string><string name="replay_persona_dreamer_desc">You drift through songs that feel like a place, steady and full of feeling.</string><string name="replay_persona_adventurer_title">The Sonic Adventurer</string><string name="replay_persona_adventurer_desc">You keep wandering to new artists, and no two stretches of your year sound the same.</string><string name="replay_persona_rhythm_title">The Rhythm Seeker</string><string name="replay_persona_rhythm_desc">When you find a groove, you stay in it, and your favorites earned every replay.</string><string name="replay_behavior_peak">Most active around %1$s</string><string name="replay_behavior_night">%1$d%% of your listening happens after dark</string><string name="replay_behavior_repeat">%1$s plays per song on average</string><string name="replay_behavior_day">Your biggest day was %1$s</string><string name="replay_kicker_habits">Your listening habits</string><string name="replay_stat_peak">Peak hour</string><string name="replay_stat_plays">Plays</string><string name="replay_stat_songs">Songs</string><string name="replay_stat_artists">Artists</string><string name="replay_stat_albums">Albums</string><string name="replay_stat_night">After dark</string><string name="replay_stat_repeat">Plays / song</string><string name="automix_model_title">Download Automix models</string><string name="automix_model_message">Automix needs two small analysis models (about 30 MB). They download once and stay on this device.</string><string name="automix_model_download">Download</string><string name="selected_account">Selected account</string><string name="edit_profile">Edit profile</string><string name="profile_display_name">Display name</string><string name="profile_change_photo">Change photo</string><string name="profile_reset">Reset to Google profile</string><string name="profile_local_only_note">Shown only in this app. Your Google account is not changed.</string><string name="sync_downloaded_playlists">Keep playlists updated</string><string name="sync_downloaded_playlists_subtitle">Checks twice a day and downloads songs newly added to your downloaded playlists</string><string name="playlist_sync_ask_title">New songs in %1$s: %2$d</string><string name="playlist_sync_ask_text">Tap to download</string><string name="playlist_sync_done_title">Added to %1$s: %2$d</string><string name="playlist_updates_channel">Playlist updates</string><string name="bit_perfect_output">Bit-perfect output</string><string name="bit_perfect_bypassed_footer">Bit-perfect output is ready, so the faded settings are bypassed and Dolby Atmos versions aren\'t requested. They work again when the DAC is disconnected or the mode is off.</string><string name="bit_perfect_sheet_warning">Sends the track to the DAC unchanged. The equalizer, loudness normalization, crossfade, Automix, playback speed and Audify\'s volume are bypassed.</string><string name="bit_perfect_mode_off_subtitle">Audio goes through Android\'s mixer and Audify\'s effects.</string><string name="bit_perfect_mode_usb_android">USB DAC</string><string name="bit_perfect_mode_usb_android_subtitle">Android 14 opens the DAC at each track\'s own rate and bit depth, without mixing or resampling.</string><string name="bit_perfect_requires_android_14">Requires Android 14 or later</string><string name="bit_perfect_mode_dap_exclusive">Built-in DAC (AAudio exclusive)</string><string name="bit_perfect_mode_dap_exclusive_subtitle">For music players with their own DAC. Opens the headphone or line output exclusively at each track\'s own rate. Not every device grants exclusive mode.</string><string name="bit_perfect_requires_android_8_1">Requires Android 8.1 or later</string><string name="bit_perfect_mode_usb_direct">USB DAC (direct driver)</string><string name="bit_perfect_mode_usb_direct_subtitle">Audify drives the DAC itself, on any Android version, and sets its volume on the DAC. Asks for USB permission. Can be much louder than normal output.</string><string name="dac_volume">DAC volume</string><string name="dac_volume_subtitle">Set on the DAC itself; the music is not scaled</string><string name="usb_allow_fixed_volume">Allow DACs without volume control</string><string name="usb_allow_fixed_volume_subtitle">Otherwise such a DAC plays through normal output</string><string name="usb_allow_fixed_volume_confirm_title">Play at full scale?</string><string name="usb_allow_fixed_volume_confirm_message">Audify can\'t set this kind of DAC\'s volume, so it plays at full scale and only the DAC\'s own knob, if it has one, controls loudness. This can be dangerously loud with sensitive headphones.</string><string name="convert_for_limited_dac">Convert for lower-spec DACs</string><string name="convert_for_limited_dac_subtitle">Converts tracks above your DAC\'s limit to its highest format. Tracks may take longer to start and won\'t be bit-perfect to the original.</string><string name="bit_perfect_confirm_title">Turn on bit-perfect output?</string><string name="bit_perfect_confirm_message">The DAC gets the music at full scale, and the phone\'s volume buttons may stop working. Turn the DAC or amplifier down before you play.</string><string name="bit_perfect_status_active">%1$s Â· %2$s kHz Â· %3$d-bit</string><string name="bit_perfect_status_dac_limited">%1$s Â· %2$s kHz Â· %3$d-bit Â· DAC max, converted from this track\'s format</string><string name="bit_perfect_status_inexact">%1$s Â· not exact: this source isn\'t lossless PCM</string><string name="bit_perfect_status_waiting">Waiting for a lossless track on a supported output</string><string name="bit_perfect_status_unavailable">Not available for this track (%1$s)</string><string name="lyrics_sparkle">Lyric sparkle</string><string name="lyrics_sparkle_subtitle">Tiny glimmers around held letters in LiquidFlow</string><string name="source_downloads_on">Downloads allowed</string><string name="remove_from_history">Remove from history</string><string name="remove_from_history_failed">Couldn\'t remove from history</string><string name="folders">Folders</string><string name="folder">Folder</string><string name="no_local_folders">No folders with music in them</string><string name="offline_playlist_empty">Nothing in this playlist yet. Add songs to it from their menu.</string><string name="offline_liked_empty">Songs you like on this device show up here</string><string name="saved_on_this_device">Saved on this device</string><string name="song_info_credits">Credits</string><string name="song_info_writers">Writers</string><string name="song_info_producers">Producers</string><string name="song_info_additional_vocals">Additional vocals</string><string name="song_info_sample">Sample</string><string name="footer_github">GitHub</string><string name="footer_developer">Developer</string><string name="find_your_mood">Find Your Mood</string><string name="no_audio_version">No audio version found for this video</string><string name="no_video_version">No video version found for this song</string><string name="version_switch_in_party">Everyone in Listen Together hears the same version</string></resources>

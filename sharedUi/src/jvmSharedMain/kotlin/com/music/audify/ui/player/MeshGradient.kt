@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.layout
 import coil3.compose.LocalPlatformContext
 import com.music.audify.ui.graphics.FADE_CURVE_STOPS
 import com.music.audify.ui.graphics.forPixelAccess
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.music.audify.ui.graphics.ColorUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -59,7 +61,54 @@ private val FallbackColors = listOf(
 
 /** The four mesh colours, wrapped so the backdrop can skip recomposition. */
 @Immutable
-data class MeshPalette(val colors: List<Color>)
+data class MeshPalette(
+    val colors: List<Color>,
+    /** The first artwork palette on a cold start is applied directly, not mistaken for a track transition. */
+    val animateChanges: Boolean = true,
+)
+
+private val artworkPaletteCache = object : LinkedHashMap<String, MeshPalette>(32, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MeshPalette>?): Boolean = size > 64
+}
+
+/** Palette prefetch runs on a worker while composition reads the same LRU. */
+private fun cachedArtworkPalette(key: String): MeshPalette? =
+    synchronized(artworkPaletteCache) { artworkPaletteCache[key] }
+
+private fun cacheArtworkPalette(key: String, palette: MeshPalette) {
+    synchronized(artworkPaletteCache) { artworkPaletteCache[key] = palette }
+}
+
+internal fun hasCachedArtworkPalette(imageUrl: String): Boolean =
+    cachedArtworkPalette(imageUrl) != null
+
+/** Computes the incoming cover's mesh palette before AutoMix hands it over. */
+internal suspend fun prefetchArtworkPalette(
+    context: PlatformContext,
+    imageUrl: String,
+    sourceBitmap: ImageBitmap? = null,
+) {
+    if (cachedArtworkPalette(imageUrl) != null) return
+    val bitmap = sourceBitmap ?: run {
+        val request = ImageRequest.Builder(context)
+            .data(imageUrl)
+            .size(128)
+            .forPixelAccess()
+            .build()
+        (SingletonImageLoader.get(context).execute(request) as? SuccessResult)
+            ?.image?.toImageBitmap()
+    } ?: return
+    val computed = withContext(Dispatchers.Default) { MeshPalette(paletteOf(bitmap)) }
+    cacheArtworkPalette(imageUrl, computed)
+}
+
+private val MeshAnchors = listOf(
+    Offset(0.20f, 0.25f),
+    Offset(0.80f, 0.20f),
+    Offset(0.75f, 0.80f),
+    Offset(0.25f, 0.75f),
+)
+private val MeshSpeeds = floatArrayOf(1f, -0.7f, 0.85f, -1.15f)
 
 /**
  * The Apple Music "Now Playing" backdrop: four luminous colour blobs sampled
@@ -122,15 +171,28 @@ fun MeshGradientBackground(
 ) {
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
 
-    val tuned = (palette.colors.ifEmpty { FallbackColors } + FallbackColors)
-        .take(4)
-        .map { it.tuned() }
+    val tuned = remember(palette.colors) {
+        (palette.colors.ifEmpty { FallbackColors } + FallbackColors)
+            .take(4)
+            .map { it.tuned() }
+    }
 
     // Each colour slot crossfades independently when the track (palette) changes,
     // unless "reduce animation" is on, in which case colours snap straight to target.
-    val colorSpec: AnimationSpec<Color> = if (reduceAnimation || !animated) snap() else tween(colorFadeMillis)
+    val colorSpec: AnimationSpec<Color> =
+        if (reduceAnimation || !animated || !palette.animateChanges) snap() else tween(colorFadeMillis)
     val animatedColors = tuned.mapIndexed { index, color ->
         animateColorAsState(color, colorSpec, label = "meshColor$index").value
+    }
+    // Gradient stop arrays depend on colour, not on the draw frame. Keep them
+    // out of the Canvas draw lambda so the 60/120 Hz path allocates no arrays.
+    val colorStops = remember(animatedColors) {
+        animatedColors.map { color ->
+            Array(FADE_CURVE_STOPS + 1) { i ->
+                val t = i / FADE_CURVE_STOPS.toFloat()
+                t to color.copy(alpha = BLOB_ALPHA * (1f - smootherStep(t)))
+            }
+        }
     }
     val baseColor by animateColorAsState(tuned.first().dimmed(), colorSpec, label = "meshBase")
 
@@ -181,22 +243,16 @@ fun MeshGradientBackground(
                 scaleY = 1.3f
             }
             .background(baseColor)
-            .blur(blurRadius),
+            .renderedAtLowRes()
+            .blur(blurRadius / BACKDROP_RENDER_DIVISOR),
     ) {
-        val anchors = listOf(
-            Offset(0.20f, 0.25f),
-            Offset(0.80f, 0.20f),
-            Offset(0.75f, 0.80f),
-            Offset(0.25f, 0.75f),
-        )
-        val speeds = listOf(1f, -0.7f, 0.85f, -1.15f)
         val drift = phase.value
 
         animatedColors.forEachIndexed { index, color ->
-            val anchor = anchors[index]
+            val anchor = MeshAnchors[index]
             val center = Offset(
-                x = (anchor.x + 0.16f * cos(drift * speeds[index] + index * 1.7f)) * size.width,
-                y = (anchor.y + 0.16f * sin(drift * speeds[index] * 0.9f + index * 2.3f)) * size.height,
+                x = (anchor.x + 0.16f * cos(drift * MeshSpeeds[index] + index * 1.7f)) * size.width,
+                y = (anchor.y + 0.16f * sin(drift * MeshSpeeds[index] * 0.9f + index * 2.3f)) * size.height,
             )
             val radius = size.maxDimension * 0.62f
             drawCircle(
@@ -204,10 +260,7 @@ fun MeshGradientBackground(
                 // stops dead at the rim, and that corner showed as a ring where each
                 // blob ended, even through the blur.
                 brush = Brush.radialGradient(
-                    colorStops = Array(FADE_CURVE_STOPS + 1) { i ->
-                        val t = i / FADE_CURVE_STOPS.toFloat()
-                        t to color.copy(alpha = BLOB_ALPHA * (1f - smootherStep(t)))
-                    },
+                    colorStops = colorStops[index],
                     center = center,
                     radius = radius,
                 ),
@@ -230,6 +283,28 @@ fun MeshGradientBackground(
 
 /** A blob's opacity at its centre. */
 private const val BLOB_ALPHA = 0.85f
+/** The mesh is heavily blurred, so render at quarter resolution before blur. */
+private const val BACKDROP_RENDER_DIVISOR = 4
+
+/** Measures the child at 1/N size and scales its layer back to the full bounds. */
+private fun Modifier.renderedAtLowRes(): Modifier = layout { measurable, constraints ->
+    val width = constraints.maxWidth
+    val height = constraints.maxHeight
+    val smallWidth = (width / BACKDROP_RENDER_DIVISOR).coerceAtLeast(1)
+    val smallHeight = (height / BACKDROP_RENDER_DIVISOR).coerceAtLeast(1)
+    val placeable = measurable.measure(
+        androidx.compose.ui.unit.Constraints.fixed(smallWidth, smallHeight),
+    )
+    val sx = width.toFloat() / smallWidth
+    val sy = height.toFloat() / smallHeight
+    layout(width, height) {
+        placeable.placeWithLayer(0, 0) {
+            scaleX = sx
+            scaleY = sy
+            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+        }
+    }
+}
 
 /**
  * How long each palette in a [cyclingMeshPalette] is held, which is also how
@@ -294,10 +369,27 @@ fun cyclingMeshPalette(
 @Composable
 fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): MeshPalette {
     val context = LocalPlatformContext.current
-    var palette by remember(imageUrl) { mutableStateOf(MeshPalette(FallbackColors)) }
+    // Keep the previous cover's colours while a new cover is decoded. On a
+    // cold start there is no previous palette, so the first real palette is
+    // applied directly instead of crossfading from unrelated fallback colours.
+    var palette by remember(imageUrl) {
+        mutableStateOf(imageUrl?.let(::cachedArtworkPalette)
+            ?: MeshPalette(FallbackColors, animateChanges = false))
+    }
+    var hasResolvedArtworkPalette by remember(imageUrl) {
+        mutableStateOf(imageUrl != null && cachedArtworkPalette(imageUrl) != null)
+    }
 
     LaunchedEffect(imageUrl) {
-        if (imageUrl == null) return@LaunchedEffect
+        if (imageUrl == null) {
+            palette = MeshPalette(FallbackColors, animateChanges = hasResolvedArtworkPalette)
+            return@LaunchedEffect
+        }
+        cachedArtworkPalette(imageUrl)?.let {
+            palette = it
+            hasResolvedArtworkPalette = true
+            return@LaunchedEffect
+        }
         val request = ImageRequest.Builder(context)
             .data(imageUrl)
             .size(128) // palette quality is fine at thumbnail size, and it's fast
@@ -305,7 +397,9 @@ fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): 
             .build()
         val result = SingletonImageLoader.get(context).execute(request)
         val bitmap = (result as? SuccessResult)?.image?.toImageBitmap() ?: return@LaunchedEffect
-        palette = MeshPalette(paletteOf(bitmap))
+        palette = MeshPalette(paletteOf(bitmap), animateChanges = hasResolvedArtworkPalette)
+        cacheArtworkPalette(imageUrl, palette)
+        hasResolvedArtworkPalette = true
     }
 
     LaunchedEffect(canvasFrame) {
@@ -315,7 +409,7 @@ fun rememberArtworkColors(imageUrl: String?, canvasFrame: ImageBitmap? = null): 
         // threshold because compression noise pushes mean luminance above ~12.
         if (isLikelyBlackFrame(frame)) return@LaunchedEffect
         val colors = withContext(Dispatchers.Default) { paletteOf(frame) }
-        palette = MeshPalette(colors)
+        palette = MeshPalette(colors, animateChanges = hasResolvedArtworkPalette)
     }
     return palette
 }

@@ -22,6 +22,12 @@ internal suspend fun <S, R> persistBeforePublish(
     result
 }
 
+internal fun mergeImportedSongs(existing: LocalPlaylist, imported: List<Song>): LocalPlaylist {
+    val known = existing.songs.mapTo(HashSet()) { it.videoId }
+    val additions = imported.filter { it.videoId.isNotBlank() && known.add(it.videoId) }
+    return existing.copy(songs = existing.songs + additions)
+}
+
 data class LocalPlaylist(
     val id: String,
     val title: String,
@@ -149,11 +155,11 @@ object LocalPlaylistStore {
     /** Appends the tracks the playlist does not hold yet and returns how many went in. */
     fun addSongs(id: String, songs: List<Song>): Int {
         val current = getPlaylist(id) ?: return 0
-        val known = current.songs.mapTo(HashSet()) { it.videoId }
-        val fresh = songs.filter { known.add(it.videoId) }
-        if (fresh.isEmpty()) return 0
-        replace(current.id) { it.copy(songs = it.songs + fresh) }
-        return fresh.size
+        val merged = mergeImportedSongs(current, songs)
+        val added = merged.songs.size - current.songs.size
+        if (added <= 0) return 0
+        replace(current.id) { merged }
+        return added
     }
 
     fun removeSong(id: String, videoId: String) {

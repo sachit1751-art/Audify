@@ -24,7 +24,7 @@ data class ThemePack(
 )
 
 /** Surface token family used when the app is in dark mode. Light mode remains user-selectable. */
-enum class ThemeSurfaceStyle { DEFAULT, AMOLED, MIDNIGHT, GRAPHITE, DEEP_PURPLE, WARM, SLATE }
+enum class ThemeSurfaceStyle { DEFAULT, MIDNIGHT, GRAPHITE, DEEP_PURPLE, WARM, SLATE }
 
 object ThemePacks {
     const val CLASSIC_ID = "classic"
@@ -35,6 +35,8 @@ object ThemePacks {
         ThemePack("graphite", "Graphite", "#D1D5DB", "#9CA3AF", "#93C5FD", ThemeSurfaceStyle.GRAPHITE),
         ThemePack("ocean", "Ocean", "#55C7F2", "#80E0D0", "#3478F6"),
         ThemePack("forest", "Forest", "#80D6A3", "#B5D98C", "#3C9B78"),
+        ThemePack("sunset", "Sunset", "#FFAD78", "#F47D9A", "#B77CFF"),
+        ThemePack("rose", "Rose", "#F48FB1", "#E6A6D8", "#B58CFF"),
         ThemePack("soft-sage", "Soft Sage", "#66806C", "#9AA58A", "#49675C", ThemeSurfaceStyle.SLATE),
         ThemePack("warm-sand", "Warm Sand", "#92765C", "#B59A7B", "#6D766A", ThemeSurfaceStyle.WARM),
     )
@@ -53,7 +55,6 @@ object ThemePacks {
      */
     fun darkBackgroundHex(pack: ThemePack): String {
         return when (pack.surfaceStyle) {
-            ThemeSurfaceStyle.AMOLED -> "#000000"
             ThemeSurfaceStyle.MIDNIGHT -> "#080D18"
             ThemeSurfaceStyle.GRAPHITE -> "#15171B"
             ThemeSurfaceStyle.DEEP_PURPLE -> "#120D1D"

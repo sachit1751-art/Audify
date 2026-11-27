@@ -738,7 +738,12 @@ data class UserPlaylist(
     val subtitle: String,
     val thumbnailUrl: String?,
 ) {
-    val browseId: String get() = if (playlistId.startsWith("sp_local_")) "local:playlist:$playlistId" else "VL$playlistId"
+    val browseId: String
+        get() = if (playlistId.startsWith("sp_local_")) {
+            "local:playlist:$playlistId"
+        } else {
+            "VL$playlistId"
+        }
 }
 
 /**

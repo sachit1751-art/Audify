@@ -42,14 +42,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +64,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 data class BottomTab(
@@ -262,7 +266,8 @@ fun FloatingBottomBar(
     }
 
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .then(modifier)
             .windowInsetsPadding(floatingBarInsets)
             .padding(horizontal = if (useGlass) NAV_BAR_GUTTER else BAR_GUTTER)
             .padding(bottom = if (useGlass) NAV_BAR_LIFT else CLASSIC_BAR_BOTTOM_PADDING)

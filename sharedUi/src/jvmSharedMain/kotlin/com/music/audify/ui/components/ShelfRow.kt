@@ -51,8 +51,8 @@ fun Modifier.shelfStagger(index: Int): Modifier = this
 
 /**
  * A sideways-scrolling shelf, in whatever the platform wraps one in — see [ShelfRowChrome].
- * Uses the native LazyRow fling so gestures keep momentum without a
- * forced snap animation competing with artwork loading and feed scrolling.
+ * Keep Compose's native fling so fast swipes retain their momentum and never
+ * get pulled back to a card boundary by a snapping animation.
  */
 @Composable
 fun ShelfRow(

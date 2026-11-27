@@ -258,8 +258,8 @@ fun TvNowPlayingScreen(
 
         AnimatedVisibility(
             visible = controlsVisible,
-            enter = if (reduceMotion) fadeIn(tween(120)) else fadeIn(tween(240)) + slideInVertically(tween(320)) { it / 6 },
-            exit = if (reduceMotion) fadeOut(tween(120)) else fadeOut(tween(320)) + slideOutVertically(tween(320)) { it / 6 },
+            enter = if (reduceMotion) fadeIn(tween(120)) else fadeIn(tween(220)) + slideInVertically(tween(260)) { it / 6 },
+            exit = if (reduceMotion) fadeOut(tween(120)) else fadeOut(tween(260)) + slideOutVertically(tween(260)) { it / 6 },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             TvTransport(

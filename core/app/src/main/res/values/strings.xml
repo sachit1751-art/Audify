@@ -3,94 +3,94 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   <string name="smart_playlists">Smart Playlists</string>
-  
-  
-  
+
+
+
   <string name="restore_preview_body">Favorites: %1$d\nListening history: %2$d\nPlaylists: %3$d\nListening-stat months: %4$d\nSettings: %5$d\n\nBackup version: %6$s\nCreated: %7$s\n\nRestoring replaces this device’s backed-up data.</string>
-  
-  
-  
-  
-  
+
+
+
+
+
   <string name="backup">Backup</string>
   <string name="updates">Updates</string>
   <string name="settings_privacy_data" translatable="false">Privacy &amp; data</string>
   <string name="about" translatable="false">About</string>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   <string name="counted_on_device_with_audify">Counted on this device with Audify</string>
   <!-- Listen together -->
   <!-- Settings: Audify for Wear OS -->
-  
-  
-  
+
+
+
   <string name="audify_selected">Selected</string>
-  
-  
+
+
   <string name="app_name">Audify</string>
   <string name="playback_channel_name">Now playing</string>
-  
-  
+
+
   <string name="download_notification_title">Downloading</string>
   <string name="download_notification_starting">Starting</string>
-  
+
   <string name="upload_channel_name">Uploads</string>
   <string name="upload_channel_description">Songs being sent to your WebDAV server</string>
   <string name="upload_notification_title">Uploading</string>
@@ -127,7 +127,7 @@ Project: AUDIFY
   <string name="on_device">On Device</string>
   <string name="playlists">Playlists</string>
   <string name="new_playlist">New playlist</string>
-  
+
   <string name="sign_in">Sign in</string>
   <string name="sign_out">Sign out</string>
   <string name="signed_in">Signed in</string>
@@ -178,7 +178,7 @@ Project: AUDIFY
   <string name="download_all">Download all</string>
   <string name="top_songs">Top songs</string>
   <string name="suggested">Suggested</string>
-  
+
   <plurals name="song_count_plural">
     <item quantity="one">%1$d song</item>
     <item quantity="other">%1$d songs</item>
@@ -187,23 +187,23 @@ Project: AUDIFY
     <item quantity="one">%1$d track</item>
     <item quantity="other">%1$d tracks</item>
   </plurals>
-  
-  
+
+
   <string name="songs">Songs</string>
   <string name="artists">Artists</string>
   <string name="albums">Albums</string>
-  
-  
-  
+
+
+
   <string name="clear">Clear</string>
-  
+
   <string name="settings_search_hint">Search settings</string>
   <string name="settings_search_empty">No settings match “%1$s”</string>
-  
-  
+
+
   <string name="storage_required_save">Storage access is needed to save songs</string>
   <string name="storage_required_read">Storage permission is required to read local audio files</string>
-  
+
   <string name="already_downloaded">Already downloaded</string>
   <plurals name="downloading_song_count">
     <item quantity="one">Downloading %1$d song</item>
@@ -212,11 +212,11 @@ Project: AUDIFY
   <string name="source">Sources</string>
   <string name="direct_source_stream">Direct Source Stream</string>
   <string name="direct_source_stream_in_party">Off while you\'re in a Listen Together party</string>
-  
-  
-  
-  
-  
+
+
+
+
+
   <string name="remove_source">Remove this source</string>
   <string name="test">Test</string>
   <string name="testing">Testing…</string>
@@ -229,7 +229,7 @@ Project: AUDIFY
   <string name="spotify_disconnect">Disconnect</string>
   <string name="spotify_empty_playlists">No playlists on this account</string>
   <string name="spotify_empty_tracks">This playlist has no tracks</string>
-  
+
   <string name="account_scrobbling">Account &amp; scrobbling</string>
   <string name="rich_presence">Rich presence</string>
   <string name="scrobbling">Scrobbling</string>
@@ -241,8 +241,8 @@ Project: AUDIFY
   <string name="song_cache_cleared">Song cache cleared</string>
   <string name="image_cache_cleared">Image cache cleared</string>
   <string name="no_equalizer">No system equalizer on this device</string>
-  
-  
+
+
   <string name="update_available">Update available: v%1$s</string>
   <string name="software_update">Software Update</string>
   <string name="update_available_body">Audify %1$s is available to download.</string>
@@ -256,14 +256,14 @@ Project: AUDIFY
   <string name="try_again">Try Again</string>
   <string name="open_releases_page">Open Releases Page</string>
   <string name="whats_new">What’s new</string>
-  
+
   <string name="sign_in_youtube_music">Sign in to YouTube Music</string>
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
   <string name="play_next">Play next</string>
   <string name="queue">Queue</string>
   <string name="source_unrecognised">Audify could not tell what that link is</string>
@@ -283,7 +283,7 @@ Project: AUDIFY
   <string name="widget_previous">Previous</string>
   <string name="widget_artwork">Album art</string>
   <string name="widget_nothing_played">Nothing played yet</string>
-  
+
   <string name="widget_preview_title">Song title</string>
   <string name="widget_preview_artist">Artist</string>
   <string name="widget_pill_label">Now playing 4×1</string>
@@ -300,7 +300,7 @@ Project: AUDIFY
   <string name="playback_tempo">Tempo</string>
   <string name="playback_tempo_hint">Faster or slower, pitch stays the same</string>
   <string name="playback_reset">Reset to normal</string>
-  
+
   <string name="revert_to_original">Revert to original</string>
   <string name="upgrade_quality">Upgrade quality</string>
   <string name="dolby_atmos">Dolby Atmos</string>
@@ -329,45 +329,45 @@ Project: AUDIFY
   <string name="app_language">App language</string>
   <string name="app_language_description">Choose the language used by Audify.</string>
   <string name="english">English</string>
-  
-  
-  
-  
-  
+
+
+
+
+
   <string name="indonesian">Indonesian</string>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
   <string name="korean">Korean</string>
   <string name="show_all">Show all</string>
-  
-  
+
+
   <string name="switch_to_grid_view">Switch to grid view</string>
   <string name="switch_to_list_view">Switch to list view</string>
   <string name="audio_quality">Audio quality</string>
-  
-  
+
+
   <string name="playback">Playback</string>
   <string name="appearance">Appearance</string>
   <string name="storage">Storage</string>
-  
+
   <string name="miscellaneous">Miscellaneous</string>
-  
+
   <string name="on_wifi">On Wi-Fi</string>
   <string name="on_mobile_data">On mobile data</string>
   <string name="in_use">In use</string>
   <string name="blocking">Blocking</string>
   <string name="crossfade">Crossfade</string>
   <string name="crossfade_subtitle">Blends one track into the next</string>
-  <string name="crossfade_on_skip">Crossfade on next/previous</string>
-  <string name="crossfade_on_skip_subtitle">Fades into the song you skip to, and the cover dissolves along with it</string>
+
+
   <string name="automix">Automix [BETA]</string>
   <string name="automix_performance">Automix performance</string>
   <string name="automix_performance_subtitle">Sets how much CPU background analysis may use</string>
@@ -386,16 +386,16 @@ Project: AUDIFY
   <string name="auto_music_only">Audio over video</string>
   <string name="auto_music_only_subtitle">Music videos play as audio automatically</string>
   <string name="content_feed">Content &amp; Feed</string>
-  
-  
+
+
   <string name="hide_home_videos">Hide videos on Home</string>
   <string name="hide_home_videos_subtitle">Rows made only of videos go too. Search, artists and playlists still list them</string>
   <string name="hide_home_branding">Hide Home branding</string>
   <string name="hide_home_branding_subtitle">Shows only the Home title, without the logo</string>
-  
-  
-  
-  
+
+
+
+
   <string name="customize_home">Customize Home</string>
   <string name="customize_home_subtitle">Reorder rows and choose which ones show</string>
   <string name="home_layout_description">Drag a row by its handle to move it. Untick a row to hide it from Home.</string>
@@ -467,8 +467,8 @@ Project: AUDIFY
   <string name="clear_image_cache_warning">All stored album artwork will be deleted. It will be downloaded again when needed.</string>
   <string name="show_listen_together_tab">Show Listen Together tab</string>
   <string name="show_listen_together_tab_subtitle">Adds a Together tab to the navigation bar, right of Explore</string>
-  
-  
+
+
   <string name="show_listen_together_button_subtitle">Off, the player shows only the audio output button between lyrics and the queue</string>
   <string name="app_icon">App icon</string>
   <string name="app_icon_default">Default</string>
@@ -484,28 +484,28 @@ Project: AUDIFY
   <string name="app_icon_mint" translatable="false">Mint</string>
   <string name="app_icon_lavender" translatable="false">Lavender</string>
   <string name="app_icon_ruby" translatable="false">Ruby</string>
-  
+
   <string name="app_icon_liquid_glass">Liquid Glass</string>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   <string name="theme">Theme</string>
   <string name="font">Font</string>
   <string name="font_default">Default</string>
@@ -513,18 +513,18 @@ Project: AUDIFY
   <string name="font_default_subtitle">SF Pro Display · Apple Music weights</string>
   <string name="font_legacy_subtitle">SF Pro Display · Original heavy weights</string>
   <string name="font_footer">Legacy brings back the heavier, tighter type the app used before it was matched to Apple Music.</string>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
   <string name="reduce_animation">Reduce animation</string>
   <string name="reduce_animation_subtitle">Freezes the main player\'s gradient instead of drifting</string>
   <string name="cover_slide_animation">Cover animation</string>
@@ -559,10 +559,10 @@ Project: AUDIFY
   <string name="glass_footer_ready_presets">Applies several values at once. The sliders below can still fine-tune it.</string>
   <string name="glass_preset_default">Default</string>
   <string name="glass_preset_default_subtitle">Audify\'s default glass</string>
-  
-  
-  
-  
+
+
+
+
   <string name="glass_preset_performance" translatable="false">Performance</string>
   <string name="glass_preset_performance_subtitle" translatable="false">Lighter frosted surfaces, reduced blur and shadows, no lens refraction. Best for smoother scrolling and older devices.</string>
   <string name="glass_preset_best_experience" translatable="false">Best Liquid Glass</string>
@@ -675,7 +675,7 @@ Project: AUDIFY
   <string name="high_performance_mode">High performance mode</string>
   <string name="high_performance_subtitle">Uses full animations and blur, and requests a higher display refresh rate</string>
   <string name="high_performance_active">%1$d Hz requested. Android may lower it when needed.</string>
-  
+
   <string name="refresh_rate">Refresh rate</string>
   <string name="high_performance_before_enabling">Before enabling</string>
   <string name="high_performance_battery_warning">First set Audify\'s battery usage to Unrestricted. Higher refresh rates use more battery, CPU and GPU, and may warm your device.</string>
@@ -684,13 +684,13 @@ Project: AUDIFY
   <string name="enable_high_performance_confirmation">Enable only if Audify\'s battery use is set to Unrestricted. Android can still limit the refresh rate when the device is hot or low on power.</string>
   <string name="enable">Enable</string>
   <string name="not_yet">Not yet</string>
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
   <string name="add_addon">Add an addon</string>
   <string name="add_addon_detail">Point Audify at an addon server you host or were given a link to</string>
   <string name="add_to_queue">Add to queue</string>
@@ -699,7 +699,7 @@ Project: AUDIFY
   <string name="api_token">API token</string>
   <string name="audio_quality_connection">While on %1$s</string>
   <string name="back_in_future_version">Back in a future version</string>
-  
+
   <string name="clear_name">Clear name</string>
   <string name="translation_language">Translation language</string>
   <string name="translation_language_description">The language the translate button turns lyrics into.</string>
@@ -707,25 +707,25 @@ Project: AUDIFY
   <string name="translation_language_subtitle">Follows the app language</string>
   <string name="search_languages">Search languages</string>
   <string name="no_languages_match">No languages match</string>
-  
-  
+
+
   <string name="copy_log">Copy log</string>
   <string name="couldnt_find">Couldn\'t find %1$s</string>
   <string name="couldnt_open_link">Couldn\'t open that link</string>
   <string name="create_playlist">Create playlist</string>
-  
-  
+
+
   <string name="delete">Delete</string>
-  
+
   <string name="discord">Discord</string>
   <string name="discord_social_sdk_title" translatable="false">Discord Rich Presence</string>
-  
-  
+
+
   <string name="discord_presence_off" translatable="false">Presence off</string>
   <string name="discord_button_variables">{song_name}, {artist_name} and {album_name} are replaced with the current track.</string>
   <string name="discord_buttons_footer">{song_name}, {artist_name} and {album_name} are replaced with the track. The first button opens the song on YouTube Music and the second opens this project.</string>
-  
-  
+
+
   <string name="discord_show_audio_quality_subtitle">Hi-Res, lossless and Dolby specs on the presence card</string>
   <string name="dislike">Dislike</string>
   <string name="done">Done</string>
@@ -736,7 +736,7 @@ Project: AUDIFY
   <string name="enabled">Enabled</string>
   <string name="enter_token_to_enable">Enter a token to enable</string>
   <string name="first_button">First button</string>
-  
+
   <string name="pause">Pause</string>
   <string name="shuffle_on">Shuffle on</string>
   <string name="shuffle_off">Shuffle off</string>
@@ -784,7 +784,7 @@ Project: AUDIFY
   <string name="wifi_only_download_refusal">Downloads are limited to Wi-Fi. Turn that off in Settings to use mobile data.</string>
   <string name="pinned_playlist_limit">Pinned playlist limit: %1$d</string>
   <string name="downloaded_playlist">Downloaded playlist</string>
-  
+
   <string name="downloads_progress">Downloads · %1$d%%</string>
   <string name="downloads_finished">Downloads · finished</string>
   <string name="downloading_progress">Downloading · %1$d%%</string>
@@ -796,7 +796,7 @@ Project: AUDIFY
   <string name="saved_to_audify_folder">Saved to Music/Audify</string>
   <string name="nothing_downloading">Nothing downloading</string>
   <string name="nothing_to_explore">Nothing to explore right now</string>
-  
+
   <string name="library_empty">Nothing in your library yet</string>
   <string name="history_sign_in_required">Sign in to see what you have been listening to</string>
   <string name="history_empty">Nothing played yet</string>
@@ -837,10 +837,10 @@ Project: AUDIFY
   <string name="nothing_matches">Nothing here matches “%1$s”</string>
   <string name="close_search">Close search</string>
   <string name="less">Less</string>
-  
-  
-  
-  
+
+
+
+
   <plurals name="songs_will_play_next">
     <item quantity="one">%1$d song will play next</item>
     <item quantity="other">%1$d songs will play next</item>
@@ -872,7 +872,7 @@ Project: AUDIFY
   <string name="lastfm_now_playing_subtitle">Update Last.fm with what you are listening to</string>
   <string name="scrobble_primary_artist_only">Only scrobble primary artist</string>
   <string name="scrobble_primary_artist_only_subtitle">Use the first artist when a track credits multiple artists</string>
-  
+
   <string name="lead_with_song_subtitle">Puts the title on the bold line instead of the artist</string>
   <string name="like">Like</string>
   <string name="listenbrainz_token">ListenBrainz token</string>
@@ -888,17 +888,17 @@ Project: AUDIFY
   <string name="min_song_duration_subtitle">Shorter songs will not scrobble</string>
   <string name="addon_url_description">Paste the addon’s URL — either its root or its manifest.json. Audify reads what it can search and stream, then asks it for tracks over plain HTTP.</string>
   <string name="monthly_listeners">%1$s monthly listeners</string>
-  
+
   <string name="no_playlists_yet">No playlists yet. Use the row above to create one.</string>
   <string name="no_tracks_here">No tracks here</string>
-  
+
   <string name="one_hour">1 hour</string>
   <string name="open_album">Open album</string>
   <string name="open_artist">Open artist</string>
   <string name="pause_after_a_while">Pause playback after a while</string>
   <string name="pause_after_song">Pausing when this song ends</string>
   <string name="pause_countdown">%1$s until playback pauses</string>
-  
+
   <string name="playlist_name">Playlist name</string>
   <string name="playlist_cover_add">Add cover</string>
   <string name="playlist_cover_change">Change cover</string>
@@ -908,8 +908,8 @@ Project: AUDIFY
   <string name="playlist_privacy_public_hint">Anyone can find it</string>
   <string name="add_songs_to_playlist">Add Songs to Playlist</string>
   <string name="playlist_add_songs">Add songs</string>
-  
-  
+
+
   <string name="prioritize_syllable_lyrics">Prioritize syllable lyrics</string>
   <string name="prioritize_syllable_lyrics_subtitle">Keep searching past a line-synced match for word-by-word lyrics</string>
   <string name="quality_hourly">%1$s · %2$s</string>
@@ -917,7 +917,7 @@ Project: AUDIFY
   <string name="queued">Queued</string>
   <string name="remove">Remove</string>
   <string name="remove_from_liked">Remove from Liked Music</string>
-  
+
   <string name="remove_from_playlist">Remove from this playlist</string>
   <string name="rename_playlist">Edit playlist</string>
   <string name="reorder_songs">Reorder songs</string>
@@ -936,13 +936,13 @@ Project: AUDIFY
   <string name="scrobble_tracks_subtitle">Log plays to your Last.fm timeline</string>
   <string name="scrobbling_footer">Scrobble your listens to Last.fm and ListenBrainz.</string>
   <string name="scrobbling_paused_footer">Last.fm and ListenBrainz are paused for this release and will return later. Existing connections remain saved.</string>
-  
+
   <string name="search_this_list">Search this list</string>
   <string name="second_button">Second button</string>
   <string name="share">Share</string>
-  
+
   <string name="sharing_listens">Sharing your listens</string>
-  
+
   <string name="signed_in_as">Signed in as %1$s</string>
   <string name="signing_in">Signing in…</string>
   <string name="sleep_timer">Sleep timer</string>
@@ -969,25 +969,25 @@ Project: AUDIFY
   <string name="spotify_canvas_auto_hide_subtitle">Collapse the half-player after 5 seconds while Spotify Canvas is playing</string>
   <string name="prioritize_spotify_canvas">Prioritize Spotify Canvas</string>
   <string name="prioritize_spotify_canvas_subtitle">Try Spotify before Apple Music and other animated cover providers</string>
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
   <string name="subscribers">%1$s subscribers</string>
   <string name="tap_to_connect">Tap to connect</string>
   <string name="tap_to_sign_in">Tap to sign in</string>
-  
-  
+
+
   <string name="turn_off_timer">Turn off timer</string>
-  
-  
-  
+
+
+
   <string name="verb_playing">Playing</string>
-  
+
   <plurals name="minute_count">
     <item quantity="one">%1$d minute</item>
     <item quantity="other">%1$d minutes</item>
@@ -1063,7 +1063,7 @@ Project: AUDIFY
   <string name="not_enough_listening">Not enough listening yet</string>
   <string name="not_enough_this_month">Play a few more songs this month to unlock your Replay.</string>
   <string name="not_enough_this_week">Play a few more songs this week to unlock your Replay.</string>
-  
+
   <string name="replay_across">Across </string>
   <string name="replay_empty_description">Listen a little more and Audify will turn your history into a Replay.</string>
   <string name="replay_habits_middle"> from </string>
@@ -1083,7 +1083,7 @@ Project: AUDIFY
   <string name="top_song">Top song</string>
   <string name="when_you_listen_the_most">When you listen the most</string>
   <string name="your_biggest_day">Your biggest day: %1$s</string>
-  
+
   <string name="your_lyrics_card">Your lyrics card</string>
   <string name="your_replay">Your Replay</string>
   <plurals name="replay_artist_count">
@@ -1119,7 +1119,7 @@ Project: AUDIFY
   <string name="webdav_not_configured">Connect a server under Sources</string>
   <string name="webdav_empty">No audio files found on the WebDAV server. Check the URL in Settings.</string>
   <string name="webdav_description">Point Audify at a WebDAV music folder — your Nextcloud Music directory or any server speaking WebDAV.</string>
-  
+
   <string name="webdav_server_url_hint">https://cloud.example.com/remote.php/dav/files/user/Music</string>
   <string name="webdav_disconnect">Disconnect</string>
   <string name="webdav_test_failed">Couldn’t reach it: %1$s</string>
@@ -1142,7 +1142,7 @@ Project: AUDIFY
   <string name="smb_disconnect">Disconnect</string>
   <string name="smb_test_failed">Couldn’t reach it: %1$s</string>
   <string name="playlist">playlist</string>
-  
+
   <string name="open">Open</string>
   <string name="open_playlist">Open playlist</string>
   <string name="pin">Pin</string>
@@ -1153,25 +1153,25 @@ Project: AUDIFY
   <string name="delete_download">Delete download</string>
   <string name="delete_playlist_confirmation">Delete “%1$s”? Tap again to confirm.</string>
   <string name="delete_download_confirmation">Remove “%1$s” from this device? Tap again to confirm.</string>
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
   <string name="automix_enabled_subtitle">Times and blends every transition from the tracks themselves. Turn it off if the phone gets hot or playback stutters.</string>
   <string name="automix_model_title">Download Automix models</string>
   <string name="automix_model_message">Automix needs two small analysis models (about 30 MB). They download once and stay on this device.</string>
   <string name="automix_model_download">Download</string>
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
   <string name="automix_disabled_subtitle">Times and blends transitions automatically, without a slider. Performance may vary on slower devices.</string>
-  
-  
+
+
   <string name="no_lyrics_sources_enabled">None. Lyrics will not be fetched.</string>
   <string name="song_cache_large_subtitle">Keeps up to %1$s of downloaded audio on disk. This can take a noticeable share of your free space.</string>
   <string name="song_cache_limit_subtitle">Keeps downloaded audio on disk for instant seeking and replays</string>
@@ -1223,13 +1223,13 @@ Project: AUDIFY
   <string name="all_time">All time</string>
   <string name="switch_account">Switch account</string>
   <string name="accounts">Accounts</string>
-  
+
   <string name="personal">Personal</string>
   <string name="brand_account">Brand account</string>
   <string name="add_account">Add account</string>
   <string name="manage_accounts">Manage accounts</string>
-  
-  
+
+
   <string name="selected_account">Selected account</string>
   <string name="listen_as">Listen as</string>
   <string name="edit_profile">Edit profile</string>
@@ -1247,22 +1247,22 @@ Project: AUDIFY
   <string name="listen_together_subtitle">Share a code and play the same music, in time</string>
   <string name="listen_together_in_party">In a party · %1$s</string>
   <string name="listen_together_sign_in_footer">Listening together needs an account, so everyone in the party can see who else is in it.</string>
-  
+
   <string name="listen_together_server_online">Online · %1$d ms</string>
-  
+
   <string name="listen_together_server_offline">Can’t be reached right now</string>
   <string name="listen_together_server_checking">Checking…</string>
-  
+
   <string name="listen_together_custom_server">Use your own server</string>
   <string name="listen_together_custom_server_footer">Leave this empty to use the default server. If you run your own copy, everyone in the party has to be pointed at the same one.</string>
   <string name="listen_together_using_default">Using default server</string>
   <string name="listen_together_remove_server">Remove server</string>
   <string name="listen_together_switched_to_default">Switched to default server</string>
-  
+
   <string name="listen_together_create">Create a party</string>
-  
-  
-  
+
+
+
   <string name="listen_together_nickname_hint">Nickname for this party</string>
   <string name="listen_together_party_size">Party size</string>
   <string name="listen_together_party_size_subtitle">Choose 2–10 listeners</string>
@@ -1270,18 +1270,18 @@ Project: AUDIFY
   <string name="listen_together_remove">Remove</string>
   <string name="listen_together_activity">Recent activity</string>
   <string name="listen_together_activity_footer">This session only · latest first · up to 100 actions</string>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
   <string name="listen_together_join">Join a party</string>
   <string name="listen_together_join_action">Join</string>
   <string name="listen_together_code_hint">Six letters or digits</string>
@@ -1312,7 +1312,7 @@ Project: AUDIFY
   <string name="listen_together_share_link">Share link</string>
   <string name="listen_together_scan_qr">Scan QR code</string>
   <string name="listen_together_scan_qr_subtitle">Let friends scan this to join.</string>
-  
+
   <string name="listen_together_host_only">Only I control the music</string>
   <string name="listen_together_host_only_subtitle">Everyone else listens along and can pause on their own device</string>
   <string name="listen_together_host_only_notice">Only the host can control the music</string>
@@ -1326,8 +1326,8 @@ Project: AUDIFY
   <string name="listen_together_custom_server_switch_and_join">Switch &amp; Join</string>
   <string name="listen_together_official_server_dialog_title">Switch to official server?</string>
   <string name="listen_together_official_server_dialog_message">This party is hosted on the official Audify server.\n\nDo you want to switch back to the official server and join party %1$s?</string>
-  
-  
+
+
   <string name="listen_together_ping">%1$d ms</string>
   <string name="listen_together_server_offline_dash">—</string>
   <string name="listen_together_invalid_server_url">Invalid server URL. Please enter a valid address (e.g. https://your-server.com)</string>
@@ -1344,10 +1344,12 @@ Project: AUDIFY
   <string name="listen_together_status_all_offline">Both custom server and default server are offline</string>
   <string name="listen_together_top_bar_fallback">Fallback · %1$s</string>
   <string name="vietnamese">Vietnamese</string>
-  
+
   <string name="export_compatible_downloads">Export compatible downloads</string>
   <string name="sync_downloaded_playlists">Keep playlists updated</string>
   <string name="sync_downloaded_playlists_subtitle">Checks twice a day and downloads songs newly added to your downloaded playlists</string>
+  <string name="download_liked_songs">Automatically download liked songs</string>
+  <string name="download_liked_songs_subtitle">Downloads your Liked Music once, then adds new likes automatically</string>
   <string name="playlist_sync_ask_title">New songs in %1$s: %2$d</string>
   <string name="playlist_sync_ask_text">Tap to download</string>
   <string name="playlist_sync_done_title">Added to %1$s: %2$d</string>
@@ -1384,14 +1386,14 @@ Project: AUDIFY
   <string name="loudness_normalization">Loudness normalization</string>
   <string name="loudness_normalization_subtitle">Levels every track to the same loudness</string>
   <string name="loudness_off_on_speaker">Disable on Phone Speaker</string>
-  
-  
-  
-  
+
+
+
+
   <string name="pipeline_loudness_gain">Gain</string>
   <string name="pipeline_loudness_measured">Measured</string>
   <string name="pipeline_bit_exact">Bit-exact</string>
-  
+
   <string name="loudness_gain_db">%1$s dB</string>
   <string name="loudness_lufs">%1$s LUFS</string>
   <string name="blur_unfocused_lyrics">Blur unfocused lyrics</string>
@@ -1399,49 +1401,49 @@ Project: AUDIFY
   <string name="lyrics_sparkle">Lyric sparkle</string>
   <string name="lyrics_sparkle_subtitle">Tiny glimmers around held letters in LiquidFlow</string>
   <string name="advanced_options">Advanced &amp; experimental options</string>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   <string name="source_needs_lossless_output">Needs a lossless output · use a lossless supported device</string>
   <string name="source_needs_lossless_bt_codec">Needs a lossless output · Bluetooth is on %1$s; use a lossless supported device</string>
   <string name="source_needs_lossless_bt_unknown">Needs a lossless output · can’t tell which Bluetooth codec is in use</string>
@@ -1451,8 +1453,8 @@ Project: AUDIFY
   <string name="lossless_output_permission_denied">Nearby devices permission is off</string>
   <string name="lossless_output_permission_denied_detail">Tap to open Settings and allow Nearby devices — without it we can’t read your Bluetooth codec</string>
   <string name="lossless_output_permission_detail">Allow Nearby devices so LDAC, LHDC or Samsung UHQ headphones can unlock lossless-only addons</string>
-  
-  
+
+
   <string name="cached_songs_empty">No cached songs yet. Songs you play from YouTube or JioSaavn will show up here.</string>
   <string name="cached_song_partial">Partial</string>
   <string name="remove_from_cache">Remove from cache</string>
@@ -1460,14 +1462,14 @@ Project: AUDIFY
   <string name="remove_from_history_failed">Couldn\'t remove from history</string>
   <string name="cached_song_remove">Remove</string>
   <string name="removed_from_cache">Removed from the song cache</string>
-  
-  
+
+
   <string name="song_cache_unlimited">Unlimited</string>
   <string name="song_cache_unlimited_subtitle">No limit. Cached audio can keep growing until your storage is full.</string>
   <string name="clear_song_cache_title">Clear song cache?</string>
   <string name="clear_song_cache_warning">All cached songs will be deleted and the Cached songs folder will be emptied. They will stream again the next time you play them.</string>
-  
-  
+
+
   <string name="spotify_import_title">Import Spotify playlist</string>
   <string name="spotify_import_description">Paste a public playlist link. Songs are matched on YouTube Music.</string>
   <string name="spotify_import_description_local">Paste a public playlist link. Songs are matched on YouTube Music and saved on this device.</string>
@@ -1475,14 +1477,14 @@ Project: AUDIFY
   <string name="spotify_import_invalid">That isn\'t a Spotify playlist link.</string>
   <string name="spotify_import_fetching">Reading the Spotify playlist…</string>
   <string name="spotify_import_matching">Matching songs %1$d of %2$d</string>
-  <string name="spotify_import_none">None of those songs were found on YouTube Music.</string>
+
   <string name="spotify_import_failed">Couldn\'t import the playlist: %1$s</string>
-  <string name="spotify_import_button">Import</string>
+
   <string name="spotify_import_local_fallback">Couldn\'t create it on YouTube Music, so \'%1$s\' was saved on this device instead.</string>
   <string name="spotify_import_done">Imported \'%1$s\'</string>
-  <string name="spotify_import_unmatched">Not found on YouTube Music: %1$d</string>
-  <string name="local_playlist_subtitle">On this device ? song count: %1$d</string>
-  
+
+
+
   <string name="folders">Folders</string>
   <string name="folder">Folder</string>
   <string name="no_local_folders">No folders with music in them</string>
@@ -1498,9 +1500,9 @@ Project: AUDIFY
   <string name="onboarding_name_hint">Your name</string>
   <string name="onboarding_name_footer">Friends see this when you Listen Together. You can change it later in Settings.</string>
   <string name="onboarding_next">Next</string>
-  
-  
-  
+
+
+
   <string name="onboarding_skip_sign_in">Skip sign in</string>
   <string name="onboarding_back">Back</string>
   <string name="song_info">Song Info</string>
@@ -1561,4 +1563,7 @@ Project: AUDIFY
   <string name="haptic_feedback_subtitle" translatable="false">Vibrate for taps, selections and playback controls</string>
   <string name="auto_download_liked_songs" translatable="false">Automatically download liked songs</string>
   <string name="auto_download_liked_songs_subtitle" translatable="false">Save each song to Downloads when you like it. Wi-Fi-only rules still apply.</string>
+    <string name="crossfade_on_skip">Crossfade on next/previous</string>
+    <string name="crossfade_on_skip_subtitle">Fades into the song you skip to, and the cover dissolves along with it</string>
+    <string name="local_playlist_subtitle">Local playlist - %1$d tracks</string>
 </resources>

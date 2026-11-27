@@ -1886,7 +1886,14 @@ private fun LyricsPanelList(
     // Only a song that actually names a second voice is laid out as one. A
     // single-voice song has every line on the left already, so splitting the
     // panel into lanes for it would just be a narrower panel.
-    val duet = remember(lines) { lines.any { it.alignment == LyricAlignment.End } }
+    // Some lyric providers mark every line as End even for ordinary
+    // single-voice lyrics. Only honour lane alignment when both lanes are
+    // actually represented; otherwise the entire song is incorrectly
+    // right-aligned (as seen on the phone's full-screen lyrics view).
+    val duet = remember(lines) {
+        lines.any { it.alignment == LyricAlignment.End } &&
+            lines.any { it.alignment != LyricAlignment.End }
+    }
 
     val activeRows by remember(lines, isSynced) {
         derivedStateOf {

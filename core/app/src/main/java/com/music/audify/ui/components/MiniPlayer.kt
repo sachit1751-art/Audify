@@ -16,12 +16,12 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -81,7 +81,6 @@ import com.music.audify.ui.player.PlayerDock
 import com.music.audify.ui.player.AndroidMusicVideo
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.animation.core.animateDpAsState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import dev.chrisbanes.haze.materials.HazeMaterials
@@ -93,14 +92,19 @@ import kotlin.math.sqrt
 import kotlin.math.tanh
 
 /**
- * The transport buttons' minimum touch target. The artwork remains 40dp; the
- * 48dp slot gives both controls a reliable hit area without enlarging glyphs.
+ * The transport buttons' touch target. Material's default 48dp is what a bar
+ * this slim is really made of, so it sets the height on its own.
  */
-private val GLYPH_SLOT = 48.dp
+private val GLYPH_SLOT = 40.dp
 
 /**
- * The play and skip glyphs themselves. Kept visually smaller than [GLYPH_SLOT]
- * so the accessible hit area does not turn the controls into oversized glyphs.
+ * The play and skip glyphs themselves.
+ *
+ * Deliberately grown inside [GLYPH_SLOT] rather than by growing the slot: the
+ * slot is level with the 40dp artwork opposite it, and it is the taller of the
+ * two that sets the row's height — so a bigger slot would make the whole bar
+ * taller, which is not what a bigger glyph is being asked for. At 32 there is
+ * still 4dp of clearance to the slot's edge on every side.
  */
 private val GLYPH_SIZE = 32.dp
 
@@ -122,10 +126,10 @@ private val SPINNER_SIZE = 22.dp
 private val TRANSPORT_GAP = 8.dp
 
 /**
- * Vertical padding around the 48dp touch targets; the bar remains 56dp high
- * and keeps its 28dp pill radius.
+ * Vertical padding, which with the 40dp artwork sets the bar's height at 56dp
+ * and so its pill radius at 28.
  */
-private val ROW_PADDING_VERTICAL = 4.dp
+private val ROW_PADDING_VERTICAL = 8.dp
 
 /**
  * Horizontal padding, deliberately larger than the vertical.
@@ -317,7 +321,7 @@ internal fun Modifier.miniPlayerGestures(
                 change.consume()
                 start = change
             }
-            val slopped = start ?: return@awaitEachGesture
+            val slopped = start
 
             if (!vertical) {
                 jellyJob[0]?.cancel()
@@ -659,20 +663,16 @@ internal fun MiniPlayerPlayPauseButton(
     glyphSize: Dp,
     onClick: () -> Unit,
 ) {
-    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressScale = animateFloatAsState(
         targetValue = if (pressed) 0.72f else 1f,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = 0.45f,
-            stiffness = Spring.StiffnessMedium,
-        ),
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
         label = "miniPlayPausePress",
     )
     val pressDisc by animateFloatAsState(
         targetValue = if (pressed) 0.18f else 0f,
-        animationSpec = tween(durationMillis = if (reduceAnimation) 120 else if (pressed) 70 else 260),
+        animationSpec = tween(durationMillis = if (pressed) 70 else 260),
         label = "miniPlayPauseDisc",
     )
     Box(
@@ -696,20 +696,16 @@ internal fun MiniPlayerPlayPauseButton(
         AnimatedContent(
             targetState = isPlaying,
             transitionSpec = {
-                if (reduceAnimation) {
-                    fadeIn(tween(120)) togetherWith fadeOut(tween(120))
-                } else {
-                    (
-                        fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
-                            scaleIn(
-                                initialScale = 0.55f,
-                                animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow),
-                            )
-                        ) togetherWith (
-                        fadeOut(tween(90)) +
-                            scaleOut(targetScale = 0.55f, animationSpec = tween(120))
+                (
+                    fadeIn(tween(durationMillis = 120, easing = FastOutSlowInEasing)) +
+                        scaleIn(
+                            initialScale = 0.78f,
+                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
                         )
-                }
+                    ) togetherWith (
+                    fadeOut(tween(75)) +
+                        scaleOut(targetScale = 0.78f, animationSpec = tween(90, easing = FastOutSlowInEasing))
+                    )
             },
             contentAlignment = Alignment.Center,
             label = "miniPlayPause",
@@ -742,20 +738,16 @@ internal fun MiniPlayerNextButton(
     slot: Dp,
     onClick: () -> Unit,
 ) {
-    val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressScale = animateFloatAsState(
         targetValue = if (pressed && enabled) 0.72f else 1f,
-        animationSpec = if (reduceAnimation) snap() else spring(
-            dampingRatio = 0.45f,
-            stiffness = Spring.StiffnessMedium,
-        ),
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
         label = "miniNextPress",
     )
     val pressDisc by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.18f else 0f,
-        animationSpec = tween(durationMillis = if (reduceAnimation) 120 else if (pressed) 70 else 260),
+        animationSpec = tween(durationMillis = if (pressed) 70 else 260),
         label = "miniNextDisc",
     )
     val scope = rememberCoroutineScope()
@@ -777,12 +769,10 @@ internal fun MiniPlayerNextButton(
                 enabled = enabled,
                 role = androidx.compose.ui.semantics.Role.Button,
             ) {
-                if (!reduceAnimation) {
-                    scope.launch {
-                        kick.snapTo(0f)
-                        kick.animateTo(1f, tween(durationMillis = 80, easing = FastOutSlowInEasing))
-                        kick.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow))
-                    }
+                scope.launch {
+                    kick.snapTo(0f)
+                    kick.animateTo(1f, tween(durationMillis = 80, easing = FastOutSlowInEasing))
+                    kick.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow))
                 }
                 onClick()
             },
@@ -795,7 +785,7 @@ internal fun MiniPlayerNextButton(
             modifier = Modifier
                 .size(NEXT_GLYPH_SIZE)
                 .graphicsLayer {
-                    val k = if (reduceAnimation) 0f else kick.value
+                    val k = kick.value
                     translationX = k * 6.dp.toPx()
                     scaleX = pressScale.value * (1f + abs(k) * 0.15f)
                     // The glyph's own 0.85 squash, kept so it still matches the play glyph.

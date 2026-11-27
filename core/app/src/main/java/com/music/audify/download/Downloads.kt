@@ -9,7 +9,9 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import com.music.audify.R
 import com.music.audify.data.DebugLog as Log
+import com.music.audify.data.YtMusicRepository
 import androidx.core.content.ContextCompat
 import com.music.audify.data.innertube.StreamResolver
 import com.music.audify.data.model.Song
@@ -60,6 +62,15 @@ sealed interface DownloadState {
     data class Running(val fraction: Float) : DownloadState
 
     data class Failed(val reason: String) : DownloadState
+}
+
+/** True only for failures that indicate the destination cannot accept more bytes. */
+internal fun isDownloadStorageCapacityFailure(error: Throwable): Boolean {
+    val messages = generateSequence(error) { it.cause }.mapNotNull { it.message?.lowercase(Locale.ROOT) }.toList()
+    return messages.any { message ->
+        listOf("enospc", "no space left", "not enough space", "insufficient storage", "storage is full", "disk full", "quota exceeded")
+            .any(message::contains)
+    }
 }
 
 /**
@@ -499,7 +510,7 @@ object Downloads {
         return withContext(Dispatchers.IO) {
             val uri = _saved.value[videoId]?.toUri() ?: return@withContext false
             val deleted = DownloadStore.delete(context, uri)
-            if (deleted) forget(videoId)
+            forget(videoId)
             deleted
         }
     }
@@ -610,6 +621,9 @@ object Downloads {
      */
     suspend fun deleteCollection(context: Context, id: String): Boolean {
         awaitInitialized()
+        // Removing the downloaded Liked Music collection is an explicit opt-out;
+        // otherwise its next background check would immediately restore it.
+        if (id == YtMusicRepository.LIKED_MUSIC) AppSettings.setDownloadLikedSongs(false)
         var any = false
         tracksOnlyIn(id, _collections.value, _saved.value)
             .forEach { videoId -> if (delete(context, videoId)) any = true }
@@ -1072,7 +1086,7 @@ object Downloads {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "download failed for $id: ${e.message}", e)
-            fail(id, e.friendly())
+            fail(id, e.friendly(context))
         }
     }
 
@@ -1636,7 +1650,12 @@ object Downloads {
      * `Unsupported MIME type audio/webm` at least sends someone looking in the
      * right direction.
      */
-    private fun Exception.friendly(): String = friendlyDownloadFailure(this)
+    private fun Exception.friendly(context: Context): String = when {
+        isDownloadStorageCapacityFailure(this) -> context.getString(R.string.download_storage_unavailable)
+        (this is IllegalStateException || this is IllegalArgumentException) &&
+            !message.isNullOrBlank() -> message!!
+        else -> "Download failed — check your connection"
+    }
 
     /**
      * How long the source lookup may hold a download up before it goes to

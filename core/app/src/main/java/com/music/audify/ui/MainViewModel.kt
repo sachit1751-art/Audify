@@ -1139,42 +1139,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         privacy: PlaylistPrivacy,
         song: Song? = null,
         cover: android.net.Uri? = null,
-        onFailed: ((Throwable) -> Unit)? = null,
         onCreated: ((UserPlaylist) -> Unit)? = null,
+        onFailed: ((Throwable) -> Unit)? = null,
     ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         viewModelScope.launch {
-            suspend fun saveLocally(remoteFailure: Throwable? = null) {
-                val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, listOfNotNull(song))
-                cover?.let { uri ->
-                    runCatching { com.music.audify.data.spotify.LocalPlaylistStore.setCover(local.id, uri.toString()) }
-                        .onFailure { Log.w("Audify", "Playlist was saved, but its custom cover could not be stored", it) }
-                }
-                val created = UserPlaylist(
-                    playlistId = local.id,
-                    title = local.title,
-                    subtitle = if (local.songs.isEmpty()) "" else "${local.songs.size} song${if (local.songs.size == 1) "" else "s"}",
-                    thumbnailUrl = local.coverUrl ?: song?.thumbnailUrl,
-                )
-                if (remoteFailure != null) {
-                    Log.w("Audify", "YouTube Music playlist creation failed; saved on this device", remoteFailure)
-                }
-                onCreated?.invoke(created)
-            }
-            if (!authStore.isSignedIn) {
-                runCatching { saveLocally() }
-                    .onFailure {
-                        Log.e("Audify", "Could not save local playlist", it)
-                        onFailed?.invoke(it)
+            when (val result = createPlaylistWithLocalFallback(
+                signedIn = authStore.isSignedIn,
+                createRemote = {
+                    YtMusicRepository.createPlaylist(
+                        title = name,
+                        privacy = privacy,
+                        videoIds = listOfNotNull(song?.videoId),
+                    )
+                },
+                saveLocal = {
+                    val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(
+                        name,
+                        listOfNotNull(song),
+                    )
+                    val savedCover = cover?.let { selected ->
+                        runCatching {
+                            com.music.audify.data.PlaylistCovers.save(
+                                getApplication<Application>(),
+                                local.id,
+                                selected,
+                            )
+                        }.onFailure { error ->
+                            android.util.Log.w("Audify", "Could not save local playlist cover", error)
+                        }.getOrNull()
                     }
-                return@launch
-            }
-            YtMusicRepository.createPlaylist(
-                title = name,
-                privacy = privacy,
-                videoIds = listOfNotNull(song?.videoId),
-            ).fold(
-                onSuccess = { playlistId ->
+                    savedCover?.let { savedCoverUri ->
+                        com.music.audify.data.spotify.LocalPlaylistStore.setCover(local.id, savedCoverUri)
+                    }
+                    local.browseId
+                },
+            )) {
+                is PlaylistCreationResult.RemoteCreated -> {
+                    val playlistId = result.playlistId
                     // Nothing to look up for a playlist this account has just
                     // made: it is the owner by construction, so its card is
                     // editable the moment it appears rather than one request
@@ -1213,15 +1215,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         ) + items.filterNot { it.browseId == created.browseId }
                     }
                     onCreated?.invoke(created)
-                },
-                onFailure = { failure ->
-                    runCatching { saveLocally(failure) }
-                        .onFailure {
-                            Log.e("Audify", "Could not save playlist locally after remote creation failed", it)
-                            onFailed?.invoke(it)
-                        }
-                },
-            )
+                }
+                is PlaylistCreationResult.SavedLocally -> {
+                    val local = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(result.browseId)
+                    if (local == null) {
+                        onFailed?.invoke(IllegalStateException("The saved playlist could not be read back"))
+                    } else {
+                        val count = local.songs.size
+                        val created = UserPlaylist(
+                            playlistId = local.id,
+                            title = local.title,
+                            subtitle = if (count == 0) "" else getApplication<Application>().resources
+                                .getQuantityString(R.plurals.song_count_plural, count, count),
+                            thumbnailUrl = local.coverUrl ?: local.songs.firstNotNullOfOrNull { it.thumbnailUrl },
+                        )
+                        onCreated?.invoke(created)
+                    }
+                }
+                is PlaylistCreationResult.Failed -> onFailed?.invoke(result.cause)
+            }
         }
     }
 
@@ -1232,30 +1244,42 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         songs: List<Song> = emptyList(),
         /** [savedLocally] is true when the playlist went to this device, not YouTube Music. */
         onResult: ((browseId: String?, title: String, savedLocally: Boolean) -> Unit)? = null,
+        onFailure: ((Throwable) -> Unit)? = null,
     ) {
         val name = title.trim().ifBlank { text(R.string.new_playlist) }
         viewModelScope.launch {
-            if (authStore.isSignedIn) {
-                val initialBatch = videoIds.take(50)
-                YtMusicRepository.createPlaylist(
-                    title = name,
-                    privacy = privacy,
-                    videoIds = initialBatch,
-                ).fold(
-                    onSuccess = { playlistId ->
-                        if (videoIds.size > 50) {
-                            videoIds.drop(50).chunked(50).forEach { chunk ->
-                                YtMusicRepository.addToPlaylist(playlistId, chunk)
-                            }
-                        }
-                        setPlaylistOwned("VL$playlistId", true)
-                        libraryStale = true
+            try {
+                val safeVideoIds = videoIds.filter(String::isNotBlank)
+                require(safeVideoIds.isNotEmpty() && songs.isNotEmpty()) {
+                    "There are no confirmed playable tracks to save"
+                }
+                val result = if (authStore.isSignedIn) {
+                    createPlaylistWithCompensatingRollback(
+                        videoIds = safeVideoIds,
+                        createRemote = { batch ->
+                            YtMusicRepository.createPlaylist(title = name, privacy = privacy, videoIds = batch)
+                        },
+                        addRemote = YtMusicRepository::addToPlaylist,
+                        deleteRemote = YtMusicRepository::deletePlaylist,
+                        saveLocal = {
+                            com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, songs).browseId
+                        },
+                    )
+                } else {
+                    val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
+                    PlaylistCreationResult.SavedLocally(local.browseId)
+                }
+
+                when (result) {
+                    is PlaylistCreationResult.RemoteCreated -> {
                         val created = UserPlaylist(
-                            playlistId = playlistId,
+                            playlistId = result.playlistId,
                             title = name,
-                            subtitle = "${videoIds.size} songs",
+                            subtitle = "${safeVideoIds.size} songs",
                             thumbnailUrl = null,
                         )
+                        setPlaylistOwned(created.browseId, true)
+                        libraryStale = true
                         _playlists.value = listOf(created) +
                             _playlists.value.filterNot { it.playlistId == created.playlistId }
                         editPlaylistShelf { items ->
@@ -1270,15 +1294,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                             ) + items.filterNot { it.browseId == created.browseId }
                         }
                         onResult?.invoke(created.browseId, created.title, false)
-                    },
-                    onFailure = {
-                        val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
+                    }
+                    is PlaylistCreationResult.SavedLocally -> {
+                        val local = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(result.browseId)
+                        if (local == null) error("The imported local playlist could not be read back")
                         onResult?.invoke(local.browseId, local.title, true)
-                    },
-                )
-            } else {
-                val local = com.music.audify.data.spotify.LocalPlaylistStore.savePlaylist(name, songs)
-                onResult?.invoke(local.browseId, local.title, true)
+                    }
+                    is PlaylistCreationResult.Failed -> throw result.cause
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                onFailure?.invoke(failure)
             }
         }
     }

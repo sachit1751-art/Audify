@@ -4,9 +4,9 @@ Project: AUDIFY
 -->
 # Micro Improvement 07 — Cross-Platform Accessibility Audit and Remediation
 
-**Status: in progress — playback/queue/transport controls honor reduced motion; Wear OS queue rows use occurrence identity; Home supports non-drag reorder, pin/unpin, explicit visibility semantics and pinned-boundary-safe movement. Onboarding now uses an announced localized-resource progress label and explicit string resources. Focused unit checks pass; screen-reader, focus, large-text and device/platform acceptance remain.**
-**Execution model: eight gated stages.**  
-**Canonical owner:** Plans 02, 073, 074, 084 and the existing design/accessibility system.  
+**Status: planned — not started.**
+**Execution model: eight gated stages.**
+**Canonical owner:** Plans 02, 073, 074, 084 and the existing design/accessibility system.
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
 
 ## Product direction
@@ -39,7 +39,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 4. Inspect text scaling, contrast, dynamic colour, reduced-motion preferences, animations and loading indicators.
 5. Run available automated accessibility checks and record reproducible defects with screen/component references.
 
-**Deliverable:** A source-backed capability matrix and exact file/symbol inventory.  
+**Deliverable:** A source-backed capability matrix and exact file/symbol inventory.
 **Exit criteria:** The executor can name the canonical state/data owner, real UI entry points, relevant tests, dependencies and prohibited boundaries without relying on guesses.
 
 ## Stage 2 — Behaviour contract and scope
@@ -52,7 +52,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 6. List non-goals and rejected approaches so the implementation cannot expand into an unrelated rewrite.
 7. Stop for human approval if the required solution needs a schema change, migration, new backend, credential handling, provider-policy exception, new permission, destructive operation or release action.
 
-**Deliverable:** A concise behaviour contract, acceptance matrix and confirmed file-level implementation scope.  
+**Deliverable:** A concise behaviour contract, acceptance matrix and confirmed file-level implementation scope.
 **Exit criteria:** Every requirement has a real owner, implementation location, test and observable outcome.
 
 ## Stage 3 — Domain and foundation implementation
@@ -65,7 +65,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 6. Ensure dialogs, sheets, popovers and player overlays manage focus, announce context and return focus to the invoking control.
 7. Provide text alternatives or summaries for charts, artwork-dependent controls and non-text status indicators.
 
-**Deliverable:** Working domain behaviour integrated with the existing owner.  
+**Deliverable:** Working domain behaviour integrated with the existing owner.
 **Exit criteria:** Core invariants are covered by focused automated tests; no parallel architecture or prohibited storage boundary has been introduced.
 
 ## Stage 4 — UI and interaction implementation
@@ -78,7 +78,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 6. Verify responsive behaviour on phone, tablet, desktop and TV/Wear only where the repository actually supports the surface.
 7. Do not copy a design from another app blindly; translate the intended behaviour into AUDIFY's established design system.
 
-**Deliverable:** A complete user-facing flow wired to production domain logic.  
+**Deliverable:** A complete user-facing flow wired to production domain logic.
 **Exit criteria:** No mock-only behaviour, dead control, fabricated result or inaccessible primary action remains.
 
 ## Stage 5 — Integration and platform coverage
@@ -90,7 +90,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 5. Verify compatibility with existing settings and backup/restore boundaries.
 6. Ensure external controls and system integrations remain consistent where the feature affects them.
 
-**Deliverable:** Platform integration matrix with evidence for each supported target.  
+**Deliverable:** Platform integration matrix with evidence for each supported target.
 **Exit criteria:** In-scope clients compile and relevant integration tests pass; unavailable device testing is recorded explicitly.
 
 ## Stage 6 — Feature-specific test plan
@@ -116,7 +116,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 - Do not expose credentials, tokens, private listening history or personal data in logs or error messages.
 - Confirm existing preferences and user data remain readable; no migration is authorized.
 
-**Deliverable:** Automated test evidence plus a short performance/privacy review.  
+**Deliverable:** Automated test evidence plus a short performance/privacy review.
 **Exit criteria:** Edge cases, concurrency, lifecycle, performance and privacy risks are either tested and resolved or explicitly blocked for human decision.
 
 ## Stage 7 — Verification and regression
@@ -134,7 +134,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 6. Re-test adjacent behaviour owned by Plans 02, 073, 074, 084 and the existing design/accessibility system.
 7. Record exact commands, exit codes, device/API levels and any unavailable checks.
 
-**Deliverable:** Reproducible verification report.  
+**Deliverable:** Reproducible verification report.
 **Exit criteria:** All acceptance criteria have evidence and no known critical regression remains in scope.
 
 ## Stage 8 — Handoff, rollback and completion
@@ -151,7 +151,7 @@ The canonical owner is **Plans 02, 073, 074, 084 and the existing design/accessi
 6. Update plan status only when work actually starts or all completion criteria pass.
 7. Do not commit, push, merge, publish or change app versions without explicit user authorization.
 
-**Deliverable:** A complete handoff that another agent can continue without prior chat context.  
+**Deliverable:** A complete handoff that another agent can continue without prior chat context.
 **Exit criteria:** Every acceptance item is evidenced, limitations are transparent and rollback is understood.
 
 ## Feature-specific acceptance criteria
@@ -268,24 +268,16 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Completed — current Home, audio controls, TV motion, Wear queue semantics and web motion references inspected |
-| 2 | Contract and acceptance design | Completed — prioritized non-drag Home reorder and explicit row toggle semantics |
-| 3 | Foundation and domain implementation | Partial — shared Home layout move and backward-compatible pin persistence; `canMove` now exposes pinned-group-safe availability as a testable domain rule |
-| 4 | User interface and interaction | Partial — Home/Library reorder actions, Home pin/unpin and a dedicated labeled visibility checkbox; move actions now disable at pinned/unpinned boundaries |
+| 1 | Repository and product audit | Not started |
+| 2 | Contract and acceptance design | Not started |
+| 3 | Foundation and domain implementation | Not started |
+| 4 | User interface and interaction | Not started |
 | 5 | Platform and integration coverage | Not started |
 | 6 | Reliability, performance and privacy | Not started |
-| 7 | Full verification and regression pass | Partial — focused Home layout tests pass (12); Android compile and shared JVM tests pass; full lint and device accessibility checks remain |
+| 7 | Full verification and regression pass | Not started |
 | 8 | Handoff and plan status | Not started |
 
-Progress: **1/8 stages completed; stages 3–4 are partial.** Core journeys, large text, TalkBack, keyboard/remote focus and device verification remain.
-
-### Current-checkout reconciliation (2026-11-22)
-
-- Plan 073's TV root already collects `AppSettings.reduceAnimation` and provides `LocalTvReduceMotion`; setup and Now Playing transitions use reduced-motion-aware specs, and artwork tint snaps when reduced motion is enabled. Remaining TV call sites still require a complete animation inventory and remote/device checks.
-- Plan 074's Wear queue now uses `stableKey(duplicateEntryIds)` and rejects stale snapshots before rendering. Existing list rows and transport controls expose some action semantics; target bounds, traversal, rotary and ambient behavior still require watch verification.
-- Plan 084's historical CSS path `platforms/web/core/app/src/styles/global.css` does not exist in this checkout. The current stylesheet is `platforms/web/app/src/styles/global.css`; its reduced-motion rules are already present at lines 403–418 with a download-ring override at 430. No duplicate web motion policy was added.
-- Home layout rows previously exposed drag-only reordering and a generic clickable visibility row. The current change adds Move up/Move down buttons with shelf-specific labels, Home-only pin/unpin actions and a dedicated Material Checkbox whose own semantics expose checked state and shelf label; this avoids putting the checkbox semantics on a parent that also contains pin/move buttons. These controls are source-verified only; TalkBack/focus/target-size acceptance remains unverified.
-- The movement buttons now use the same `HomeLayout.canMove` invariant as the domain reorder operation. They are disabled when the adjacent row is outside the current pinned/unpinned group, instead of appearing enabled while performing a no-op. The domain boundary tests cover both permitted within-group moves and prohibited cross-group moves.
+Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 

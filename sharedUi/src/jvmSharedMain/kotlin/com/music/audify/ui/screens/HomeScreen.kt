@@ -20,8 +20,6 @@ import androidx.compose.foundation.background
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.animateDecay
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -58,10 +56,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.gestures.FlingBehavior
-import androidx.compose.foundation.gestures.ScrollScope
 import com.music.audify.ui.components.ShelfRow
 import com.music.audify.ui.components.shelfStagger
 import com.music.audify.ui.components.SkeletonShimmerHost
@@ -130,6 +127,7 @@ import com.music.audify.data.model.artworkAt
 import com.music.audify.ui.components.HERO_CARD_RATIO
 import com.music.audify.ui.components.MessageState
 import com.music.audify.ui.components.PAGE_GUTTER
+import com.music.audify.ui.components.PAGE_CONTENT_MAX_WIDTH
 import com.music.audify.ui.components.RowMoreButton
 import com.music.audify.ui.components.PullToRefresh
 import com.music.audify.ui.components.SHELF_CARD_WIDTH
@@ -150,29 +148,6 @@ import com.music.audify.ui.components.trackColumnWidth
 import com.music.audify.ui.player.MeshGradientBackground
 import com.music.audify.ui.player.MeshPalette
 import kotlinx.coroutines.launch
-import kotlin.math.abs
-
-/** A slightly longer exponential coast for the main Home feed. */
-private class HomeFlingBehavior : FlingBehavior {
-    private val decay = exponentialDecay<Float>(frictionMultiplier = 0.82f)
-
-    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-        val scrollScope = this
-        var previousValue = 0f
-        var remainingVelocity = initialVelocity
-        var hitBoundary = false
-        Animatable(0f).animateDecay(initialVelocity, decay) {
-            val delta = value - previousValue
-            val consumed = scrollScope.scrollBy(delta)
-            previousValue = value
-            remainingVelocity = velocity
-            if (abs(delta - consumed) > 0.5f) {
-                hitBoundary = true
-            }
-        }
-        return if (hitBoundary) 0f else remainingVelocity
-    }
-}
 
 /** How far the Listen now heading and feed sit above the shared top inset. */
 internal val HOME_TITLE_LIFT = 64.dp
@@ -275,7 +250,7 @@ private fun SpeedDialShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle)
-        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         val shuffleSongs = remember(shelf.items) {
             shelf.items.mapNotNull { item ->
                 val id = item.videoId ?: return@mapNotNull null
@@ -298,7 +273,7 @@ private fun SpeedDialShelf(
         BoxWithConstraints {
             val pageWidth = maxWidth - PAGE_GUTTER * 2
             val tile = (pageWidth - SPEED_DIAL_GAP * (SPEED_DIAL_COLUMNS - 1)) / SPEED_DIAL_COLUMNS
-            val listState = rememberShelfListState("speed-dial:${homeShelfKey(shelf.title)}")
+            val listState = rememberShelfListState("speed-dial:${shelf.title}")
             if (pages.size > 1) {
                 val currentPage by remember(listState) {
                     derivedStateOf {
@@ -574,11 +549,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.homeLayoutSkeleton(
                 shown++
             }
             key == recentsKey -> if (withRecents) {
-                recentlyPlayedSkeleton(key = recentsKey)
+                recentlyPlayedSkeleton()
                 shown++
             }
             key in pagedListKeys -> {
-                recentlyPlayedSkeleton(key = key)
+                recentlyPlayedSkeleton()
                 shown++
             }
             key == HOME_SLOT_MOODS -> if (withMoods) {
@@ -598,15 +573,11 @@ private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Bool
     song ?: return { false }
     // The card that was played, when the shelf holds it, and only that one —
     // see [com.music.audify.data.model.playingRowMatcher], which rows use.
-    if (firstOrNull { it.videoId == song.videoId } != null) return { it.videoId == song.videoId }
+    if (any { it.videoId == song.videoId }) return { it.videoId == song.videoId }
     val byName = firstOrNull { it.videoId != null && it.title == song.title && it.subtitle == song.artist }
         ?: return { false }
     return { it == byName }
 }
-
-@Composable
-private fun rememberPlayingItemMatcher(items: List<ShelfItem>, song: Song?): (ShelfItem) -> Boolean =
-    remember(items, song?.videoId, song?.title, song?.artist) { items.playingItemMatcher(song) }
 
 /**
  * Quick Picks is a compact three-row track shelf on Home: each horizontal
@@ -625,15 +596,14 @@ private fun QuickPicksShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle)
-        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
-        val columns = remember(shelf.items) { quickPicksColumns(shelf.items) }
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         ShelfRow(
-            state = rememberShelfListState("quick-picks:${homeShelfKey(shelf.title)}"),
+            state = rememberShelfListState("quick-picks:${shelf.title}"),
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(QUICK_PICK_COLUMN_SPACING),
         ) {
             itemsIndexed(
-                columns,
+                quickPicksColumns(shelf.items),
                 key = { index, column -> "quick-picks:${column.firstOrNull()?.videoId ?: index}" },
                 contentType = { _, _ -> "quick-picks-column" },
             ) { _, column ->
@@ -764,34 +734,20 @@ fun HomeScreen(
     timeAwareShelf: HomeShelf? = null,
     /** Header actions: search, arrange Home shelves, and open the account. */
     onSearchClick: (() -> Unit)? = null,
+    searchActionVisible: Boolean = true,
     onCustomizeClick: (() -> Unit)? = null,
     account: Account? = null,
     onAccountClick: (() -> Unit)? = null,
     onListenTogetherClick: (() -> Unit)? = null,
     onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
 ) {
-    val successShelves = (state as? UiState.Success)?.data
-    val editorialIndex = remember(successShelves, onTopPickClick != null) {
-        successShelves?.let { shelves ->
-            if (onTopPickClick != null) editorialShelfIndex(shelves) else null
-        }
-    }
-    // This feed list is consumed by LazyColumn's DSL. Reuse it across unrelated
-    // recompositions (playback progress, scroll state, artwork state) instead of
-    // allocating/filtering it again while the actual shelf data has not changed.
-    val visibleShelves = remember(successShelves, editorialIndex) {
-        if (successShelves != null && editorialIndex != null) {
-            successShelves.filterIndexed { index, _ -> index != editorialIndex }
-        } else {
-            successShelves
-        }
-    }
     // Top Picks' pictures and motion wait for the feed — see LocalArtworkImages.
     val feedReady = state !is UiState.Loading
-    // Content first composed during a fling must appear fully formed. Running
-    // delayed alpha/translation reveals while the list is moving reads as card
-    // flicker and competes with image decoding for the frame budget.
-    val revealEnabled = feedReady && !listState.isScrollInProgress
+    // Home's content is already being revealed by the loading-skeleton swap.
+    // Running a second per-section alpha/translation reveal as each LazyColumn
+    // item enters composition makes the fully loaded cards and text flash once.
+    // Keep Home content stable; other screens retain their own reveal motion.
+    val homeRevealEnabled = false
     // Home shelf entrances run once per stable shelf key, including after a
     // return from another tab. The saveable set is bounded by RevealSeenState.
     val revealSeenState = rememberRevealSeenState()
@@ -808,6 +764,16 @@ fun HomeScreen(
     }
     // Held from the first frame, so the row's slot never opens up after the feed is drawn.
     val topPicksWaiting = topPicks == null && (topPicksLoading || state is UiState.Loading)
+    var homePodcastShows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
+    LaunchedEffect(feedReady) {
+        if (!feedReady || onPodcastsClick == null) return@LaunchedEffect
+        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
+        homePodcastShows = saved
+        YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
+            .flatMap { it.shows }
+            .let { discovered -> (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12) }
+            .also { homePodcastShows = it }
+    }
     CompositionLocalProvider(
         LocalArtworkMotion provides (artworkMotion && feedReady),
         LocalArtworkImages provides feedReady,
@@ -828,10 +794,7 @@ fun HomeScreen(
         SkeletonShimmerHost(enabled = !feedReady || topPicksWaiting || recentlyPlayedLoading || loadingMore) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
-            // A slightly longer decay lets a fast swipe settle progressively
-            // instead of feeling as though the feed hits an invisible brake.
-            flingBehavior = remember { HomeFlingBehavior() },
+            modifier = Modifier.widthIn(max = PAGE_CONTENT_MAX_WIDTH).fillMaxSize(),
             // The heading sits higher than the other tabs' first row: pull the
             // whole feed up by [HOME_TITLE_LIFT] with it.
             contentPadding = if (title != null) {
@@ -845,11 +808,12 @@ fun HomeScreen(
         ) {
             if (title != null) {
                 item(key = "home-header") {
-                    Box(Modifier.fillMaxWidth().revealOnAppear("home:header", revealSeenState, revealEnabled)) {
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:header", revealSeenState, homeRevealEnabled)) {
                         HomeHeader(
                             title = title,
                             account = account,
                             onSearchClick = onSearchClick,
+                            searchActionVisible = searchActionVisible,
                             onCustomizeClick = onCustomizeClick,
                             onAccountClick = onAccountClick,
                         )
@@ -863,7 +827,7 @@ fun HomeScreen(
                     SignInBanner(
                         onSignIn = onSignIn,
                         modifier = Modifier.padding(bottom = 8.dp).revealOnAppear(
-                            "home:sign-in", revealSeenState, revealEnabled,
+                            "home:sign-in", revealSeenState, homeRevealEnabled,
                         ),
                         motion = LocalArtworkMotion.current && !listState.isScrollInProgress,
                     )
@@ -872,7 +836,7 @@ fun HomeScreen(
             // Pinned playlists: one tap from Home instead of a trip to Library.
             if (pinnedShelf != null && pinnedShelf.items.isNotEmpty()) {
                 item(key = "pinned-playlists") {
-                    Box(Modifier.fillMaxWidth().revealOnAppear("home:pinned", revealSeenState, revealEnabled)) {
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:pinned", revealSeenState, homeRevealEnabled)) {
                         Shelf(
                             shelf = pinnedShelf,
                             onItemClick = { onItemClick(it, pinnedShelf.title) },
@@ -886,7 +850,7 @@ fun HomeScreen(
             }
             if (timeAwareShelf != null && timeAwareShelf.items.isNotEmpty()) {
                 item(key = "time-aware-discovery") {
-                    Box(Modifier.fillMaxWidth().revealOnAppear("home:time-aware", revealSeenState, revealEnabled)) {
+                    Box(Modifier.fillMaxWidth().revealOnAppear("home:time-aware", revealSeenState, homeRevealEnabled)) {
                         Shelf(
                             shelf = timeAwareShelf,
                             onItemClick = { onItemClick(it, timeAwareShelf.title) },
@@ -901,7 +865,7 @@ fun HomeScreen(
             if (onTopPickClick != null && topPicksAboveFeed) {
                 when {
                     !topPicks.isNullOrEmpty() -> item(key = "top-picks") {
-                        Box(Modifier.fillMaxWidth().revealOnAppear("home:top-picks", revealSeenState, revealEnabled)) {
+                        Box(Modifier.fillMaxWidth().revealOnAppear("home:top-picks", revealSeenState, homeRevealEnabled)) {
                             TopPicksShelf(
                                 picks = topPicks,
                                 listenerName = listenerName,
@@ -925,10 +889,7 @@ fun HomeScreen(
                             withRecents = recentlyPlayedLoading,
                         )
                     } else if (recentlyPlayedLoading) {
-                        // Keep the exact LazyColumn key when the real Recents
-                        // shelf replaces this placeholder. Compose can then
-                        // retain its measured slot and scroll anchor.
-                        recentlyPlayedSkeleton(key = homeShelfKey(RECENTS_TITLE))
+                        recentlyPlayedSkeleton()
                         // Recents owns the leading layout while its request is
                         // pending, so the feed behind it starts with ordinary
                         // shelf placeholders rather than another hero card.
@@ -938,18 +899,19 @@ fun HomeScreen(
                     }
                 }
                 is UiState.Error -> item {
-                    MessageState(
-                        state.message,
-                        actionLabel = stringResource(Res.string.retry).takeIf { state.retryable },
-                        onAction = onRetry.takeIf { state.retryable },
-                    )
+                    MessageState(state.message, actionLabel = stringResource(Res.string.retry), onAction = onRetry)
                 }
                 is UiState.Success -> {
                     // The Apple-style release row now leads Explore; keep it out of Home.
+                    val editorialIndex = if (onTopPickClick != null) editorialShelfIndex(state.data) else null
                     // Recents' skeleton is drawn inside the list, in the slot Recents
                     // will take, rather than stacked above rows that then swap places.
                     itemsIndexedShelves(
-                        shelves = visibleShelves ?: state.data,
+                        shelves = if (editorialIndex != null) {
+                            state.data.filterIndexed { index, _ -> index != editorialIndex }
+                        } else {
+                            state.data
+                        },
                         onMoodClick = onMoodClick,
                         onMoodsShowAll = onMoodsShowAll,
                         onItemClick = onItemClick,
@@ -961,9 +923,10 @@ fun HomeScreen(
                         onPlaySongs = onPlaySongs,
                         homeLayout = homeLayout,
                         onListenTogetherClick = onListenTogetherClick,
+                        podcastShows = homePodcastShows,
                         onPodcastsClick = onPodcastsClick,
                         revealSeenState = revealSeenState,
-                        revealEnabled = revealEnabled,
+                        revealEnabled = homeRevealEnabled,
                         topPicksPending = onTopPickClick != null && topPicksWaiting,
                         topPicksItem = if (onTopPickClick != null && !topPicks.isNullOrEmpty()) {
                             {
@@ -1042,7 +1005,7 @@ fun homeDefaultSlotKeys(
         if (withTopPicks) add(HOME_SLOT_TOP_PICKS)
         ordered.forEachIndexed { index, shelf ->
             if (withMoods && index == moodAt) add(HOME_SLOT_MOODS)
-            add(homeShelfKey(shelf.title))
+            add(homeShelfKey(shelf))
         }
         if (withMoods && moodAt >= ordered.size) add(HOME_SLOT_MOODS)
     }.distinct()
@@ -1074,6 +1037,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     /** Recents is still loading: a skeleton holds the slot it will land in. */
     recentsPending: Boolean = false,
     onListenTogetherClick: (() -> Unit)? = null,
+    podcastShows: List<PodcastProviderShow> = emptyList(),
     onPodcastsClick: ((PodcastProviderShow?) -> Unit)? = null,
     revealSeenState: RevealSeenState,
     revealEnabled: Boolean,
@@ -1099,17 +1063,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
         .takeIf { it >= 0 }?.plus(1) ?: ordered.size
     fun shelfItem(index: Int, shelf: HomeShelf) {
         if (recentsPending && shelf.items.isEmpty() && shelf.title == RECENTS_TITLE) {
-            recentlyPlayedSkeleton(key = homeShelfKey(shelf.title))
+            recentlyPlayedSkeleton()
             return
         }
-        // Shelf identity must not depend on its current position. Recents can
-        // arrive after the core feed and be prepended; index-based keys caused
-        // every existing shelf below it to be disposed and recreated.
-        val stableShelfKey = homeShelfKey(shelf.title)
-        item(key = stableShelfKey, contentType = shelf.layout) {
+        item(key = homeShelfKey(shelf) + index, contentType = shelf.layout) {
             Column(
                 modifier = Modifier.fillMaxWidth().revealOnAppear(
-                    key = "home:$stableShelfKey",
+                    key = "home:${homeShelfKey(shelf)}:$index",
                     seenState = revealSeenState,
                     enabled = revealEnabled,
                 ),
@@ -1195,7 +1155,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             if (onPodcastsClick != null) {
                 item(key = "home-podcasts") {
                     Box(Modifier.fillMaxWidth().revealOnAppear("home:podcasts", revealSeenState, revealEnabled)) {
-                        HomePodcastsShelf(onPodcastsClick)
+                        HomePodcastsShelf(podcastShows, onPodcastsClick)
                     }
                 }
             }
@@ -1208,7 +1168,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
         val entries = buildList<Pair<String, HomeShelf?>> {
             if (topPicksItem != null || topPicksPending) add(HOME_SLOT_TOP_PICKS to null)
             if (onMoodClick != null) add(HOME_SLOT_MOODS to null)
-            ordered.forEach { add(homeShelfKey(it.title) to it) }
+            ordered.forEach { add(homeShelfKey(it) to it) }
         }
         var shelfIndex = 0
         homeLayout.arrange(entries) { it.first }.forEach { (key, shelf) ->
@@ -1258,7 +1218,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
         }
         item(key = "home-podcasts") {
             Box(Modifier.fillMaxWidth().revealOnAppear("home:podcasts", revealSeenState, revealEnabled)) {
-                HomePodcastsShelf(onPodcastsClick)
+                HomePodcastsShelf(podcastShows, onPodcastsClick)
             }
         }
     }
@@ -1300,18 +1260,9 @@ private fun ListenTogetherShelf(artworks: List<String?>, onClick: (() -> Unit)?)
 
 @Composable
 private fun HomePodcastsShelf(
+    shows: List<PodcastProviderShow>,
     onOpen: (PodcastProviderShow?) -> Unit,
 ) {
-    var shows by remember { mutableStateOf<List<PodcastProviderShow>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        val saved = YtMusicRepository.libraryPodcastShows().getOrNull().orEmpty()
-        shows = saved
-        val discovered = YtMusicRepository.podcastDiscoveryCategories().getOrNull().orEmpty()
-            .flatMap { it.shows }
-        shows = (saved + discovered).distinctBy(PodcastProviderShow::browseId).take(12)
-        loading = false
-    }
     Column(Modifier.padding(bottom = 22.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
@@ -1332,7 +1283,7 @@ private fun HomePodcastsShelf(
             if (shows.isEmpty()) {
                 item(key = "home-podcasts-discover") {
                     Column(
-                        modifier = Modifier.width(SHELF_CARD_WIDTH).clickable(enabled = !loading) { onOpen(null) },
+                        modifier = Modifier.width(SHELF_CARD_WIDTH).clickable { onOpen(null) },
                     ) {
                         Box(
                             Modifier.size(SHELF_CARD_WIDTH)
@@ -1347,8 +1298,8 @@ private fun HomePodcastsShelf(
                                 modifier = Modifier.size(42.dp),
                             )
                         }
-                        Text(if (loading) "Loading podcasts…" else "Discover podcasts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
-                        Text(if (loading) "Your podcast shelf will appear here" else "Browse shows and episodes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Discover podcasts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+                        Text("Browse shows and episodes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -1397,7 +1348,7 @@ internal fun RecentShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         RecentSectionHeader(title = localizeShelfTitle(shelf.title), subtitle = localizeShelfSubtitle(shelf.subtitle))
-        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         BoxWithConstraints {
             val columnWidth = trackColumnWidth(maxWidth)
             val recentColumns = remember(shelf.items) { shelf.items.chunked(RECENT_TRACKS_PER_COLUMN) }
@@ -1586,6 +1537,7 @@ private fun HomeHeader(
     title: String,
     account: Account?,
     onSearchClick: (() -> Unit)?,
+    searchActionVisible: Boolean,
     onCustomizeClick: (() -> Unit)?,
     onAccountClick: (() -> Unit)?,
 ) {
@@ -1638,7 +1590,7 @@ private fun HomeHeader(
             if (onCustomizeClick != null) {
                 HomeHeaderAction(Icons.Rounded.Tune, "Arrange Home", onCustomizeClick, actionSize)
             }
-            HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick, actionSize)
+            HomeHeaderAction(Icons.Rounded.Search, "Search", onSearchClick, actionSize, visible = searchActionVisible)
             Box(
                 modifier = Modifier
                     .size(actionSize)
@@ -1667,12 +1619,24 @@ private fun HomeHeader(
 }
 
 @Composable
-private fun HomeHeaderAction(icon: ImageVector, description: String, onClick: (() -> Unit)?, size: Dp) {
+private fun HomeHeaderAction(
+    icon: ImageVector,
+    description: String,
+    onClick: (() -> Unit)?,
+    size: Dp,
+    visible: Boolean = true,
+) {
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(180),
+        label = "homeHeaderActionAlpha",
+    )
     Box(
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .clickable(enabled = onClick != null, onClick = { onClick?.invoke() }),
+            .graphicsLayer { this.alpha = alpha }
+            .clickable(enabled = visible && onClick != null, onClick = { onClick?.invoke() }),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
@@ -2042,7 +2006,7 @@ private fun HeroShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         HomeSectionHeader(shelf.title, shelf.subtitle, emphasized = true)
-        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         // Measured rather than taken as a share of the parent, because the card
         // has a ceiling as well as a fraction — see [heroCardWidth]. A fixed
@@ -2051,7 +2015,7 @@ private fun HeroShelf(
         BoxWithConstraints {
             val cardWidth = heroCardWidth(maxWidth)
             ShelfRow(
-                state = rememberShelfListState("hero:${homeShelfKey(shelf.title)}"),
+                state = rememberShelfListState("hero:${shelf.title}"),
                 contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -2162,10 +2126,10 @@ internal fun Shelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         if (homeStyle) HomeSectionHeader(shelf.title, shelf.subtitle) else SectionHeader(shelf.title, shelf.subtitle)
-        val isCurrentItem = rememberPlayingItemMatcher(shelf.items, currentSong)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         val itemKeys = remember(shelf.items) { shelfItemKeys(shelf.items) }
         ShelfRow(
-            state = rememberShelfListState(homeShelfKey(shelf.title)),
+            state = rememberShelfListState("shelf:${shelf.title}"),
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -2508,7 +2472,11 @@ internal fun ShelfCard(
         val displaySubtitle = localizeCardSubtitle(item.subtitle)
         Text(
             text = displaySubtitle,
-            style = MaterialTheme.typography.bodyMedium,
+            style = if (item.browseId?.startsWith("local:playlist:") == true) {
+                MaterialTheme.typography.bodySmall
+            } else {
+                MaterialTheme.typography.bodyMedium
+            },
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

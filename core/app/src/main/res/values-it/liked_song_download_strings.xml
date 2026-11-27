@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_liked_songs">Scarica automaticamente i brani che ti piacciono</string>
+    <string name="download_liked_songs_subtitle">Scarica una volta i brani che ti piacciono e aggiunge automaticamente i nuovi</string>
+</resources>

@@ -5,6 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import com.music.audify.data.model.UserPlaylist
 import com.music.audify.data.spotify.persistBeforePublish
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,6 +14,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaylistCreationTest {
+    @Test
+    fun localPlaylistUsesItsDeviceBrowseRouteAndRemotePlaylistKeepsYouTubeRoute() {
+        val local = UserPlaylist("sp_local_123", "Local", "1 song", null)
+        val remote = UserPlaylist("remote-123", "Remote", "", null)
+
+        assertEquals("local:playlist:sp_local_123", local.browseId)
+        assertEquals("VLremote-123", remote.browseId)
+    }
+
     @Test
     fun signedInRemoteSuccessDoesNotCreateLocalCopy() = runTest {
         var localSaveCalled = false
@@ -171,5 +181,69 @@ class PlaylistCreationTest {
             listOf("first-commit-start", "first-commit-end", "first-published", "second-commit", "second-published"),
             events,
         )
+    }
+
+    @Test
+    fun remoteImportRollsBackBeforeLocalFallbackWhenALaterBatchFails() = runTest {
+        val ids = (1..125).map { "video-$it" }
+        val createdBatches = mutableListOf<List<String>>()
+        val addedBatches = mutableListOf<List<String>>()
+        var rollbackCount = 0
+        var localSaveCount = 0
+        val failure = IllegalStateException("second batch rejected")
+
+        val result = createPlaylistWithCompensatingRollback(
+            videoIds = ids,
+            createRemote = { batch -> createdBatches += batch; Result.success("remote-1") },
+            addRemote = { _, batch ->
+                addedBatches += batch
+                if (batch.first() == "video-101") Result.failure<Any?>(failure) else Result.success(Unit)
+            },
+            deleteRemote = { rollbackCount++; Result.success(Unit) },
+            saveLocal = { localSaveCount++; "local:playlist:1" },
+        )
+
+        assertEquals(listOf(50), createdBatches.map { it.size })
+        assertEquals(listOf(50, 25), addedBatches.map { it.size })
+        assertEquals(1, rollbackCount)
+        assertEquals(1, localSaveCount)
+        assertEquals(PlaylistCreationResult.SavedLocally("local:playlist:1", failure), result)
+    }
+
+    @Test
+    fun failedRemoteRollbackDoesNotPretendLocalFallbackMadeRemoteImportAtomic() = runTest {
+        var localSaveCalled = false
+        val rollbackFailure = IllegalStateException("delete rejected")
+        val result = createPlaylistWithCompensatingRollback(
+            videoIds = (1..51).map { "video-$it" },
+            createRemote = { Result.success("remote-partial") },
+            addRemote = { _, _ -> Result.failure<Any?>(IllegalStateException("add rejected")) },
+            deleteRemote = { Result.failure<Any?>(rollbackFailure) },
+            saveLocal = { localSaveCalled = true; "local:playlist:2" },
+        )
+
+        assertTrue(result is PlaylistCreationResult.Failed)
+        assertTrue((result as PlaylistCreationResult.Failed).cause.message.orEmpty().contains("remote-partial"))
+        assertEquals(listOf(rollbackFailure), result.cause.suppressed.toList())
+        assertFalse(localSaveCalled)
+    }
+
+    @Test
+    fun cancellationDuringRemoteAppendRunsCompensatingDeleteAndDoesNotSaveLocally() = runTest {
+        var rollbackCount = 0
+        var localSaveCalled = false
+        val result = runCatching {
+            createPlaylistWithCompensatingRollback(
+                videoIds = (1..51).map { "video-$it" },
+                createRemote = { Result.success("remote-cancel") },
+                addRemote = { _, _ -> throw CancellationException("cancelled") },
+                deleteRemote = { rollbackCount++; Result.success(Unit) },
+                saveLocal = { localSaveCalled = true; "local:playlist:3" },
+            )
+        }
+
+        assertTrue(result.exceptionOrNull() is CancellationException)
+        assertEquals(1, rollbackCount)
+        assertFalse(localSaveCalled)
     }
 }

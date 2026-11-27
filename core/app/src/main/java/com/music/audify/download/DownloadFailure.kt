@@ -12,6 +12,7 @@ internal fun friendlyDownloadFailure(failure: Throwable): String {
         val message = current.message.orEmpty().lowercase(Locale.ROOT)
         val type = current.javaClass.simpleName
         if (
+            isDownloadStorageCapacityFailure(current) ||
             type == "SQLiteFullException" ||
             type == "DiskFullException" ||
             "enospc" in message ||

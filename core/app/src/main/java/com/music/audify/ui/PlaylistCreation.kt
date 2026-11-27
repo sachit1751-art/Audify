@@ -1,6 +1,8 @@
 package com.music.audify.ui
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /** The destination that actually received a newly created playlist. */
 internal sealed interface PlaylistCreationResult {
@@ -91,4 +93,83 @@ internal suspend fun createPlaylistWithLocalFallback(
             PlaylistCreationResult.Failed(failure)
         }
     }
+}
+
+/**
+ * Creates a remote playlist in bounded batches. If a later batch fails, delete
+ * the staged remote playlist before falling back locally; never report a
+ * partially populated remote playlist as a successful import.
+ */
+internal suspend fun createPlaylistWithCompensatingRollback(
+    videoIds: List<String>,
+    createRemote: suspend (initialBatch: List<String>) -> Result<String>,
+    addRemote: suspend (playlistId: String, batch: List<String>) -> Result<*>,
+    deleteRemote: suspend (playlistId: String) -> Result<*>,
+    saveLocal: suspend () -> String,
+): PlaylistCreationResult {
+    val ids = videoIds.filter(String::isNotBlank)
+    if (ids.isEmpty()) return PlaylistCreationResult.Failed(
+        IllegalArgumentException("There are no playable track IDs to import"),
+    )
+
+    suspend fun localFallback(remoteFailure: Throwable?): PlaylistCreationResult = try {
+        PlaylistCreationResult.SavedLocally(saveLocal(), remoteFailure)
+    } catch (localFailure: Exception) {
+        if (localFailure is CancellationException) throw localFailure
+        if (remoteFailure != null && remoteFailure !== localFailure) localFailure.addSuppressed(remoteFailure)
+        PlaylistCreationResult.Failed(localFailure)
+    }
+
+    val created = try {
+        createRemote(ids.take(50))
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        Result.failure(failure)
+    }
+    val playlistId = created.getOrElse {
+        if (it is CancellationException) throw it
+        return localFallback(it)
+    }
+
+    try {
+        ids.drop(50).chunked(50).forEach { batch ->
+            val result = try {
+                addRemote(playlistId, batch)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Result.failure<Any?>(failure)
+            }
+            result.getOrThrow()
+        }
+    } catch (cancelled: CancellationException) {
+        withContext(NonCancellable) {
+            try {
+                deleteRemote(playlistId).onFailure(cancelled::addSuppressed)
+            } catch (rollbackFailure: Exception) {
+                cancelled.addSuppressed(rollbackFailure)
+            }
+        }
+        throw cancelled
+    } catch (failure: Exception) {
+        val rollback = try {
+            deleteRemote(playlistId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (rollbackFailure: Exception) {
+            Result.failure<Any?>(rollbackFailure)
+        }
+        if (rollback.isFailure) {
+            val partial = IllegalStateException(
+                "Playlist import failed and remote playlist $playlistId could not be rolled back",
+                failure,
+            )
+            rollback.exceptionOrNull()?.let(partial::addSuppressed)
+            return PlaylistCreationResult.Failed(partial)
+        }
+        return localFallback(failure)
+    }
+
+    return PlaylistCreationResult.RemoteCreated(playlistId)
 }

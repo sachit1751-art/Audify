@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_liked_songs">Baixar automaticamente as músicas curtidas</string>
+    <string name="download_liked_songs_subtitle">Baixa suas músicas curtidas uma vez e adiciona automaticamente novas curtidas</string>
+</resources>

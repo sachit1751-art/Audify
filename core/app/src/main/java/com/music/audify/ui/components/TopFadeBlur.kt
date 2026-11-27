@@ -87,7 +87,7 @@ private const val SCRIM_STOPS = 12
  * Fading out instead leaves the title and back arrow something to be legible
  * against and the page nothing to be interrupted by.
  */
-@OptIn(ExperimentalHazeApi::class)
+@OptIn(ExperimentalHazeApi::class, ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TopFadeBlur(
     hazeState: HazeState,
@@ -178,6 +178,7 @@ fun TopFadeBlur(
  * Replay and artwork detail pages draw neither component and let their own
  * full-bleed background show through unchanged.
  */
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 fun TopBarBlur(
     hazeState: HazeState,

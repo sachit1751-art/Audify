@@ -567,6 +567,12 @@ object AppSettings {
      */
     val wifiOnlyDownloads = MutableStateFlow(true)
 
+    /** Background update discovery stays enabled by default; installing remains user-confirmed. */
+    val automaticUpdateChecks = MutableStateFlow(true)
+
+    /** Stable is the default; opt in explicitly to GitHub pre-releases. */
+    val includePreReleaseUpdates = MutableStateFlow(false)
+
     /** Include GitHub pre-releases in update checks and download their APKs without installing them. */
     val betaUpdatesEnabled = MutableStateFlow(false)
 
@@ -577,6 +583,9 @@ object AppSettings {
      * not one portable audio file.
      */
     val exportDownloads = MutableStateFlow(false)
+
+    /** Keep the account's Liked Music downloaded; disabled until explicitly enabled. */
+    val downloadLikedSongs = MutableStateFlow(false)
 
     /** Automatically keep tracks downloaded when the user likes them. */
     val autoDownloadLikedSongs = MutableStateFlow(false)
@@ -600,7 +609,7 @@ object AppSettings {
 
     val crossfadeSeconds = MutableStateFlow(0)
 
-    /** Legacy preference retained for migration compatibility; manual skips are always immediate. */
+    /** Crossfades manual next/previous actions when the listener enables it. */
     val crossfadeOnSkip = MutableStateFlow(false)
 
     /**
@@ -1442,7 +1451,16 @@ object AppSettings {
     private fun migrateAudifyPreferences(context: Context, target: SharedPreferences) {
         val legacy = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         val legacyValues = legacy.all
-        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) return
+        val completeExistingOnboarding = shouldCompleteOnboardingForExistingInstall(
+            currentPreferenceKeys = target.all.keys,
+            legacyPreferenceKeys = legacyValues.keys,
+            onboardingKey = KEY_ONBOARDING_COMPLETE,
+            migrationKey = KEY_AUDIFY_PREFS_MIGRATED,
+        )
+        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) {
+            if (completeExistingOnboarding) target.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
+            return
+        }
         // A clean install has neither a target preference nor legacy values.
         // Do not write the migration marker in that case: seedFirstInstallDefaults()
         // must see an empty file and populate the complete first-run defaults.
@@ -1467,9 +1485,8 @@ object AppSettings {
             // Keep every original key, including keys whose UI is being restored
             // in follow-up work. This prevents a migration from silently discarding
             // preferences that the current version does not yet read.
-            legacyValues.forEach { (key, value) ->
-                put(key, value)
-            }
+            val keysToImport = legacyPreferenceKeysToImport(target.all.keys, legacyValues.keys)
+            keysToImport.forEach { key -> put(key, legacyValues[key]) }
 
             // Keys whose names changed during the copied-project integration.
             val renamedKeys = mapOf(
@@ -1489,6 +1506,7 @@ object AppSettings {
 
             putBoolean(KEY_AUDIFY_PREFS_MIGRATED, true)
         }
+        if (completeExistingOnboarding) target.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
     }
 
     /**
@@ -1513,7 +1531,7 @@ object AppSettings {
      * retains legacy fallbacks for keys absent from an older install's store.
      */
     private fun seedFirstInstallDefaults(context: Context) {
-        if (prefs.all.isNotEmpty()) return
+        if (prefs.all.isNotEmpty() && !shouldSeedFirstInstallDefaults(prefs.all.keys, KEY_AUDIFY_PREFS_MIGRATED)) return
         val lowRam = runCatching {
             (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
         }.getOrDefault(false)
@@ -1622,6 +1640,8 @@ object AppSettings {
         migrateDownloadQuality()
         downloadQuality.value = readDownloadQuality()
         wifiOnlyDownloads.value = prefs.getBoolean(KEY_WIFI_ONLY_DOWNLOADS, true)
+        automaticUpdateChecks.value = prefs.getBoolean(KEY_AUTOMATIC_UPDATE_CHECKS, true)
+        includePreReleaseUpdates.value = prefs.getBoolean(KEY_INCLUDE_PRERELEASE_UPDATES, false)
         betaUpdatesEnabled.value = prefs.getBoolean(KEY_BETA_UPDATES_ENABLED, false)
         // These fallback values are intentionally the pre-default-change values.
         // New installs have explicit values from seedFirstInstallDefaults(); an
@@ -1629,8 +1649,9 @@ object AppSettings {
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
         autoDownloadLikedSongs.value = prefs.getBoolean(KEY_AUTO_DOWNLOAD_LIKED_SONGS, false)
         syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
+        downloadLikedSongs.value = prefs.getBoolean(KEY_DOWNLOAD_LIKED_SONGS, false)
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
-        crossfadeOnSkip.value = false
+        crossfadeOnSkip.value = prefs.getBoolean(KEY_CROSSFADE_ON_SKIP, false)
         smartFadeEnabled.value = prefs.getBoolean(KEY_SMART_FADE, false)
         automixPerformanceMode.value = runCatching {
             AutomixPerformanceMode.valueOf(
@@ -2064,6 +2085,16 @@ object AppSettings {
     fun setWifiOnlyDownloads(value: Boolean) {
         wifiOnlyDownloads.value = value
         prefs.edit {putBoolean(KEY_WIFI_ONLY_DOWNLOADS, value)}
+    }
+
+    fun setAutomaticUpdateChecks(value: Boolean) {
+        automaticUpdateChecks.value = value
+        prefs.edit { putBoolean(KEY_AUTOMATIC_UPDATE_CHECKS, value) }
+    }
+
+    fun setIncludePreReleaseUpdates(value: Boolean) {
+        includePreReleaseUpdates.value = value
+        prefs.edit { putBoolean(KEY_INCLUDE_PRERELEASE_UPDATES, value) }
     }
 
     fun setBetaUpdatesEnabled(value: Boolean) {
@@ -2673,6 +2704,21 @@ object AppSettings {
         }.getOrDefault(emptyMap())
     }
 
+    /** Compatibility name used by the playback-range editor. */
+    fun playbackRangeFor(trackId: String?): TrackPlaybackWindow? = playbackWindowForTrack(trackId)
+
+    /** Saves or clears the playable window using the editor's start/end API. */
+    fun setPlaybackRange(trackId: String, startMs: Long?, endMs: Long?) {
+        val window = if (startMs == null || endMs == null) null else TrackPlaybackWindow(startMs, endMs)
+        setPlaybackWindowForTrack(trackId, window)
+    }
+
+    /** Compatibility name used by the multi-segment editor. */
+    fun skipSegmentsFor(trackId: String?): List<SkipSegment> = skipSegmentsForTrack(trackId)
+
+    fun setSkipSegments(trackId: String, segments: List<SkipSegment>) =
+        setSkipSegmentsForTrack(trackId, segments)
+
     fun skipSegmentsForTrack(trackId: String?): List<SkipSegment> =
         trackId?.takeIf { it.isNotBlank() }?.let { skipSegmentsByTrack[it] }.orEmpty()
 
@@ -3028,6 +3074,11 @@ object AppSettings {
     fun setAutoDownloadLikedSongs(value: Boolean) {
         autoDownloadLikedSongs.value = value
         prefs.edit { putBoolean(KEY_AUTO_DOWNLOAD_LIKED_SONGS, value) }
+    }
+
+    fun setDownloadLikedSongs(value: Boolean) {
+        downloadLikedSongs.value = value
+        prefs.edit { putBoolean(KEY_DOWNLOAD_LIKED_SONGS, value) }
     }
 
     fun setSyncDownloadedPlaylists(value: Boolean) {
@@ -3534,10 +3585,13 @@ object AppSettings {
     private const val KEY_UPGRADE_LENGTH_SLACK_SECONDS = "upgrade_length_slack_seconds"
     private const val KEY_QUALITY_DOWNLOAD = "audio_quality_download"
     private const val KEY_WIFI_ONLY_DOWNLOADS = "wifi_only_downloads"
+    private const val KEY_AUTOMATIC_UPDATE_CHECKS = "automatic_update_checks"
+    private const val KEY_INCLUDE_PRERELEASE_UPDATES = "include_prerelease_updates"
     private const val KEY_BETA_UPDATES_ENABLED = "beta_updates_enabled"
     private const val KEY_EXPORT_DOWNLOADS = "export_downloads"
     private const val KEY_AUTO_DOWNLOAD_LIKED_SONGS = "auto_download_liked_songs"
     private const val KEY_SYNC_DOWNLOADED_PLAYLISTS = "sync_downloaded_playlists"
+    private const val KEY_DOWNLOAD_LIKED_SONGS = "download_liked_songs"
     private const val KEY_CROSSFADE = "crossfade_seconds"
     private const val KEY_CROSSFADE_ON_SKIP = "crossfade_on_skip"
     private const val KEY_SMART_FADE = "smart_fade_enabled"

@@ -193,6 +193,10 @@ fun FrostedTopBar(
      * Root tabs have no back button there for it to collide with.
      */
     accessory: (@Composable () -> Unit)? = null,
+    /** Leaves the accessory itself unpainted so the page wallpaper stays visible. */
+    accessoryTransparent: Boolean = false,
+    /** Gives a focused accessory the full row by removing trailing actions from layout. */
+    accessoryExpanded: Boolean = false,
     /** True while the account popup is up: the actions pill, glass circle included, steps aside for the card. */
     actionsHidden: Boolean = false,
     actions: @Composable () -> Unit = {},
@@ -369,18 +373,19 @@ fun FrostedTopBar(
                         AccessoryPill(
                             floating = useFloatingChrome,
                             hazeState = backButtonHazeState,
+                            transparent = accessoryTransparent,
                             content = accessory,
                         )
                     }
-                    Spacer(Modifier.width(ACCESSORY_GAP))
+                    if (!accessoryExpanded) Spacer(Modifier.width(ACCESSORY_GAP))
                 }
-                if (useFloatingChrome) {
+                if (useFloatingChrome && !accessoryExpanded) {
                     ArtworkPageActions(
                         hazeState = backButtonHazeState,
                         modifier = Modifier.graphicsLayer { alpha = actionsAlpha },
                         content = actions,
                     )
-                } else {
+                } else if (!useFloatingChrome && !accessoryExpanded) {
                     actions()
                 }
             }
@@ -543,6 +548,7 @@ private fun ActionsRow(modifier: Modifier, content: @Composable () -> Unit) {
 private fun AccessoryPill(
     floating: Boolean,
     hazeState: HazeState?,
+    transparent: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
@@ -553,7 +559,9 @@ private fun AccessoryPill(
             .fillMaxWidth()
             .height(TOP_CONTROL_SIZE)
             .then(
-                if (floating) {
+                if (transparent) {
+                    Modifier
+                } else if (floating) {
                     Modifier.artworkPageSurface(shape = shape, hazeState = hazeState, refract = false)
                 } else {
                     Modifier

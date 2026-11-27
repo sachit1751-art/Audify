@@ -1,5 +1,8 @@
 package com.music.audify.data.lyrics
 
+import java.text.Normalizer
+import java.util.Locale
+
 /**
  * A YouTube title, as a lyrics database would have indexed it.
  *
@@ -40,6 +43,33 @@ fun String.forLyricsSearch(): String {
  */
 fun String.artistForLyricsSearch(): String =
     removeSuffix(" - Topic").trim().ifBlank { trim() }
+
+/**
+ * Stable identity for candidate matching: Latin diacritics are ignored, while
+ * combining marks in other writing systems remain meaningful and are kept.
+ */
+internal fun String.accentFoldedIdentity(): String {
+    val decomposed = Normalizer.normalize(this, Normalizer.Form.NFD)
+    val folded = StringBuilder(decomposed.length)
+    var previousScript: Character.UnicodeScript? = null
+    decomposed.codePoints().forEach { codePoint ->
+        val type = Character.getType(codePoint)
+        val combining = type == Character.NON_SPACING_MARK.toInt() ||
+            type == Character.COMBINING_SPACING_MARK.toInt() ||
+            type == Character.ENCLOSING_MARK.toInt()
+        if (!(combining && previousScript == Character.UnicodeScript.LATIN)) {
+            folded.appendCodePoint(codePoint)
+        }
+        if (!combining) {
+            previousScript = if (Character.isLetter(codePoint)) {
+                Character.UnicodeScript.of(codePoint)
+            } else {
+                null
+            }
+        }
+    }
+    return folded.toString().lowercase(Locale.ROOT).replace(Regex("\\s+"), " ").trim()
+}
 
 private val WHITESPACE = Regex("""\s+""")
 

@@ -37,11 +37,14 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.music.audify.ui.graphics.ColorUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.music.audify.data.model.CARD_ART_PX
+import com.music.audify.data.model.PLAYER_ART_PX
 import com.music.audify.data.model.artworkAt
+import coil3.request.crossfade
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -100,12 +103,26 @@ fun rememberFullArtworkBlurImage(
     imageUrl: String?,
     artPx: Int = CARD_ART_PX,
     prepare: Boolean = true,
+    /** A frame from the playing Canvas; when present, blur it instead of the still cover. */
+    liveFrame: ImageBitmap? = null,
+    /** Frozen transition frames may legitimately be dark; live refreshes reject black frames. */
+    rejectBlackFrame: Boolean = true,
 ): ImageBitmap? {
     val context = LocalPlatformContext.current
-    var image by remember { mutableStateOf(imageUrl?.let(fullBlurCache::get)) }
+    var image by remember { mutableStateOf(imageUrl?.let(::cachedFullBlur)) }
+
+    LaunchedEffect(liveFrame) {
+        val frame = liveFrame ?: return@LaunchedEffect
+        val blurred = withContext(Dispatchers.Default) {
+            val small = frame.downscaledTo(FULL_BLUR_SOURCE_PX)
+            if (rejectBlackFrame && isLikelyBlackFrame(small)) null
+            else small.boxBlurred(FULL_BLUR_PASSES)
+        } ?: return@LaunchedEffect
+        image = blurred
+    }
 
     LaunchedEffect(imageUrl, artPx, prepare) {
-        imageUrl?.let(fullBlurCache::get)?.let {
+        imageUrl?.let(::cachedFullBlur)?.let {
             image = it
             return@LaunchedEffect
         }
@@ -121,10 +138,53 @@ fun rememberFullArtworkBlurImage(
         val bitmap = (result as? SuccessResult)?.image?.toImageBitmap() ?: return@LaunchedEffect
         val blurred = withContext(Dispatchers.Default) { bitmap.boxBlurred(FULL_BLUR_PASSES) }
         val ready = blurred
-        fullBlurCache[imageUrl] = ready
+        cacheFullBlur(imageUrl, ready)
         image = ready
     }
     return image
+}
+
+/**
+ * Warm the incoming cover's player decode, mesh, blurred backdrop and palette.
+ * Called when AutoMix arms the incoming track so the hand-off frame does not
+ * have to decode or derive any of those assets for the first time.
+ */
+suspend fun prefetchAutoMixArtwork(context: PlatformContext, imageUrl: String) {
+    val loader = SingletonImageLoader.get(context)
+    val needsMesh = cachedMesh(imageUrl) == null
+    val needsBlur = cachedFullBlur(imageUrl) == null
+    val needsPalette = !hasCachedArtworkPalette(imageUrl)
+    if (needsMesh || needsBlur || needsPalette) {
+        // One thumbnail decode feeds all three CPU-derived assets. Previously
+        // mesh, blur and palette each issued their own Coil request/decode for
+        // the same incoming cover just before an AutoMix hand-off.
+        val request = ImageRequest.Builder(context)
+            .data(imageUrl.artworkAt(PLAYER_ART_PX))
+            .size(FULL_BLUR_SOURCE_PX)
+            .forPixelAccess()
+            .build()
+        val bitmap = (loader.execute(request) as? SuccessResult)?.image?.toImageBitmap()
+        if (bitmap != null) {
+            if (needsMesh) {
+                withContext(Dispatchers.Default) { meshOf(bitmap, imageUrl.hashCode()) }
+                    ?.let { cacheMesh(imageUrl, it) }
+            }
+            if (needsBlur) {
+                cacheFullBlur(imageUrl, withContext(Dispatchers.Default) {
+                    bitmap.boxBlurred(FULL_BLUR_PASSES)
+                })
+            }
+            if (needsPalette) prefetchArtworkPalette(context, imageUrl, bitmap)
+        }
+    }
+    // Match the player's Coil request so its sleeve can reuse the decoded image.
+    loader.execute(
+        ImageRequest.Builder(context)
+            .data(imageUrl.artworkAt(PLAYER_ART_PX))
+            .size(PLAYER_ART_PX)
+            .crossfade(false)
+            .build(),
+    )
 }
 
 /**
@@ -197,10 +257,9 @@ fun FullArtworkBlurBackdrop(
             }
         }
 
-        // Everything on this is white: the lyrics, the queue and the main
-        // player's controls. Preserve the cover's colour and layout, but keep
-        // bright sleeves from lowering contrast.
-        Canvas(Modifier.fillMaxSize()) { drawRect(brush = FullArtworkScrim) }
+        // Keep the artwork's original colour. A full-panel black gradient here
+        // made the lyrics/queue surface look like a separate dark rectangle
+        // pasted over the blurred cover, especially on portrait phones.
     }
 }
 
@@ -238,19 +297,27 @@ fun rememberArtworkMesh(
     // in its first frame, with nothing to fade in from — and from
     // [heldMesh] otherwise, carried over for the reason above.
     var mesh by remember(imageUrl) {
-        mutableStateOf(imageUrl?.let(meshCache::get) ?: heldMesh.value)
+        mutableStateOf(imageUrl?.let(::cachedMesh) ?: heldMesh.value)
     }
     // What the mesh on screen was actually read from: null while it is a
     // carry-over from the previous cover. Without this the guard below would
     // read the carried mesh as this cover's own answer and never decode the
     // new one.
     var meshUrl by remember(imageUrl) {
-        mutableStateOf(if (imageUrl != null && meshCache.get(imageUrl) != null) imageUrl else null)
+        mutableStateOf(if (imageUrl != null && cachedMesh(imageUrl) != null) imageUrl else null)
     }
     LaunchedEffect(mesh) { heldMesh.value = mesh }
 
     LaunchedEffect(imageUrl, artPx) {
         if (imageUrl == null || meshUrl == imageUrl) return@LaunchedEffect
+        // AutoMix may have finished warming the mesh after this composable's
+        // first composition. Re-check before decoding so that race does not
+        // throw away the prefetch and repeat the same pixel work on the UI path.
+        cachedMesh(imageUrl)?.let {
+            mesh = it
+            meshUrl = imageUrl
+            return@LaunchedEffect
+        }
         val request = ImageRequest.Builder(context)
             .data(imageUrl.artworkAt(artPx))
             .size(MESH_PX)
@@ -269,7 +336,7 @@ fun rememberArtworkMesh(
             if (bitmap != null) {
                 val found = withContext(Dispatchers.Default) { meshOf(bitmap, imageUrl.hashCode()) }
                 if (found != null) {
-                    meshCache[imageUrl] = found
+                    cacheMesh(imageUrl, found)
                     mesh = found
                 }
                 // A cover that decoded but had no mesh in it — see [meshOf] —
@@ -511,13 +578,6 @@ private class SeamAlignedBlurPainter(
     }
 }
 
-/** The shade over the blurred cover, deepening toward the controls at the foot. */
-private val FullArtworkScrim = Brush.verticalGradient(
-    0f to Color.Black.copy(alpha = 0.16f),
-    0.55f to Color.Black.copy(alpha = 0.28f),
-    1f to Color.Black.copy(alpha = 0.44f),
-)
-
 /** Drawn only until an artwork has been read — never a colour anyone chose. */
 private val FallbackBackdrop = Color(0xFF121212)
 
@@ -530,6 +590,47 @@ private val fullBlurCache = object : LinkedHashMap<String, ImageBitmap>(0, 0.75f
     override fun removeEldestEntry(eldest: Map.Entry<String, ImageBitmap>) = size > 8
 }
 
+// AutoMix prefetch writes these caches from Dispatchers.IO/Default while the
+// composable readers access them on the UI thread. LinkedHashMap's access-order
+// get mutates its linked list, so even a read must share the same monitor.
+private fun cachedFullBlur(key: String): ImageBitmap? = synchronized(fullBlurCache) { fullBlurCache[key] }
+private fun cacheFullBlur(key: String, image: ImageBitmap) {
+    synchronized(fullBlurCache) { fullBlurCache[key] = image }
+}
+
+/** Downsample a captured video frame before blur; detail is intentionally discarded. */
+private fun ImageBitmap.downscaledTo(maxSide: Int): ImageBitmap {
+    val longest = maxOf(width, height)
+    if (longest <= maxSide || width < 1 || height < 1) return this
+    val outWidth = (width.toLong() * maxSide / longest).toInt().coerceAtLeast(1)
+    val outHeight = (height.toLong() * maxSide / longest).toInt().coerceAtLeast(1)
+    val src = argbPixels()
+    val out = IntArray(outWidth * outHeight)
+    for (y in 0 until outHeight) {
+        val y0 = y * height / outHeight
+        val y1 = ((y + 1) * height / outHeight).coerceIn(y0 + 1, height)
+        for (x in 0 until outWidth) {
+            val x0 = x * width / outWidth
+            val x1 = ((x + 1) * width / outWidth).coerceIn(x0 + 1, width)
+            var red = 0
+            var green = 0
+            var blue = 0
+            var count = 0
+            for (sy in y0 until y1) {
+                val row = sy * width
+                for (sx in x0 until x1) {
+                    val color = src[row + sx]
+                    red += color shr 16 and 0xFF
+                    green += color shr 8 and 0xFF
+                    blue += color and 0xFF
+                    count++
+                }
+            }
+            out[y * outWidth + x] = argb(red / count, green / count, blue / count)
+        }
+    }
+    return imageBitmapOf(out, outWidth, outHeight)
+}
 /** Three small box passes approximate a broad Gaussian blur at thumbnail scale. */
 private fun ImageBitmap.boxBlurred(passes: Int): ImageBitmap {
     val width = width
@@ -595,6 +696,11 @@ private fun boxBlurPass(
  */
 private val meshCache = object : LinkedHashMap<String, ArtworkMesh>(0, 0.75f, true) {
     override fun removeEldestEntry(eldest: Map.Entry<String, ArtworkMesh>) = size > MESH_CACHE_ENTRIES
+}
+
+private fun cachedMesh(key: String): ArtworkMesh? = synchronized(meshCache) { meshCache[key] }
+private fun cacheMesh(key: String, mesh: ArtworkMesh) {
+    synchronized(meshCache) { meshCache[key] = mesh }
 }
 
 /** A session's worth of covers, at four kilobytes of texture each. */
@@ -668,6 +774,97 @@ private const val MESH_FADE_MS = 900
  */
 private const val MESH_SAMPLE = 128
 
+internal data class MeshSampleBounds(
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int,
+) {
+    val width: Int get() = right - left
+    val height: Int get() = bottom - top
+}
+
+/**
+ * Detects uniform near-black borders in a small sampled frame. Real picture
+ * content must remain inside the candidate crop; an all-black frame or a dark
+ * scene without a visible interior is deliberately left untouched.
+ */
+internal fun detectMeshSampleBounds(
+    samples: IntArray,
+    width: Int,
+    height: Int,
+): MeshSampleBounds {
+    val full = MeshSampleBounds(0, 0, width, height)
+    if (width < 4 || height < 4 || samples.size < width * height) return full
+
+    fun rowIsLetterbox(y: Int): Boolean = isUniformDarkSampleLine(width) { x -> samples[y * width + x] }
+    fun columnIsLetterbox(x: Int): Boolean = isUniformDarkSampleLine(height) { y -> samples[y * width + x] }
+
+    val maxVerticalTrim = (height * 0.25f).toInt()
+    val maxHorizontalTrim = (width * 0.25f).toInt()
+    var top = 0
+    var bottom = height
+    var left = 0
+    var right = width
+    while (top < maxVerticalTrim && rowIsLetterbox(top)) top++
+    while (bottom > height - maxVerticalTrim && rowIsLetterbox(bottom - 1)) bottom--
+    while (left < maxHorizontalTrim && columnIsLetterbox(left)) left++
+    while (right > width - maxHorizontalTrim && columnIsLetterbox(right - 1)) right--
+
+    val minVerticalRun = maxOf(2, (height * 0.025f).toInt())
+    val minHorizontalRun = maxOf(2, (width * 0.025f).toInt())
+    if (top < minVerticalRun) top = 0
+    if (height - bottom < minVerticalRun) bottom = height
+    if (left < minHorizontalRun) left = 0
+    if (width - right < minHorizontalRun) right = width
+
+    val candidate = MeshSampleBounds(left, top, right, bottom)
+    if (candidate.width < width * 0.60f || candidate.height < height * 0.60f) return full
+    if (!hasVisibleMeshContent(samples, width, candidate)) return full
+    return candidate
+}
+
+private inline fun isUniformDarkSampleLine(length: Int, pixelAt: (Int) -> Int): Boolean {
+    var luminanceSum = 0.0
+    var luminanceSquareSum = 0.0
+    var maximum = 0.0
+    repeat(length) { index ->
+        val pixel = pixelAt(index)
+        val luminance = ((pixel shr 16 and 0xFF) * 0.2126) +
+            ((pixel shr 8 and 0xFF) * 0.7152) +
+            ((pixel and 0xFF) * 0.0722)
+        luminanceSum += luminance
+        luminanceSquareSum += luminance * luminance
+        maximum = maxOf(maximum, luminance)
+    }
+    val mean = luminanceSum / length
+    val variance = (luminanceSquareSum / length - mean * mean).coerceAtLeast(0.0)
+    return mean <= 22.0 && maximum <= 48.0 && variance <= 32.0
+}
+
+private fun hasVisibleMeshContent(samples: IntArray, sampleWidth: Int, bounds: MeshSampleBounds): Boolean {
+    var luminanceSum = 0.0
+    var luminanceSquareSum = 0.0
+    var maximum = 0.0
+    var count = 0
+    for (y in bounds.top until bounds.bottom) {
+        for (x in bounds.left until bounds.right) {
+            val pixel = samples[y * sampleWidth + x]
+            val luminance = ((pixel shr 16 and 0xFF) * 0.2126) +
+                ((pixel shr 8 and 0xFF) * 0.7152) +
+                ((pixel and 0xFF) * 0.0722)
+            luminanceSum += luminance
+            luminanceSquareSum += luminance * luminance
+            maximum = maxOf(maximum, luminance)
+            count++
+        }
+    }
+    if (count == 0) return false
+    val mean = luminanceSum / count
+    val variance = (luminanceSquareSum / count - mean * mean).coerceAtLeast(0.0)
+    return mean > 22.0 || variance > 32.0 || maximum > 48.0
+}
+
 /**
  * Averages [source] into the mesh texture, flipped top to bottom and then
  * rotated sideways — see [rotatedBelowSeam] for why the flip alone isn't the
@@ -685,18 +882,28 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     val height = source.height
     if (width < 1 || height < 1) return null
 
-    // Video frames commonly carry black bars inside the decoded image. They
-    // are presentation padding, not artwork: including them darkens the mesh
-    // and, worse, makes the row held against the artwork's seam black.
-    val (contentTop, contentBottom) = source.contentVerticalBounds()
-    val contentHeight = (contentBottom - contentTop).coerceAtLeast(1)
+    // Read one bounded sample rather than repeatedly walking a full-resolution
+    // video frame. The same sample detects letterbox bars and feeds the grid.
+    val sampleWidth = MESH_SAMPLE.coerceAtMost(width)
+    val sampleHeight = MESH_SAMPLE.coerceAtMost(height)
+    val line = IntArray(width)
+    val samples = IntArray(sampleWidth * sampleHeight)
+    for (sampleY in 0 until sampleHeight) {
+        val y = sampleY * height / sampleHeight
+        source.readPixels(line, startX = 0, startY = y, width = width, height = 1)
+        for (sampleX in 0 until sampleWidth) {
+            val x = sampleX * width / sampleWidth
+            samples[sampleY * sampleWidth + sampleX] = line[x]
+        }
+    }
+    val bounds = detectMeshSampleBounds(samples, sampleWidth, sampleHeight)
 
     // A cell nothing lands in would come out black, so the grid never asks for
-    // more cells than the artwork has pixels.
-    val cols = MESH_GRID.coerceAtMost(width)
-    val rows = MESH_GRID.coerceAtMost(contentHeight)
-    val rowStep = (contentHeight / MESH_SAMPLE).coerceAtLeast(1)
-    val colStep = (width / MESH_SAMPLE).coerceAtLeast(1)
+    // more cells than the visible content has samples.
+    val cols = MESH_GRID.coerceAtMost(bounds.width)
+    val rows = MESH_GRID.coerceAtMost(bounds.height)
+    val contentWidth = bounds.width
+    val contentHeight = bounds.height
 
     val cells = rows * cols
     val red = LongArray(cells)
@@ -704,85 +911,25 @@ private fun meshOf(source: ImageBitmap, seed: Int): ArtworkMesh? {
     val blue = LongArray(cells)
     val count = IntArray(cells)
 
-    // One row at a time, so the scratch buffer is the width of the artwork
-    // rather than the whole of it. A clip frame read whole is megabytes.
-    val line = IntArray(width)
-    var localY = 0
-    while (localY < contentHeight) {
-        source.readPixels(line, startX = 0, startY = contentTop + localY, width = width, height = 1)
+    for (sampleY in bounds.top until bounds.bottom) {
         // Flipped as it is read — see the note above.
-        val rowBase = ((contentHeight - 1 - localY) * rows / contentHeight) * cols
-        var x = 0
-        while (x < width) {
-            val cell = rowBase + x * cols / width
-            val pixel = line[x]
+        val rowBase = ((bounds.bottom - 1 - sampleY) * rows / contentHeight) * cols
+        for (sampleX in bounds.left until bounds.right) {
+            val cell = rowBase + (sampleX - bounds.left) * cols / contentWidth
+            val pixel = samples[sampleY * sampleWidth + sampleX]
             red[cell] += (pixel shr 16) and 0xFF
             green[cell] += (pixel shr 8) and 0xFF
             blue[cell] += pixel and 0xFF
             count[cell]++
-            x += colStep
         }
-        localY += rowStep
     }
 
-    val meanLuma = gridLuminance(red, green, blue, count)
-    val softenWhiteArtwork = meanLuma >= WHITE_ARTWORK_LUMA
     val grid = IntArray(cells) { cell ->
         val n = count[cell].coerceAtLeast(1)
-        argb((red[cell] / n).toInt(), (green[cell] / n).toInt(), (blue[cell] / n).toInt())
-            .lifted(softenWhiteArtwork)
+        argb((red[cell] / n).toInt(), (green[cell] / n).toInt(), (blue[cell] / n).toInt()).lifted()
     }
     val texels = grid.rotatedBelowSeam(cols, rows, seed).resampled(cols, rows, MESH_TEX)
     return ArtworkMesh(imageBitmapOf(texels, MESH_TEX, MESH_TEX))
-}
-
-/** Detects paired, near-black, low-variance bars without cropping dark covers. */
-private fun ImageBitmap.contentVerticalBounds(): Pair<Int, Int> {
-    if (height < 24 || width < 8) return 0 to height
-    val row = IntArray(width)
-    fun isBar(y: Int): Boolean {
-        readPixels(row, startX = 0, startY = y, width = width, height = 1)
-        var total = 0L
-        var darkest = 255
-        var brightest = 0
-        var x = 0
-        while (x < width) {
-            val pixel = row[x]
-            val luma = ((pixel shr 16 and 0xFF) * 0.2126 +
-                (pixel shr 8 and 0xFF) * 0.7152 + (pixel and 0xFF) * 0.0722).toInt()
-            total += luma
-            darkest = minOf(darkest, luma)
-            brightest = maxOf(brightest, luma)
-            x += (width / 96).coerceAtLeast(1)
-        }
-        val samples = ((width - 1) / (width / 96).coerceAtLeast(1)) + 1
-        return total / samples < LETTERBOX_MAX_LUMA && brightest - darkest < LETTERBOX_MAX_SPREAD
-    }
-
-    var top = 0
-    while (top < height / 3 && isBar(top)) top++
-    var bottom = height
-    while (bottom > height * 2 / 3 && isBar(bottom - 1)) bottom--
-    val minimumBar = (height * LETTERBOX_MIN_SHARE).roundToInt().coerceAtLeast(3)
-    return if (top >= minimumBar && height - bottom >= minimumBar && bottom > top) {
-        top to bottom
-    } else {
-        0 to height
-    }
-}
-
-private fun gridLuminance(red: LongArray, green: LongArray, blue: LongArray, count: IntArray): Float {
-    var total = 0.0
-    var samples = 0
-    for (index in count.indices) {
-        val n = count[index].coerceAtLeast(1)
-        val r = red[index].toDouble() / n
-        val g = green[index].toDouble() / n
-        val b = blue[index].toDouble() / n
-        total += (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255.0
-        samples++
-    }
-    return (total / samples.coerceAtLeast(1)).toFloat()
 }
 
 /**
@@ -884,25 +1031,12 @@ private fun argb(red: Int, green: Int, blue: Int): Int =
  * find an edge. Neither touches the *proportions*, which is the whole point of
  * this backdrop: a sleeve that is mostly black stays mostly black.
  */
-private fun Int.lifted(softenWhiteArtwork: Boolean = false): Int {
+private fun Int.lifted(): Int {
     val hsl = FloatArray(3).also { ColorUtils.colorToHSL(this, it) }
     hsl[1] = (hsl[1] * MESH_VIBRANCE).coerceAtMost(1f)
-    if (softenWhiteArtwork) {
-        // White and near-white covers otherwise turn the whole player into a
-        // bright sheet. Compress only the high-lightness palette, not the
-        // artwork itself, and keep its hue relationships intact.
-        hsl[1] *= WHITE_ARTWORK_SATURATION
-        hsl[2] = minOf(hsl[2], WHITE_ARTWORK_LIGHTNESS_CAP)
-    }
     hsl[2] = hsl[2].coerceAtLeast(MESH_FLOOR)
     return ColorUtils.HSLToColor(hsl)
 }
 
 private const val MESH_VIBRANCE = 1.12f
 private const val MESH_FLOOR = 0.045f
-private const val WHITE_ARTWORK_LUMA = 0.76f
-private const val WHITE_ARTWORK_SATURATION = 0.82f
-private const val WHITE_ARTWORK_LIGHTNESS_CAP = 0.64f
-private const val LETTERBOX_MAX_LUMA = 20L
-private const val LETTERBOX_MAX_SPREAD = 22
-private const val LETTERBOX_MIN_SHARE = 0.035f

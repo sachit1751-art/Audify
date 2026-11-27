@@ -60,7 +60,6 @@ import com.music.audify.data.model.LIBRARY_SLOT_LINKS
 import com.music.audify.data.model.LIBRARY_SLOT_ON_DEVICE
 import com.music.audify.data.model.LIBRARY_SLOT_PINNED
 import com.music.audify.data.model.LIBRARY_SLOT_REPLAY
-import com.music.audify.data.model.LIBRARY_SLOT_SMART_PLAYLISTS
 import com.music.audify.data.model.LibraryPage
 import com.music.audify.data.model.homeShelfKey
 import com.music.audify.data.model.ShelfItem
@@ -143,8 +142,10 @@ fun LibraryScreen(
      * account's, which carries its own title and cover with the pin.
      */
     pinnedExtraItems: List<ShelfItem> = emptyList(),
-    /** Opens Audify's rule-based playlists page. */
+    /** Opens the Smart Playlist manager from the leading shelf tile. */
     onSmartPlaylists: (() -> Unit)? = null,
+    /** Generated rule-based playlists, appended after ordinary playlists. */
+    smartPlaylistItems: List<ShelfItem> = emptyList(),
 ) {
     val pinnedPlaylists by AppUi.host.pinnedPlaylists.collectAsStateWithLifecycle()
     val onDevice = stringResource(Res.string.on_device)
@@ -226,12 +227,13 @@ fun LibraryScreen(
                     item(key = "shelf:$PLAYLISTS") {
                         val emptyPlaylists = HomeShelf(PLAYLISTS, emptyList())
                         PlaylistShelf(
-                            shelf = emptyPlaylists,
+                            shelf = emptyPlaylists.copy(items = smartPlaylistItems),
                             onItemClick = onShelfItemClick,
                             onItemLongPress = onShelfItemLongPress,
                             onNewPlaylist = onNewPlaylist,
                             onImportSpotifyPlaylist = onImportSpotifyPlaylist,
-                            onShowAll = { onShowAll(emptyPlaylists) },
+                            onSmartPlaylists = onSmartPlaylists,
+                            onShowAll = { onShowAll(emptyPlaylists.copy(items = smartPlaylistItems)) },
                         )
                     }
                     item {
@@ -267,12 +269,13 @@ fun LibraryScreen(
                                 item(key = "shelf:$PLAYLISTS") {
                                     val emptyPlaylists = HomeShelf(PLAYLISTS, emptyList())
                                     PlaylistShelf(
-                                        shelf = emptyPlaylists,
+                                        shelf = emptyPlaylists.copy(items = smartPlaylistItems),
                                         onItemClick = onShelfItemClick,
                                         onItemLongPress = onShelfItemLongPress,
                                         onNewPlaylist = onNewPlaylist,
                                         onImportSpotifyPlaylist = onImportSpotifyPlaylist,
-                                        onShowAll = { onShowAll(emptyPlaylists) },
+                                        onSmartPlaylists = onSmartPlaylists,
+                                        onShowAll = { onShowAll(emptyPlaylists.copy(items = smartPlaylistItems)) },
                                     )
                                 }
                             }
@@ -289,7 +292,7 @@ fun LibraryScreen(
                                                 it.browseId == YtMusicRepository.LIKED_MUSIC
                                             })
                                             .pinnedFirst(pinnedPlaylists)
-                                            .let { ordered -> ordered.copy(items = listOfNotNull(likedMusic) + ordered.items) }
+                                            .let { ordered -> ordered.copy(items = listOfNotNull(likedMusic) + ordered.items + smartPlaylistItems) }
                                         // Yang di-pin sudah tampil di grid atas, jadi shelf
                                         // hanya menampilkan sisanya. "Show all" tetap membuka semuanya.
                                         val unpinned = pinnedFirst.copy(
@@ -305,6 +308,7 @@ fun LibraryScreen(
                                             onItemLongPress = onShelfItemLongPress,
                                             onNewPlaylist = onNewPlaylist,
                                             onImportSpotifyPlaylist = onImportSpotifyPlaylist,
+                                            onSmartPlaylists = onSmartPlaylists,
                                             onShowAll = { onShowAll(pinnedFirst) },
                                             pinnedPlaylists = pinnedPlaylists,
                                         )
@@ -338,82 +342,6 @@ fun LibraryScreen(
                     }
                 }
                 item(key = "replay") { replay() }
-            }
-            if (onSmartPlaylists != null) {
-                section(LIBRARY_SLOT_SMART_PLAYLISTS) {
-                    item(key = "smart-playlists") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onSmartPlaylists)
-                                .padding(horizontal = PAGE_GUTTER, vertical = 8.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f))
-                                .padding(horizontal = 16.dp, vertical = 15.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.13f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = AudifyIcons.StarFilled,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(25.dp),
-                                )
-                            }
-                            Column(Modifier.padding(start = 14.dp).weight(1f)) {
-                                Text(
-                                    stringResource(Res.string.smart_playlists),
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    stringResource(Res.string.smart_playlists_subtitle),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            Icon(
-                                imageVector = AudifyIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                }
-            }
-            // Device-only collections follow Playlists and are absent until
-            // this device actually has saved albums or playlists. The shelf
-            // itself supplies the single On Device heading.
-            // While the account shelves are loading, keep the device-only
-            // section out of the first composition. Otherwise it can appear
-            // above the loading skeleton and then jump down when remote shelves
-            // arrive. Render the local section after the account result settles.
-            if (deviceItems.isNotEmpty() && (!signedIn || state !is UiState.Loading)) {
-                section(LIBRARY_SLOT_ON_DEVICE) {
-                    val unpinnedDevice = deviceItems.filterNot {
-                        it.browseId != null && it.browseId in pinnedPlaylists
-                    }
-                    if (unpinnedDevice.isNotEmpty()) {
-                        item(key = "shelf:$onDevice") {
-                            val onDeviceShelf = HomeShelf(title = onDevice, items = unpinnedDevice)
-                            LibraryGridShelf(
-                                shelf = onDeviceShelf,
-                                onItemClick = onShelfItemClick,
-                                onItemLongPress = onShelfItemLongPress,
-                                onShowAll = { onShowAll(HomeShelf(title = onDevice, items = deviceItems)) },
-                            )
-                        }
-                    }
-                }
             }
             val arrangedSections = layout.arrange(sections) { it.first }.toMutableList()
             // Loading/error content is not a user-arrangeable shelf. Place it
@@ -528,6 +456,7 @@ private fun PlaylistShelf(
     onItemLongPress: (ShelfItem) -> Unit,
     onNewPlaylist: () -> Unit,
     onImportSpotifyPlaylist: (() -> Unit)? = null,
+    onSmartPlaylists: (() -> Unit)? = null,
     onShowAll: () -> Unit,
     pinnedPlaylists: List<String> = emptyList(),
 ) {
@@ -556,6 +485,17 @@ private fun PlaylistShelf(
                         onClick = onImportSpotifyPlaylist,
                         modifier = m,
                         logo = Res.drawable.spotify_logo,
+                    )
+                }
+            }
+            if (onSmartPlaylists != null) {
+                add { m ->
+                    NewShelfCard(
+                        icon = AudifyIcons.StarFilled,
+                        label = stringResource(Res.string.smart_playlists),
+                        subtitle = "Rules update automatically",
+                        onClick = onSmartPlaylists,
+                        modifier = m,
                     )
                 }
             }
@@ -676,13 +616,14 @@ private fun LibraryTwoColumnShelf(
     }
 }
 
-/** The Playlists row never swipes past this many cards, tiles included. */
+/** Legacy preview threshold retained only for the Show all affordance. */
 private const val LIBRARY_ROW_SHELF_MAX = 5
 
 /**
  * The Playlists shelf: one sideways-scrolling row of [SHELF_CARD_WIDTH] cards
- * under the Library heading, stopped at [LIBRARY_ROW_SHELF_MAX] with the rest
- * behind "Show all". Every other shelf stays the two-across [LibraryGridShelf].
+ * under the Library heading. The complete playlist run stays horizontally
+ * scrollable; "Show all" remains available for the full grid. Other shelves
+ * stay the two-across [LibraryGridShelf].
  *
  * [leadingCards] (New playlist, Import Spotify) take the first slots and count
  * against that cap. Each is handed the width of a card.
@@ -697,7 +638,7 @@ private fun LibraryRowShelf(
     pinnedPlaylists: List<String> = emptyList(),
 ) {
     val leadingCount = leadingCards.size
-    val visibleItems = shelf.items.take((LIBRARY_ROW_SHELF_MAX - leadingCount).coerceAtLeast(0))
+    val visibleItems = shelf.items
     Column(Modifier.padding(bottom = 26.dp)) {
         LibrarySectionHeader(
             title = shelf.title,

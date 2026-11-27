@@ -64,8 +64,10 @@ import com.music.audify.data.Http
 import com.music.audify.data.canvas.CanvasArtwork
 import com.music.audify.data.canvas.CanvasCache
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -767,7 +769,11 @@ private suspend fun TextureView.copyStill(
         },
     )
     val shrink = if (maxSide > 0) minOf(1f, maxSide.toFloat() / maxOf(videoWidth, videoHeight)) else 1f
-    val bitmap = createBitmap((videoWidth * scale * shrink).roundToInt().coerceAtLeast(1), (videoHeight * scale * shrink).roundToInt().coerceAtLeast(1), )
+    val bitmapWidth = (videoWidth * scale * shrink).roundToInt().coerceAtLeast(1)
+    val bitmapHeight = (videoHeight * scale * shrink).roundToInt().coerceAtLeast(1)
+    // PixelCopy writes into this destination asynchronously. Allocate its
+    // backing pixels on a worker so a large Canvas frame never allocates on UI.
+    val bitmap = withContext(Dispatchers.IO) { createBitmap(bitmapWidth, bitmapHeight) }
     val result = runCatching {
         suspendCancellableCoroutine { continuation ->
             val surface = Surface(texture)

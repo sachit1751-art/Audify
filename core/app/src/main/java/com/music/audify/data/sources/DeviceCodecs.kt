@@ -10,6 +10,10 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.playback.audio.bitperfect.BitPerfectOutput
 import java.util.Locale
 
+/** Pure test seam shared with the runtime decoder decision. */
+internal fun dolbyAtmosDecoderAvailable(media3Decoders: List<String>?, platformDecoders: List<String>?): Boolean =
+    hasDolbyAtmosDecoderEvidence(media3Decoders, platformDecoders)
+
 /** A failed decoder query is not evidence that a decoder exists. */
 internal fun hasDolbyAtmosDecoderEvidence(
     media3Decoders: List<String>?,

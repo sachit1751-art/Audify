@@ -170,6 +170,9 @@ import com.music.audify.data.DebugLog as Log
 import com.music.audify.data.canvas.AppleAlbumInfoRepository
 import com.music.audify.data.canvas.AppleArtistArtRepository
 import com.music.audify.data.canvas.releaseDateText
+import com.music.audify.data.canvas.audioQualityLabel
+import com.music.audify.ui.components.SourceQuality
+import com.music.audify.ui.components.SourceQualityBadge
 import com.music.audify.data.canvas.appleCatalogue
 import com.music.audify.data.canvas.ArtistSignature
 import com.music.audify.data.canvas.ArtistSignatureRepository
@@ -695,6 +698,7 @@ fun DetailScreen(
                         heroHeight = artHeight * 0.92f,
                         pull = { (listOverscroll as? PullDownOverscrollEffect)?.pullDownPx ?: 0f },
                         albumGenre = albumInfo?.genre,
+                        albumQuality = albumInfo?.audioQualityLabel(),
                         canvas = canvas,
                         songs = songs,
                         onPlay = { onSongClick(songs, 0) },
@@ -1074,6 +1078,8 @@ private fun ReleaseHeader(
     heroHeight: Dp = sleeveSize * 1.2f,
     /** Genre yang Apple catat untuk album ini; tampil menggantikan label "Album". */
     albumGenre: String? = null,
+    /** Audio quality advertised by Apple's catalog, separate from the current stream. */
+    albumQuality: String? = null,
     /** How far the list is pulled past its top right now, in px; the hero zooms by it. */
     pull: () -> Float = { 0f },
 ) {
@@ -1083,6 +1089,9 @@ private fun ReleaseHeader(
         page.albumMeta(albumGenre)
     } else {
         listMeta
+    }
+    val albumQualityShown = albumQuality.takeIf {
+        page.type == BrowseType.ALBUM && !page.browseId.startsWith("local:")
     }
     // Liked Music dan Most Played tidak memakai sleeve berbingkai: seninya full-bleed.
     val albumHero = page.isAlbumHero()
@@ -1282,17 +1291,37 @@ private fun ReleaseHeader(
                     },
             )
         }
-        if (meta.isNotBlank()) {
+        if (meta.isNotBlank() || albumQualityShown != null) {
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = meta,
-                style = MaterialTheme.typography.labelMedium,
-                color = palette.onBackgroundVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.flightReveal(240, afterFlight = page.covers.isNotEmpty()).padding(horizontal = HEADER_GUTTER),
-            )
+            Row(
+                modifier = Modifier.flightReveal(240, afterFlight = page.covers.isNotEmpty())
+                    .padding(horizontal = HEADER_GUTTER),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val metaStyle = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Light)
+                if (meta.isNotBlank()) {
+                    Text(
+                        text = if (albumQualityShown != null) "$meta • " else meta,
+                        style = metaStyle,
+                        color = palette.onBackgroundVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+                if (albumQualityShown != null) {
+                    SourceQualityBadge(
+                        quality = if (albumQualityShown == "Hi-Res Lossless") {
+                            SourceQuality.HI_RES_LOSSLESS
+                        } else {
+                            SourceQuality.LOSSLESS
+                        },
+                        color = palette.onBackgroundVariant,
+                        style = metaStyle,
+                    )
+                }
+            }
         }
 
         if (songs.isNotEmpty()) {
@@ -1977,7 +2006,9 @@ private fun ActionPill(
                 haptics.play(Haptic.Resume)
                 onClick()
             }
-            .padding(horizontal = 24.dp),
+            // The release header can be as narrow as a 280dp phone. Keep enough
+            // room for both the icon and the full Play/Shuffle labels there.
+            .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {

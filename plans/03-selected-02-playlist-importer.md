@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Plan 03 — Selected feature 02: Complete playlist importer
 
-**Status: planned — extends existing plan 038; importer is partially implemented.**
+**Status: in-progress — format-neutral parsing, bounded matching, preview/review controls, merge support and compensated remote-create rollback are implemented; JVM/app unit tests pass. Android SAF document-provider and end-to-end device verification remain outstanding.**
 
 ## Objective
 

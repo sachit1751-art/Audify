@@ -25,6 +25,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Call
 import java.io.File
+import java.security.MessageDigest
 
 /**
  * Audify ships as a sideloaded APK off GitHub Releases rather than through
@@ -47,7 +48,10 @@ object AppUpdateChecker {
         val notes: String?,
         /** Old installations cannot be updated in place because the release certificate changed. */
         val requiresManualMigration: Boolean,
+        val sha256: String? = null,
     )
+
+    internal data class ReleaseApkAsset(val url: String, val sha256: String?)
 
     data class LatestReleaseInfo(
         val version: String,
@@ -56,6 +60,7 @@ object AppUpdateChecker {
         val notes: String?,
         val updateAvailable: Boolean,
         val isPrerelease: Boolean = false,
+        val sha256: String? = null,
     )
 
     private const val CACHE_SUBDIR = "updates"
@@ -107,10 +112,8 @@ object AppUpdateChecker {
             val parsed = json.parseToJsonElement(body)
             val release = if (includePrerelease) {
                 val releases = parsed as? JsonArray ?: error("Invalid releases response")
-                releases.mapNotNull { it as? JsonObject }
-                    .firstOrNull { it["prerelease"]?.jsonPrimitive?.contentOrNull == "true" &&
-                        it["draft"]?.jsonPrimitive?.contentOrNull != "true" }
-                    ?: (releases.firstOrNull() as? JsonObject)
+                selectRelease(releases, includePrereleases = true)
+                    ?: selectRelease(releases, includePrereleases = false)
                     ?: error("No published GitHub releases found")
             } else {
                 parsed as? JsonObject ?: error("Invalid update response")
@@ -119,7 +122,8 @@ object AppUpdateChecker {
                 ?: error("Release tag missing")
             val url = release["html_url"]?.jsonPrimitive?.contentOrNull
                 ?: error("Release URL missing")
-            val apkUrl = apkAssetUrl(release)
+            val apk = apkAsset(release)
+            val apkUrl = apk?.url
             val notes = release["body"]?.jsonPrimitive?.contentOrNull
             val isPrerelease = release["prerelease"]?.jsonPrimitive?.contentOrNull == "true"
             val latest = tag.removePrefix("v")
@@ -131,6 +135,7 @@ object AppUpdateChecker {
                 notes = notes,
                 updateAvailable = updateAvailable,
                 isPrerelease = isPrerelease,
+                sha256 = apk?.sha256,
             )
             val result = if (updateAvailable) {
                 _available.value = UpdateInfo(
@@ -139,6 +144,7 @@ object AppUpdateChecker {
                     apkUrl = apkUrl,
                     notes = notes,
                     requiresManualMigration = requiresManualMigration(BuildConfig.VERSION_NAME, latest),
+                    sha256 = apk?.sha256,
                 )
                 true
             } else {
@@ -178,25 +184,58 @@ object AppUpdateChecker {
      * [UpdateInfo.apkUrl] null and the UI falls back to opening the releases
      * page.
      */
+    internal fun apkAsset(
+        release: JsonObject,
+        supportedAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
+    ): ReleaseApkAsset? = runCatching {
+        val assets = release["assets"]?.jsonArray.orEmpty().mapNotNull { it as? JsonObject }
+            .mapNotNull { asset ->
+                val name = asset["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                val url = asset["browser_download_url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                val uploaded = asset["state"]?.jsonPrimitive?.contentOrNull?.let { it == "uploaded" } ?: true
+                val phoneApk = name.startsWith(BuildConfig.UPDATE_APK_PREFIX, ignoreCase = true) &&
+                    !name.startsWith("AudifyTV-", ignoreCase = true) &&
+                    !name.startsWith("AudifyWear-", ignoreCase = true) &&
+                    name.endsWith(".apk", ignoreCase = true)
+                if (!uploaded || !phoneApk) return@mapNotNull null
+                val digest = asset["digest"]?.jsonPrimitive?.contentOrNull
+                    ?.removePrefix("sha256:")?.takeIf { it.matches(Regex("[0-9a-fA-F]{64}")) }
+                Triple(name, url, digest)
+            }
+        val chosen = supportedAbis.firstNotNullOfOrNull { abi ->
+            assets.firstOrNull { (name, _, _) ->
+                name.contains("_$abi.", ignoreCase = true) ||
+                    name.contains("-$abi-", ignoreCase = true)
+            }
+        } ?: assets.firstOrNull { (name, _, _) ->
+            name.contains("universal", ignoreCase = true) ||
+                (name.endsWith(".apk", true) && !Regex("[_-](arm64-v8a|armeabi-v7a|x86_64|x86)([_-]|\\.)", RegexOption.IGNORE_CASE).containsMatchIn(name))
+        }
+        chosen?.let { ReleaseApkAsset(it.second, it.third) }
+    }.getOrNull()
+
     internal fun apkAssetUrl(
         release: JsonObject,
         supportedAbis: List<String> = Build.SUPPORTED_ABIS.toList(),
-    ): String? = runCatching {
-        val apks = release["assets"]?.jsonArray
-            ?.mapNotNull { it as? JsonObject }
-            ?.mapNotNull { asset ->
-                val name = asset["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                val url = asset["browser_download_url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                val ours = name.startsWith(BuildConfig.UPDATE_APK_PREFIX, ignoreCase = true) &&
-                    name.endsWith(".apk", ignoreCase = true) &&
-                    asset["state"]?.jsonPrimitive?.contentOrNull == "uploaded"
-                if (ours) name.removeSuffix(".apk").removeSuffix(".APK") to url else null
+    ): String? = apkAsset(release, supportedAbis)?.url
+
+    /** Select the newest published release in the requested channel, never a draft. */
+    internal fun selectRelease(releases: JsonArray, includePrereleases: Boolean): JsonObject? =
+        releases.mapNotNull { it as? JsonObject }
+            .filter { release ->
+                val draft = release["draft"]?.jsonPrimitive?.contentOrNull == "true"
+                val prerelease = release["prerelease"]?.jsonPrimitive?.contentOrNull == "true"
+                !draft && prerelease == includePrereleases
             }
-            .orEmpty()
-        supportedAbis.firstNotNullOfOrNull { abi ->
-            apks.firstOrNull { (name, _) -> name.endsWith("_$abi") }?.second
-        } ?: apks.firstOrNull { (name, _) -> '_' !in name }?.second
-    }.getOrNull()
+            .maxByOrNull { it["published_at"]?.jsonPrimitive?.contentOrNull.orEmpty() }
+
+    /** Refuse to install bytes that do not match GitHub's published SHA-256 digest. */
+    internal fun validateSha256(file: File, expected: String) {
+        require(expected.matches(Regex("[0-9a-fA-F]{64}"))) { "Invalid SHA-256 digest" }
+        val actual = MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+            .joinToString("") { "%02x".format(it) }
+        require(actual.equals(expected, ignoreCase = true)) { "Downloaded APK failed SHA-256 verification" }
+    }
 
     /**
      * Streams the current update's APK into the app cache, reporting progress
@@ -229,6 +268,7 @@ object AppUpdateChecker {
                 _download.value = DownloadState.Idle
                 return@withContext
             }
+            info.sha256?.let { validateSha256(target, it) }
             _download.value = DownloadState.Ready(target)
         }.onFailure { error ->
             File(context.cacheDir, CACHE_SUBDIR).listFiles()
@@ -338,12 +378,12 @@ object AppUpdateChecker {
     }
 
     /** A version split into its numeric dotted parts and whether it carries a "-suffix" (e.g. "-beta2"). */
-    private data class ParsedVersion(val parts: List<Int>, val isPreRelease: Boolean)
+    private data class ParsedVersion(val parts: List<Int>, val suffix: String?)
 
     private fun parseVersion(raw: String): ParsedVersion {
         val dash = raw.indexOf('-')
         val base = if (dash >= 0) raw.substring(0, dash) else raw
-        return ParsedVersion(base.split(".").map { it.toIntOrNull() ?: 0 }, dash >= 0)
+        return ParsedVersion(base.split(".").map { it.toIntOrNull() ?: 0 }, raw.substringAfter('-', "").takeIf { dash >= 0 })
     }
 
     /**
@@ -362,6 +402,22 @@ object AppUpdateChecker {
             val b = c.parts.getOrElse(i) { 0 }
             if (a != b) return a > b
         }
-        return c.isPreRelease && !l.isPreRelease
+        if (l.suffix == null && c.suffix != null) return true
+        if (l.suffix != null && c.suffix == null) return false
+        if (l.suffix == null && c.suffix == null) return false
+        val latestSuffix = l.suffix.orEmpty()
+        val currentSuffix = c.suffix.orEmpty()
+        val token = Regex("([a-zA-Z]+|[0-9]+)")
+        val left = token.findAll(latestSuffix).map { it.value }.toList()
+        val right = token.findAll(currentSuffix).map { it.value }.toList()
+        for (i in 0 until maxOf(left.size, right.size)) {
+            val a = left.getOrNull(i) ?: return false
+            val b = right.getOrNull(i) ?: return true
+            val an = a.toIntOrNull(); val bn = b.toIntOrNull()
+            val compared = if (an != null && bn != null) an.compareTo(bn)
+                else if (an != null) 1 else if (bn != null) -1 else a.compareTo(b, ignoreCase = true)
+            if (compared != 0) return compared > 0
+        }
+        return false
     }
 }

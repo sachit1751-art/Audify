@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 10 — Consistent Status, Error and Recovery UX
 
-**Status: in progress — local-library/download state is preserved on incomplete operations; shared UI errors carry backward-compatible retryability metadata; empty/permanent states suppress unsafe retry actions; storage-exhaustion failures have a distinct classification. Dedicated UiState retryability, remote-listing, local-library and download-failure tests are included in consolidated verification. Offline/permission-specific guidance and broader workflow/device acceptance remain.**
+**Status: in-progress — playlist reorder load failure now has an explicit retry path and the production-variant regression suite passes; remaining recovery surfaces are not yet complete.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Existing shared UI state patterns plus playback, search, provider, artwork, lyrics, sync and download owners.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -264,26 +264,20 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
-## Execution audit — 2026-11-22, baseline `b49d62b7`
-
-The shared UI model at `shared/src/commonMain/kotlin/com/music/audify/data/model/Models.kt:767-771` originally exposed only `Loading`, `Success(data, warning)` and `Error(message)`. `MessageState` in `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/components/Common.kt:1474-1497` accepts an optional action, but the error model did not say whether retry was safe. Home, Explore and Library attached Retry to generic errors, while some producers also represented empty results as errors.
-
-The implementation adds backward-compatible `UiState.Error.retryable` metadata (defaulting to true so existing callers retain their behavior), makes Home/Explore/Library/History retry affordances conditional on that metadata, and adds common tests for default and explicit non-retryable states. Empty Explore charts/mood shelves, empty Library/History, signed-out History, completed empty local scans, empty remote listings, empty add-on discovery, empty cached/local detail pages and missing offline playlist records are marked non-retryable; provider/query/connection failures remain retryable. Permission-required local-library states are non-retryable because retry alone cannot grant access. `RemoteListing.state` now maps raw remote exceptions to a safe user-facing message instead of exposing UNC paths/server details; its regression test asserts that raw path text is not surfaced. `Downloads.delete` preserves metadata when storage deletion fails, and incomplete MediaStore verification does not prune offline playlist rows. More explicit offline/permission guidance and broader workflow coverage remain open.
-
 ## Implementation tracking
 
-| Stage | Workstream | Current status |
+| Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Complete |
-| 2 | Contract and acceptance design | Partial — retryability metadata is implemented; a broader typed status vocabulary remains |
-| 3 | Foundation and domain implementation | Partial — empty/permanent producers annotated; remote exceptions sanitized |
-| 4 | User interface and interaction | Partial — Home/Explore/Library/History retry actions are metadata-gated |
-| 5 | Platform and integration coverage | Partial — phone/Wear/TV source compile and unit tests; no device checks |
-| 6 | Reliability, performance and privacy | Partial — permanent retry cases and raw remote path exposure addressed; diagnostic log review remains |
-| 7 | Full verification and regression pass | In progress — serialized shared/app/Wear/TV tests and compilation are being rerun after the final code changes |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Not started |
+| 2 | Contract and acceptance design | Not started |
+| 3 | Foundation and domain implementation | Not started |
+| 4 | User interface and interaction | Not started |
+| 5 | Platform and integration coverage | Not started |
+| 6 | Reliability, performance and privacy | Not started |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-Progress is tracked by the current stage statuses above; broader acceptance gates remain open. Estimates are planning ranges, not delivery commitments.
+Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 

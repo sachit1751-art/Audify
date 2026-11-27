@@ -145,6 +145,9 @@ import androidx.compose.foundation.border
  */
 val PAGE_GUTTER = 16.dp
 
+/** Maximum readable width for feed content on wide screens. */
+val PAGE_CONTENT_MAX_WIDTH = 1000.dp
+
 /**
  * The inset the floating chrome sits at: the mini player, the tab bar and the
  * top bar's controls. The same as [PAGE_GUTTER], so the bars' edges line up
@@ -341,6 +344,8 @@ fun SongRow(
      */
     onMore: (() -> Unit)? = null,
     onSwipeToQueue: (() -> Unit)? = null,
+    /** Action for a rightward swipe. A leftward swipe keeps [onSwipeToQueue]. */
+    onSwipeToPlayNext: (() -> Unit)? = null,
     /**
      * What the row paints over the swipe reveal as it slides back.
      *
@@ -404,6 +409,7 @@ fun SongRow(
 ) {
     SwipeToQueueBox(
         onSwipeToQueue = onSwipeToQueue,
+        onSwipeToPlayNext = onSwipeToPlayNext,
         modifier = modifier,
     ) {
         SongRowContent(
@@ -429,18 +435,19 @@ fun SongRow(
 }
 
 /**
- * Wraps content with a swipe gesture revealing [QueueSwipeBackground] that
- * triggers [onSwipeToQueue] when swiped past 45% of width and snaps back.
- * If [onSwipeToQueue] is null, renders [content] directly.
+ * Wraps content with bidirectional queue actions. A leftward swipe adds to
+ * the queue; a rightward swipe plays next when that action is supplied.
+ * The row always springs back because the song is not being dismissed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SwipeToQueueBox(
     onSwipeToQueue: (() -> Unit)?,
+    onSwipeToPlayNext: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    if (onSwipeToQueue == null) {
+    if (onSwipeToQueue == null && onSwipeToPlayNext == null) {
         content()
         return
     }
@@ -453,17 +460,32 @@ fun SwipeToQueueBox(
     val rowBounds = remember { floatArrayOf(0f, 0f) }
     val dragFlag = remember { booleanArrayOf(false) }
     var armedState by remember { mutableStateOf(false) }
+    // Material may ask to confirm the same dismissed target more than once
+    // while settling a gesture. The row is never dismissed, so without a
+    // gesture latch those confirmations can enqueue the same song repeatedly.
+    var actionDispatchedForGesture by remember { mutableStateOf(false) }
 
     val currentOnSwipeToQueue by rememberUpdatedState(onSwipeToQueue)
+    val currentOnSwipeToPlayNext by rememberUpdatedState(onSwipeToPlayNext)
 
     val swipeState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled && currentOnSwipeToQueue != null) {
+            if (value != SwipeToDismissBoxValue.Settled) {
                 val offset = try { swipeStateHolder.value?.requireOffset() ?: 0f } catch (e: Exception) { 0f }
                 // Only queue if the physical drag reached half the box width, ignoring short accidental flings.
-                if (abs(offset) >= boxWidth * 0.45f) {
-                    haptics.play(Haptic.Select)
-                    currentOnSwipeToQueue?.invoke()
+                if (!actionDispatchedForGesture && abs(offset) >= boxWidth * 0.45f) {
+                    val action = if (value == SwipeToDismissBoxValue.StartToEnd) {
+                        currentOnSwipeToPlayNext ?: currentOnSwipeToQueue
+                    } else {
+                        currentOnSwipeToQueue
+                    }
+                    if (action != null) {
+                        // Set before invoking: callbacks can synchronously
+                        // update state and trigger another confirmation.
+                        actionDispatchedForGesture = true
+                        haptics.play(Haptic.Select)
+                        action.invoke()
+                    }
                 }
             }
             false // never actually dismiss; snap back
@@ -485,10 +507,12 @@ fun SwipeToQueueBox(
         if (!dragging && dragFlag[0]) {
             dragFlag[0] = false
             armedState = false
+            actionDispatchedForGesture = false
             launch { SwipeRubber.near.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 260f)) }
             launch { SwipeRubber.far.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 200f)) }
             return@LaunchedEffect
         }
+        if (!dragging) actionDispatchedForGesture = false
         if (!dragging || boxWidth <= 0f) return@LaunchedEffect
         dragFlag[0] = true
         SwipeRubber.sourceTop = rowBounds[0]
@@ -559,7 +583,13 @@ fun SwipeToQueueBox(
                     0f
                 }
             },
-        backgroundContent = { QueueSwipeBackground(swipeState, armedState) },
+        backgroundContent = {
+            QueueSwipeBackground(
+                swipeState = swipeState,
+                armed = armedState,
+                hasPlayNextAction = onSwipeToPlayNext != null,
+            )
+        },
     ) {
         content()
     }
@@ -567,8 +597,17 @@ fun SwipeToQueueBox(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QueueSwipeBackground(swipeState: SwipeToDismissBoxState, armed: Boolean) {
-    val playNext by AppUi.host.swipeToPlayNext.collectAsStateWithLifecycle()
+private fun QueueSwipeBackground(
+    swipeState: SwipeToDismissBoxState,
+    armed: Boolean,
+    hasPlayNextAction: Boolean,
+) {
+    val swipePreference by AppUi.host.swipeToPlayNext.collectAsStateWithLifecycle()
+    val playNext = if (hasPlayNextAction && swipeState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+        true
+    } else {
+        swipePreference
+    }
     val primary = MaterialTheme.colorScheme.primary
     // The panel brightens as the swipe arms, so it says "let go now" itself.
     val glow by animateFloatAsState(

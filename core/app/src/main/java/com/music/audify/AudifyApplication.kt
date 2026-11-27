@@ -147,6 +147,9 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        // Keep release checks alive across app closes and device reboots. The
+        // worker downloads and verifies APKs only; installation remains manual.
+        com.music.audify.data.AppUpdateScheduler.sync(this)
         com.music.audify.data.podcast.PodcastRepository.initialize(this)
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
@@ -183,6 +186,10 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         // What's already saved to Downloads, so the song menu can say so
         // without a media-store query per row.
         Downloads.init(this)
+        // The downloaded-playlist switch is backed by WorkManager. Register
+        // its periodic worker and foreground catch-up hook after both settings
+        // and the Downloads collection index have been restored.
+        com.music.audify.download.PlaylistSync.init(this)
         // The device's own listening record. Opened here rather than in
         // PlaybackService because the Replay page reads it from the UI side and
         // both live in this process — one owner, one directory.

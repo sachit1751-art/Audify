@@ -1,10 +1,10 @@
-<!--
+﻿<!--
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 # Micro Improvement 03 — Offline-First Library and Playback Experience
 
-**Status: in progress — local-library scans distinguish complete, partial and failed results; unavailable MediaStore checks preserve offline playlist entries; failed download deletion preserves its record; storage-exhaustion failures now receive an actionable message instead of a connection error. Focused automated checks pass; offline browse/play/reconnect device acceptance remains open.**
+**Status: in-progress — audit confirms the existing Android local-library, offline-playlist, download, file-verification and cache-fallback owners; this pass is improving storage-exhaustion feedback and verifying offline boundaries. Emulator/offline lifecycle validation remains outstanding.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 081 — Library Backup and Restore plus existing local-media/download/provider boundaries.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -264,29 +264,44 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
-## Execution evidence — 2026-11-22
-
-- `MainViewModel.loadLibrarySongs` cancels superseded scans and publishes only the newest request while Local Music remains the selected source. `LocalMediaRepository.getLocalMusicScan` preserves complete, partial and failed outcomes; the compatibility list API remains available to existing callers.
-- `LocalMediaRepository.present` now treats a null cursor or failed chunk query as unavailable verification. Missing MediaStore IDs prune an offline playlist only when every query completed and the app has storage permission. `LocalMediaFilterTest` covers this trust policy.
-- `Downloads.delete` now forgets saved metadata only after `DownloadStore.delete` confirms success, so a provider/storage failure does not orphan a still-existing file from the Downloads library.
-- Existing local playback resolves a readable local URI before remote streaming; download lifecycle claims are token-bound and cancellation/re-enqueue races have focused coverage in `DownloadQueueRaceTest`. Local-library result presentation is covered by `LocalLibraryStateTest`.
-- The focused `:app:testDevDebugUnitTest` run reached app Kotlin compilation but failed while the compiler tried to read a missing/zero-byte generated `AutoplayKt.class`; other workers were compiling the same shared build tree concurrently. A serialized retry remains necessary. Airplane-mode browse/play, permission revocation, reconnect reconciliation and real storage-provider behavior remain device-only acceptance checks.
-- No backup format, schema, migration, permission, provider entitlement or background download behavior was added.
-
 ## Implementation tracking
+
+### Execution audit — 2026-11-22
+
+Baseline: `4c0828ce920e980d8d6a1ded614ecf942c5c90dd` (working tree already contained unrelated staged and unstaged changes; those are being preserved).
+
+| Capability | Current owner and evidence | Assessment |
+|---|---|---|
+| Local library browse/search | `LocalMediaRepository.getLocalMusic`, `MainViewModel.loadLibrarySongs`, `libraryResults`, `Song.matchesSearch` | Existing; local query is evaluated against the device library without a provider request |
+| Device playlists | `OfflinePlaylists` (`SharedPreferences` JSON), `MainActivity` local-playlist routes | Existing; device-only playlists are distinct from provider playlists |
+| Download lifecycle | `Downloads`, `DownloadService`, `DownloadSession`, `DownloadStore.Pending` | Existing queued/running/complete/failed/cancel paths; cancellation clears partial destinations. No pause/resume UI exists, so this plan will not invent one |
+| Download integrity | `DownloadVerificationScheduler`, `DownloadFileCheckWorker`, `Downloads.getDownloadedSongs` | Existing bounded file checks and file-existence validation; missing files lose their saved aliases |
+| Storage budget | `StorageBudget.evaluateStorageBudget`, `StorageBudgetTest` | Existing measured-size budget and explicit confirmation before LRU eviction |
+| Offline playback | `PlaybackService.isLocalPlayback`, `resolveLocalUri`, `AudioCache.isOffline` and complete-cache fallback | Existing local URI path and cached-stream fallback; remote-only provider rows are not converted into guaranteed downloads |
+| Provider boundary | `Downloads.prepare`, `SourceResolver.forDownload`, `SourceRegistry` | Existing provider-aware download route; no DRM bypass or unauthorised provider download is introduced |
+
+Contract: local files and verified completed downloads must remain browsable/playable without a network; cached stream bytes are opportunistic cache, not a permanent download entitlement; remote-only catalogue rows remain online-dependent; interrupted/cancelled transfers must not be presented as completed files. No schema, permission, backend or account change is in scope.
+
+Implementation delta: classify disk-capacity failures separately from network/format failures and show a specific storage message. Focused tests cover direct and nested `ENOSPC` messages as well as negative network/format cases. No new pause/resume workflow is added because no existing pause owner or UI is present.
 
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Complete |
-| 2 | Contract and acceptance design | Complete |
-| 3 | Foundation and domain implementation | Implemented; automated execution pending |
-| 4 | User interface and interaction | Existing offline states retained; device check pending |
-| 5 | Platform and integration coverage | Source review partial; device check pending |
-| 6 | Reliability, performance and privacy | Source review partial |
-| 7 | Full verification and regression pass | JVM tests, phone/Wear/TV DevDebug compilation and unit tests, and all three platform lint tasks passed in the serialized 2026-11-22 run; offline device acceptance remains open |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Complete — source inventory above |
+| 2 | Contract and acceptance design | Complete — existing owner boundaries retained; no schema/permission/backend changes |
+| 3 | Foundation and domain implementation | Complete — disk-capacity errors now have a distinct user-facing failure path |
+| 4 | User interface and interaction | Complete — existing local/download surfaces retained; storage message is wired through the download failure state |
+| 5 | Platform and integration coverage | Complete for the supported Android phone app; TV/Wear offline parity is not claimed |
+| 6 | Reliability, performance and privacy | In progress — all 1,273 DevDebug unit tests pass (0 failures, 0 errors, 1 skipped); offline device validation pending |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-Progress is **2/8 complete; source implementation and automated verification passed; offline browse/play/reconnect acceptance remains open**. See the consolidated verification matrix in this directory's README. Estimates are planning ranges, not delivery commitments.
+Progress is **5/8 stages complete**; reliability verification, device validation and handoff remain in progress. Estimates are planning ranges, not delivery commitments.
+
+Verification so far:
+
+- `:app:compileDevDebugKotlin :app:testDevDebugUnitTest --console=plain --max-workers=1 --no-parallel` — **BUILD SUCCESSFUL**, 1,273 tests, 0 failures, 0 errors, 1 skipped (latest full run).
+- `git diff --check` — passed before this verification update.
+- Not yet verified: airplane-mode browse/play, interrupted transfer cleanup on device, permission loss, reconnect, and final APK installation. No USB device is attached; `SachitTest` is the available emulator target.
 
 ## Repository-wide execution constraints
 

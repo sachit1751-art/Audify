@@ -46,6 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -119,6 +121,7 @@ fun NowPlayingScreen(
     actions: PlayerActions,
 ) {
     val view = LocalView.current
+    val systemAnimationsEnabled = remember { ValueAnimator.areAnimatorsEnabled() }
     var rotary by remember { mutableFloatStateOf(0f) }
     // Bumped on every crown step; the readout shows while it keeps changing.
     var volumeNudge by remember { mutableIntStateOf(0) }
@@ -202,7 +205,11 @@ fun NowPlayingScreen(
                         .widthIn(max = w * 0.72f)
                         // Twice, then rest: a title that scrolls forever is a
                         // screen that never stops redrawing.
-                        .basicMarquee(iterations = 2, initialDelayMillis = 1_200, repeatDelayMillis = 2_000),
+                        .basicMarquee(
+                            iterations = if (systemAnimationsEnabled) 2 else 0,
+                            initialDelayMillis = 1_200,
+                            repeatDelayMillis = 2_000,
+                        ),
                 )
             }
             Text(
@@ -232,6 +239,7 @@ fun NowPlayingScreen(
                     size = h * 0.40f,
                     scrubMs = scrubMs,
                     onToggle = actions.togglePlay,
+                    onSeekTo = actions.seekTo,
                     onScrubStart = {
                         scrubHeld = true
                         scrubMs = np.positionAt(System.currentTimeMillis())
@@ -318,6 +326,7 @@ private fun PlayDisc(
     size: Dp,
     scrubMs: Long?,
     onToggle: () -> Unit,
+    onSeekTo: (Long) -> Unit,
     onScrubStart: () -> Unit,
     onScrubBy: (Long) -> Unit,
     onScrubRelease: () -> Unit,
@@ -397,7 +406,21 @@ private fun PlayDisc(
             .semantics {
                 role = Role.Button
                 contentDescription = "${np.title} by ${np.artist}"
-                stateDescription = if (np.playing) "Playing" else "Paused"
+                stateDescription = when {
+                    buffering -> "Buffering"
+                    np.playing -> "Playing"
+                    else -> "Paused"
+                }
+                customActions = listOf(
+                    CustomAccessibilityAction("Seek backward 5 seconds") {
+                        onSeekTo((np.positionAt(System.currentTimeMillis()) - 5_000L).coerceAtLeast(0L))
+                        true
+                    },
+                    CustomAccessibilityAction("Seek forward 5 seconds") {
+                        onSeekTo((np.positionAt(System.currentTimeMillis()) + 5_000L).coerceAtMost(np.durationMs))
+                        true
+                    },
+                )
                 onClick(toggleLabel) {
                     onToggle()
                     true
@@ -554,11 +577,7 @@ fun GlyphButton(
     Box(
         modifier = modifier
             .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-            .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-                rotationZ = if (pressed && animationsEnabled) directionalKick else 0f
-            }
+            .semantics { contentDescription = description }
             .clickable(
                 enabled = enabled,
                 interactionSource = interaction,
@@ -572,13 +591,18 @@ fun GlyphButton(
         Box(
             modifier = Modifier
                 .size(size)
+                .graphicsLayer {
+                    scaleX = pressScale
+                    scaleY = pressScale
+                    rotationZ = if (pressed && animationsEnabled) directionalKick else 0f
+                }
                 .clip(CircleShape)
                 .background(if (pressed) background.copy(alpha = (background.alpha + 0.12f).coerceAtMost(1f)) else background),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painter = painterResource(icon),
-                contentDescription = description,
+                contentDescription = null,
                 tint = if (enabled) tint else tint.copy(alpha = 0.35f),
                 modifier = Modifier.size(iconSize),
             )

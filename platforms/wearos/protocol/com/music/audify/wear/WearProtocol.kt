@@ -24,6 +24,10 @@ package com.music.audify.wear
  */
 object WearProtocol {
 
+    /** Prefer the queue's stable occurrence ID; derive a deterministic legacy key otherwise. */
+    fun queueEntryKey(entryId: String?, mediaId: String, index: Int): String =
+        entryId?.takeIf(String::isNotBlank) ?: "legacy:$mediaId:$index"
+
     /** Advertised by the phone app (res/values/wear.xml) so the watch can find it. */
     const val CAPABILITY_PHONE = "audify_phone"
 
