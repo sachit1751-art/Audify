@@ -21,7 +21,7 @@ Project: AUDIFY
 </p>
 
 <p align="center">
-  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>↓ Download the latest Audify release</strong> <img src="https://img.shields.io/github/v/release/sachit1751-art/Audify?label=%20" alt="Latest Audify version"></a>
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>↓ Download the latest Audify release</strong> 
 </p>
 
 <p align="center">
