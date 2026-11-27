@@ -1,0 +1,69 @@
+package com.music.audify.data.settings
+
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class OnboardingMigrationPolicyTest {
+
+    private val onboardingKey = "onboarding_complete"
+    private val migrationKey = "audify_prefs_migrated"
+
+    @Test
+    fun `fresh install migration marker alone keeps onboarding and seeds defaults`() {
+        val keys = setOf(migrationKey)
+
+        assertFalse(shouldCompleteOnboardingForExistingInstall(keys, emptySet(), onboardingKey, migrationKey))
+        assertTrue(shouldSeedFirstInstallDefaults(keys, migrationKey))
+    }
+
+    @Test
+    fun `existing preference file skips first-run onboarding and does not reseed defaults`() {
+        val keys = setOf(migrationKey, "theme_palette", "audio_quality_wifi")
+
+        assertTrue(shouldCompleteOnboardingForExistingInstall(keys, emptySet(), onboardingKey, migrationKey))
+        assertFalse(shouldSeedFirstInstallDefaults(keys, migrationKey))
+    }
+
+    @Test
+    fun `legacy preference file identifies an existing install`() {
+        assertTrue(
+            shouldCompleteOnboardingForExistingInstall(
+                currentPreferenceKeys = setOf(migrationKey),
+                legacyPreferenceKeys = setOf("theme_palette"),
+                onboardingKey = onboardingKey,
+                migrationKey = migrationKey,
+            ),
+        )
+    }
+
+    @Test
+    fun `explicit incomplete onboarding state is preserved`() {
+        assertFalse(
+            shouldCompleteOnboardingForExistingInstall(
+                currentPreferenceKeys = setOf(migrationKey, onboardingKey),
+                legacyPreferenceKeys = setOf("theme_palette"),
+                onboardingKey = onboardingKey,
+                migrationKey = migrationKey,
+            ),
+        )
+    }
+
+    @Test
+    fun `current settings always win over stale legacy settings`() {
+        val current = setOf("theme_palette", "audio_quality_wifi")
+        val legacy = setOf("theme_palette", "audio_quality_wifi", "app_font", "old_unmapped_setting")
+
+        assertTrue(
+            legacyPreferenceKeysToImport(current, legacy) == setOf("app_font", "old_unmapped_setting"),
+        )
+    }
+
+    @Test
+    fun `legacy settings are imported when destination has no value`() {
+        assertTrue(
+            legacyPreferenceKeysToImport(emptySet(), setOf("theme_palette", "app_font")) ==
+                setOf("theme_palette", "app_font"),
+        )
+    }
+}

@@ -9,7 +9,7 @@ Project: AUDIFY
 ## Objective
 
 Let a user deliberately identify music currently playing nearby, review the match, and optionally save it to an Audify playlist or recognition history.
-
+use this for refrence integrate this sdk https://github.com/acrcloud/ACRCloudUniversalSDK
 ## Product boundary
 
 Start with a user-initiated foreground action. Background/always-listening recognition is explicitly excluded from this plan because it changes microphone, battery, privacy, and notification expectations.

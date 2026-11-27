@@ -260,7 +260,7 @@ fun AudifyTheme(
         // Restore the pre-1.9.3 separation: the palette colours controls and
         // component accents; it does not recolour the entire app canvas.
         // Keep the original neutral light surfaces and the theme pack's
-        // deliberately chosen dark surface family (AMOLED/Midnight/etc.).
+        // deliberately chosen dark surface family (Midnight/etc.).
         val baseColors = if (!darkTheme) {
             LightColors.copy(
                 background = ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor(),
@@ -289,17 +289,6 @@ fun AudifyTheme(
             } else when (activeThemePack.surfaceStyle) {
                 ThemeSurfaceStyle.DEFAULT -> DarkColors.copy(
                     background = ThemePacks.darkBackgroundHex(activeThemePack).toThemeColor(),
-                )
-                ThemeSurfaceStyle.AMOLED -> darkColorScheme(
-                    primary = Color.White,
-                    onPrimary = Color.Black,
-                    background = Color.Black,
-                    onBackground = Color.White,
-                    surface = Color.Black,
-                    onSurface = Color.White,
-                    surfaceVariant = Color(0xFF080808),
-                    onSurfaceVariant = Color(0xFFB0B0B5),
-                    outline = Color(0xFF252525),
                 )
                 ThemeSurfaceStyle.MIDNIGHT -> DarkColors.copy(
                     background = Color(0xFF080D18),

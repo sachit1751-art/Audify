@@ -6,6 +6,9 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -213,6 +216,7 @@ fun PodcastEpisodesScreen(
 private fun QueueCell(row: QueueRow, isCurrent: Boolean, isPast: Boolean, onClick: () -> Unit) {
     Cell(
         onClick = onClick,
+        onClickLabel = "Play ${row.title}",
         dimmed = isPast,
         stateDescription = when {
             isCurrent -> "Playing now"
@@ -284,6 +288,7 @@ fun MoreScreen(
                     value = stringResource(if (onWatch) R.string.this_watch else R.string.on_phone_output),
                     active = onWatch,
                     stateDescription = if (onWatch) "This watch selected" else "Phone output selected",
+                    isToggle = false,
                     onClick = onOpenOutput,
                 )
             }
@@ -294,6 +299,7 @@ fun MoreScreen(
                     value = "Replay introduction",
                     active = false,
                     stateDescription = "Replay setup guide",
+                    isToggle = false,
                     onClick = onReplayOnboarding,
                 )
             }
@@ -304,6 +310,7 @@ fun MoreScreen(
                     value = "Browse subscriptions",
                     active = false,
                     stateDescription = "Browse podcasts",
+                    isToggle = false,
                     onClick = onOpenPodcasts,
                 )
             }
@@ -366,11 +373,17 @@ private fun ToggleCell(
     value: String?,
     active: Boolean,
     onClick: () -> Unit,
+    isToggle: Boolean = true,
     stateDescription: String? = null,
     activeTint: Color? = null,
     badge: String? = null,
 ) {
-    Cell(onClick = onClick, stateDescription = stateDescription, semanticRole = Role.Switch) {
+    Cell(
+        onClick = onClick,
+        stateDescription = stateDescription,
+        semanticRole = if (isToggle) Role.Switch else Role.Button,
+        toggleableValue = active.takeIf { isToggle },
+    ) {
         // On: a filled disc, as the phone's player highlights shuffle and repeat.
         val disc = when {
             !active -> Color.White.copy(alpha = 0.12f)
@@ -417,10 +430,13 @@ private fun ToggleCell(
 @Composable
 private fun Cell(
     onClick: () -> Unit,
+    onClickLabel: String? = null,
     dimmed: Boolean = false,
     enabled: Boolean = true,
     stateDescription: String? = null,
     semanticRole: Role = Role.Button,
+    toggleableValue: Boolean? = null,
+    selectedValue: Boolean? = null,
     content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -432,9 +448,35 @@ private fun Cell(
             .graphicsLayer { alpha = if (dimmed) 0.5f else 1f }
             .clip(RoundedCornerShape(22.dp))
             .background(if (pressed) Color(0xFF2C2C2E) else Cell)
-            .clickable(interactionSource = interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+            .then(
+                when {
+                    selectedValue != null -> Modifier.selectable(
+                        selected = selectedValue,
+                        interactionSource = interaction,
+                        indication = null,
+                        enabled = enabled,
+                        role = semanticRole,
+                        onClick = onClick,
+                    )
+                    toggleableValue != null -> Modifier.toggleable(
+                        value = toggleableValue,
+                        interactionSource = interaction,
+                        indication = null,
+                        enabled = enabled,
+                        role = semanticRole,
+                        onValueChange = { onClick() },
+                    )
+                    else -> Modifier.clickable(
+                        interactionSource = interaction,
+                        indication = null,
+                        enabled = enabled,
+                        role = semanticRole,
+                        onClickLabel = onClickLabel,
+                        onClick = onClick,
+                    )
+                },
+            )
             .semantics {
-                role = semanticRole
                 if (stateDescription != null) this.stateDescription = stateDescription
             }
             .padding(PaddingValues(horizontal = 12.dp, vertical = 9.dp)),
@@ -486,7 +528,7 @@ fun OutputScreen(link: PhoneLink, onDone: () -> Unit) {
             state = state,
             contentPadding = padding,
             verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.background(Color.Black),
+            modifier = Modifier.background(Color.Black).selectableGroup(),
         ) {
             item(key = "header") { Header(stringResource(R.string.output)) }
             item(key = "watch") {
@@ -547,8 +589,10 @@ private fun OutputCell(
 ) {
     Cell(
         onClick = onClick,
+        onClickLabel = "Select $label",
         stateDescription = if (selected) "Selected" else "Not selected",
         semanticRole = Role.RadioButton,
+        selectedValue = selected,
     ) {
         Box(
             Modifier

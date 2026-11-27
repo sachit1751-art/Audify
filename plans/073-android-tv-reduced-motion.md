@@ -1,6 +1,6 @@
 # 073 — Apply Reduce Motion across Android TV
 
-- **Status**: TODO
+- **Status**: in-progress — repository-wide TV animation audit completed; setup, artwork tint, player artwork/lyrics and transport transitions are now capped at 260ms in normal mode and retain opacity-only/no-motion reduced-mode paths. TV emulator/remote verification remains outstanding.
 - **Commit**: dd97d775
 - **Severity**: HIGH
 - **Category**: Accessibility; cohesion
@@ -47,8 +47,8 @@ Artwork tint and bottom-bar movement also animate independently: `TvApp.kt:272` 
 1. Trace how `AppSettings.reduceAnimation` is collected in the TV application root and whether it is available at all transition owners. Avoid collecting it independently in every row if a composition local/provider is more appropriate.
 2. Add a TV motion preference/local or small spec factory that maps normal and reduced modes. Reduced mode must use no scale/translation and a 100–160ms opacity-only transition where needed.
 3. Apply the policy to setup content, Now Playing open/close, artwork tint, bottom-bar visibility and all other TV transitions found by a repository-wide animation search.
-4. Ensure focus ownership/restoration remains immediate and deterministic when transitions are removed or shortened.
-5. Add unit tests for the motion-policy mapping and a source-level audit checklist covering every TV animation call site.
+4. Ensure focus ownership/restoration remains immediate and deterministic when transitions are removed or shortened; the existing focus restoration remains outside transition completion callbacks.
+5. Add unit tests for the motion-policy mapping and keep the repository-wide animation inventory as the source-level audit checklist.
 
 ## Boundaries
 

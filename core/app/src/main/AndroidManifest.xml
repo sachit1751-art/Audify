@@ -4,7 +4,8 @@ Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedTranslation">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
@@ -544,6 +545,21 @@ Project: AUDIFY
         <receiver
             android:name=".widget.MediaWidgetActions"
             android:exported="false" />
+
+        <!--
+          Quick Settings transport. System-bound only; the tile binds the same
+          Media3 session as the app and widgets, and never owns a player.
+        -->
+        <service
+            android:name=".widget.AudifyQuickSettingsTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_quick_settings_audify"
+            android:label="@string/quick_settings_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!--
           Hands the Replay poster to whichever app the user picks to send it

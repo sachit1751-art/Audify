@@ -146,7 +146,7 @@ fun QueueSidePanel(
     queueIndex: Int,
     autoplayEnabled: Boolean,
     onJumpTo: (Int) -> Unit,
-    onRemove: (Int) -> Unit,
+    onRemove: (Int, Song) -> Unit,
     onMove: (Int, Int) -> Unit,
     onClear: () -> Unit,
     modifier: Modifier = Modifier,

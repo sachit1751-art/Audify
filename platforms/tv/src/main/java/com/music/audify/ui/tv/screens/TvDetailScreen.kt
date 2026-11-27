@@ -192,7 +192,7 @@ private fun TvReleaseContent(
     // The cover's colour, washed down from the top of the page.
     val tint = animateColorAsState(
         targetValue = rememberDominantCardColor(artworkUrl, Color.Transparent),
-        animationSpec = tween(if (reduceMotion) 0 else 500),
+        animationSpec = tween(if (reduceMotion) 0 else 240),
         label = "releaseTint",
     )
 

@@ -94,6 +94,7 @@ fun UpdateAvailableDialog(
     onInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
     modifier: Modifier = Modifier,
+    requiresManualMigration: Boolean = false,
 ) {
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val state by AppUpdateChecker.download.collectAsStateWithLifecycle()
@@ -154,7 +155,8 @@ fun UpdateAvailableDialog(
                         is AppUpdateChecker.DownloadState.Failed ->
                             stringResource(R.string.update_failed_body, version)
                         else ->
-                            stringResource(R.string.update_available_body, version)
+                            if (requiresManualMigration) stringResource(R.string.update_manual_migration_body)
+                            else stringResource(R.string.update_available_body, version)
                     },
                     modifier = Modifier.padding(top = 4.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -253,7 +255,13 @@ fun UpdateAvailableDialog(
                     AlertAction(label = stringResource(R.string.open_releases_page), emphasised = false, onClick = onOpenReleasePage)
                 }
                 else -> {
-                    AlertAction(label = stringResource(R.string.download_now), emphasised = true, onClick = onDownload)
+                    AlertAction(
+                        label = stringResource(
+                            if (requiresManualMigration) R.string.open_migration_instructions else R.string.download_now,
+                        ),
+                        emphasised = true,
+                        onClick = if (requiresManualMigration) onOpenReleasePage else onDownload,
+                    )
                     AlertRule()
                     AlertAction(label = stringResource(R.string.remind_me_later), emphasised = false, onClick = onDismiss)
                 }

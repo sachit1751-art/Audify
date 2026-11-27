@@ -1,6 +1,6 @@
 # 074 — Harden Wear OS accessibility
 
-- **Status**: IN PROGRESS ? queue snapshots carry optional occurrence identity, stale snapshots are rejected, duplicate row IDs fall back safely; device/rotary acceptance remains
+- **Status**: in-progress — queue rows already use stable occurrence IDs and expose current/past/up-next state; output selection now uses selected radio semantics, queue/output actions have explicit click labels, play/pause exposes buffering state and accessible ±5-second seek actions, and press scaling is confined to the visual glyph so the 48dp hit target remains unchanged. Round/square emulator and physical-watch TalkBack verification remain outstanding.
 - **Commit**: dd97d775
 - **Severity**: HIGH
 - **Category**: Accessibility; purpose & frequency
@@ -14,7 +14,7 @@ Evidence:
 - `platforms/wearos/src/main/java/com/music/audify/wear/ui/NowPlayingScreen.kt:542-559` scales a control to 0.88 while pressed and exposes a button click label; actual hit bounds and TalkBack action descriptions need verification.
 - `NowPlayingScreen.kt:393-399` exposes the central playback control through custom semantics.
 - `platforms/wearos/src/main/java/com/music/audify/wear/ui/ListScreens.kt:255-269` makes a whole row clickable with button role, but selected toggle state is rendered as text/color rather than explicit selected/toggle semantics.
-- Queue rows use `items(live.rows, key = { it.index })` at `ListScreens.kt:81-87`; index is mutable and should be reviewed against queue occurrence identity.
+- Queue rows now use `items(live.rows, key = { it.entryId })` at `ListScreens.kt:90`; `QueueRow.entryId` is the stable queue-occurrence identity and must remain distinct from the provider media ID.
 - Ambient display intentionally removes controls and uses minimal black/text content (`platforms/wearos/src/main/java/com/music/audify/wear/ui/Ambient.kt:47-56`); ensure accessibility behavior is intentional in ambient mode.
 
 ## Target

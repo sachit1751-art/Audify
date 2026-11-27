@@ -69,19 +69,19 @@ object LrcLib {
 
     /** Pure candidate matcher shared with tests; rejects other edits and artists. */
     internal fun bestSearchHit(hits: JsonArray, title: String, artist: String, seconds: Int): String? {
-        val wantedTitle = cleanTitleForSearch(title).identityText()
-        val wantedArtist = artist.identityText().removeTopicSuffix()
+        val wantedTitle = cleanTitleForSearch(title).accentFoldedIdentity()
+        val wantedArtist = artist.accentFoldedIdentity().removeTopicSuffix()
         if (wantedTitle.isBlank() || wantedArtist.isBlank()) return null
         return hits.mapNotNull { it as? JsonObject }
             .mapNotNull { hit ->
                 val lyrics = hit["syncedLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
                     ?: return@mapNotNull null
                 val candidateTitle = hit["trackName"]?.jsonPrimitive?.contentOrNull
-                    ?.let(::cleanTitleForSearch)?.identityText() ?: return@mapNotNull null
+                    ?.let(::cleanTitleForSearch)?.accentFoldedIdentity() ?: return@mapNotNull null
                 if (candidateTitle != wantedTitle) return@mapNotNull null
                 val artists = hit["artistName"]?.jsonPrimitive?.contentOrNull.orEmpty()
                     .split(Regex("\\s*(?:,|&|\\band\\b)\\s*"))
-                    .map { it.identityText().removeTopicSuffix() }
+                    .map { it.accentFoldedIdentity().removeTopicSuffix() }
                 if (wantedArtist !in artists) return@mapNotNull null
                 val duration = hit["duration"]?.jsonPrimitive?.doubleOrNull
                 val distance = duration?.let { abs(it - seconds) } ?: 0.0
@@ -96,9 +96,6 @@ object LrcLib {
         .replace(Regex("\\s*\\|\\s*official\\s+(?:video|audio).*?$", RegexOption.IGNORE_CASE), "")
         .replace(Regex("\\s*\\[(?:official\\s+(?:video|audio)|lyrics|lyrical\\s+video|audio)]", RegexOption.IGNORE_CASE), "")
         .replace(Regex("\\s*\\(feat\\.?\\s+[^)]+\\)", RegexOption.IGNORE_CASE), "")
-        .replace(Regex("\\s+"), " ").trim()
-
-    private fun String.identityText(): String = lowercase(java.util.Locale.ROOT)
         .replace(Regex("\\s+"), " ").trim()
 
     private fun String.removeTopicSuffix(): String = removeSuffix(" - topic").trim()

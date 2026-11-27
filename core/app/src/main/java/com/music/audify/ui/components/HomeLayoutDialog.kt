@@ -64,7 +64,6 @@ import com.music.audify.data.model.LIBRARY_SLOT_LINKS
 import com.music.audify.data.model.LIBRARY_SLOT_ON_DEVICE
 import com.music.audify.data.model.LIBRARY_SLOT_PINNED
 import com.music.audify.data.model.LIBRARY_SLOT_REPLAY
-import com.music.audify.data.model.LIBRARY_SLOT_SMART_PLAYLISTS
 import com.music.audify.data.model.HomeLayout
 import com.music.audify.data.model.HomeShelf
 import com.music.audify.data.model.HomeSlot
@@ -111,7 +110,7 @@ fun HomeLayoutDialog(
         titles.distinctBy { homeShelfKey(it) }.associate { homeShelfKey(it) to it }
     }
     val libraryDefaults = remember(libraryTitles) {
-        listOf(LIBRARY_SLOT_PINNED, LIBRARY_SLOT_LINKS, LIBRARY_SLOT_REPLAY, LIBRARY_SLOT_SMART_PLAYLISTS, LIBRARY_SLOT_ON_DEVICE) +
+        listOf(LIBRARY_SLOT_PINNED, LIBRARY_SLOT_LINKS, LIBRARY_SLOT_REPLAY, LIBRARY_SLOT_ON_DEVICE) +
             libraryTitles.keys
     }
     val libraryOrder = remember(libraryLayout, libraryDefaults) {
@@ -301,7 +300,6 @@ private fun homeSlotTitle(slot: String, titles: Map<String, String>): String = w
     LIBRARY_SLOT_PINNED -> stringResource(R.string.library_row_pinned)
     LIBRARY_SLOT_LINKS -> stringResource(R.string.library_row_links)
     LIBRARY_SLOT_REPLAY -> stringResource(R.string.replay)
-    LIBRARY_SLOT_SMART_PLAYLISTS -> stringResource(R.string.smart_playlists)
     LIBRARY_SLOT_ON_DEVICE -> stringResource(R.string.on_device)
     "shelf:listen-again" -> homeShelfLabel(titles[slot] ?: "Listen again")
     "shelf:quick-picks" -> homeShelfLabel(titles[slot] ?: "Quick picks")

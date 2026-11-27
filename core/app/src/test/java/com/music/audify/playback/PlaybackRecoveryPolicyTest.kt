@@ -36,10 +36,18 @@ class PlaybackRecoveryPolicyTest {
     }
 
     @Test
-    fun `delayed retry is current only for the same non-null media id`() {
-        assertTrue(PlaybackRecoveryPolicy.isCurrentItem("track-a", "track-a"))
-        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", "track-b"))
-        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", null))
+    fun `delayed retry requires the same queue occurrence when identity is available`() {
+        assertTrue(PlaybackRecoveryPolicy.isCurrentItem("track-a", "entry-1", "track-a", "entry-1"))
+        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", "entry-1", "track-a", "entry-2"))
+        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", "entry-1", "track-b", "entry-1"))
+        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", "entry-1", "track-a", null))
+    }
+
+    @Test
+    fun `delayed retry falls back to media identity only when occurrence identity is absent`() {
+        assertTrue(PlaybackRecoveryPolicy.isCurrentItem("track-a", null, "track-a", "entry-2"))
+        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", null, "track-b", null))
+        assertFalse(PlaybackRecoveryPolicy.isCurrentItem("track-a", null, null, null))
     }
 
     @Test

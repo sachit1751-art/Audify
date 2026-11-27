@@ -460,6 +460,9 @@ private const val ARTWORK_DRAG_SHRINK_SCALE = 0.94f
 private val ArtworkScaleEasing = CubicBezierEasing(0.215f, 0.61f, 0.355f, 1f)
 private const val ARTWORK_SCALE_DURATION_MS = 500
 
+/** Retry frame capture across display frames while a Canvas surface is becoming ready. */
+private const val PANEL_FRAME_GRAB_ATTEMPTS = 8
+
 /**
  * How far a tall screen is allowed to push the transport from the blocks either
  * side of it.
@@ -748,6 +751,14 @@ private fun WhileShown(shown: () -> Boolean, content: @Composable () -> Unit) {
 fun fullBleedArtworkAvailable(windowWidth: Dp): Boolean =
     playerFillsWindow(windowWidth) || tabletSizedPlayer(windowWidth)
 
+/** A portrait music video's still cover may use the phone's full-bleed artwork layout. */
+internal fun videoStillArtworkUsesFullBleed(
+    videoMode: Boolean,
+    enabled: Boolean,
+    windowWidth: Dp,
+    windowHeight: Dp,
+): Boolean = videoMode && enabled && windowWidth <= windowHeight && playerFillsWindow(windowWidth)
+
 /**
  * Whether a player given the whole of a window this wide is still narrow enough
  * to run its artwork edge to edge.
@@ -968,7 +979,7 @@ fun NowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleAutoplay: () -> Unit,
     onJumpTo: (Int) -> Unit,
-    onRemoveFromQueue: (Int) -> Unit,
+    onRemoveFromQueue: (Int, Song) -> Unit,
     onMoveInQueue: (Int, Int) -> Unit,
     /**
      * A queue row started or stopped being dragged.
@@ -980,6 +991,8 @@ fun NowPlayingScreen(
     onQueueDragActiveChange: (Boolean) -> Unit = {},
     onClearQueue: () -> Unit,
     onOpenMenu: () -> Unit,
+    /** Opens the shared track actions menu for a track selected from the queue. */
+    onOpenQueueSongMenu: (Song, androidx.compose.ui.geometry.Rect?) -> Unit = { _, _ -> },
     onOpenAlbum: (String) -> Unit,
     /**
      * Opens an artist's page. [browseId] is null for anyone but the lead credit:
@@ -1627,12 +1640,9 @@ fun NowPlayingScreen(
         }
     }
     val fullBleedSetting by PlayerSettings.fullBleedArtwork.collectAsStateWithLifecycle()
-    // An actual moving music video owns its 16:9 surface. A video-origin track
-    // that is presenting still artwork is still artwork, though: let the
-    // full-bleed preference apply instead of forcing every such track into a
-    // landscape card merely because its source is tagged as video.
-    val fullBleedArt = fullBleedSetting && !videoMode
-    // Full-bleed is a phone idiom. What the width has to rule out is a player
+    // A video without a playable inline surface still has a usable still cover.
+    // Let that image follow the same full-bleed preference as other artwork.
+    val fullBleedArt = fullBleedSetting    // Full-bleed is a phone idiom. What the width has to rule out is a player
     // running a foot wider than the column of controls under it — edge to edge
     // meaning "a picture, and separately some controls" rather than "the
     // artwork *is* the player".
@@ -1650,15 +1660,22 @@ fun NowPlayingScreen(
     // Spotify Canvas is the player background on a phone, independent of the
     // still-art full-bleed preference. Other providers and static artwork keep
     // answering to that preference exactly as before.
-    // A music video sits in the card's place at its own 16:9, never full bleed.
+    // A music video's moving picture stays in its own 16:9 card. Its still cover
+    // can nevertheless fill the phone behind it, then follows the same sleeve
+    // transition into the mini-player as every other full-bleed cover.
     // Canvas aktif (sumber apa pun) = cover full screen di ponsel, walau
     // pengaturan full-bleed dimatikan. Tanpa canvas, tetap ikut pengaturan.
     val canvasHero = canvas != null && playerFillsWindow(windowWidth)
-    val heroMode = !videoMode && (
+    val heroMode = videoStillArtworkUsesFullBleed(
+        videoMode = videoMode,
+        enabled = fullBleedArt,
+        windowWidth = windowWidth,
+        windowHeight = windowHeight,
+    ) || (!videoMode && (
         spotifyCanvasOnPhone ||
             canvasHero ||
             (fullBleedArt && playerFillsWindow(windowWidth))
-        )
+        ))
 
     // Whether there's a still image to blow out — a placeholder tile is a card
     // or it is nothing, and going full-bleed with one would just tint the top
@@ -1695,6 +1712,28 @@ fun NowPlayingScreen(
     // Pegangan terpisah untuk Spotify Canvas layar penuh: frame-nya tidak
     // dianimasikan di sleeve, tapi di lapisan setinggi layar.
     val fullFrameGrab = remember { CanvasFrameGrab() }
+    // Freeze the last Canvas frame when lyrics or queue opens. It becomes a small,
+    // pre-blurred bitmap so the panel transition never applies a live full-screen blur.
+    var canvasPanelFrame by remember(canvas?.url) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(lyricsOpen || queueOpen, canvas?.url) {
+        if (!(lyricsOpen || queueOpen) || canvas == null) return@LaunchedEffect
+        var fallback: ImageBitmap? = null
+        repeat(PANEL_FRAME_GRAB_ATTEMPTS) {
+            val grabbed = fullFrameGrab.grab?.invoke() ?: canvasFrameGrab.grab?.invoke()
+            if (grabbed != null) {
+                if (!isLikelyBlackFrame(grabbed)) {
+                    canvasPanelFrame = grabbed
+                    return@LaunchedEffect
+                }
+                fallback = grabbed
+            }
+            androidx.compose.runtime.withFrameNanos { }
+        }
+        if (fallback != null) canvasPanelFrame = fallback
+    }
+    LaunchedEffect(collapseAtRest, lyricsOpen, queueOpen) {
+        if (collapseAtRest && !lyricsOpen && !queueOpen) canvasPanelFrame = null
+    }
     // Bentuk klip hero yang sedang tampil; diisi tiap komposisi di bawah (setelah
     // clipFadeFraction), dibaca saat skip menahan frame-nya.
     val heroClipGeometry = remember { HeroClipGeometry() }
@@ -2128,10 +2167,25 @@ fun NowPlayingScreen(
         prepare = !legacyMesh || landscape || tabletArtworkBackdrop || lyricsOpen || queueOpen ||
             playerPrewarmStage >= 1,
     )
+    // A frozen Canvas frame is downsampled and blurred on Dispatchers.Default.
+    // Keying by the frame prevents a previous panel's blur flashing on reopen.
+    val canvasPanelFrameBlur = androidx.compose.runtime.key(canvasPanelFrame) {
+        rememberFullArtworkBlurImage(
+            imageUrl = null,
+            liveFrame = canvasPanelFrame,
+            rejectBlackFrame = false,
+        )
+    }
+    val activeArtworkBlurImage = rememberUpdatedState(
+        if ((lyricsOpen || queueOpen) && canvasPanelFrameBlur != null) {
+            canvasPanelFrameBlur
+        } else {
+            fullArtworkBlurImage
+        },
+    )
     // One movable Image node, not two backdrop call sites. Compose carries it
     // between the portrait and landscape players; only the cached bitmap
     // changes when the artwork preparation above completes for another song.
-    val currentFullArtworkBlurImage = rememberUpdatedState(fullArtworkBlurImage)
     // Where the full-bleed banner stops, so the blur can be cropped to match it. Only
     // the portrait phone player has one; everywhere else the plain crop is kept.
     val blurSeamPx = rememberUpdatedState(
@@ -2140,11 +2194,11 @@ fun NowPlayingScreen(
     val fullArtworkBlurContent = remember {
         movableContentOf<Modifier> { backdropModifier ->
             FullArtworkBlurBackdrop(
-                image = currentFullArtworkBlurImage.value,
+                image = activeArtworkBlurImage.value,
                 modifier = backdropModifier,
                 outgoing = dissolve.heldBlur,
                 progress = { dissolve.progress },
-                seam = { blurSeamPx.value },
+                seam = { if ((lyricsOpen || queueOpen) && canvasPanelFrameBlur != null) 0f else blurSeamPx.value },
             )
         }
     }
@@ -2429,8 +2483,6 @@ fun NowPlayingScreen(
                     transport = {
                         TransportRow(
                             isPlaying = isPlaying,
-                            isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
-                                audioVersionSwitching,
                             previousEnabled = !controlsLocked && (hasPrevious || pastRestartPoint),
                             nextEnabled = !controlsLocked && hasNext,
                             onPrevious = skipPrevious,
@@ -2699,8 +2751,6 @@ fun NowPlayingScreen(
                             transport = {
                                 TransportRow(
                                     isPlaying = isPlaying,
-                                    isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
-                                        audioVersionSwitching,
                                     previousEnabled = !controlsLocked &&
                                         (hasPrevious || pastRestartPoint),
                                     nextEnabled = !controlsLocked && hasNext,
@@ -2803,6 +2853,7 @@ fun NowPlayingScreen(
                             onJumpTo = onJumpTo,
                             onRemove = onRemoveFromQueue,
                             onMove = onMoveInQueue,
+                            onOpenSongMenu = onOpenQueueSongMenu,
                             onClear = onClearQueue,
                             onDragActiveChange = onQueueDragActiveChange,
                             shuffleEnabled = shuffleEnabled,
@@ -2820,8 +2871,11 @@ fun NowPlayingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { playerBounds = it }
-                    .then(dockHost),
-            ) {
+                    .then(dockHost)
+                    // Never paint a solid black fallback behind the player. When
+                    // artwork is unavailable, let the app wallpaper show through;
+                    // the legacy mesh still draws its own backdrop below.
+                    .background(if (legacyMesh) Color.Black else Color.Transparent),            ) {
                 // The same blurred still cover the lyrics and queue use, under the
                 // main player as well — square or portrait clip, or still art. The
                 // banner and the clip each feather their own bottom edge into it.
@@ -2861,6 +2915,8 @@ fun NowPlayingScreen(
                     MeshGradientBackground(
                         palette = rememberArtworkColors(remoteArt, canvasFrame),
                         trackKey = song.videoId,
+                        // Do not animate a full-screen mesh under a moving Canvas/player.
+                        paused = (canvas != null && canvasRendered) || dockMoving || collapseStarted,
                         modifier = Modifier.graphicsLayer { alpha = 1f - fullArtworkBackdropAlpha },
                     )
                 }
@@ -4940,6 +4996,7 @@ Spacer(Modifier.width(12.dp))
                                     onJumpTo = onJumpTo,
                                     onRemove = onRemoveFromQueue,
                                     onMove = onMoveInQueue,
+                                    onOpenSongMenu = onOpenQueueSongMenu,
                                     onClear = onClearQueue,
                                     onScrollingChange = { queueScrolling = it },
                                     onDragActiveChange = onQueueDragActiveChange,
@@ -5080,8 +5137,6 @@ Spacer(Modifier.width(12.dp))
 
                     TransportRow(
                         isPlaying = isPlaying,
-                        isLoading = (isLoading && !scrub.scrubbing && scrub.pendingSeek == null) ||
-                            audioVersionSwitching,
                         previousEnabled = !controlsLocked &&
                             (hasPrevious || pastRestartPoint),
                         nextEnabled = !controlsLocked && hasNext,

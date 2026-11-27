@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_liked_songs">Télécharger automatiquement les titres aimés</string>
+    <string name="download_liked_songs_subtitle">Télécharge vos titres aimés une première fois, puis ajoute automatiquement les nouveaux</string>
+</resources>

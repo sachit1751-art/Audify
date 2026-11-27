@@ -29,6 +29,7 @@ sealed interface AppRoute {
     data object Spotify : AppRoute
     data object Downloads : AppRoute
     data object SmartPlaylists : AppRoute
+    data class SmartPlaylistDetail(val playlistId: String) : AppRoute
     data class Podcasts(val initialShow: PodcastProviderShow? = null) : AppRoute
 
     /** A Library shelf's "Show all" — its own cards laid out again as a grid. */

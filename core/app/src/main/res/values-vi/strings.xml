@@ -1250,4 +1250,6 @@ Project: AUDIFY
   <string name="track_playback_window_clear">Xóa đoạn phát</string>
   <string name="auto_download_liked_songs">Tự động tải bài hát đã thích</string>
   <string name="auto_download_liked_songs_subtitle">Lưu bài hát vào mục Tải xuống khi bạn thích. Quy tắc chỉ dùng Wi-Fi vẫn được áp dụng.</string>
+    <string name="download_liked_songs">Automatically download liked songs</string>
+    <string name="download_liked_songs_subtitle">Downloads Liked Music once, then adds new likes automatically</string>
 </resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_liked_songs">ดาวน์โหลดเพลงที่ถูกใจโดยอัตโนมัติ</string>
+    <string name="download_liked_songs_subtitle">ดาวน์โหลดเพลงที่ถูกใจของคุณครั้งแรก แล้วเพิ่มเพลงที่ถูกใจใหม่โดยอัตโนมัติ</string>
+</resources>

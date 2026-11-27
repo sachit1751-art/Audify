@@ -2,14 +2,18 @@ package com.music.audify.ui.player
 
 import com.music.audify.ui.components.trackArtSize
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import com.music.audify.sharedui.resources.*
 import com.music.audify.ui.components.ExplicitSongTitle
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +54,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,12 +89,14 @@ import androidx.compose.material.icons.rounded.Add
 import com.music.audify.ui.haptics.Haptic
 import com.music.audify.ui.haptics.rememberHaptics
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.semantics
 import com.music.audify.data.model.QueueTier
 import com.music.audify.data.model.Song
 import com.music.audify.playback.autoplaySectionStart
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * Swallows whatever scroll the queue list itself didn't use. The player is a
@@ -130,8 +137,7 @@ internal fun keepScrollInList(listState: LazyListState) = object : NestedScrollC
  * newly current row and the AutoPlay heading trade places, and a low-stiffness
  * spring is still visibly settling that trade long after the track changed.
  */
-internal fun queueRowPlacementDurationMs(reduceAnimation: Boolean): Int =
-    if (reduceAnimation) 0 else 200
+private val QUEUE_ROW_MOTION = tween<IntOffset>(durationMillis = 200, easing = FastOutSlowInEasing)
 
 /** Softens the list where it meets the header and the scrubber. */
 internal fun Modifier.fadingEdges(): Modifier = this
@@ -162,6 +168,10 @@ internal data class QueueTrack(val timelineIndex: Int, val song: Song, val key: 
 
 /** The groups a queue row can be dragged within; a drag never leaves its own. */
 internal enum class QueueSection { USER, CONTEXT, AUTOPLAY }
+
+/** A leftward row swipe removes only after clearing its deliberate travel threshold. */
+internal fun shouldRemoveQueueRowAfterSwipe(offsetPx: Float, thresholdPx: Float): Boolean =
+    thresholdPx > 0f && offsetPx <= -thresholdPx
 
 /** The queue as [InlineQueue] lists it: what's playing, then each section in running order. */
 internal class QueueTracks(
@@ -219,16 +229,11 @@ internal fun splitQueue(queue: List<Song>, currentIndex: Int, showHistory: Boole
     return QueueTracks(track(currentIndex, "np"), user, context, autoplay, history)
 }
 
-/** Placement-only item motion; structural changes snap when reduced animation is enabled. */
-private fun LazyItemScope.queueMotion(reduceAnimation: Boolean): Modifier =
-    Modifier.animateItem(
-        fadeInSpec = null,
-        fadeOutSpec = null,
-        placementSpec = if (reduceAnimation) snap() else tween(
-            durationMillis = queueRowPlacementDurationMs(reduceAnimation),
-            easing = FastOutSlowInEasing,
-        ),
-    )
+/** Placement-only item motion; see [QUEUE_ROW_MOTION]. */
+private fun LazyItemScope.queueMotion(): Modifier =
+    Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = QUEUE_ROW_MOTION)
+
+internal fun queueRowPlacementDurationMs(reduceAnimation: Boolean): Int = if (reduceAnimation) 0 else 200
 
 /** The live queue, in the player itself. */
 @Composable
@@ -242,8 +247,9 @@ internal fun InlineQueue(
      */
     controlsLocked: Boolean,
     onJumpTo: (Int) -> Unit,
-    onRemove: (Int) -> Unit,
+    onRemove: (Int, Song) -> Unit,
     onMove: (Int, Int) -> Unit,
+    onOpenSongMenu: (Song, androidx.compose.ui.geometry.Rect?) -> Unit = { _, _ -> },
     onClear: () -> Unit,
     onScrollingChange: (Boolean) -> Unit = {},
     onDragActiveChange: (Boolean) -> Unit = {},
@@ -270,7 +276,6 @@ internal fun InlineQueue(
         onHide = onHidePlayer,
     )
     val showHistory by PlayerSettings.showQueueHistory.collectAsStateWithLifecycle()
-    val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
     val tracks = remember(queue, currentIndex, showHistory) { splitQueue(queue, currentIndex, showHistory) }
     val drag = rememberQueueDrag(listState, tracks, onMove, onDragActiveChange)
     val nowPlaying = tracks.nowPlaying
@@ -287,7 +292,7 @@ internal fun InlineQueue(
         val nowPlayingRow = if (tracks.history.isEmpty()) 0 else tracks.history.size + 1
         val scrolledAway = listState.firstVisibleItemIndex != nowPlayingRow || listState.firstVisibleItemScrollOffset != 0
         if (drag.held == null && nowPlaying != null && scrolledAway) {
-            if (hasScrolledOnce && !reduceAnimation) {
+            if (hasScrolledOnce) {
                 listState.animateScrollToItem(nowPlayingRow)
             } else {
                 listState.scrollToItem(nowPlayingRow)
@@ -340,7 +345,8 @@ internal fun InlineQueue(
                     .then(if (collapsePlayerOnScroll) Modifier.nestedScroll(controlsOnScroll) else Modifier),
                 // Zona fade [fadingEdges] 28dp; padding atas sengaja lebih kecil
                 // supaya "Add Songs to Queue" naik dan hanya sedikit masuk fade.
-                contentPadding = PaddingValues(start = PLAYER_GUTTER, end = PLAYER_GUTTER, top = 4.dp),
+                // Keep the final row clear of the fading edge at the foot of the list.
+                contentPadding = PaddingValues(start = PLAYER_GUTTER, end = PLAYER_GUTTER, top = 4.dp, bottom = 36.dp),
             ) {
                 if (tracks.history.isNotEmpty()) {
                     item(key = "header-history") {
@@ -354,9 +360,10 @@ internal fun InlineQueue(
                             song = track.song,
                             isCurrent = false,
                             onClick = { onJumpTo(track.timelineIndex) },
-                            onRemove = { onRemove(track.timelineIndex) },
+                            onRemove = { onRemove(track.timelineIndex, track.song) },
+                            onOpenSongMenu = onOpenSongMenu,
                             locked = controlsLocked,
-                            modifier = queueMotion(reduceAnimation),
+                            modifier = queueMotion(),
                         )
                     }
                 }
@@ -364,11 +371,11 @@ internal fun InlineQueue(
                 if (tracks.user.isNotEmpty()) {
                     // No heading of its own: the "Queue" title above already names
                     // this list and carries the Clear button.
-                    queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, reduceAnimation, onJumpTo, onRemove)
+                    queueSection(tracks.user, QueueSection.USER, drag, controlsLocked, onJumpTo, onRemove, onOpenSongMenu)
                 }
                 if (!controlsLocked) {
                     item(key = "add-songs") {
-                        AddSongsRow(onClick = AddSongsRequest::show, modifier = queueMotion(reduceAnimation))
+                        AddSongsRow(onClick = AddSongsRequest::show, modifier = queueMotion())
                     }
                 }
                 if (tracks.context.isNotEmpty()) {
@@ -379,16 +386,16 @@ internal fun InlineQueue(
                             } else {
                                 stringResource(Res.string.queue)
                             },
-                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp).then(queueMotion(reduceAnimation)),
+                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp).then(queueMotion()),
                         )
                     }
-                    queueSection(tracks.context, QueueSection.CONTEXT, drag, controlsLocked, reduceAnimation, onJumpTo, onRemove)
+                    queueSection(tracks.context, QueueSection.CONTEXT, drag, controlsLocked, onJumpTo, onRemove, onOpenSongMenu)
                 }
                 if (autoplayEnabled || tracks.autoplay.isNotEmpty()) {
                     item(key = "autoplay-heading") {
-                        AutoplayHeading(hasTracks = tracks.autoplay.isNotEmpty(), modifier = queueMotion(reduceAnimation))
+                        AutoplayHeading(hasTracks = tracks.autoplay.isNotEmpty(), modifier = queueMotion())
                     }
-                    queueSection(tracks.autoplay, QueueSection.AUTOPLAY, drag, controlsLocked, reduceAnimation, onJumpTo, onRemove)
+                    queueSection(tracks.autoplay, QueueSection.AUTOPLAY, drag, controlsLocked, onJumpTo, onRemove, onOpenSongMenu)
                 }
             }
             // The held row, drawn over the list where the finger is. Positioned
@@ -422,9 +429,9 @@ private fun LazyListScope.queueSection(
     section: QueueSection,
     drag: QueueDrag,
     locked: Boolean,
-    reduceAnimation: Boolean,
     onJumpTo: (Int) -> Unit,
-    onRemove: (Int) -> Unit,
+    onRemove: (Int, Song) -> Unit,
+    onOpenSongMenu: (Song, androidx.compose.ui.geometry.Rect?) -> Unit,
 ) {
     items(rows, key = { it.key }) { track ->
         val held = drag.held?.key == track.key
@@ -437,13 +444,14 @@ private fun LazyListScope.queueSection(
             song = track.song,
             isCurrent = false,
             onClick = { onJumpTo(track.timelineIndex) },
-            onRemove = { onRemove(track.timelineIndex) },
+            onRemove = { onRemove(track.timelineIndex, track.song) },
+            onOpenSongMenu = onOpenSongMenu,
             locked = locked,
             draggable = !locked,
             onDragStart = { drag.start(track.key, section) },
             onDrag = drag::drag,
             onDragEnd = { drag.end(track.key) },
-            modifier = if (held) Modifier.alpha(0f) else queueMotion(reduceAnimation),
+            modifier = if (held) Modifier.alpha(0f) else queueMotion(),
         )
     }
 }
@@ -887,11 +895,13 @@ private class QueueDrag(private val listState: LazyListState) {
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun InlineQueueRow(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
     onRemove: () -> Unit,
+    onOpenSongMenu: (Song, androidx.compose.ui.geometry.Rect?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     /** @see InlineQueue */
     locked: Boolean = false,
@@ -903,14 +913,65 @@ private fun InlineQueueRow(
     onDrag: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {},
 ) {
+    val swipeSettle = remember(song.queueEntryId, song.videoId) { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var swipeDragOffset by remember(song.queueEntryId, song.videoId) { mutableFloatStateOf(0f) }
+    var rowWidthPx by remember { mutableIntStateOf(0) }
+    val rowBounds = remember { arrayOfNulls<androidx.compose.ui.geometry.Rect>(1) }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(if (lifted) Color.White.copy(alpha = 0.06f) else Color.Transparent)
+            .onSizeChanged { rowWidthPx = it.width }
+            .onGloballyPositioned { rowBounds[0] = it.boundsInWindow() }
+            .graphicsLayer { translationX = swipeDragOffset + swipeSettle.value }
+            .pointerInput(song.queueEntryId, song.videoId, locked, rowWidthPx) {
+                var dragged = 0f
+                val threshold = 72.dp.toPx()
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, amount ->
+                        if (!locked && (amount < 0f || dragged < 0f)) {
+                            dragged = (dragged + amount).coerceAtMost(0f)
+                            swipeDragOffset = dragged
+                            change.consume()
+                        }
+                    },
+                    onDragEnd = {
+                        val finalOffset = dragged
+                        swipeDragOffset = 0f
+                        if (shouldRemoveQueueRowAfterSwipe(finalOffset, threshold) && rowWidthPx > 0) {
+                            scope.launch {
+                                swipeSettle.snapTo(finalOffset)
+                                swipeSettle.animateTo(-rowWidthPx.toFloat(), tween(160))
+                                onRemove()
+                            }
+                        } else {
+                            scope.launch {
+                                swipeSettle.snapTo(finalOffset)
+                                swipeSettle.animateTo(0f, tween(180))
+                            }
+                        }
+                        dragged = 0f
+                    },
+                    onDragCancel = {
+                        val finalOffset = dragged
+                        swipeDragOffset = 0f
+                        scope.launch {
+                            swipeSettle.snapTo(finalOffset)
+                            swipeSettle.animateTo(0f, tween(180))
+                        }
+                        dragged = 0f
+                    },
+                )
+            }
             // Disabled rather than ignored: a tap that ripples and then does
             // nothing reads as the app having missed it.
-            .clickable(enabled = !locked, onClick = onClick)
+            .combinedClickable(
+                enabled = !locked,
+                onClick = onClick,
+                onLongClick = { onOpenSongMenu(song, rowBounds[0]) },
+            )
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

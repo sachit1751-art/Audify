@@ -471,13 +471,14 @@ class TrackAnalyzer(private val context: Context, private val cache: AudioCache)
 
         executor.execute {
             try {
-                // Efficient mode yields to decoding and playback rather than
-                // competing for a core. Thread count remains the speed knob.
+                // Only Performance mode competes with playback for a core;
+                // Efficient and Balanced yield to the audio mix and cover decoder.
+                // Thread count remains the speed knob.
                 Process.setThreadPriority(
-                    if (AppSettings.automixPerformanceMode.value == AutomixPerformanceMode.EFFICIENT) {
-                        Process.THREAD_PRIORITY_BACKGROUND
-                    } else {
+                    if (AppSettings.automixPerformanceMode.value == AutomixPerformanceMode.PERFORMANCE) {
                         Process.THREAD_PRIORITY_DEFAULT
+                    } else {
+                        Process.THREAD_PRIORITY_BACKGROUND
                     },
                 )
                 // [restoreOnce] queues onto this same single-threaded executor,

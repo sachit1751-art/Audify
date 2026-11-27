@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 06 — Audio Quality, Output and Playback Enhancement Controls
 
-**Status: partial — existing quality/output controls remain authoritative; audio-effect session and route-removal lifecycle policies have focused regression tests; Dolby Atmos is now enabled only with positive decoder evidence, with failed codec probes falling back safely to stereo. Output-specific headphone correction remains blocked by missing licensed measurements and verified device identity/attachment evidence.**
+**Status: in-progress — the existing streaming-quality, source-selection, PCM-output, bit-perfect, DSP, crossfade/Automix and codec-capability owners are being audited as one pipeline. The Atmos capability probe now fails closed when neither renderer nor platform can verify a decoder. Automated verification remains outstanding.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 11 — Headphone Audio Profiles and the existing audio pipeline.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -266,28 +266,44 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 ## Implementation tracking
 
+### Execution audit — 2026-11-22
+
+Baseline: `4c0828ce920e980d8d6a1ded614ecf942c5c90dd`. The canonical owner named in this micro-plan, “Plan 11 — Headphone Audio Profiles”, is not present in the current `plans/` tree. The actual audio owners below are present and authoritative; no per-headphone profile store or new device-specific preference model is being invented in this pass.
+
+| Capability | Current owner and evidence | Assessment |
+|---|---|---|
+| Network quality ceiling | `AudioQuality` in `shared/.../PlayerEnums.kt`, `AppSettings.ceilingFor`, Wi-Fi/metered flows and `StreamResolver.maxKbps` | Existing; independent Wi-Fi and cellular ceilings, with temporary override applied as a cap |
+| Provider eligibility | `AudioQuality.permits`, `SourceKind.canServeLossless`, `SourceRegistry.active`, `SourceResolver` | Existing; quality rungs change per-stream source eligibility, not the user's standing source-enabled switches |
+| Quality disclosure | `NerdStats.Snapshot`, `AudioOutputStatus`, `DiscordAudioQuality`, `AudioPipelineDialog` | Existing; codec/bitrate and negotiated output are derived from the selected stream/output rather than the requested ceiling |
+| PCM output | `OutputPcmMode`, `AudioOutputPolicy`, `AudioRouting` and Media3 sink configuration | Existing route-aware float support; phone route stays PCM16, external routes require advertised support |
+| Exclusive/bit-perfect output | `BitPerfectMode`, `BitPerfectOutput`, `MixerTransport`, `UsbDirectTransport`, `PlaybackService` | Existing USB Android, USB direct and DAP exclusive paths; capability/permission/format checks remain authoritative |
+| DSP and loudness | `AudioPipelineDialog`, `PlaybackService` audio processors, `EqualizerScreen`, `FloatDspChain` | Existing; EQ, normalization and speaker policy are bypassed while exclusive output is actually ready |
+| Crossfade and Automix | `CrossfadeController`, `AppSettings.crossfadeSeconds`, smart-fade and Automix model settings | Existing; manual skip remains immediate by design (`crossfadeOnSkip` is legacy and intentionally not exposed) |
+| Dolby Atmos | `DeviceCodecs` Media3 decoder query with platform fallback; `AddonSource`/`SourceResolver` request policy | Corrected: a failed Media3 and platform probe no longer defaults to “supported”; only positive decoder evidence enables the optional rendition |
+
+Contract: requested stream quality is a ceiling/source preference, never a guarantee; actual codec/bitrate comes from `NerdStats`; bit-perfect readiness requires a live compatible output and must bypass sample-changing DSP; PCM float requires route support; Dolby Atmos is requested only when decoder support is positively established and exclusive output is not active. No Room schema, permission scope, account setting or new headphone profile is in scope.
+
+Implementation delta: `DeviceCodecs` now treats two failed decoder probes as unavailable rather than advertising Atmos without evidence. The renderer's explicit empty list remains authoritative over a positive platform list; platform fallback is used only when Media3 enumeration fails. Added pure tests for source eligibility, Wi-Fi/cellular ceilings, temporary caps and Atmos probe precedence/failure.
+
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Completed — current quality settings, runtime consumers, output policy and pipeline readout inspected |
-| 2 | Contract and acceptance design | Completed — historical Plan 11 recovered; profile data licensing and output effect attachment are hard prerequisites |
-| 3 | Foundation and domain implementation | Partial — extracted the pure audio-effect session advertisement gate; no unverified correction profile was added |
-| 4 | User interface and interaction | Existing global EQ/quality controls retained; no misleading per-headphone profile selector added |
-| 5 | Platform and integration coverage | Existing output callbacks/reconfiguration retained; exact device-route runtime acceptance remains unavailable under the no-device constraint |
-| 6 | Reliability, performance and privacy | Partial — added session lifecycle and selected-output removal policy tests |
-| 7 | Full verification and regression pass | In progress — new app regression tests and phone/Wear/TV source validation are being rerun |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Complete — actual owners located; missing canonical Plan 11 recorded |
+| 2 | Contract and acceptance design | Complete — requested ceiling separated from actual stream/output capability |
+| 3 | Foundation and domain implementation | Complete — Atmos requires positive renderer/platform decoder evidence; unknown is no longer advertised as supported |
+| 4 | User interface and interaction | Complete — existing quality, bit-perfect, EQ, normalization, crossfade and codec availability controls remain connected to their owners |
+| 5 | Platform and integration coverage | Complete for the Android app's existing route-aware paths; physical USB/DAP hardware matrix remains a device-validation item |
+| 6 | Reliability, performance and privacy | In progress — all 1,273 DevDebug tests pass (0 failures, 0 errors, 1 skipped), including 8 new quality/decoder policy cases; hardware and CPU/battery measurement pending |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-Progress: **2/8 stages complete; lifecycle policy is now independently testable. The measured per-headphone correction slice remains blocked by external evidence, not by the existing EQ engine.**
+Progress is **5/8 stages complete**; reliability measurement, hardware/device verification and handoff remain in progress. Estimates are planning ranges, not delivery commitments.
 
-### Current-checkout reconciliation (2026-11-22)
+Verification so far:
 
-- `AppSettings` owns separate Wi-Fi/cellular streaming ceilings, independent download quality, metered-network policy, PCM output mode, USB preference, bit-perfect mode, loudness normalization, speaker bypass, Atmos preference, crossfade and Automix controls. Existing global EQ settings/curves remain persisted by the current preference owner; this pass does not create an incompatible second persistence format.
-- `AndroidStreamHooks` consumes `effectiveAudioQuality`; `PlaybackService` observes quality changes; `SettingsSheet` exposes the existing controls. `AudioOutputPolicy` enforces route-aware PCM-float constraints and has focused unit tests.
-- `AudioPipelineDialog` reports live source/decoder/resampler/DSP/output state and identifies the first reason the signal is not bit-exact. Existing tests cover output-format policy and broader audio pipeline behavior.
-- The current `plans/` tree omits Plan 11, but its historical proposal is recoverable from `30d5fe17^:plans/11-headphone-audio-profiles.md`. It concerns measured headphone correction profiles/AutoEQ-style behavior, profile licensing/provenance, preamp headroom, output association and truthful applied/unsupported status. It explicitly excludes duplicate EQ controls and unlicensed bundled profile databases.
-- `AudioEffectSessionPolicy.kt` now isolates the exact valid-session gate used by `PlaybackService.updateAudioEffectSession`; `AudioEffectSessionPolicyTest` covers buffering/ready, pause/idle/ended and unset/non-positive IDs. `AudioRouting.shouldForgetSelection` is used by the device-removal callback and `AudioRoutingLifecycleTest` verifies that only the selected removed device clears the selection.
-- `PlaybackService` already registers/unregisters `AudioDeviceCallback`, reapplies output configuration on route changes, drops a selected framework ID when that exact device is removed, shares one AudioSessionId across both crossfade players, and advertises/closes the standard system effect session on playback state changes. Those runtime paths remain device-dependent and were not exercised here.
-- No measured headphone-profile dataset with verified redistribution/license/attribution rights was found. `AudioDeviceInfo.id` is reconnect-ephemeral/reusable; Bluetooth addresses can be redacted and permission-gated; the current in-process DSP chain is attached before the output sink rather than independently confirmed per physical output. A per-model correction selector would therefore be misleading. The exact external prerequisites are: (1) a licensed, attributable measured profile dataset, (2) a stable, privacy-safe output identity contract, (3) a verified per-output attachment/activation path, and (4) physical-device clipping/headroom, route-switch, CPU, thermal and battery measurements. No invented profiles or unsupported correction claims were added.
+- `:app:compileDevDebugKotlin :app:testDevDebugUnitTest --console=plain --max-workers=1 --no-parallel` — **BUILD SUCCESSFUL**, 1,273 tests, 0 failures, 0 errors, 1 skipped (latest full run).
+- `AudioQualityPolicyTest` — 4 passing cases for source eligibility and network/temporary ceilings.
+- `DeviceCodecsPolicyTest` — 4 passing cases for renderer precedence, platform fallback and failed-probe behaviour.
+- Not yet verified: USB DAC permission/open/close, DAP exclusive output, route hot-plug, clipping/volume continuity, and CPU/battery cost on physical hardware. The available emulator cannot stand in for a real USB DAC.
 
 ## Repository-wide execution constraints
 

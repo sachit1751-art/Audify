@@ -1,7 +1,7 @@
 package com.music.audify.ui.screens
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.ArrowRight
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Lightbulb
@@ -155,7 +156,7 @@ internal fun FeedbackWelcomeDialog(
                         title = "Star on GitHub",
                         subtitle = "A quick star means the world...",
                         onClick = {
-                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AUDIFY_GITHUB))) }
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, AUDIFY_GITHUB.toUri())) }
                             onDismiss()
                         },
                     )
@@ -212,7 +213,7 @@ private fun FeedbackWelcomeAction(
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(8.dp))
-            Icon(Icons.Rounded.ArrowRight, null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Rounded.ArrowRight, null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }

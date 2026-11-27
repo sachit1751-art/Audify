@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="download_liked_songs">Автоматически скачивать понравившиеся песни</string>
+    <string name="download_liked_songs_subtitle">Сначала скачивает плейлист «Понравившаяся музыка», затем автоматически добавляет новые понравившиеся песни</string>
+</resources>

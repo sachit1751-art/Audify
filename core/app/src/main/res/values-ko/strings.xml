@@ -1349,4 +1349,6 @@
   <string name="track_playback_window_clear">재생 구간 지우기</string>
   <string name="auto_download_liked_songs">좋아요한 노래 자동 다운로드</string>
   <string name="auto_download_liked_songs_subtitle">노래에 좋아요를 누르면 다운로드에 저장합니다. Wi-Fi 전용 설정이 적용됩니다.</string>
+    <string name="download_liked_songs">Automatically download liked songs</string>
+    <string name="download_liked_songs_subtitle">Downloads Liked Music once, then adds new likes automatically</string>
 </resources>

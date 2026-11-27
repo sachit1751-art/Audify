@@ -188,7 +188,21 @@ fun rememberPlayerTint(imageUrl: String?, artPx: Int = CARD_ART_PX): Color? {
 @Composable
 fun rememberArtworkPanelColor(imageUrl: String?, artPx: Int = CARD_ART_PX): Color? {
     val seed = rememberArtworkSeed(imageUrl, artPx)
-    return remember(seed) { seed?.toPalette(dark = true)?.background }
+    val resolvedColor = remember(seed) { seed?.toPalette(dark = true)?.background }
+    // A new track's palette is decoded asynchronously. Returning null during
+    // that decode made MainActivity replace the dock's artwork colour with its
+    // neutral fallback for a frame (or the full decode duration), then switch
+    // to the new colour. Keep the last resolved colour while the next sleeve is
+    // being read; clear it only when playback has no artwork at all.
+    var lastResolvedColor by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(imageUrl, resolvedColor) {
+        if (imageUrl == null) {
+            lastResolvedColor = null
+        } else if (resolvedColor != null) {
+            lastResolvedColor = resolvedColor
+        }
+    }
+    return if (imageUrl == null) null else resolvedColor ?: lastResolvedColor
 }
 
 private fun Seed.playerTint(): Color? {
@@ -396,7 +410,7 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
         // white body text at the top and of [background] at the bottom: a
         // sleeve that ends dark hands over almost invisibly, one that ends
         // bright leaves a page that is visibly lit from under the artwork.
-        wash = edge.withHsl(
+        wash = artworkEdgeTint(edge, dominant).withHsl(
             saturation = { adaptedArtworkSaturation(it, minimum = 0.18f, maximum = 0.58f) },
             lightness = { it.coerceIn(0.14f, 0.24f) },
         ),
@@ -425,7 +439,7 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
             saturation = { adaptedArtworkSaturation(it, minimum = 0.14f, maximum = 0.50f) },
             lightness = { 0.91f },
         ),
-        wash = edge.withHsl(
+        wash = artworkEdgeTint(edge, dominant).withHsl(
             saturation = { adaptedArtworkSaturation(it, minimum = 0.12f, maximum = 0.46f) },
             lightness = { it.coerceIn(0.78f, 0.90f) },
         ),
@@ -446,6 +460,12 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = if (dark) {
         divider = Color.Black.copy(alpha = 0.10f),
     )
 }
+
+/** A neutral bottom-edge average has no useful hue; continue the album's dominant colour instead. */
+internal fun artworkEdgeTint(edge: Color, dominant: Color): Color =
+    if (edge.chroma() < EDGE_TINT_MIN_CHROMA) dominant else edge
+
+private const val EDGE_TINT_MIN_CHROMA = 0.08f
 
 /**
  * Keeps neutral artwork neutral instead of inventing a hue for it.

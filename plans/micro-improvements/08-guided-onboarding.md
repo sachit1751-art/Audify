@@ -4,9 +4,9 @@ Project: AUDIFY
 -->
 # Micro Improvement 08 — First-Run Onboarding and First Successful Play
 
-**Status: in progress — current four-step flow remains skippable and account-free local playback remains available; Back navigation has focused regression tests; onboarding copy/progress now uses explicit string resources. Those newly introduced strings intentionally fall back to English until translations are supplied for every shipped locale. Process-recreation, permission-denial and device acceptance remain open.**
-**Execution model: eight gated stages.**  
-**Canonical owner:** Existing navigation, permissions, provider connection and first-run preference architecture.  
+**Status: planned — not started.**
+**Execution model: eight gated stages.**
+**Canonical owner:** Existing navigation, permissions, provider connection and first-run preference architecture.
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
 
 ## Product direction
@@ -39,7 +39,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 4. Inspect account requirements and distinguish optional identity features from features that genuinely require authentication.
 5. Audit accessibility, localization/string ownership, skip/resume behaviour and analytics/privacy rules.
 
-**Deliverable:** A source-backed capability matrix and exact file/symbol inventory.  
+**Deliverable:** A source-backed capability matrix and exact file/symbol inventory.
 **Exit criteria:** The executor can name the canonical state/data owner, real UI entry points, relevant tests, dependencies and prohibited boundaries without relying on guesses.
 
 ## Stage 2 — Behaviour contract and scope
@@ -52,7 +52,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 6. List non-goals and rejected approaches so the implementation cannot expand into an unrelated rewrite.
 7. Stop for human approval if the required solution needs a schema change, migration, new backend, credential handling, provider-policy exception, new permission, destructive operation or release action.
 
-**Deliverable:** A concise behaviour contract, acceptance matrix and confirmed file-level implementation scope.  
+**Deliverable:** A concise behaviour contract, acceptance matrix and confirmed file-level implementation scope.
 **Exit criteria:** Every requirement has a real owner, implementation location, test and observable outcome.
 
 ## Stage 3 — Domain and foundation implementation
@@ -65,7 +65,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 6. Handle empty library, unavailable provider, denied permission, offline launch and interrupted onboarding states without dead ends.
 7. Ensure upgrades and returning users are not shown first-run education repeatedly unless they explicitly reopen help.
 
-**Deliverable:** Working domain behaviour integrated with the existing owner.  
+**Deliverable:** Working domain behaviour integrated with the existing owner.
 **Exit criteria:** Core invariants are covered by focused automated tests; no parallel architecture or prohibited storage boundary has been introduced.
 
 ## Stage 4 — UI and interaction implementation
@@ -78,7 +78,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 6. Verify responsive behaviour on phone, tablet, desktop and TV/Wear only where the repository actually supports the surface.
 7. Do not copy a design from another app blindly; translate the intended behaviour into AUDIFY's established design system.
 
-**Deliverable:** A complete user-facing flow wired to production domain logic.  
+**Deliverable:** A complete user-facing flow wired to production domain logic.
 **Exit criteria:** No mock-only behaviour, dead control, fabricated result or inaccessible primary action remains.
 
 ## Stage 5 — Integration and platform coverage
@@ -90,7 +90,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 5. Verify compatibility with existing settings and backup/restore boundaries.
 6. Ensure external controls and system integrations remain consistent where the feature affects them.
 
-**Deliverable:** Platform integration matrix with evidence for each supported target.  
+**Deliverable:** Platform integration matrix with evidence for each supported target.
 **Exit criteria:** In-scope clients compile and relevant integration tests pass; unavailable device testing is recorded explicitly.
 
 ## Stage 6 — Feature-specific test plan
@@ -116,7 +116,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 - Do not expose credentials, tokens, private listening history or personal data in logs or error messages.
 - Confirm existing preferences and user data remain readable; no migration is authorized.
 
-**Deliverable:** Automated test evidence plus a short performance/privacy review.  
+**Deliverable:** Automated test evidence plus a short performance/privacy review.
 **Exit criteria:** Edge cases, concurrency, lifecycle, performance and privacy risks are either tested and resolved or explicitly blocked for human decision.
 
 ## Stage 7 — Verification and regression
@@ -134,7 +134,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 6. Re-test adjacent behaviour owned by Existing navigation, permissions, provider connection and first-run preference architecture.
 7. Record exact commands, exit codes, device/API levels and any unavailable checks.
 
-**Deliverable:** Reproducible verification report.  
+**Deliverable:** Reproducible verification report.
 **Exit criteria:** All acceptance criteria have evidence and no known critical regression remains in scope.
 
 ## Stage 8 — Handoff, rollback and completion
@@ -151,7 +151,7 @@ The canonical owner is **Existing navigation, permissions, provider connection a
 6. Update plan status only when work actually starts or all completion criteria pass.
 7. Do not commit, push, merge, publish or change app versions without explicit user authorization.
 
-**Deliverable:** A complete handoff that another agent can continue without prior chat context.  
+**Deliverable:** A complete handoff that another agent can continue without prior chat context.
 **Exit criteria:** Every acceptance item is evidenced, limitations are transparent and rollback is understood.
 
 ## Feature-specific acceptance criteria
@@ -264,28 +264,20 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
-## Execution audit — 2026-11-22, baseline `b49d62b7`
-
-The existing implementation is in `core/app/src/main/java/com/music/audify/ui/onboarding/OnboardingScreen.kt` and is mounted once from `core/app/src/main/java/com/music/audify/MainActivity.kt:5991-6011`. `AppSettings.onboardingComplete` is loaded from and written to the existing preferences key in `core/app/src/main/java/com/music/audify/data/settings/AppSettings.kt:830-835,1666,2265-2268`.
-
-Verified in source: welcome, optional profile name, optional Google sign-in, and a music setup destination; Skip is available on every page; Back navigation is wired; page and name use `rememberSaveable`; an already signed-in account bypasses the connect page; completion uses the existing preference. Local audio is explicitly described as account-free. No new permission request, schema, remote service, or tracking path was introduced.
-
-This worker extracted the Back destination mapping into `previousOnboardingPage` and added focused tests for the signed-in and signed-out navigation paths. Clean-install, upgrade, process-death, permission-denial, screen-reader and large-text acceptance still require broader verification and device checks. Do not mark the plan done yet.
-
 ## Implementation tracking
 
-| Stage | Workstream | Current status |
+| Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Complete |
-| 2 | Contract and acceptance design | Partial — existing flow audited; process-recreation and permission-denial criteria still need runtime acceptance |
-| 3 | Foundation and domain implementation | Existing preference-backed completion reused |
-| 4 | User interface and interaction | Existing flow retained; Back mapping extracted and tested; progress/action strings moved to the dedicated English resource file and the progress row announces its step |
-| 5 | Platform and integration coverage | Android phone path only; other surfaces not verified |
-| 6 | Reliability, performance and privacy | Source audit complete; lifecycle/device checks pending |
-| 7 | Full verification and regression pass | Focused onboarding navigation tests pass (3); Android phone compilation and selected regression tests pass; process recreation and device navigation remain unverified |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Not started |
+| 2 | Contract and acceptance design | Not started |
+| 3 | Foundation and domain implementation | Not started |
+| 4 | User interface and interaction | Not started |
+| 5 | Platform and integration coverage | Not started |
+| 6 | Reliability, performance and privacy | Not started |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-Progress is tracked by the current stage statuses above; acceptance gates remain open. Estimates are planning ranges, not delivery commitments.
+Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 

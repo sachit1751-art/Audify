@@ -4,6 +4,7 @@ package com.music.audify.ui.screens
 
 import androidx.compose.ui.unit.dp
 import com.music.audify.ui.player.fullBleedArtworkAvailable
+import com.music.audify.ui.player.videoStillArtworkUsesFullBleed
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -23,5 +24,14 @@ class TabletLayoutColumnsTest {
         assertEquals(false, fullBleedArtworkAvailable(650.dp))
         assertEquals(true, fullBleedArtworkAvailable(700.dp))
         assertEquals(true, fullBleedArtworkAvailable(1200.dp))
+    }
+
+    @Test
+    fun portraitVideoStillCoversFollowTheFullBleedPreferenceAndPhoneBounds() {
+        assertEquals(true, videoStillArtworkUsesFullBleed(true, true, 360.dp, 800.dp))
+        assertEquals(false, videoStillArtworkUsesFullBleed(true, false, 360.dp, 800.dp))
+        assertEquals(false, videoStillArtworkUsesFullBleed(false, true, 360.dp, 800.dp))
+        assertEquals(false, videoStillArtworkUsesFullBleed(true, true, 400.dp, 360.dp))
+        assertEquals(false, videoStillArtworkUsesFullBleed(true, true, 650.dp, 1000.dp))
     }
 }

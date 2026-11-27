@@ -201,6 +201,8 @@ import com.music.audify.ui.screens.DiscordScreen
 import com.music.audify.ui.screens.EqualizerScreen
 import com.music.audify.ui.screens.HistoryScreen
 import com.music.audify.ui.screens.LibraryReplayEntry
+import com.music.audify.ui.screens.rememberSmartPlaylistShelfItems
+import com.music.audify.ui.screens.SMART_PLAYLIST_BROWSE_PREFIX
 import com.music.audify.ui.screens.libraryDeviceItems
 import com.music.audify.ui.screens.SPOTIFY_BROWSE_ID
 import com.music.audify.ui.screens.libraryLinks
@@ -1036,6 +1038,12 @@ private fun AudifyApp(
     val hideExplicitContent by AppSettings.hideExplicitContent.collectAsStateWithLifecycle()
     val hideHomeMoods by AppSettings.hideHomeMoods.collectAsStateWithLifecycle()
     val homeLayout by AppSettings.homeLayout.collectAsStateWithLifecycle()
+    val homeLayoutForFeed = remember(homeLayout, homeState) {
+        homeLayout.remapShelfKeys((homeState as? UiState.Success)?.data.orEmpty())
+    }
+    LaunchedEffect(homeLayoutForFeed) {
+        if (homeLayoutForFeed != homeLayout) AppSettings.setHomeLayout(homeLayoutForFeed)
+    }
     val libraryArtistsRow by AppSettings.libraryArtistsRow.collectAsStateWithLifecycle()
     val libraryLayout by AppSettings.libraryLayout.collectAsStateWithLifecycle()
     // Only what Home draws: Top Picks and Explore keep reading the full feed.
@@ -1194,7 +1202,7 @@ private fun AudifyApp(
         }
     }
     val toggleLikeOf: (Song) -> Unit = { song ->
-        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId, song)
+        if (song.localUri != null) OfflinePlaylists.toggleLike(song) else viewModel.toggleLike(song.videoId)
     }
     // Which tracks are being held on YouTube's own upload, so the player's menu
     // offers the way back out of a revert rather than the revert again.
@@ -2531,6 +2539,10 @@ private fun AudifyApp(
     // card opens the same way from either.
     val onLibraryItemClick: (ShelfItem) -> Unit = { item ->
         item.browseId?.let { id ->
+            if (id.startsWith(SMART_PLAYLIST_BROWSE_PREFIX)) {
+                navigator.push(AppRoute.SmartPlaylistDetail(id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+                return@let
+            }
             if (id == SPOTIFY_BROWSE_ID) {
                 navigator.push(AppRoute.Spotify)
                 return@let
@@ -2998,7 +3010,7 @@ private fun AudifyApp(
                     c.play()
                 }
             },
-            onRemoveFromQueue = { controller?.removeMediaItem(it) },
+            onRemoveFromQueue = { index, _ -> controller?.removeMediaItem(index) },
             onMoveInQueue = { from, to -> controller?.moveMediaItem(from, to) },
             onQueueDragActiveChange = { active -> controller?.setQueueDragActive(active) },
             // The enriched copy, not player.song — otherwise the menu
@@ -3393,9 +3405,10 @@ private fun AudifyApp(
                                 listState = replayListState,
                                 landingPage = replayLandingPage,
                             )
-                        } else if (pageRoute == AppRoute.SmartPlaylists) {
+                        } else if (pageRoute == AppRoute.SmartPlaylists || pageRoute is AppRoute.SmartPlaylistDetail) {
                             com.music.audify.ui.screens.SmartPlaylistsScreen(
                                 contentPadding = listPadding,
+                                initialPlaylistId = (pageRoute as? AppRoute.SmartPlaylistDetail)?.playlistId,
                                 onPlaySongs = { title, songs, index ->
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
                                 },
@@ -3897,7 +3910,7 @@ private fun AudifyApp(
                                 onTopPickClick = null,
                                 onMoodClick = playMood.takeUnless { hideHomeMoods },
                                 onMoodsShowAll = { navigator.push(AppRoute.Moods) },
-                                homeLayout = homeLayout,
+                                homeLayout = homeLayoutForFeed,
                                 timeAwareShelf = timeAwareShelf,
                                 onPlaySongs = { songs -> play(songs, 0) },
                                 artworkMotion = homeArtworkMotion,
@@ -4223,6 +4236,7 @@ private fun AudifyApp(
                                 onArtistsRowChange = AppSettings::setLibraryArtistsRow,
                                 layout = libraryLayout,
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
+                                smartPlaylistItems = rememberSmartPlaylistShelfItems(),
                             )
                         }
                     }
@@ -4365,7 +4379,7 @@ private fun AudifyApp(
                         is AppRoute.SettingsChoice -> stringResource(route.choice.title)
                         AppRoute.EqualizerPresets -> stringResource(R.string.equalizer_preset)
                         AppRoute.Replay -> stringResource(R.string.replay)
-                        AppRoute.SmartPlaylists -> stringResource(R.string.smart_playlists)
+                        AppRoute.SmartPlaylists, is AppRoute.SmartPlaylistDetail -> stringResource(R.string.smart_playlists)
                         is AppRoute.Podcasts -> "Podcasts"
                         null -> when {
                             detail != null && detailActiveShelf != null -> detailActiveShelf?.title.orEmpty()
@@ -5571,25 +5585,24 @@ private fun AudifyApp(
                         onFailed = { failure ->
                             Toast.makeText(context, failure.message ?: "Could not create playlist", Toast.LENGTH_LONG).show()
                         },
-                    ) { created ->
-                        if (created.playlistId.startsWith("sp_local_")) {
-                            Toast.makeText(context, "Playlist saved on this device. Sign in to sync it to YouTube Music.", Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(context, "Playlist created in YouTube Music.", Toast.LENGTH_SHORT).show()
-                        }
-                        // Dibuat dari tab Library (bukan dari menu lagu): masuk ke
-                        // halaman playlist-nya dan langsung buka popup tambah lagu.
-                        if (target == null) {
-                            viewModel.openDetail(
-                                created.browseId,
-                                created.title,
-                                created.subtitle,
-                                created.thumbnailUrl,
-                                BrowseType.PLAYLIST,
-                            )
-                            addSongsPlaylist = created
-                        }
-                    }
+                        onCreated = { created ->
+                            if (created.playlistId.startsWith("sp_local_")) {
+                                Toast.makeText(context, "Playlist saved on this device. Sign in to sync it to YouTube Music.", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Playlist created in YouTube Music.", Toast.LENGTH_SHORT).show()
+                            }
+                            if (target == null) {
+                                viewModel.openDetail(
+                                    created.browseId,
+                                    created.title,
+                                    created.subtitle,
+                                    created.thumbnailUrl,
+                                    BrowseType.PLAYLIST,
+                                )
+                                addSongsPlaylist = created
+                            }
+                        },
+                    )
                 },
             )
         }
@@ -5710,21 +5723,26 @@ private fun AudifyApp(
             SpotifyImportAlert(
                 hazeState = hazeState,
                 signedIn = signedIn,
+                onMergeIntoLocal = { playlistId, songs ->
+                    val added = com.music.audify.data.spotify.LocalPlaylistStore.addSongs(playlistId, songs)
+                    showQueueNotice("Added $added tracks to the local playlist")
+                },
                 onImported = { title, privacy, songs ->
                     viewModel.createPlaylistWithVideoIds(
                         title,
                         privacy,
                         songs.map { it.videoId },
                         songs,
-                    ) { browseId, pTitle, savedLocally ->
-                        showQueueNotice(
-                            (if (savedLocally && signedIn) spotifyImportLocalFallbackTemplate else spotifyImportDoneTemplate)
-                                .replace("%1\$s", pTitle),
-                        )
-                        browseId?.let { id ->
-                            viewModel.openDetail(id, pTitle, "${songs.size} songs", songs.firstOrNull()?.thumbnailUrl)
-                        }
-                    }
+                        onResult = { browseId, pTitle, savedLocally ->
+                            showQueueNotice(
+                                (if (savedLocally && signedIn) spotifyImportLocalFallbackTemplate else spotifyImportDoneTemplate)
+                                    .replace("%1\$s", pTitle),
+                            )
+                            browseId?.let { id ->
+                                viewModel.openDetail(id, pTitle, "${songs.size} songs", songs.firstOrNull()?.thumbnailUrl)
+                            }
+                        },
+                    )
                 },
                 onDismiss = { showSpotifyImportDialog = false },
             )

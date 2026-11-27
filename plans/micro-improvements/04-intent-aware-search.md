@@ -1,10 +1,10 @@
-<!--
+﻿<!--
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 # Micro Improvement 04 — Intent-Aware Unified Search
 
-**Status: in progress — confident leading natural-language intents select an existing YouTube Music facet; manual filter selection takes precedence; deliberate provider searches are no longer cancelled by newer submissions, with a two-request concurrency limit and stale-result suppression. Focused automated checks pass; full provider/device acceptance remains open.**
+**Status: in-progress — the existing typed search, provider-specific filters, local-only recent history, library search and typeahead are being retained; committed searches now use bounded non-cancelling requests with latest-response publication, and offline failures are classified separately. Full provider/device verification remains outstanding.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 05 — Advanced Search Filters and existing provider search adapters.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -266,38 +266,43 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 ## Implementation tracking
 
+### Execution audit — 2026-11-22
+
+Baseline: `4c0828ce920e980d8d6a1ded614ecf942c5c90dd`. The current checkout already owns search in `MainViewModel`, `YtMusicRepository`, `SearchScreen` and `SearchHistory`; Plan 05 remains the canonical search-filter owner. Plan 15's typed playable-media boundary is not duplicated here.
+
+| Capability | Current owner and evidence | Assessment |
+|---|---|---|
+| Typed results | `SearchResult.TopTrack`, `Track`, `Browse` in `shared/.../Models.kt`; provider parser in `YtMusicRepository` | Existing; browse IDs and video IDs remain separate identities |
+| Supported filters | `SearchFilter` (`ALL`, `SONGS`, `VIDEOS`, `ALBUMS`, `ARTISTS`, `PLAYLISTS`) and `SearchScreen` segmented control | Existing YouTube Music filters; not projected onto addons/local library |
+| Local search | `MainViewModel.libraryResults`, `LocalMediaRepository.getLocalMusic`, `Song.matchesSearch` | Existing and device-only; usable without a catalogue request |
+| Addon search | `runAddonSearch`, `AddonSource.search`, `SearchSource.ADDONS` | Separate capability-aware source; no fabricated browse entities |
+| Typeahead and paging | `startSuggestPipeline`, `startTypeaheadMediaPipeline`, `YtMusicRepository.searchPage/searchContinuation` | Existing; typeahead is debounced and results are bounded; committed search is paged on demand |
+| History and privacy | `SearchHistory` stores up to 20 local entries in app preferences; clear/remove actions exposed by `MainViewModel` | Existing; no account sync is introduced |
+| Stale response protection | `newestRequestId` and cache/session identity in `MainViewModel` | Existing guard, but the old `collectLatest` cancelled committed HTTP calls despite comments saying otherwise; replaced with a two-request gate and latest-only publication |
+| Offline status | `MainViewModel.Throwable.friendly` | Improved to recognise nested DNS/no-route/network-unreachable causes as offline, while keeping HTTP/server and parse errors distinct |
+
+Contract: keep the provider's supported entity types and destination IDs; trim only leading/trailing query whitespace; never merge rows by title; retain local-only history; allow at most two committed catalogue requests in flight; ignore stale responses without cancelling a shared HTTP request; distinguish offline from provider/server/parse failure. No new search backend, schema, account sync or permission is in scope.
+
+Implementation delta: `LatestSearchRequestGate` bounds committed searches to two concurrent requests and only publishes the newest request. The previous `collectLatest` implementation contradicted its own lifecycle comments by cancelling the previous request; it now collects requests and launches bounded work. `SearchFailureClassifier` recognises nested `UnknownHostException`, `NoRouteToHostException` and explicit network-unreachable messages. Focused concurrency and failure-classification tests were added.
+
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Complete — see audit below |
-| 2 | Contract and acceptance design | Complete for the implemented intent slice |
-| 3 | Foundation and domain implementation | Partial — query intent inference and regression tests added |
-| 4 | User interface and interaction | Partial — existing facet selector reflects inferred filter; no new controls |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Partial — query is passed unchanged; no new persistence or network path |
-| 7 | Full verification and regression pass | In progress — pure inference, manual-facet precedence, query-edit reset and source-boundary tests added; final serialized DevDebug/shared/Wear/TV validation is being rerun |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Complete — source inventory above |
+| 2 | Contract and acceptance design | Complete — typed provider capability boundaries retained |
+| 3 | Foundation and domain implementation | Complete — committed request concurrency, stale-response gating, whitespace trimming and offline failure classification implemented |
+| 4 | User interface and interaction | Complete — existing typed results, filters, local/addon sources, paging, typeahead and history retained; offline errors use the existing connection state |
+| 5 | Platform and integration coverage | Complete for the supported Android/shared UI path; other clients are not assumed |
+| 6 | Reliability, performance and privacy | In progress — concurrency and offline-classification tests pass in the 1,273-test DevDebug suite; device latency/navigation checks pending |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-### Current source audit (baseline `b49d62b7`)
+Progress is **5/8 stages complete**; reliability verification, device validation and handoff remain in progress. Estimates are planning ranges, not delivery commitments.
 
-| Area | Current owner and evidence | Capability / decision |
-|---|---|---|
-| Search state and requests | `core/app/.../ui/MainViewModel.kt`: `_query`, `_filter`, `submitSearch`, `runSearch`, `startSearchPipeline` | YouTube Music is the only source with typed browse filters; requests already carry `SearchFilter`. |
-| Provider result model | `shared/.../data/model/Models.kt`: `SearchResult`, `BrowseItem`, `BrowseType`, `SearchFilter` | Results are typed as tracks, top tracks, or browse rows. YouTube Music filters expose All, Songs, Videos, Albums, Artists and Playlists. |
-| Provider adapter boundary | `core/app/.../data/sources/MusicSource.kt`: `MusicSource.search`; `YouTubeSource`, `JioSaavnSource`, `AddonSource`, `ModuleSource` | Source adapters return `Song` tracks only. They do not advertise album/artist/playlist browse search. Do not map browse facets onto them. |
-| Local and addon search | `MainViewModel.libraryResults`, `runAddonSearch`; `SearchScreen.kt` | Both are track-only and the UI already omits YouTube facet controls for these sources. |
-| UI facets | `sharedUi/.../screens/SearchScreen.kt`: `StyledSegmentedControl` over `SearchFilter.entries` | Existing selector is the real filter control; inferred intent updates its selected facet. |
-| Typed playable-media dependency | `plans/15-typed-playable-media.md`; current `SearchResult` remains music-catalogue-shaped | Plan 15's proposed podcast playback descriptor is not implemented and does not authorize podcast search results. Podcast show discovery currently has a separate provider API/screen. |
-| Existing race protection | `SearchPipelineState.kt`, `SearchPipelineStateTest.kt`, and `MainViewModel` request generations | Typeahead and library responses already reject stale generations. This change reuses that pipeline without altering request cancellation. |
+Verification so far:
 
-### Intent contract implemented
-
-- Recognize only confident leading phrases (`songs/tracks by`, `albums by`, `artist`, `playlists by/for/with`, and `music videos by`) and select the matching existing `SearchFilter`.
-- Keep the complete original query unchanged when sending it to the provider; the inferred facet only chooses the provider's existing filter parameter.
-- Infer only while the current facet is neutral (`ALL`). A manually selected facet takes precedence.
-- Reset an inferred facet when the query text changes. A manual facet remains selected across query edits, matching existing behavior.
-- Ambiguous or incomplete phrases do not infer a facet. No fuzzy matching, provider syntax, result types, or capabilities are invented.
-
-Progress is **2/8 complete, 3 partial, 1 in progress** for this implementation slice. The initial focused attempt used an invalid `FossDebug` task; the actual application variant is `DevDebug`. The Android SDK has since been located and configured for centralized validation. No device test was attempted under the explicit no-emulator/device constraint. Estimates are planning ranges, not delivery commitments.
+- `:app:compileDevDebugKotlin :app:testDevDebugUnitTest --console=plain --max-workers=1 --no-parallel` — **BUILD SUCCESSFUL**, 1,273 tests, 0 failures, 0 errors, 1 skipped (latest full run). Includes `LatestSearchRequestGateTest` and offline failure-classification cases.
+- Search cache, typeahead, continuation paging, provider entity identities and local-only history remain on their existing owners; no schema, new backend or account-history sync was added.
+- Not yet verified: rapid typing/submission on a live emulator, keyboard/IME navigation, offline UI state and query-to-first-result timing on device.
 
 ## Repository-wide execution constraints
 

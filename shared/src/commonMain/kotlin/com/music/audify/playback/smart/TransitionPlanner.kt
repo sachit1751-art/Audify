@@ -62,6 +62,10 @@ data class TransitionTrackInfo(
     val artist: String = "",
     val album: String = "",
     val albumId: String = "",
+    /** Listener-selected first playable position, in the source timeline. */
+    val playableStartMs: Long = 0L,
+    /** Listener-selected exclusive end position; null means the source duration. */
+    val playableEndMs: Long? = null,
 )
 
 /**
@@ -1480,11 +1484,53 @@ fun planTransition(
         advanced = advanced,
         phraseBars = phraseBars,
     )
-    if (!mixWindow) return plan
-    return clampToMixWindow(
-        plan,
-        length = max(duration.orZero(), trackDurationSeconds(currentTrack)),
-        playbackTime = max(0.0, currentTime.orZero()),
+    val windowed = if (mixWindow) {
+        clampToMixWindow(
+            plan,
+            length = max(duration.orZero(), trackDurationSeconds(currentTrack)),
+            playbackTime = max(0.0, currentTime.orZero()),
+        )
+    } else plan
+    return clampToPlayableRanges(windowed, currentTrack, nextTrack, currentTime)
+}
+
+/** Confines both sides of a transition to listener-selected playable windows. */
+private fun clampToPlayableRanges(
+    plan: TransitionPlan,
+    currentTrack: TransitionTrackInfo?,
+    nextTrack: TransitionTrackInfo?,
+    currentTime: Double,
+): TransitionPlan {
+    if (plan.blocked) return plan
+    val outStart = (currentTrack?.playableStartMs ?: 0L).coerceAtLeast(0L) / 1000.0
+    val outEndMs = currentTrack?.playableEndMs ?: currentTrack?.durationMs
+    val outEnd = outEndMs?.takeIf { it > 0L }?.div(1000.0)
+    val inStart = (nextTrack?.playableStartMs ?: 0L).coerceAtLeast(0L) / 1000.0
+    val inEndMs = nextTrack?.playableEndMs ?: nextTrack?.durationMs
+    val inEnd = inEndMs?.takeIf { it > 0L }?.div(1000.0)
+
+    if ((outEnd != null && outEnd <= outStart) || (inEnd != null && inEnd <= inStart)) {
+        return plan.copy(blocked = true, markerVisible = false, fadeSeconds = 0.0, reason = "playable-range-empty")
+    }
+
+    val start = maxOf(plan.transitionStart, outStart)
+    val end = minOf(plan.transitionEnd, outEnd ?: plan.transitionEnd)
+    val cue = maxOf(plan.incomingCueTime, inStart)
+    val adjustedFade = (end - start).coerceAtLeast(0.0)
+    val incomingConsumption = adjustedFade * plan.incomingPlaybackRate.coerceAtLeast(0.01)
+    if (end <= start || (inEnd != null && cue + incomingConsumption > inEnd)) {
+        return plan.copy(blocked = true, markerVisible = false, fadeSeconds = 0.0, reason = "playable-range-too-short")
+    }
+
+    return plan.copy(
+        shouldStart = plan.shouldStart && currentTime >= start,
+        transitionStart = start,
+        transitionEnd = end,
+        fadeSeconds = adjustedFade,
+        incomingCueTime = cue,
+        incomingHandoffTime = maxOf(plan.incomingHandoffTime, inStart).let { value ->
+            if (inEnd != null) value.coerceAtMost(inEnd) else value
+        },
     )
 }
 

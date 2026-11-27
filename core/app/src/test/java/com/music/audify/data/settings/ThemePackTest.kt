@@ -8,8 +8,8 @@ import org.junit.Test
 class ThemePackTest {
     @Test
     fun remainingBuiltInThemesHaveUniqueStableIdsAndValidPaletteColors() {
-        assertEquals(6, ThemePacks.builtIns.size)
-        assertEquals(6, ThemePacks.builtIns.map { it.id }.distinct().size)
+        assertEquals(8, ThemePacks.builtIns.size)
+        assertEquals(8, ThemePacks.builtIns.map { it.id }.distinct().size)
         assertTrue(ThemePacks.builtIns.none { it.id == "jade" })
         assertEquals(ThemePacks.builtIns.first(), ThemePacks.resolve("jade", emptyList()))
         ThemePacks.builtIns.forEach { pack ->
@@ -56,6 +56,12 @@ class ThemePackTest {
     }
 
     @Test
+    fun legacyAmoledSurfaceStyleFallsBackToDefaultBecauseAmoledIsADisplaySetting() {
+        val legacy = """{"format":"audify-theme","version":1,"name":"Legacy AMOLED","primary":"#112233","secondary":"#445566","tertiary":"#778899","surfaceStyle":"AMOLED"}"""
+        assertEquals(ThemeSurfaceStyle.DEFAULT, ThemePacks.decode(legacy).surfaceStyle)
+    }
+
+    @Test
     fun importedThemeCannotExceedSizeLimitOrInjectSurfaceTokens() {
         val oversized = " ".repeat(16_385)
         assertTrue(runCatching { ThemePacks.decode(oversized) }.isFailure)
@@ -67,7 +73,9 @@ class ThemePackTest {
     fun builtInsIncludeAccessibleSurfaceVariants() {
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.GRAPHITE })
         assertTrue(ThemePacks.builtIns.any { it.surfaceStyle == ThemeSurfaceStyle.SLATE })
-        assertTrue(ThemePacks.builtIns.none { it.id in setOf("violet", "sunset", "orchid", "minimal-slate", "slate", "amoled", "midnight", "rose") })
+        assertTrue(ThemePacks.builtIns.any { it.id == "sunset" })
+        assertTrue(ThemePacks.builtIns.any { it.id == "rose" })
+        assertTrue(ThemePacks.builtIns.none { it.id in setOf("violet", "orchid", "minimal-slate", "slate", "amoled", "midnight", "jade", "sakura", "ember", "citrus", "lagoon", "copper", "monochrome", "arctic") })
     }
 
     @Test

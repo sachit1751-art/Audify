@@ -22,6 +22,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -124,6 +125,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.alpha
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -183,6 +185,7 @@ import com.music.audify.ui.performance.supportedPerformanceRefreshRates
 import com.music.audify.data.model.Account
 import com.music.audify.data.LocalMediaRepository
 import com.music.audify.data.AppUpdateChecker
+import com.music.audify.data.AppUpdateScheduler
 import com.music.audify.data.local.LocalFirstRepository
 import com.music.audify.data.NerdStats
 import com.music.audify.data.scrobbling.LastFM
@@ -309,6 +312,7 @@ fun SettingsScreen(
     val cellularQuality by AppSettings.audioQualityCellular.collectAsStateWithLifecycle()
     val metered by AppSettings.meteredConnection.collectAsStateWithLifecycle()
     val crossfade by AppSettings.crossfadeSeconds.collectAsStateWithLifecycle()
+    val crossfadeOnSkip by AppSettings.crossfadeOnSkip.collectAsStateWithLifecycle()
     val smartFade by AppSettings.smartFadeEnabled.collectAsStateWithLifecycle()
     val automixPerformance by AppSettings.automixPerformanceMode.collectAsStateWithLifecycle()
     val skipSilence by AppSettings.skipSilence.collectAsStateWithLifecycle()
@@ -368,6 +372,9 @@ fun SettingsScreen(
     val downloadQuality by AppSettings.downloadQuality.collectAsStateWithLifecycle()
     val wifiOnlyDownloads by AppSettings.wifiOnlyDownloads.collectAsStateWithLifecycle()
     val betaUpdatesEnabled by AppSettings.betaUpdatesEnabled.collectAsStateWithLifecycle()
+    val automaticUpdateChecks by AppSettings.automaticUpdateChecks.collectAsStateWithLifecycle()
+    val includePreReleaseUpdates by AppSettings.includePreReleaseUpdates.collectAsStateWithLifecycle()
+    val downloadLikedSongs by AppSettings.downloadLikedSongs.collectAsStateWithLifecycle()
     val exportDownloads by AppSettings.exportDownloads.collectAsStateWithLifecycle()
     val autoDownloadLikedSongs by AppSettings.autoDownloadLikedSongs.collectAsStateWithLifecycle()
     val downloadFolderUri by AppSettings.downloadFolderUri.collectAsStateWithLifecycle()
@@ -976,6 +983,15 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.auto_download_liked_songs_subtitle),
                 )
             }
+            val downloadLikedTitle = stringResource(R.string.download_liked_songs)
+            row(downloadLikedTitle, "liked music", "offline", "automatic") {
+                SettingsSubRow(
+                    title = downloadLikedTitle,
+                    checked = downloadLikedSongs,
+                    onCheckedChange = AppSettings::setDownloadLikedSongs,
+                    subtitle = stringResource(R.string.download_liked_songs_subtitle),
+                )
+            }
             val exportDownloadsTitle = stringResource(R.string.export_compatible_downloads)
             row(exportDownloadsTitle, "music folder") {
                 SettingsSubRow(
@@ -1168,6 +1184,23 @@ fun SettingsScreen(
                         onSliderValue = { AppSettings.setCrossfadeSeconds(it.roundToInt()) },
                         valueRange = 0f..12f,
                         steps = 11,
+                    )
+                }
+            }
+            val crossfadeOnSkipTitle = stringResource(R.string.crossfade_on_skip)
+            row(crossfadeOnSkipTitle, "crossfade", "skip", "next", "previous", "cover") {
+                BypassedByBitPerfect(bitPerfectReady) {
+                    SettingsRow(
+                        icon = SfIcons.Waves,
+                        title = crossfadeOnSkipTitle,
+                        subtitle = stringResource(R.string.crossfade_on_skip_subtitle),
+                        trailing = {
+                            IosSwitch(
+                                checked = crossfadeOnSkip,
+                                onCheckedChange = AppSettings::setCrossfadeOnSkip,
+                            )
+                        },
+                        onClick = { AppSettings.setCrossfadeOnSkip(!crossfadeOnSkip) },
                     )
                 }
             }
@@ -2559,12 +2592,27 @@ fun SettingsScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
+                                Text("Automatic update checks", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text("Check for releases in the background and download verified APKs. Installation always requires your approval.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            IosSwitch(
+                                checked = automaticUpdateChecks,
+                                onCheckedChange = { enabled ->
+                                    AppSettings.setAutomaticUpdateChecks(enabled)
+                                    AppUpdateScheduler.sync(context, enabled)
+                                },
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f));
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
                                 Text("Beta updates", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                                 Text("Automatically download the latest GitHub pre-release APK. It will never install without your approval.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             IosSwitch(
-                                checked = betaUpdatesEnabled,
+                                checked = includePreReleaseUpdates || betaUpdatesEnabled,
                                 onCheckedChange = { enabled ->
+                                    AppSettings.setIncludePreReleaseUpdates(enabled)
                                     AppSettings.setBetaUpdatesEnabled(enabled)
                                     if (enabled) backupScope.launch {
                                         val result = AppUpdateChecker.check(includePrerelease = true)
@@ -3939,12 +3987,24 @@ internal fun SettingsRow(
     enabled: Boolean = true,
     iconPainter: Painter? = null,
     onClick: (() -> Unit)? = null,
+    toggleableValue: Boolean? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (onClick != null && enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                when {
+                    toggleableValue != null && onClick != null -> Modifier.toggleable(
+                        value = toggleableValue,
+                        enabled = enabled,
+                        role = Role.Switch,
+                        onValueChange = { onClick() },
+                    )
+                    onClick != null -> Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                    else -> Modifier
+                },
+            )
             .alpha(if (enabled) 1f else 0.45f)
             .heightIn(min = 52.dp)
             .padding(horizontal = ROW_INSET, vertical = 12.dp),

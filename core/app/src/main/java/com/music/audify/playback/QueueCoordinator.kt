@@ -25,6 +25,9 @@ object QueueCoordinator {
     /** @see QueueTimeline.asQueueEntry */
     fun Song.asQueueEntry(tier: QueueTier): Song = with(QueueTimeline) { asQueueEntry(tier) }
 
+    /** Creates a new occurrence for an explicit user Add/Play Next action. */
+    fun Song.asNewQueueEntry(tier: QueueTier): Song = with(QueueTimeline) { asNewQueueEntry(tier) }
+
     /** @see QueueTimeline.buildContextQueue */
     fun buildContextQueue(
         currentTimeline: List<Song>,

@@ -5,14 +5,24 @@ package com.music.audify
 import com.music.audify.download.DownloadFileCheckCandidate
 import com.music.audify.download.DownloadFileCheckState
 import com.music.audify.download.hasReadableFileHeader
+import com.music.audify.download.isDownloadStorageCapacityFailure
 import com.music.audify.download.selectDownloadFileCheckBatch
 import java.io.ByteArrayInputStream
+import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloadVerificationTest {
+
+    @Test
+    fun `storage exhaustion is distinguished from network and format failures`() {
+        assertTrue(isDownloadStorageCapacityFailure(IOException("No space left on device")))
+        assertTrue(isDownloadStorageCapacityFailure(IOException("write failed", IOException("ENOSPC"))))
+        assertFalse(isDownloadStorageCapacityFailure(IOException("Network is unreachable")))
+        assertFalse(isDownloadStorageCapacityFailure(IllegalArgumentException("Unsupported MIME type audio/webm")))
+    }
 
     @Test
     fun `file check requires a readable nonempty header`() {

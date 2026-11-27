@@ -28,7 +28,9 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.music.audify.R
 import com.music.audify.data.DebugLog as Log
+import com.music.audify.data.LikeState
 import com.music.audify.data.YtMusicRepository
+import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.Song
 import com.music.audify.data.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
@@ -58,10 +60,12 @@ object PlaylistSync {
     private const val TAG = "Audify"
     private const val PERIODIC_WORK = "playlist_sync"
     private const val ONE_OFF_WORK = "playlist_sync_now"
+    private const val LIKED_WORK = "liked_sync_soon"
     private const val PREFS = "bitchord_playlist_sync"
     private const val KEY_LAST_CHECK = "last_complete_check"
     private const val CHANNEL_ID = "playlist_updates"
     internal const val KEY_APPROVED = "approved"
+    internal const val KEY_LIKED_ONLY = "liked_only"
 
     /** Android batches this with whatever else is waking the phone in the last [FLEX_HOURS]. */
     private const val PERIOD_HOURS = 12L
@@ -75,9 +79,13 @@ object PlaylistSync {
 
     /** Between requests for pages and for playlists: none of this is in a hurry. */
     private const val PAUSE_MILLIS = 400L
+    private const val LIKED_SETTLE_SECONDS = 20L
 
     /** One check at a time, however many of the triggers fire together. */
     private val running = Mutex()
+
+    private val enabled: Boolean
+        get() = AppSettings.syncDownloadedPlaylists.value || AppSettings.downloadLikedSongs.value
 
     /**
      * Follows the setting and the Wi-Fi rule its schedule depends on.
@@ -87,24 +95,38 @@ object PlaylistSync {
      */
     fun init(app: Application) {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-            var wasOn: Boolean? = null
+            var was: Pair<Boolean, Boolean>? = null
             AppSettings.syncDownloadedPlaylists
-                .combine(AppSettings.wifiOnlyDownloads) { on, wifiOnly -> on to wifiOnly }
+                .combine(AppSettings.downloadLikedSongs) { playlists, liked -> playlists to liked }
+                .combine(AppSettings.wifiOnlyDownloads) { settings, wifiOnly -> settings to wifiOnly }
                 .distinctUntilChanged()
-                .collect { (on, wifiOnly) ->
-                    val firstLook = wasOn == null
-                    if (on) {
-                        schedule(app, wifiOnly, replace = !firstLook)
-                        if (wasOn == false) checkNow(app)
-                    } else if (!firstLook) {
+                .collect { (settings, wifiOnly) ->
+                    val (playlists, liked) = settings
+                    val before = was
+                    if (playlists || liked) {
+                        schedule(app, wifiOnly, replace = before != null)
+                        val turnedOn = before != null &&
+                            ((playlists && !before.first) || (liked && !before.second))
+                        if (turnedOn) checkNow(app)
+                    } else if (before != null) {
                         cancel(app)
                     }
-                    wasOn = on
+                    was = settings
                 }
+        }
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            var before = LikeState.overrides.value
+            LikeState.overrides.collect { now ->
+                val newlyLiked = now.any { (id, status) ->
+                    status == LikeStatus.LIKE && before[id] != LikeStatus.LIKE
+                }
+                before = now
+                if (newlyLiked && AppSettings.downloadLikedSongs.value) checkLikedSoon(app)
+            }
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
-                if (AppSettings.syncDownloadedPlaylists.value && catchUpDue(app)) checkNow(app)
+                if (enabled && catchUpDue(app)) checkNow(app)
             }
         })
     }
@@ -124,10 +146,20 @@ object PlaylistSync {
         WorkManager.getInstance(context).enqueueUniqueWork(ONE_OFF_WORK, policy, request)
     }
 
+    private fun checkLikedSoon(context: Context) {
+        val request = OneTimeWorkRequestBuilder<PlaylistSyncWorker>()
+            .setConstraints(constraints(AppSettings.wifiOnlyDownloads.value))
+            .setInitialDelay(LIKED_SETTLE_SECONDS, TimeUnit.SECONDS)
+            .setInputData(workDataOf(KEY_LIKED_ONLY to true))
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(LIKED_WORK, ExistingWorkPolicy.REPLACE, request)
+    }
+
     internal fun cancel(context: Context) {
         val work = WorkManager.getInstance(context)
         work.cancelUniqueWork(PERIODIC_WORK)
         work.cancelUniqueWork(ONE_OFF_WORK)
+        work.cancelUniqueWork(LIKED_WORK)
     }
 
     private fun schedule(context: Context, wifiOnly: Boolean, replace: Boolean) {
@@ -163,32 +195,74 @@ object PlaylistSync {
      * Only a check that read every playlist to its end is stamped as done, so
      * one that failed partway is due again the next time the app is opened.
      */
-    internal suspend fun check(context: Context, approved: Boolean) {
+    internal suspend fun check(context: Context, approved: Boolean, likedOnly: Boolean = false) {
         // An approval waits its turn. Anything else would only repeat the check
         // already running.
         if (approved) running.lock() else if (!running.tryLock()) return
         try {
             if (!storageWritable(context)) return
             var whole = true
-            Downloads.collections.value.keys.forEach { id ->
-                if (!AppSettings.syncDownloadedPlaylists.value || !AppSettings.downloadsAllowedNow) return
-                val record = Downloads.collections.value[id] ?: return@forEach
-                val browseId = syncableBrowseId(record) ?: return@forEach
-                val listing = readWholePlaylist(
-                    first = { YtMusicRepository.browseSongs(browseId) },
-                    more = { YtMusicRepository.moreSongs(it) },
-                )
-                if (!listing.complete) whole = false
-                update(context, record, listing, approved)
-                delay(PAUSE_MILLIS)
+            if (!likedOnly && AppSettings.syncDownloadedPlaylists.value) {
+                Downloads.collections.value.keys.forEach { id ->
+                    if (!AppSettings.syncDownloadedPlaylists.value || !AppSettings.downloadsAllowedNow) return
+                    val record = Downloads.collections.value[id] ?: return@forEach
+                    val browseId = syncableBrowseId(record) ?: return@forEach
+                    if (browseId == YtMusicRepository.LIKED_MUSIC && AppSettings.downloadLikedSongs.value) return@forEach
+                    val listing = readWholePlaylist(
+                        first = { YtMusicRepository.browseSongs(browseId) },
+                        more = { YtMusicRepository.moreSongs(it) },
+                    )
+                    if (!listing.complete) whole = false
+                    update(context, record, listing, approved)
+                    delay(PAUSE_MILLIS)
+                }
             }
-            if (whole) prefs(context).edit {putLong(KEY_LAST_CHECK, System.currentTimeMillis())}
+            if (AppSettings.downloadLikedSongs.value) {
+                if (!AppSettings.downloadsAllowedNow || !checkLiked(context, approved, likedOnly)) whole = false
+            }
+            if (whole && !likedOnly) prefs(context).edit {putLong(KEY_LAST_CHECK, System.currentTimeMillis())}
         } finally {
             running.unlock()
         }
     }
 
-    private suspend fun update(context: Context, record: SavedCollection, listing: Listing, approved: Boolean) {
+    private suspend fun checkLiked(context: Context, approved: Boolean, newestOnly: Boolean): Boolean {
+        val existing = Downloads.collections.value[YtMusicRepository.LIKED_MUSIC]
+        val listing = if (newestOnly && existing != null) {
+            val page = YtMusicRepository.browseSongs(YtMusicRepository.LIKED_MUSIC).getOrNull()
+                ?: return false
+            Listing(page.songs.distinctBy { it.videoId }, complete = true, cover = page.header?.thumbnailUrl)
+        } else {
+            readWholePlaylist(
+                first = { YtMusicRepository.browseSongs(YtMusicRepository.LIKED_MUSIC) },
+                more = { YtMusicRepository.moreSongs(it) },
+            )
+        }
+        val record = existing ?: SavedCollection(
+            id = YtMusicRepository.LIKED_MUSIC,
+            title = context.getString(R.string.auto_liked),
+            thumbnailUrl = listing.cover,
+            playlist = true,
+        )
+        update(
+            context,
+            record,
+            listing,
+            approved = approved || existing == null,
+            create = existing == null,
+            announce = !newestOnly,
+        )
+        return listing.complete
+    }
+
+    private suspend fun update(
+        context: Context,
+        record: SavedCollection,
+        listing: Listing,
+        approved: Boolean,
+        create: Boolean = false,
+        announce: Boolean = true,
+    ) {
         val fresh = newTracks(listing.songs, record)
         val notification = record.id.hashCode()
         if (fresh.isEmpty()) {
@@ -211,7 +285,7 @@ object PlaylistSync {
 
         // Read again: the listener may have deleted this download meanwhile, and
         // writing the record back would bring it back from the dead.
-        val current = Downloads.collections.value[record.id] ?: return
+        val current = Downloads.collections.value[record.id] ?: record.takeIf { create } ?: return
         val order = listingToRecord(listing.songs, current, handled)
         Downloads.rememberCollection(
             DownloadTarget(
@@ -224,7 +298,7 @@ object PlaylistSync {
             order,
         )
         val arrived = missing.count { it.videoId in handled && it.videoId in Downloads.saved.value }
-        if (arrived > 0) post(context, notification, doneNotification(context, record.title, arrived))
+        if (announce && arrived > 0) post(context, notification, doneNotification(context, record.title, arrived))
     }
 
     /**
@@ -368,11 +442,15 @@ object PlaylistSync {
 class PlaylistSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         // Turned off in a run of the app that died before it could cancel this.
-        if (!AppSettings.syncDownloadedPlaylists.value) {
+        if (!AppSettings.syncDownloadedPlaylists.value && !AppSettings.downloadLikedSongs.value) {
             PlaylistSync.cancel(applicationContext)
             return Result.success()
         }
-        PlaylistSync.check(applicationContext, inputData.getBoolean(PlaylistSync.KEY_APPROVED, false))
+        PlaylistSync.check(
+            applicationContext,
+            inputData.getBoolean(PlaylistSync.KEY_APPROVED, false),
+            inputData.getBoolean(PlaylistSync.KEY_LIKED_ONLY, false),
+        )
         // Never a retry: an incomplete check is due again when the app next
         // opens, and a playlist that has been deleted online would otherwise
         // have WorkManager retrying it for as long as the setting stays on.

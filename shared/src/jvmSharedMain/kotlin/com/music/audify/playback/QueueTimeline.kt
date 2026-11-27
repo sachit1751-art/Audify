@@ -58,6 +58,9 @@ object QueueTimeline {
         queueEntryId = queueEntryId ?: UUID.randomUUID().toString(),
     )
 
+    /** Creates a distinct queue occurrence, even when the source Song came from another queue row. */
+    fun Song.asNewQueueEntry(tier: QueueTier): Song = copy(queueEntryId = null).asQueueEntry(tier)
+
     private fun upcomingUserQueue(timeline: List<Song>, currentIndex: Int): List<Song> =
         if (currentIndex in timeline.indices) {
             timeline.subList(currentIndex + 1, timeline.size)
@@ -100,6 +103,28 @@ object QueueTimeline {
             timeline = precedingContext + listOf(selected) + upcomingUserQueue + followingContext,
             startIndex = precedingContext.size,
         )
+    }
+
+    /**
+     * Finds the live queue occurrence represented by a row that began a removal gesture.
+     * Queue indices can change while the row animates away, so identity wins over position.
+     * Legacy entries without either identity are removable only when the video has one match.
+     */
+    fun findQueueRemovalIndex(queue: List<Song>, target: Song): Int? {
+        target.queueEntryId?.let { entryId ->
+            queue.indexOfFirst { it.queueEntryId == entryId }
+                .takeIf { it >= 0 }
+                ?.let { return it }
+        }
+        target.setVideoId?.let { setVideoId ->
+            queue.indexOfFirst { it.videoId == target.videoId && it.setVideoId == setVideoId }
+                .takeIf { it >= 0 }
+                ?.let { return it }
+        }
+        if (target.queueEntryId != null || target.setVideoId != null) return null
+        return queue.indices.filter { index ->
+            queue[index].videoId == target.videoId && queue[index].setVideoId == null
+        }.singleOrNull()
     }
 
     /**

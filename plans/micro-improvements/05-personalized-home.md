@@ -4,7 +4,7 @@ Project: AUDIFY
 -->
 # Micro Improvement 05 — Personalized Home Layout and Section Control
 
-**Status: in progress — Home shelves support pin-to-top, reorder, visibility and reset through the existing preference owner; drag and accessible move controls now respect the pinned/unpinned boundary. Stable keys and preference decoding are covered by unit tests; app-wide verification and form-factor/device acceptance remain open.**
+**Status: in-progress — the existing `HomeLayout` preference owner is being extended with stable browse-ID keys, backward-compatible pin state and accessible move controls. Automated and device verification remain outstanding.**
 **Execution model: eight gated stages.**  
 **Canonical owner:** Plan 090 — Personalization Engine and Control Centre.  
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
@@ -266,27 +266,42 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 ## Implementation tracking
 
+### Execution audit — 2026-11-22
+
+Baseline: `4c0828ce920e980d8d6a1ded614ecf942c5c90dd`. Canonical owner reviewed: `plans/090-personalization-and-control-center.md`. That plan already assigns Home reorder/hide/reset to the existing preference model and prohibits a second personalization store. This micro-plan stays inside `HomeLayout`/`AppSettings`; it does not create the full Control Centre, layout presets, profiles, player layouts or gesture registry.
+
+| Capability | Current owner and evidence | Assessment |
+|---|---|---|
+| Preference owner | `AppSettings.homeLayout`, `AppSettings.libraryLayout`, `setHomeLayout`, `setLibraryLayout` | Existing single SharedPreferences owner; retained |
+| Shelf identity | `homeShelfKey`, `HomeShelf.moreBrowseId`, `HomeScreen`, `LibraryScreen` | Improved: browseable shelves now key from stable browse IDs; legacy title keys are remapped without losing hidden/pinned flags; known localized aliases remain stable |
+| Reorder | `HomeLayout.arrange`, `HomeLayoutDialog.ReorderableHomeSlotList` | Existing drag reorder retained; accessible up/down actions added |
+| Visibility | `HomeSlot.hidden`, `HomeLayoutDialog` | Existing show/hide action retained |
+| Pinning | `HomeSlot.pinned`, `HomeLayout.encode/decode`, `HomeLayout.arrange` | Added as a persisted priority flag; pinned rows are ordered before unpinned rows |
+| Reset | `HomeLayoutDialog` reset action and `AppSettings.setHomeLayout/HomeLayout()` | Existing reset clears custom order, hidden and pinned state |
+| Essential navigation | Main bottom navigation and player routes are independent of Home/Library shelf visibility | Hiding shelves does not remove navigation destinations or the active player |
+
+Contract: one preference owner; stable IDs for browseable shelves; deterministic pinned-first ordering; preserve unknown shelves; keep legacy one-flag preference strings readable; do not change Room schema, account sync or backup format; offer drag plus accessible button-based movement.
+
+Implementation delta: `HomeSlot` gains a persisted `pinned` flag in a two-flag preference encoding, while `HomeLayout.decode` continues to read the legacy one-flag encoding. Browseable shelves use `moreBrowseId` for identity and legacy title-derived keys are remapped. The layout editor exposes pin/unpin and move-up/move-down actions for both Home and Library.
+
 | Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Completed — HEAD `b49d62b7`; clean baseline; canonical owner and current Home implementation inspected |
-| 2 | Contract and acceptance design | Completed — add non-drag reorder controls while preserving existing order/visibility ownership |
-| 3 | Foundation and domain implementation | Implemented — `HomeLayout` supports bounded reorder, pinned state, last-visible-section guard and backward-compatible preference encoding; tests cover metadata, legacy decode, pin toggling and hide boundaries |
-| 4 | User interface and interaction | Implemented — accessible Move up/down actions, Home-only pin/unpin controls and a dedicated visibility checkbox with visible/hidden/last-section state descriptions |
-| 5 | Platform and integration coverage | Not started |
-| 6 | Reliability, performance and privacy | Partial — existing preference persistence remains backward-compatible; the visibility checkbox is now a dedicated control rather than a parent toggleable row containing nested pin/move buttons |
-| 7 | Full verification and regression pass | Home layout JVM tests passed as part of shared/app unit-test runs; phone/Wear/TV compilation, tests and lint passed; phone/tablet, accessibility and process-restart acceptance remains open |
+| 1 | Repository and product audit | Complete — canonical Plan 090 and actual preference/UI owners reconciled |
+| 2 | Contract and acceptance design | Complete — preference-only migration with legacy decoding; no parallel store |
+| 3 | Foundation and domain implementation | Complete — stable browse keys, safe key remapping and backward-compatible pin serialization implemented |
+| 4 | User interface and interaction | Complete — pin, move-up and move-down controls are wired to the existing preference owner |
+| 5 | Platform and integration coverage | In progress — Android/shared UI compile passed; desktop target and emulator verification pending |
+| 6 | Reliability, performance and privacy | In progress — 1,273 DevDebug tests pass (0 failures, 0 errors, 1 skipped); large-font and screen-reader checks pending |
+| 7 | Full verification and regression pass | Not started |
 | 8 | Handoff and plan status | Not started |
 
-Progress: **4/8 stages implemented; stages 5–7 remain partial pending automated and device verification.** Phone/tablet, screen-reader and lifecycle checks remain.
+Progress is **4/8 stages complete**; platform, accessibility and device verification remain in progress. Estimates are planning ranges, not delivery commitments.
 
-### Additional implementation evidence — 2026-11-22
+Verification so far:
 
-- `HomeSlot.pinned` is persisted in the existing `AppSettings.homeLayout` preference using flag values `2`/`3`; legacy `0`/`1` values still decode as unpinned, preserving existing layouts without a migration.
-- `HomeLayout.arrange` promotes pinned shelves before unpinned shelves while retaining saved order within each group. Hidden/pinned metadata survives reorder and reset clears both.
-- `HomeLayout.togglePinned` toggles only the selected pin flag while preserving row position and hidden state. The editor uses that domain helper rather than maintaining a second pin mutation rule.
-- `canHideLayoutSlot` prevents hiding the last visible Home or Library section. The primary app tabs and player remain outside these shelf layouts and cannot be removed by this editor.
-- The Home editor exposes labeled pin/unpin actions; the Library editor retains its separate layout and does not gain Home pin semantics. Visibility is represented by an actual Material `Checkbox` with its own accessible label/state, so it no longer owns the entire row's click semantics around nested pin/move controls.
-- `HomeLayoutTest` covers pinned ordering, hidden+pinned round-trip, legacy preference decoding, reorder metadata and bounds. Phone/tablet, TalkBack and process-restart runtime checks remain unverified.
+- `:app:compileDevDebugKotlin :app:testDevDebugUnitTest --console=plain --max-workers=1 --no-parallel` — **BUILD SUCCESSFUL**, 1,273 tests, 0 failures, 0 errors, 1 skipped. `HomeLayoutTest` has 10 passing cases, including legacy decode, pin priority, browse-ID identity, key migration and accessible move boundaries.
+- `git diff --check` — passed; only existing line-ending normalization warnings remain.
+- Not yet verified: process-restart persistence on emulator, large-font/screen-reader interaction, and desktop target compilation.
 
 ## Repository-wide execution constraints
 

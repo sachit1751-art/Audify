@@ -1,6 +1,8 @@
 package com.music.audify.ui.screens
 
 import com.music.audify.ui.icons.SfIcons
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.text.format.DateFormat
 import android.widget.Toast
@@ -68,10 +70,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -141,7 +141,7 @@ fun ListenTogetherScreen(
     onEditServer: () -> Unit,
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = context.getSystemService(ClipboardManager::class.java)
     val scope = rememberCoroutineScope()
 
     val state by ListenTogether.state.collectAsStateWithLifecycle()
@@ -428,7 +428,7 @@ fun ListenTogetherScreen(
                         shareInvite()
                     },
                     onCopyCode = {
-                        clipboard.setText(AnnotatedString(state.code.orEmpty()))
+                        clipboard?.setPrimaryClip(ClipData.newPlainText("Listen Together code", state.code.orEmpty()))
                         Toast.makeText(
                             context,
                             copyCodeText,
@@ -476,7 +476,7 @@ fun ListenTogetherScreen(
         } else {
             InAParty(
                 state = state,
-                onCopy = { clipboard.setText(AnnotatedString(state.code.orEmpty())) },
+                onCopy = { clipboard?.setPrimaryClip(ClipData.newPlainText("Listen Together code", state.code.orEmpty())) },
                 onShare = { sheet = PartySheet.Invite },
                 onShareLink = shareInvite,
                 onLeave = { scope.launch { ListenTogether.leaveParty() } },

@@ -4,6 +4,8 @@ package com.music.audify.data
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -76,6 +78,147 @@ class AppUpdateCheckerTest {
         ).jsonObject
 
         assertEquals(null, AppUpdateChecker.apkAssetUrl(release, listOf("arm64-v8a")))
+    }
+
+    @Test
+    fun stableChannelExcludesPrereleasesAndDrafts() {
+        val releases = Json.parseToJsonElement(
+            """[
+                {"tag_name":"v1.9.4","draft":false,"prerelease":false},
+                {"tag_name":"v1.9.9-beta.3","draft":false,"prerelease":true},
+                {"tag_name":"v13.6.3+76dee453","draft":false,"prerelease":false},
+                {"tag_name":"v2.0.0","draft":true,"prerelease":false}
+            ]""",
+        ).jsonArray
+
+        assertEquals(
+            "v1.9.4",
+            AppUpdateChecker.selectRelease(releases, includePrereleases = false)
+                ?.get("tag_name")?.jsonPrimitive?.content,
+        )
+    }
+
+    @Test
+    fun stableChannelUsesNewestPublicationDateRatherThanLargestVersionTag() {
+        val releases = Json.parseToJsonElement(
+            """[
+                {"tag_name":"v13.6.3+76dee453","draft":false,"prerelease":false,"published_at":"2024-02-01T10:00:00Z"},
+                {"tag_name":"v1.9.4","draft":false,"prerelease":false,"published_at":"2026-10-18T10:00:00Z"},
+                {"tag_name":"v1.9.5","draft":false,"prerelease":false,"published_at":"2026-11-20T10:00:00Z"}
+            ]""",
+        ).jsonArray
+
+        assertEquals(
+            "v1.9.5",
+            AppUpdateChecker.selectRelease(releases, includePrereleases = false)
+                ?.get("tag_name")?.jsonPrimitive?.content,
+        )
+    }
+
+    @Test
+    fun betaChannelUsesNewestPublicationDateWithinPrereleasesOnly() {
+        val releases = Json.parseToJsonElement(
+            """[
+                {"tag_name":"v2.0.0","draft":false,"prerelease":false,"published_at":"2026-11-23T10:00:00Z"},
+                {"tag_name":"v1.9.9-beta.2","draft":false,"prerelease":true,"published_at":"2026-11-20T10:00:00Z"},
+                {"tag_name":"v1.9.8-beta.10","draft":false,"prerelease":true,"published_at":"2026-11-22T10:00:00Z"}
+            ]""",
+        ).jsonArray
+
+        assertEquals(
+            "v1.9.8-beta.10",
+            AppUpdateChecker.selectRelease(releases, includePrereleases = true)
+                ?.get("tag_name")?.jsonPrimitive?.content,
+        )
+    }
+
+    @Test
+    fun betaChannelSelectsNewestPrereleaseAndExcludesStableAndDrafts() {
+        val releases = Json.parseToJsonElement(
+            """[
+                {"tag_name":"v1.9.8","draft":false,"prerelease":false},
+                {"tag_name":"v1.9.9-beta.10","draft":false,"prerelease":true},
+                {"tag_name":"v1.9.9-beta.2","draft":false,"prerelease":true},
+                {"tag_name":"v1.10.0-beta.1","draft":true,"prerelease":true}
+            ]""",
+        ).jsonArray
+
+        assertEquals(
+            "v1.9.9-beta.10",
+            AppUpdateChecker.selectRelease(releases, includePrereleases = true)
+                ?.get("tag_name")?.jsonPrimitive?.content,
+        )
+    }
+
+    @Test
+    fun currentReleaseAssetNamesPreferTheMatchingAbiAndNotTheUniversalApk() {
+        val release = release(
+            "Audify-prod-universal-release.apk" to "https://example.test/universal.apk",
+            "Audify-prod-arm64-v8a-release.apk" to "https://example.test/arm64.apk",
+            "AudifyWear-prod-arm64-v8a-release.apk" to "https://example.test/watch.apk",
+            "tv-prod-arm64-v8a-release.apk" to "https://example.test/tv.apk",
+        )
+
+        assertEquals(
+            "https://example.test/arm64.apk",
+            AppUpdateChecker.apkAssetUrl(release, listOf("arm64-v8a", "armeabi-v7a")),
+        )
+    }
+
+    @Test
+    fun currentReleaseAssetNamesFallBackToUniversalWhenAbiIsUnavailable() {
+        val release = release(
+            "Audify-prod-universal-release.apk" to "https://example.test/universal.apk",
+            "Audify-prod-arm64-v8a-release.apk" to "https://example.test/arm64.apk",
+        )
+
+        assertEquals(
+            "https://example.test/universal.apk",
+            AppUpdateChecker.apkAssetUrl(release, listOf("x86_64")),
+        )
+    }
+
+    @Test
+    fun releaseAssetCarriesItsPublishedSha256Digest() {
+        val release = Json.parseToJsonElement(
+            """{"assets":[{"name":"Audify-prod-arm64-v8a-release.apk","browser_download_url":"https://example.test/app.apk","state":"uploaded","digest":"sha256:${"a".repeat(64)}"}]}""",
+        ).jsonObject
+
+        assertEquals(
+            "a".repeat(64),
+            AppUpdateChecker.apkAsset(release, listOf("arm64-v8a"))?.sha256,
+        )
+    }
+
+    @Test
+    fun sha256VerificationRejectsAlteredApkBytes() {
+        val file = Files.createTempFile("audify-digest-test", ".apk").toFile()
+        try {
+            file.writeText("not-the-published-apk")
+            assertThrows(IllegalArgumentException::class.java) {
+                AppUpdateChecker.validateSha256(file, "0".repeat(64))
+            }
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun versionComparisonOrdersBetaRcAndStableBuildsCorrectly() {
+        assertTrue(AppUpdateChecker.isNewer("1.9.6-beta.10", "1.9.6-beta.2"))
+        assertTrue(AppUpdateChecker.isNewer("1.9.6-rc.1", "1.9.6-beta.10"))
+        assertTrue(AppUpdateChecker.isNewer("1.9.6", "1.9.6-rc.1"))
+        assertFalse(AppUpdateChecker.isNewer("1.9.6-beta.2", "1.9.6-beta.10"))
+        assertFalse(AppUpdateChecker.isNewer("1.9.5", "1.9.6-beta.1"))
+    }
+
+    @Test
+    fun channelWithNoMatchingReleaseReturnsNoCandidate() {
+        val releases = Json.parseToJsonElement(
+            """[{"tag_name":"v1.9.8","draft":false,"prerelease":false}]""",
+        ).jsonArray
+
+        assertEquals(null, AppUpdateChecker.selectRelease(releases, includePrereleases = true))
     }
 
     @Test

@@ -55,6 +55,8 @@ data class PlayerState(
     val queueItems: List<PlayableMedia> = emptyList(),
     val song: Song? = null,
     val isPlaying: Boolean = false,
+    /** Media3 play intent, true while buffering after a play command. */
+    val playWhenReady: Boolean = false,
     /**
      * The playhead. A field rather than a value: its identity never changes, so
      * carrying it here costs no invalidation — see [PlaybackPosition].
@@ -82,6 +84,13 @@ data class PlayerState(
     /** True while the current item is the replacement installed by a quality upgrade. */
     val isQualityUpgraded: Boolean = false,
 )
+
+/** The transport glyph follows play intent during buffering, not audible frames alone. */
+internal fun shouldShowPauseGlyph(
+    isPlaying: Boolean,
+    playWhenReady: Boolean,
+    awaitingPartyStart: Boolean,
+): Boolean = isPlaying || playWhenReady || awaitingPartyStart
 
 /** Binds to [PlaybackService] for the lifetime of the composition. */
 @androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
@@ -358,6 +367,7 @@ fun rememberPlayerState(controller: MediaController?): PlayerState {
                 queueItems = queueSnapshot,
                 song = item?.toSongOrNull(),
                 isPlaying = player.isPlaying,
+                playWhenReady = player.playWhenReady,
                 durationMs = player.duration.coerceAtLeast(0L),
                 error = error,
                 isLoading = player.playbackState == Player.STATE_BUFFERING,

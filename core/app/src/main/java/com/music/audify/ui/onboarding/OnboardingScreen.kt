@@ -5,6 +5,8 @@ package com.music.audify.ui.onboarding
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -60,7 +62,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
@@ -69,6 +73,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -78,7 +83,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.provider.Settings
 import com.music.audify.R
+import com.music.audify.data.settings.AppSettings
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.sharedui.resources.Res
 import com.music.audify.sharedui.resources.ic_logo
 import com.music.audify.sharedui.resources.spotify_logo
@@ -118,7 +126,14 @@ fun OnboardingScreen(
     var page by rememberSaveable { mutableIntStateOf(PAGE_WELCOME) }
     var name by rememberSaveable { mutableStateOf(initialName) }
     val focusManager = LocalFocusManager.current
-
+    val context = LocalContext.current
+    val appReduceMotion by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+    val systemAnimationsOff = remember(context) {
+        runCatching {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        }.getOrDefault(false)
+    }
+    val reduceMotion = appReduceMotion || systemAnimationsOff
     BackHandler(enabled = previousOnboardingPage(page) != null) {
         previousOnboardingPage(page)?.let { page = it }
     }
@@ -139,7 +154,8 @@ fun OnboardingScreen(
         MeshGradientBackground(
             palette = palette,
             trackKey = page,
-            continuous = true,
+            continuous = !reduceMotion,
+            animated = !reduceMotion,
             driftMillis = 6_000,
             colorFadeMillis = MESH_CYCLE_MILLIS,
         )
@@ -157,12 +173,16 @@ fun OnboardingScreen(
         AnimatedContent(
             targetState = page,
             transitionSpec = {
-                val forward = targetState > initialState
-                val slide = tween<IntOffset>(420)
-                (slideInHorizontally(slide) { if (forward) it / 3 else -it / 3 } + fadeIn(tween(320, 100)))
-                    .togetherWith(
-                        slideOutHorizontally(slide) { if (forward) -it / 3 else it / 3 } + fadeOut(tween(200)),
-                    )
+                if (reduceMotion) {
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    val forward = targetState > initialState
+                    val slide = tween<IntOffset>(420)
+                    (slideInHorizontally(slide) { if (forward) it / 3 else -it / 3 } + fadeIn(tween(320, 100)))
+                        .togetherWith(
+                            slideOutHorizontally(slide) { if (forward) -it / 3 else it / 3 } + fadeOut(tween(200)),
+                        )
+                }
             },
             label = "onboardingPage",
             modifier = Modifier
@@ -302,7 +322,10 @@ private fun OnboardingHeader(page: Int, onSkip: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .padding(top = 8.dp, bottom = 12.dp)
-            .semantics { contentDescription = progressDescription },
+            .semantics {
+                contentDescription = progressDescription
+                progressBarRangeInfo = ProgressBarRangeInfo(page + 1f, 1f..4f)
+            },
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         repeat(4) { index ->

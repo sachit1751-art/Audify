@@ -22,8 +22,8 @@ internal object PlaybackRecoveryPolicy {
 
     fun isCurrentItem(
         failedMediaId: String,
-        currentMediaId: String?,
         failedQueueEntryId: String? = null,
+        currentMediaId: String?,
         currentQueueEntryId: String? = null,
     ): Boolean = currentMediaId == failedMediaId &&
         (failedQueueEntryId == null || currentQueueEntryId == failedQueueEntryId)

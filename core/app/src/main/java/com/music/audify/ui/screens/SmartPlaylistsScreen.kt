@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.music.audify.data.LocalMediaRepository
 import com.music.audify.data.model.Song
+import com.music.audify.data.model.ShelfItem
 import coil3.compose.AsyncImage
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.artworkAt
@@ -70,11 +71,52 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+/** Stable browse identity shared by the Library shelf and Smart Playlist detail route. */
+const val SMART_PLAYLIST_BROWSE_PREFIX = "audify-smart:"
+
+/** Current generated entries projected into the ordinary Library Playlists shelf. */
+@Composable
+fun rememberSmartPlaylistShelfItems(): List<ShelfItem> {
+    val context = LocalContext.current
+    val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
+    val history by LocalLibraryStore.history.collectAsStateWithLifecycle()
+    val favorites by LocalLibraryStore.favorites.collectAsStateWithLifecycle()
+    var candidates by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var results by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
+
+    LaunchedEffect(context, history, favorites) {
+        candidates = withContext(Dispatchers.IO) {
+            val local = runCatching { LocalMediaRepository.getLocalMusic(context) }.getOrDefault(emptyList())
+            val downloaded = runCatching { LocalMediaRepository.getDownloadedSongs(context) }.getOrDefault(emptyList())
+            val listened = runCatching { ListeningStats.trackSnapshot().map { it.song } }.getOrDefault(emptyList())
+            (local + downloaded + history + favorites + listened)
+                .filter { it.videoId.isNotBlank() }
+                .distinctBy { it.videoId }
+        }
+    }
+    LaunchedEffect(definitions, candidates) {
+        results = withContext(Dispatchers.IO) { SmartPlaylistRepository.evaluateAll(candidates) }
+    }
+    return remember(definitions, results) {
+        definitions.map { definition ->
+            val songs = results[definition.id].orEmpty()
+            ShelfItem(
+                title = definition.title,
+                subtitle = "${songs.size} tracks ? Smart Playlist${if (definition.paused) " ? Paused" else ""}",
+                thumbnailUrl = songs.firstOrNull()?.thumbnailUrl,
+                videoId = null,
+                browseId = SMART_PLAYLIST_BROWSE_PREFIX + definition.id,
+            )
+        }
+    }
+}
+
 /** A rule-backed playlist shelf. Results are recomputed from current local and listening data. */
 @Composable
 fun SmartPlaylistsScreen(
     contentPadding: PaddingValues,
     onPlaySongs: (title: String, songs: List<Song>, startIndex: Int) -> Unit,
+    initialPlaylistId: String? = null,
 ) {
     val context = LocalContext.current
     val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
@@ -84,7 +126,7 @@ fun SmartPlaylistsScreen(
     var candidates by remember { mutableStateOf<List<Song>>(emptyList()) }
     var results by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
     var recommendations by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
-    var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var expandedId by rememberSaveable(initialPlaylistId) { mutableStateOf(initialPlaylistId) }
     var refreshVersion by rememberSaveable { mutableIntStateOf(0) }
     var showEditor by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }

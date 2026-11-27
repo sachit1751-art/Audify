@@ -359,11 +359,11 @@ fun ReplayCardRowSkeleton(modifier: Modifier = Modifier) {
     }
 }
 
-/** The signed-in library: saved collections, then the run of liked tracks. */
+/** The signed-in Library's saved-collection shelves; Replay has its own card skeleton above. */
 fun LazyListScope.librarySkeleton() {
-    item(key = "skeleton:library:shelf") { ShelfSkeleton() }
-    item(key = "skeleton:library:header") { SectionHeaderSkeleton(index = 1) }
-    songListSkeleton(count = 7, keyPrefix = "skeleton:library:song")
+    item(key = "skeleton:library:playlists") { ShelfSkeleton(index = 0) }
+    item(key = "skeleton:library:albums") { ShelfSkeleton(index = 1) }
+    item(key = "skeleton:library:artists") { ShelfSkeleton(index = 2) }
 }
 
 /** The Play / Shuffle pair, which only appears once there is something to play. */

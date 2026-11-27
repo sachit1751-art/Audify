@@ -410,7 +410,11 @@ private fun PlaylistRow(playlist: UserPlaylist, selected: Boolean, onClick: () -
             if (playlist.subtitle.isNotBlank()) {
                 Text(
                     text = playlist.subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = if (playlist.playlistId.startsWith("sp_local_")) {
+                        MaterialTheme.typography.bodySmall
+                    } else {
+                        MaterialTheme.typography.bodyMedium
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

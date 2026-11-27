@@ -4295,8 +4295,8 @@ class PlaybackService : MediaLibraryService() {
                 val player = this@PlaybackService.player ?: return@withContext
                 if (!PlaybackRecoveryPolicy.isCurrentItem(
                         mediaId,
-                        player.currentMediaItem?.mediaId,
                         queueEntryId,
+                        player.currentMediaItem?.mediaId,
                         player.currentMediaItem?.queueEntryId,
                     )
                 ) {
@@ -4369,8 +4369,8 @@ class PlaybackService : MediaLibraryService() {
                 val live = this@PlaybackService.player ?: return@withContext
                 if (!PlaybackRecoveryPolicy.isCurrentItem(
                         mediaId,
-                        live.currentMediaItem?.mediaId,
                         queueEntryId,
+                        live.currentMediaItem?.mediaId,
                         live.currentMediaItem?.queueEntryId,
                     )
                 ) {
@@ -4526,8 +4526,8 @@ class PlaybackService : MediaLibraryService() {
                 // to instead.
                 if (!PlaybackRecoveryPolicy.isCurrentItem(
                         mediaId,
-                        live.currentMediaItem?.mediaId,
                         queueEntryId,
+                        live.currentMediaItem?.mediaId,
                         live.currentMediaItem?.queueEntryId,
                     )
                 ) return@withContext
@@ -4620,8 +4620,8 @@ class PlaybackService : MediaLibraryService() {
         val exoPlayer = player ?: return
         if (!PlaybackRecoveryPolicy.isCurrentItem(
                 mediaId,
-                exoPlayer.currentMediaItem?.mediaId,
                 queueEntryId,
+                exoPlayer.currentMediaItem?.mediaId,
                 exoPlayer.currentMediaItem?.queueEntryId,
             )
         ) return

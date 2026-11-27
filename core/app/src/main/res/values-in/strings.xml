@@ -1697,4 +1697,6 @@
     <string name="track_playback_window_clear">Hapus rentang pemutaran</string>
     <string name="auto_download_liked_songs">Unduh otomatis lagu yang disukai</string>
     <string name="auto_download_liked_songs_subtitle">Simpan lagu ke Download saat Anda menyukainya. Aturan Wi-Fi saja tetap berlaku.</string>
+    <string name="download_liked_songs">Automatically download liked songs</string>
+    <string name="download_liked_songs_subtitle">Downloads Liked Music once, then adds new likes automatically</string>
 </resources>

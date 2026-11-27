@@ -70,6 +70,14 @@ internal data class ReorderPlaylistEntry(val key: String, val song: Song)
 internal fun createReorderPlaylistEntries(songs: List<Song>): List<ReorderPlaylistEntry> =
     songs.map { ReorderPlaylistEntry(UUID.randomUUID().toString(), it) }
 
+internal fun restoreReorderPlaylistEntries(
+    order: MutableList<ReorderPlaylistEntry>,
+    original: List<ReorderPlaylistEntry>,
+) {
+    order.clear()
+    order.addAll(original)
+}
+
 /**
  * Rearranges one of the account's playlists: every entry with a handle to drag
  * it by, and nothing sent until Save.
@@ -205,6 +213,7 @@ private fun ReorderableSongList(
 ) {
     val listState = rememberLazyListState()
     var held by remember { mutableStateOf<String?>(null) }
+    var dragOrigin by remember { mutableStateOf<List<ReorderPlaylistEntry>?>(null) }
     var offset by remember { mutableFloatStateOf(0f) }
     var autoScroll by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
@@ -250,6 +259,12 @@ private fun ReorderableSongList(
         held = null
         offset = 0f
         autoScroll = 0f
+        dragOrigin = null
+    }
+
+    fun cancel() {
+        dragOrigin?.let { restoreReorderPlaylistEntries(order, it) }
+        end()
     }
 
     LaunchedEffect(autoScroll != 0f) {
@@ -273,6 +288,7 @@ private fun ReorderableSongList(
             val key = entry.key
             val dragging = held == key
             val start: () -> Unit = {
+                dragOrigin = order.toList()
                 held = key
                 offset = 0f
             }
@@ -288,6 +304,7 @@ private fun ReorderableSongList(
                 onDragStart = start,
                 onDrag = drag,
                 onDragEnd = ::end,
+                onDragCancel = ::cancel,
                 modifier = Modifier
                     .zIndex(if (dragging) 1f else 0f)
                     .graphicsLayer { translationY = if (dragging) offset else 0f }
@@ -307,6 +324,7 @@ private fun ReorderRow(
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Holding anywhere on the row picks it up too, not only the handle — the
@@ -317,7 +335,7 @@ private fun ReorderRow(
         detectDragGesturesAfterLongPress(
             onDragStart = { onDragStart() },
             onDragEnd = onDragEnd,
-            onDragCancel = onDragEnd,
+            onDragCancel = onDragCancel,
             onDrag = { change, amount ->
                 change.consume()
                 onDrag(amount.y)
@@ -370,7 +388,7 @@ private fun ReorderRow(
                     detectDragGestures(
                         onDragStart = { onDragStart() },
                         onDragEnd = onDragEnd,
-                        onDragCancel = onDragEnd,
+                        onDragCancel = onDragCancel,
                         onDrag = { change, amount ->
                             change.consume()
                             onDrag(amount.y)

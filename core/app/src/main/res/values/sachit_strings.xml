@@ -1,81 +1,105 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
 Copyright (c) 2026 Sachit. All rights reserved.
 Project: AUDIFY
 -->
 <resources>
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
     <!-- LiquidFlow is a branded, English-only experimental lyrics presentation. -->
     <string name="liquid_flow">LiquidFlow lyrics</string>
     <string name="liquid_flow_subtitle">Word-level motion, glow and particle effects</string>
-    
-    
-    
-    
+
+
+
+
     <string name="time_aware_morning_picks" translatable="false">Morning picks</string>
     <string name="time_aware_afternoon_picks" translatable="false">Afternoon picks</string>
     <string name="time_aware_evening_picks" translatable="false">Evening picks</string>
     <string name="time_aware_late_night_picks" translatable="false">Late-night picks</string>
     <string name="time_aware_shelf_subtitle" translatable="false">A few picks shaped by your listening hours</string>
-    
-    
-    
-    
-    
+
+
+
+
+
     <string name="sachit_listening_summary_save">Save listening summary (CSV)</string>
     <string name="sachit_listening_summary_share">Share listening summary (CSV)</string>
     <string name="sachit_listening_summary_note">All retained monthly totals for each song. Individual play timestamps are not stored.</string>
     <string name="sachit_listening_summary_chooser">Share listening summary</string>
     <string name="sachit_listening_summary_saved">Listening summary saved.</string>
     <string name="sachit_listening_summary_save_failed">Could not save the listening summary.</string>
-    
-    
-    
-    
-    
-    
+
+    <plurals name="sachit_local_playlist_subtitle" translatable="false">
+        <item quantity="one">On this device · %1$d song</item>
+        <item quantity="other">On this device · %1$d songs</item>
+    </plurals>
+    <string name="download_storage_unavailable" translatable="false">Not enough storage space to save this download. Free up space and try again.</string>
+    <string name="move_section_up" translatable="false">Move section up</string>
+    <string name="move_section_down" translatable="false">Move section down</string>
+    <string name="pin_section" translatable="false">Pin section to the top</string>
+    <string name="unpin_section" translatable="false">Unpin section</string>
+    <string name="onboarding_step_progress" translatable="false">Step %1$d of %2$d</string>
+    <string name="sachit_playlist_saved_locally" translatable="false">Playlist saved on this device.</string>
+    <string name="sachit_playlist_created_remote" translatable="false">Playlist created in YouTube Music.</string>
+    <string name="sachit_playlist_create_failed" translatable="false">Could not create the playlist. Please try again.</string>
+
+
+
+
+
+
     <!-- Plan 035 storage-budget strings -->
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     <string name="wear_os_update_busy" translatable="false">Another watch update is in progress</string>
-    
-    
-    
-    
-    
+    <string name="automatic_update_checks_title" translatable="false">Automatically check for updates</string>
+    <string name="automatic_update_checks_subtitle" translatable="false">Check GitHub when Audify starts. Installing an APK still requires your confirmation.</string>
+    <string name="prerelease_updates_title" translatable="false">Beta / prerelease updates</string>
+    <string name="prerelease_updates_enabled_subtitle" translatable="false">Beta and release-candidate builds are included.</string>
+    <string name="prerelease_updates_disabled_subtitle" translatable="false">Stable releases only. Enable to receive beta builds.</string>
+    <string name="latest_beta_release" translatable="false">Latest beta release · v%1$s</string>
+    <string name="latest_stable_release" translatable="false">Latest stable release · v%1$s</string>
+    <string name="update_channel_check_failed" translatable="false">Couldn\'t check the selected release channel.</string>
+    <string name="update_manual_migration_body" translatable="false">This older installation uses a retired signing certificate. Open the release page for the supported migration instructions; this APK cannot be installed as a normal in-place update.</string>
+    <string name="open_migration_instructions" translatable="false">Open migration instructions</string>
+
+
+
+
+
     <string name="local_library_scan_partial" translatable="false">Some local audio could not be read. Showing the available files.</string>
     <string name="local_library_scan_failed" translatable="false">Local audio could not be read. Check storage or folder access and try again.</string>
     <string name="remote_library_load_failed" translatable="false">Could not load this remote library. Check its connection and access settings, then try again.</string>
@@ -103,7 +127,6 @@ Project: AUDIFY
     <string name="move_home_section_down" translatable="false">Move %1$s down</string>
     <string name="pin_home_section" translatable="false">Pin %1$s to the top of Home</string>
     <string name="unpin_home_section" translatable="false">Unpin %1$s from the top of Home</string>
-    <string name="onboarding_step_progress" translatable="false">Step %1$d of 4</string>
     <string name="onboarding_skip" translatable="false">Skip</string>
     <string name="onboarding_skip_for_now" translatable="false">Skip for now</string>
     <string name="onboarding_welcome_heading" translatable="false">Find it.\nFeel it.\nShare it.</string>

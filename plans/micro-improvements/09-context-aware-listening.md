@@ -4,9 +4,9 @@ Project: AUDIFY
 -->
 # Micro Improvement 09 — User-Controlled Listening Intent and Context
 
-**Status: in progress — the existing AutoPlay/radio refill owner accepts session-scoped Familiar, Discovery, Energetic and Calm intent with an Off state, equal-score artist diversity and per-track explanations derived from actual ranking signals. Dedicated `RadioListeningIntentTest` coverage is included in the consolidated verification pass; device listening-quality and long-session acceptance remain open.**
-**Execution model: eight gated stages.**  
-**Canonical owner:** Plan 07 — Explainable Listening Recommendations and Plan 079 — Smart Music Radio.  
+**Status: planned — not started.**
+**Execution model: eight gated stages.**
+**Canonical owner:** Plan 07 — Explainable Listening Recommendations and Plan 079 — Smart Music Radio.
 **Baseline:** Reconcile against repository HEAD at execution time; this plan deliberately does not assume historical source paths remain valid.
 
 ## Product direction
@@ -39,7 +39,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 4. Inspect privacy controls, recommendation explanations, preference persistence and opt-out behaviour.
 5. Record baseline relevance/diversity and current user control surfaces.
 
-**Deliverable:** A source-backed capability matrix and exact file/symbol inventory.  
+**Deliverable:** A source-backed capability matrix and exact file/symbol inventory.
 **Exit criteria:** The executor can name the canonical state/data owner, real UI entry points, relevant tests, dependencies and prohibited boundaries without relying on guesses.
 
 ## Stage 2 — Behaviour contract and scope
@@ -52,7 +52,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 6. List non-goals and rejected approaches so the implementation cannot expand into an unrelated rewrite.
 7. Stop for human approval if the required solution needs a schema change, migration, new backend, credential handling, provider-policy exception, new permission, destructive operation or release action.
 
-**Deliverable:** A concise behaviour contract, acceptance matrix and confirmed file-level implementation scope.  
+**Deliverable:** A concise behaviour contract, acceptance matrix and confirmed file-level implementation scope.
 **Exit criteria:** Every requirement has a real owner, implementation location, test and observable outcome.
 
 ## Stage 3 — Domain and foundation implementation
@@ -65,7 +65,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 6. Keep sensitive inference off by default; do not infer health, emotional state, age, identity or other sensitive attributes.
 7. Ensure explicit user actions, blocked tracks and selected seeds take precedence over inferred or generic ranking signals.
 
-**Deliverable:** Working domain behaviour integrated with the existing owner.  
+**Deliverable:** Working domain behaviour integrated with the existing owner.
 **Exit criteria:** Core invariants are covered by focused automated tests; no parallel architecture or prohibited storage boundary has been introduced.
 
 ## Stage 4 — UI and interaction implementation
@@ -78,7 +78,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 6. Verify responsive behaviour on phone, tablet, desktop and TV/Wear only where the repository actually supports the surface.
 7. Do not copy a design from another app blindly; translate the intended behaviour into AUDIFY's established design system.
 
-**Deliverable:** A complete user-facing flow wired to production domain logic.  
+**Deliverable:** A complete user-facing flow wired to production domain logic.
 **Exit criteria:** No mock-only behaviour, dead control, fabricated result or inaccessible primary action remains.
 
 ## Stage 5 — Integration and platform coverage
@@ -90,7 +90,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 5. Verify compatibility with existing settings and backup/restore boundaries.
 6. Ensure external controls and system integrations remain consistent where the feature affects them.
 
-**Deliverable:** Platform integration matrix with evidence for each supported target.  
+**Deliverable:** Platform integration matrix with evidence for each supported target.
 **Exit criteria:** In-scope clients compile and relevant integration tests pass; unavailable device testing is recorded explicitly.
 
 ## Stage 6 — Feature-specific test plan
@@ -116,7 +116,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 - Do not expose credentials, tokens, private listening history or personal data in logs or error messages.
 - Confirm existing preferences and user data remain readable; no migration is authorized.
 
-**Deliverable:** Automated test evidence plus a short performance/privacy review.  
+**Deliverable:** Automated test evidence plus a short performance/privacy review.
 **Exit criteria:** Edge cases, concurrency, lifecycle, performance and privacy risks are either tested and resolved or explicitly blocked for human decision.
 
 ## Stage 7 — Verification and regression
@@ -134,7 +134,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 6. Re-test adjacent behaviour owned by Plan 07 — Explainable Listening Recommendations and Plan 079 — Smart Music Radio.
 7. Record exact commands, exit codes, device/API levels and any unavailable checks.
 
-**Deliverable:** Reproducible verification report.  
+**Deliverable:** Reproducible verification report.
 **Exit criteria:** All acceptance criteria have evidence and no known critical regression remains in scope.
 
 ## Stage 8 — Handoff, rollback and completion
@@ -151,7 +151,7 @@ The canonical owner is **Plan 07 — Explainable Listening Recommendations and P
 6. Update plan status only when work actually starts or all completion criteria pass.
 7. Do not commit, push, merge, publish or change app versions without explicit user authorization.
 
-**Deliverable:** A complete handoff that another agent can continue without prior chat context.  
+**Deliverable:** A complete handoff that another agent can continue without prior chat context.
 **Exit criteria:** Every acceptance item is evidenced, limitations are transparent and rollback is understood.
 
 ## Feature-specific acceptance criteria
@@ -264,30 +264,20 @@ Stages are sequential. The executor must report evidence at each gate and must n
 
 **Exit gate:** A new agent can understand exactly what changed, what passed, what did not, and how to safely continue.
 
-## Execution audit — 2026-11-22, baseline `b49d62b7`
-
-The current source exposes explicit mood choices through `TopPickMood`, `TopPicks.moodStation(...)`, the Find Your Mood surface in `sharedUi/src/jvmSharedMain/kotlin/com/music/audify/ui/screens/HomeScreen.kt` and `TopPicksShelf.kt`, and mood queue construction in `shared/src/jvmSharedMain/kotlin/com/music/audify/data/TopPicks.kt:540-591`. Mood queues are fetched when the user selects a mood. `TopPicks.moodFor(...)` also selects a suggested mood using local time; it does not inspect microphone, location, health, identity or other sensitive signals.
-
-The player already distinguishes player-origin actions from list-origin actions in `core/app/src/main/java/com/music/audify/MainActivity.kt:4847-5019` and `core/app/src/main/java/com/music/audify/ui/components/SongActionsMenu.kt`. Player-only options include sleep timer, playback-version controls, source rollback/upgrade, lyrics offset, spatial audio and track-log access; playlist-row actions are withheld when the menu is opened from the player. This contextual menu behaviour is already implemented in the baseline.
-
-The existing `core/app/src/main/java/com/music/audify/playback/Autoplay.kt` `loadAutoplayTracks`/`rankForAutomix` path is the current canonical radio refill owner: it already fetches provider radio candidates, preserves queue metadata, de-duplicates through `QueueBuilder`, and optionally applies `orderForMixing`. This pass extends that same path rather than creating a parallel recommender. `RadioListeningIntentState` is an in-memory session control exposed from the player-origin `SongActionsMenu`; it cycles Off, Familiar artists, Discover new artists, More energetic and Calmer. It is hidden in Listen Together parties, resets on a non-radio queue transition and when the playback service is destroyed, and is deliberately not persisted as a permanent taste profile.
-
-`orderForListeningIntent` applies deterministic stable ranking using only existing queue/session artist names or finite measured `TrackAnalysis.energyCurve` values. Missing evidence leaves provider order intact for those candidates. Within equal intent-score groups, a stable two-artist recency guard prefers an alternative artist when available; it never moves a lower intent score ahead of a higher one. The existing provider order remains the tie-breaker, the `QueueBuilder` still owns de-duplication and queue boundaries, and already-queued items are not silently reordered: a changed intent is labelled as applying to the next radio refill. The player menu explains each intent and, for the currently playing AutoPlay item, displays a per-track explanation derived from the signal actually available for that candidate. Explanations are session-only, bounded to 100 entries and cleared with the radio intent. No microphone, location, health, account identity or unapproved history signal is inferred. This remains an enhancement to the existing ranking engine, not a claim that the full Plan 07/079 recommendation system is complete.
-
 ## Implementation tracking
 
-| Stage | Workstream | Current status |
+| Stage | Workstream | Initial status |
 |---:|---|---|
-| 1 | Repository and product audit | Complete |
-| 2 | Contract and acceptance design | Partial — five-state session intent and signal-backed per-track explanation contract implemented; full Plan 07/079 acceptance remains |
-| 3 | Foundation and domain implementation | Partial — existing radio refill owner extended with deterministic artist/energy ranking, equal-score artist diversity and missing-evidence fallback |
-| 4 | User interface and interaction | Partial — player menu cycles intent, describes its real ranking input and shows the current AutoPlay track's factual reason; effect is explicitly next-batch only |
-| 5 | Platform and integration coverage | Android phone player/radio owner only; party UI hides the control; no device acceptance |
-| 6 | Reliability, performance and privacy | Partial — no new network/data source; session state is ephemeral and reset at queue/service boundaries |
-| 7 | Full verification and regression pass | Partial — focused radio-intent tests pass (10), including score precedence, artist diversity, measured-energy fallbacks, factual explanations and bounded explanation-cache recency; device radio-session acceptance remains |
-| 8 | Handoff and plan status | In progress |
+| 1 | Repository and product audit | Not started |
+| 2 | Contract and acceptance design | Not started |
+| 3 | Foundation and domain implementation | Not started |
+| 4 | User interface and interaction | Not started |
+| 5 | Platform and integration coverage | Not started |
+| 6 | Reliability, performance and privacy | Not started |
+| 7 | Full verification and regression pass | Not started |
+| 8 | Handoff and plan status | Not started |
 
-Progress is tracked by the current stage statuses above; Plan 09 is no longer blocked on owner discovery. Equal-score artist diversity and per-track explanations are implemented in the existing ranking owner and player song menu. The explanation cache now refreshes recency on reuse while enforcing its 100-entry bound; focused automated tests pass. Device-level radio-session validation remains deferred. Estimates are planning ranges, not delivery commitments.
+Progress is **0/8** until work is actually performed and evidenced. Estimates are planning ranges, not delivery commitments.
 
 ## Repository-wide execution constraints
 

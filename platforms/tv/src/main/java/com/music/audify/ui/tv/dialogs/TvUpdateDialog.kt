@@ -118,8 +118,7 @@ private fun TvUpdateControls(state: DownloadState, notes: String?, onDismiss: ()
                     onClick = AppUpdateChecker::cancelDownload,
                 )
             }
-
-            is DownloadState.Ready -> {
+is DownloadState.Ready -> {
                 TvDialogButton(
                     text = "Install Now",
                     onClick = { AppUpdateChecker.installApk(context, s.file) },
