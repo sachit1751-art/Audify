@@ -1,6 +1,7 @@
 package com.music.audify.playback
 
 import androidx.core.content.edit
+import com.music.audify.data.storage.PreferenceMigration
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +44,7 @@ object OriginalVersion {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        PreferenceMigration.migrate(context, PREFS_NAME, "audify_original_versions")
         // Stored as one newline-joined string rather than as a string set,
         // because the order is what the cap below evicts by and a set of
         // strings comes back from SharedPreferences in no particular order.

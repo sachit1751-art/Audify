@@ -3,6 +3,7 @@ package com.music.audify.playback
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.music.audify.data.storage.PreferenceMigration
 import com.music.audify.data.model.Song
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -23,6 +24,7 @@ object LastPlayed {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        PreferenceMigration.migrate(context, PREFS_NAME, "audify_last_played")
     }
 
     internal fun window(size: Int, index: Int): IntRange {

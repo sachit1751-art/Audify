@@ -2,6 +2,7 @@ package com.music.audify.widget
 
 import androidx.core.content.edit
 import android.content.Context
+import com.music.audify.data.storage.PreferenceMigration
 
 /**
  * Everything a home-screen widget needs to know about playback.
@@ -97,8 +98,12 @@ internal data class MediaWidgetSnapshot(
             return EMPTY
         }
 
-        private fun prefs(context: Context) =
-            context.getSharedPreferences("bitchord_widget", Context.MODE_PRIVATE)
+        private fun prefs(context: Context) = context.getSharedPreferences(
+            "bitchord_widget",
+            Context.MODE_PRIVATE,
+        ).also {
+            PreferenceMigration.migrate(context, "bitchord_widget", "audify_widget")
+        }
 
         private const val KEY_MEDIA_ID = "media_id"
         private const val KEY_TITLE = "title"

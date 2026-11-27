@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.media3.common.Player
+import com.music.audify.data.storage.PreferenceMigration
 import com.music.audify.data.model.Song
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -29,6 +30,7 @@ object PartyPersonalQueueStash {
 
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        PreferenceMigration.migrate(context, PREFS_NAME, "audify_party_queue_stash")
     }
 
     fun initForTesting(testPrefs: SharedPreferences) {
