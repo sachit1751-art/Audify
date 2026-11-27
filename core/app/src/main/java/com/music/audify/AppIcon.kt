@@ -40,7 +40,12 @@ enum class AppIcon(val alias: String, val iconRes: Int, val labelRes: Int, val p
         fun repairLauncher(context: Context) {
             val pm = context.packageManager
             val enabled = entries.filter { icon ->
-                runCatching { pm.getActivityInfo(icon.component(context), 0).enabled }.getOrDefault(false)
+                runCatching {
+                    isLauncherComponentEnabled(
+                        overrideState = pm.getComponentEnabledSetting(icon.component(context)),
+                        manifestEnabled = pm.getActivityInfo(icon.component(context), 0).enabled,
+                    )
+                }.getOrDefault(false)
             }
             if (enabled.size != 1) apply(context, enabled.firstOrNull() ?: Default)
         }

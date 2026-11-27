@@ -1451,7 +1451,16 @@ object AppSettings {
     private fun migrateAudifyPreferences(context: Context, target: SharedPreferences) {
         val legacy = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         val legacyValues = legacy.all
-        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) return
+        val completeExistingOnboarding = shouldCompleteOnboardingForExistingInstall(
+            currentPreferenceKeys = target.all.keys,
+            legacyPreferenceKeys = legacyValues.keys,
+            onboardingKey = KEY_ONBOARDING_COMPLETE,
+            migrationKey = KEY_AUDIFY_PREFS_MIGRATED,
+        )
+        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) {
+            if (completeExistingOnboarding) target.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
+            return
+        }
         // A clean install has neither a target preference nor legacy values.
         // Do not write the migration marker in that case: seedFirstInstallDefaults()
         // must see an empty file and populate the complete first-run defaults.
@@ -1497,15 +1506,7 @@ object AppSettings {
 
             putBoolean(KEY_AUDIFY_PREFS_MIGRATED, true)
         }
-        if (shouldCompleteOnboardingForExistingInstall(
-                currentPreferenceKeys = target.all.keys,
-                legacyPreferenceKeys = legacyValues.keys,
-                onboardingKey = KEY_ONBOARDING_COMPLETE,
-                migrationKey = KEY_AUDIFY_PREFS_MIGRATED,
-            )
-        ) {
-            target.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
-        }
+        if (completeExistingOnboarding) target.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
     }
 
     /**
