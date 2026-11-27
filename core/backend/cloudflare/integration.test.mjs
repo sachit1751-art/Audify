@@ -381,9 +381,9 @@ test('presence validation and all supported platform counters match the Go contr
 
 test('Android, web and Windows desktop share the authenticated Cloudflare party protocol', async () => {
   const android = await readFile(new URL('../../app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt', import.meta.url), 'utf8');
-  const web = await readFile(new URL('../../platforms/web/app/src/party/listenTogether.ts', import.meta.url), 'utf8');
-  const tv = await readFile(new URL('../../platforms/tv/build.gradle.kts', import.meta.url), 'utf8');
-  const desktop = await readFile(new URL('../../desktop/crates/state/src/listening/link.rs', import.meta.url), 'utf8');
+  const web = await readFile(new URL('../../../platforms/web/app/src/party/listenTogether.ts', import.meta.url), 'utf8');
+  const tv = await readFile(new URL('../../../platforms/tv/build.gradle.kts', import.meta.url), 'utf8');
+  const desktop = await readFile(new URL('../../../desktop/crates/state/src/listening/link.rs', import.meta.url), 'utf8');
   assert.match(android, /put\("eventId",\s*UUID\.randomUUID\(\)\.toString\(\)\)/);
   assert.match(web, /eventId:\s*crypto\.randomUUID\(\)/);
   assert.match(tv, /kotlin\.directories \+= "\.\.\/\.\.\/core\/app\/src\/main\/java"/);
