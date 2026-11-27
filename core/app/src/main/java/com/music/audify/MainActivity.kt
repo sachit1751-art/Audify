@@ -2375,7 +2375,9 @@ private fun AudifyApp(
     val onBrowseLongPress: (ShelfItem) -> Unit = { item ->
         val id = item.browseId
         val type = id?.let { viewModel.browseTypeOf(it) }
-        if (id != null && id.startsWith(SPOTIFY_PAGE_PREFIX)) {
+        if (id?.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) == true) {
+            navigator.push(AppRoute.SmartPlaylistDetail(id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+        } else if (id != null && id.startsWith(SPOTIFY_PAGE_PREFIX)) {
             // Only a pinned card reaches here. The menu's queue and download
             // rows fetch through YouTube Music and cannot read a Spotify page,
             // so holding the card unpins it instead of raising a menu that fails.
@@ -3885,6 +3887,8 @@ private fun AudifyApp(
                                     // property declared in another module.
                                     val browseId = item.browseId
                                     when {
+                                        browseId?.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) == true ->
+                                            navigator.push(AppRoute.SmartPlaylistDetail(browseId.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
                                         song != null -> playRadio(
                                             song,
                                             QueueSource(shelfTitle, PlaybackSourceType.HOME),

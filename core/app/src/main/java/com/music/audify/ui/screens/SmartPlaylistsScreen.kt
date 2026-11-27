@@ -3,6 +3,7 @@
 package com.music.audify.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -102,7 +103,7 @@ fun rememberSmartPlaylistShelfItems(): List<ShelfItem> {
             val songs = results[definition.id].orEmpty()
             ShelfItem(
                 title = definition.title,
-                subtitle = "${songs.size} tracks ? Smart Playlist${if (definition.paused) " ? Paused" else ""}",
+                subtitle = "${songs.size} tracks \u00B7 Smart Playlist${if (definition.paused) " \u00B7 Paused" else ""}",
                 thumbnailUrl = songs.firstOrNull()?.thumbnailUrl,
                 videoId = null,
                 browseId = SMART_PLAYLIST_BROWSE_PREFIX + definition.id,
@@ -434,7 +435,7 @@ private fun SmartPlaylistDefinition.summaryLabel(): String = buildList {
     notPlayedWithinDays?.let { add("Not played in ${it}d") }
     minimumPlays?.let { add("At least $it plays") }
     if (excludeRecentHistory) add("Hides recent tracks")
-}.take(2).joinToString(" · ").ifBlank { "Based on your library" }
+}.take(2).joinToString(" \u00B7 ").ifBlank { "Based on your library" }
 
 @Composable
 private fun PlaylistArtwork(songs: List<Song>, modifier: Modifier = Modifier) {
@@ -472,7 +473,7 @@ private fun ArtworkPlaceholder(modifier: Modifier = Modifier) {
         modifier.background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
-        Text("♫", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("\u266B", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -488,7 +489,7 @@ private fun SongArtwork(song: Song, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Text("♫", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("\u266B", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

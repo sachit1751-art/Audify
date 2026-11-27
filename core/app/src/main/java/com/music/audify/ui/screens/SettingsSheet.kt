@@ -1,4 +1,4 @@
-@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+﻿@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
 
 package com.music.audify.ui.screens
 
@@ -1496,13 +1496,21 @@ fun SettingsScreen(
                         val selected = selectedThemePackId == pack.id
                         Column(
                             modifier = Modifier.width(112.dp).clip(RoundedCornerShape(18.dp))
-                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) else Color.Transparent)
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f) else MaterialTheme.colorScheme.surfaceContainerLow)
+                                .border(
+                                    BorderStroke(
+                                        if (selected) 2.dp else 1.dp,
+                                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    ),
+                                    RoundedCornerShape(18.dp),
+                                )
                                 .clickable { AppSettings.setThemePack(pack.id) }
                                 .padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Box(
                                 Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                                     .background(Color((if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
                                         else ThemePacks.lightBackgroundHex(pack)).toColorInt()))
                             ) {

@@ -1566,4 +1566,7 @@ Project: AUDIFY
     <string name="crossfade_on_skip">Crossfade on next/previous</string>
     <string name="crossfade_on_skip_subtitle">Fades into the song you skip to, and the cover dissolves along with it</string>
     <string name="local_playlist_subtitle">Local playlist - %1$d tracks</string>
+    <string name="spotify_import_button">Import</string>
+    <string name="spotify_import_none">None of those songs were found on YouTube Music.</string>
+    <string name="spotify_import_unmatched">%1$d songs were not found on YouTube Music</string>
 </resources>

@@ -220,7 +220,9 @@ fun SearchScreen(
     // MainViewModel.suggestions. Nothing below it is worth showing while it is
     // up: the results are for whatever was searched before this edit began,
     // and so are the filter tabs above them.
-    val suggesting = suggestions.isNotEmpty() && !searchingLibrary && !searchingAddons
+    // Keep media typeahead visible even if the separate text-completion request fails.
+    val suggesting = (suggestions.isNotEmpty() || typeaheadResults.isNotEmpty()) &&
+        !searchingLibrary && !searchingAddons
     // Live media results arrive from the parallel typeahead pipeline; show
     // them only while the user is still typing (suggestions visible), so they
     // appear as a dropdown beneath the text completions rather than floating
@@ -329,6 +331,7 @@ fun SearchScreen(
                 )
                 suggesting -> {
                     searchSuggestions(
+                        query = query,
                         suggestions = suggestions,
                         // Picking one is done typing, so the keyboard comes down
                         // with it and the results get the whole screen.
@@ -352,13 +355,6 @@ fun SearchScreen(
                         )
                     }
                 }
-                results == null && !fieldFocused && query.isEmpty() &&
-                    exploreState != null && onCategoryClick != null -> moodGenreGrid(
-                    state = exploreState,
-                    columns = categoryColumns,
-                    onCategoryClick = onCategoryClick,
-                    onRetry = onExploreRetry,
-                )
                 results == null -> if (history.isEmpty()) {
                     item { MessageState(stringResource(Res.string.search_empty)) }
                 } else {
@@ -662,6 +658,7 @@ private fun TopResultCard(
  * past.
  */
 private fun LazyListScope.searchSuggestions(
+    query: String,
     suggestions: List<String>,
     onClick: (String) -> Unit,
     onFill: (String) -> Unit,
@@ -673,7 +670,18 @@ private fun LazyListScope.searchSuggestions(
     // Skip the echo of the typed text (element 0) — it's already visible in
     // the search field itself — and cap at N so the list stays compact above
     // the playable-media cards.
-    itemsIndexed(suggestions.drop(1).take(3), key = { _, term -> "suggest:$term" }) { _, term ->
+    val completions = suggestions.drop(1).take(3)
+    if (completions.isEmpty() && query.isNotBlank()) {
+        item(key = "suggest:exact-query") {
+            SuggestionRow(
+                term = query,
+                isQueryAction = true,
+                onFill = null,
+                onClick = { onClick(query) },
+            )
+        }
+    }
+    itemsIndexed(completions, key = { _, term -> "suggest:$term" }) { _, term ->
         SuggestionRow(
             term = term,
             isQueryAction = false,

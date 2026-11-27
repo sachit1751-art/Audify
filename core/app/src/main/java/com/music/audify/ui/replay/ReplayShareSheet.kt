@@ -99,12 +99,14 @@ fun ReplayShareSheet(
     var saved by remember { mutableStateOf(false) }
 
     LaunchedEffect(summary, page) {
-        // Kartu yang sedang tampil di layar dipakai apa adanya; poster Canvas
-        // hanya jadi cadangan (recap / tombol share di halaman Replay).
-        poster = ReplayCapture.take(page)
-            ?: runCatching { renderReplayPoster(context, summary, holder, memberSince, page) }
-                .onFailure { failed = true }
-                .getOrNull()
+        poster = null
+        failed = false
+        saved = false
+        // Keep the 1.9.2 poster renderer and render only the selected story page
+        // when this sheet was opened from a story card.
+        val rendered = runCatching { renderReplayPoster(context, summary, holder, memberSince, page) }
+        poster = rendered.getOrNull()
+        failed = rendered.isFailure
     }
 
     Column(

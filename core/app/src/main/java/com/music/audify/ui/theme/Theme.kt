@@ -1,4 +1,4 @@
-package com.music.audify.ui.theme
+﻿package com.music.audify.ui.theme
 
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.drawable.toDrawable
@@ -334,7 +334,7 @@ fun AudifyTheme(
         val themedSurfaces = if (amoledDisplayColors || activeThemePack.id == ThemePacks.CLASSIC_ID) {
             baseColors
         } else {
-            val lift = if (darkTheme) 0.045f else 0.075f
+            val lift = if (darkTheme) 0.045f else 0.14f
             baseColors.copy(
                 surface = baseColors.surface.withAccent(primary, lift),
                 surfaceVariant = baseColors.surfaceVariant.withAccent(primary, lift * 1.7f),

@@ -227,14 +227,16 @@ fun LibraryScreen(
                     item(key = "shelf:$PLAYLISTS") {
                         val emptyPlaylists = HomeShelf(PLAYLISTS, emptyList())
                         PlaylistShelf(
-                            shelf = emptyPlaylists.copy(items = smartPlaylistItems),
+                            shelf = emptyPlaylists,
                             onItemClick = onShelfItemClick,
                             onItemLongPress = onShelfItemLongPress,
                             onNewPlaylist = onNewPlaylist,
                             onImportSpotifyPlaylist = onImportSpotifyPlaylist,
-                            onSmartPlaylists = onSmartPlaylists,
-                            onShowAll = { onShowAll(emptyPlaylists.copy(items = smartPlaylistItems)) },
+                            onShowAll = { onShowAll(emptyPlaylists) },
                         )
+                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onSmartPlaylists) {
+                            onShowAll(HomeShelf("Smart Playlists", smartPlaylistItems))
+                        }
                     }
                     item {
                         MessageState(
@@ -269,14 +271,16 @@ fun LibraryScreen(
                                 item(key = "shelf:$PLAYLISTS") {
                                     val emptyPlaylists = HomeShelf(PLAYLISTS, emptyList())
                                     PlaylistShelf(
-                                        shelf = emptyPlaylists.copy(items = smartPlaylistItems),
+                                        shelf = emptyPlaylists,
                                         onItemClick = onShelfItemClick,
                                         onItemLongPress = onShelfItemLongPress,
                                         onNewPlaylist = onNewPlaylist,
                                         onImportSpotifyPlaylist = onImportSpotifyPlaylist,
-                                        onSmartPlaylists = onSmartPlaylists,
-                                        onShowAll = { onShowAll(emptyPlaylists.copy(items = smartPlaylistItems)) },
+                                        onShowAll = { onShowAll(emptyPlaylists) },
                                     )
+                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onSmartPlaylists) {
+                            onShowAll(HomeShelf("Smart Playlists", smartPlaylistItems))
+                        }
                                 }
                             }
                         }
@@ -292,7 +296,7 @@ fun LibraryScreen(
                                                 it.browseId == YtMusicRepository.LIKED_MUSIC
                                             })
                                             .pinnedFirst(pinnedPlaylists)
-                                            .let { ordered -> ordered.copy(items = listOfNotNull(likedMusic) + ordered.items + smartPlaylistItems) }
+                                            .let { ordered -> ordered.copy(items = listOfNotNull(likedMusic) + ordered.items) }
                                         // Yang di-pin sudah tampil di grid atas, jadi shelf
                                         // hanya menampilkan sisanya. "Show all" tetap membuka semuanya.
                                         val unpinned = pinnedFirst.copy(
@@ -308,10 +312,12 @@ fun LibraryScreen(
                                             onItemLongPress = onShelfItemLongPress,
                                             onNewPlaylist = onNewPlaylist,
                                             onImportSpotifyPlaylist = onImportSpotifyPlaylist,
-                                            onSmartPlaylists = onSmartPlaylists,
                                             onShowAll = { onShowAll(pinnedFirst) },
                                             pinnedPlaylists = pinnedPlaylists,
                                         )
+                                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onSmartPlaylists) {
+                                            onShowAll(HomeShelf("Smart Playlists", smartPlaylistItems))
+                                        }
                                     } else {
                                         LibraryGridShelf(
                                             shelf = shelf,
@@ -344,6 +350,10 @@ fun LibraryScreen(
                 item(key = "replay") { replay() }
             }
             val arrangedSections = layout.arrange(sections) { it.first }.toMutableList()
+            // Replay is the Library primary entry point, not a footer. Keep it
+            // first even when an older saved custom layout placed it last.
+            val replayIndex = arrangedSections.indexOfFirst { it.first == LIBRARY_SLOT_REPLAY }
+            if (replayIndex > 0) arrangedSections.add(0, arrangedSections.removeAt(replayIndex))
             // Loading/error content is not a user-arrangeable shelf. Place it
             // where the account collections belong instead of letting its
             // unknown key fall to the end of a customised layout.
@@ -488,23 +498,37 @@ private fun PlaylistShelf(
                     )
                 }
             }
-            if (onSmartPlaylists != null) {
-                add { m ->
-                    NewShelfCard(
-                        icon = AudifyIcons.StarFilled,
-                        label = stringResource(Res.string.smart_playlists),
-                        subtitle = "Rules update automatically",
-                        onClick = onSmartPlaylists,
-                        modifier = m,
-                    )
-                }
-            }
         },
     )
 }
 
 /** A Library shelf's preview row never swipes past this many cards. */
 private const val LIBRARY_ROW_MAX_ITEMS = 6
+/** Smart Playlists have their own full-width horizontal shelf, separate from saved playlists. */
+@Composable
+private fun SmartPlaylistShelf(
+    items: List<ShelfItem>,
+    onItemClick: (ShelfItem) -> Unit,
+    onItemLongPress: (ShelfItem) -> Unit,
+    onManage: (() -> Unit)?,
+    onShowAll: () -> Unit,
+) {
+    LibraryRowShelf(
+        shelf = HomeShelf("Smart Playlists", items),
+        onItemClick = onItemClick,
+        onItemLongPress = onItemLongPress,
+        onShowAll = onShowAll,
+        leadingCards = if (onManage == null) emptyList() else listOf({ modifier ->
+            NewShelfCard(
+                icon = AudifyIcons.StarFilled,
+                label = stringResource(Res.string.smart_playlists),
+                subtitle = "Create and manage rules",
+                onClick = onManage,
+                modifier = modifier,
+            )
+        }),
+    )
+}
 
 /**
  * A Library shelf in the Apple Music style: a bold heading with "Show all"
