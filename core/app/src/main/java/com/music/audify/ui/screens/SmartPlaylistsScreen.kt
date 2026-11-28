@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,9 +18,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
@@ -173,37 +171,39 @@ fun SmartPlaylistsScreen(
     Column(
         modifier = Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 20.dp),
     ) {
+        Text(
+            "Smart Playlists",
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+        )
+        Text(
+            "Your music, organised automatically.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text("Smart Playlists", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    "Rules update the tracks whenever you open a playlist.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Text(
+                "${definitions.size} PLAYLISTS  ·  ${candidates.size} TRACKS IN LIBRARY",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            TextButton(onClick = { refreshVersion++ }, enabled = !loadingLibrary) {
+                Text(if (loadingLibrary) "Loading…" else "Refresh")
             }
-            TextButton(onClick = { refreshVersion++ }) { Text(if (loadingLibrary) "Loading..." else "Refresh") }
-            Button(onClick = { editing = null; showEditor = true }) { Text("Create") }
         }
-        if (loadingLibrary) {
-            Text(
-                "Refreshing your music sources...",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        } else if (candidates.isNotEmpty()) {
-            Text(
-                "${candidates.size} tracks available to match",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        } else {
+        Button(
+            onClick = { editing = null; showEditor = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Create smart playlist") }
+        if (!loadingLibrary && candidates.isEmpty()) {
             Text(
                 "No tracks found yet. Play music, like tracks or download music, then refresh.",
                 style = MaterialTheme.typography.bodySmall,
@@ -212,32 +212,28 @@ fun SmartPlaylistsScreen(
             )
         }
         if (definitions.isEmpty()) {
-            Card(Modifier.fillMaxWidth().padding(top = 18.dp)) {
+            Card(Modifier.fillMaxWidth().padding(top = 18.dp), shape = RoundedCornerShape(22.dp)) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("Your playlists, on autopilot", style = MaterialTheme.typography.titleLarge)
+                    Text("A playlist that keeps itself fresh", style = MaterialTheme.typography.titleLarge)
                     Text(
                         if (loadingLibrary) "Loading your library and listening history..."
                         else "Create a playlist that stays fresh using liked tracks, recent listening, new additions or music you want to rediscover.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(
+                    TextButton(
                         onClick = { editing = null; showEditor = true },
                         enabled = !loadingLibrary || candidates.isNotEmpty(),
-                    ) { Text("Create your first Smart Playlist") }
+                    ) { Text("Set up your first playlist") }
                 }
             }
         } else {
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                val columns = if (maxWidth >= 340.dp) 2 else 1
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
+            LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(definitions, key = { it.id }) { definition ->
@@ -245,98 +241,79 @@ fun SmartPlaylistsScreen(
                         val expanded = expandedId == definition.id
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
+                            shape = RoundedCornerShape(20.dp),
                         ) {
-                            Column(Modifier.padding(12.dp)) {
+                            Column(Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                 Box(
-                                    Modifier.fillMaxWidth().height(if (columns == 1) 190.dp else 154.dp)
+                                    Modifier.size(112.dp)
                                         .clip(RoundedCornerShape(14.dp))
                                         .clickable { expandedId = if (expanded) null else definition.id },
                                 ) {
                                     PlaylistArtwork(songs.take(4), Modifier.fillMaxSize())
                                     Text(
-                                        "SMART",
+                                        "AI MIX",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
-                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(50))
-                                            .padding(horizontal = 9.dp, vertical = 5.dp),
-                                    )
-                                    if (definition.paused) {
-                                        Text(
-                                            "PAUSED",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
-                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(50))
-                                                .padding(horizontal = 9.dp, vertical = 5.dp),
-                                        )
-                                    }
-                                    Text(
-                                        "${songs.size} TRACKS",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
-                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(50))
-                                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), RoundedCornerShape(50))
+                                            .padding(horizontal = 7.dp, vertical = 4.dp),
                                     )
                                 }
-                                Spacer(Modifier.height(10.dp))
-                                Text(
-                                    definition.title,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    if (definition.paused) "Paused · ${songs.size} tracks"
-                                    else "${definition.summaryLabel()} · Updates automatically",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    TextButton(
-                                        enabled = songs.isNotEmpty() && !definition.paused,
-                                        onClick = { onPlaySongs(definition.title, songs, 0) },
-                                        modifier = Modifier.weight(1f),
-                                    ) { Text("Play") }
-                                    TextButton(
-                                        enabled = songs.isNotEmpty() && !definition.paused,
-                                        onClick = { onPlaySongs(definition.title, songs.shuffled(), 0) },
-                                        modifier = Modifier.weight(1f),
-                                    ) { Text("Shuffle") }
-                                    Box {
-                                        var menuExpanded by remember(definition.id) { mutableStateOf(false) }
-                                        TextButton(onClick = { menuExpanded = true }) { Text("More") }
-                                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                            DropdownMenuItem(
-                                                text = { Text("Edit") },
-                                                onClick = { menuExpanded = false; editing = definition; showEditor = true },
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(if (definition.paused) "Resume" else "Pause") },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    SmartPlaylistStore.setPaused(definition.id, !definition.paused)
-                                                },
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Delete") },
-                                                onClick = { menuExpanded = false; deleting = definition },
-                                            )
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            definition.title,
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Box {
+                                            var menuExpanded by remember(definition.id) { mutableStateOf(false) }
+                                            TextButton(onClick = { menuExpanded = true }) { Text("More") }
+                                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                                DropdownMenuItem(text = { Text("Edit") }, onClick = { menuExpanded = false; editing = definition; showEditor = true })
+                                                DropdownMenuItem(
+                                                    text = { Text(if (definition.paused) "Resume" else "Pause") },
+                                                    onClick = { menuExpanded = false; SmartPlaylistStore.setPaused(definition.id, !definition.paused) },
+                                                )
+                                                DropdownMenuItem(text = { Text("Delete") }, onClick = { menuExpanded = false; deleting = definition })
+                                            }
                                         }
                                     }
+                                    Text(
+                                        if (definition.paused) "Paused" else "${songs.size} tracks · Auto-updating",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        definition.summaryLabel(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        TextButton(
+                                            enabled = songs.isNotEmpty() && !definition.paused,
+                                            onClick = { onPlaySongs(definition.title, songs, 0) },
+                                        ) { Text("Play") }
+                                        TextButton(
+                                            enabled = songs.isNotEmpty() && !definition.paused,
+                                            onClick = { onPlaySongs(definition.title, songs.shuffled(), 0) },
+                                        ) { Text("Shuffle") }
+                                    }
+                                }
                                 }
                                 TextButton(
                                     onClick = { expandedId = if (expanded) null else definition.id },
                                     modifier = Modifier.fillMaxWidth(),
-                                ) { Text(if (expanded) "Hide tracks" else "View tracks") }
+                                ) { Text(if (expanded) "Hide playlist details" else "View tracks and recommendations") }
                                 if (expanded) {
                                     androidx.compose.material3.HorizontalDivider(
                                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
@@ -385,7 +362,6 @@ fun SmartPlaylistsScreen(
                         }
                     }
                 }
-            }
         }
     }
 

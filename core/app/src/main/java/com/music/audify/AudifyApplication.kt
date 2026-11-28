@@ -147,6 +147,9 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
             CoroutineScope(Dispatchers.IO).launch { Innertube.ensureSessionScope() }
         }
         AppSettings.init(this, authStore)
+        // Room's compatibility mirror uses the actual qualified play counts
+        // from the listening-statistics store. Open it before Room starts.
+        ListeningStats.init(this)
         // Keep release checks alive across app closes and device reboots. The
         // worker downloads and verifies APKs only; installation remains manual.
         com.music.audify.data.AppUpdateScheduler.sync(this)
@@ -190,10 +193,6 @@ class AudifyApplication : Application(), SingletonImageLoader.Factory {
         // its periodic worker and foreground catch-up hook after both settings
         // and the Downloads collection index have been restored.
         com.music.audify.download.PlaylistSync.init(this)
-        // The device's own listening record. Opened here rather than in
-        // PlaybackService because the Replay page reads it from the UI side and
-        // both live in this process — one owner, one directory.
-        ListeningStats.init(this)
         // After AppSettings, whose switch decides whether half of it runs.
         ArtistFacts.init(this)
         // AudioCache is opened after Home's first frame (or on a service-only

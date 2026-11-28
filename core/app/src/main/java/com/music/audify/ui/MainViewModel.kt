@@ -1103,7 +1103,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private enum class AddOutcome { ADDED, ALREADY_THERE, FAILED }
 
-    private fun addToLocalPlaylist(playlist: UserPlaylist, song: Song): AddOutcome =
+    private suspend fun addToLocalPlaylist(playlist: UserPlaylist, song: Song): AddOutcome =
         if (com.music.audify.data.spotify.LocalPlaylistStore.addSong(playlist.playlistId, song)) {
             AddOutcome.ADDED
         } else {

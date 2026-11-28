@@ -2782,15 +2782,6 @@ private fun LyricsArtworkBackdrop(artworkUrl: String?, modifier: Modifier = Modi
                 }
                 .blur(46.dp, BlurredEdgeTreatment.Unbounded),
         )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Black.copy(alpha = 0.48f), Color.Black.copy(alpha = 0.66f)),
-                    ),
-                ),
-        )
     }
 }
 

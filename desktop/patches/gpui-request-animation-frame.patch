@@ -2,7 +2,7 @@ diff --git a/crates/gpui/src/window.rs b/crates/gpui/src/window.rs
 index 1b7fd4d..5d128f3 100644
 --- a/crates/gpui/src/window.rs
 +++ b/crates/gpui/src/window.rs
-@@ -2786,8 +2786,13 @@ impl Window {
+@@ -2786,6 +2786,11 @@ impl Window {
      /// method directly for decorative motion, check [`App::reduce_motion`]
      /// and skip the frame request when it is set.
      pub fn request_animation_frame(&self) {

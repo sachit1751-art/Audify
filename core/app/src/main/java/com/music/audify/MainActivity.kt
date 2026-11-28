@@ -1918,6 +1918,11 @@ private fun AudifyApp(
     val playRadio: (Song, QueueSource) -> Unit = { song, source ->
         playRequestGeneration++
         activeRadioSeed = null
+        // Tapping a music-video card is an explicit request for the video,
+        // not the app's automatic music-only substitution. Mark this choice
+        // before Media3 opens the URI so the holding data source does not
+        // wait for (and silently replace it with) the catalogue audio cut.
+        if (song.isVideo) com.music.audify.playback.MusicOnlyPlayback.keep(song.videoId)
         scope.launch {
             if (refusedByHost()) return@launch
             val c = controller ?: return@launch
@@ -5134,7 +5139,9 @@ private fun AudifyApp(
                     ?.let { id ->
                         {
                             songActions = null
-                            com.music.audify.data.spotify.LocalPlaylistStore.removeSong(id, song.videoId)
+                            scope.launch {
+                                com.music.audify.data.spotify.LocalPlaylistStore.removeSong(id, song.videoId)
+                            }
                         }
                     }
                     ?: detail?.browseId
@@ -5728,8 +5735,10 @@ private fun AudifyApp(
                 hazeState = hazeState,
                 signedIn = signedIn,
                 onMergeIntoLocal = { playlistId, songs ->
-                    val added = com.music.audify.data.spotify.LocalPlaylistStore.addSongs(playlistId, songs)
-                    showQueueNotice("Added $added tracks to the local playlist")
+                    scope.launch {
+                        val added = com.music.audify.data.spotify.LocalPlaylistStore.addSongs(playlistId, songs)
+                        showQueueNotice("Added $added tracks to the local playlist")
+                    }
                 },
                 onImported = { title, privacy, songs ->
                     viewModel.createPlaylistWithVideoIds(
@@ -5937,8 +5946,10 @@ private fun AudifyApp(
                 } ?: localEditable?.let { p ->
                     { name: String ->
                         browseActions = null
-                        com.music.audify.data.spotify.LocalPlaylistStore.renamePlaylist(p.browseId, name.trim())
-                        viewModel.retitleDetail(p.browseId, name.trim())
+                        scope.launch {
+                            com.music.audify.data.spotify.LocalPlaylistStore.renamePlaylist(p.browseId, name.trim())
+                            viewModel.retitleDetail(p.browseId, name.trim())
+                        }
                     }
                 },
                 onChangeCover = playlist?.let { p ->
@@ -5991,7 +6002,9 @@ private fun AudifyApp(
                         if (detail?.browseId == p.browseId) viewModel.closeDetail()
                         com.music.audify.data.PlaylistCovers.remove(context, p.browseId)
                         if (p.browseId in pinnedPlaylists) AppSettings.togglePinnedPlaylist(p.browseId)
-                        com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist(p.browseId)
+                        scope.launch {
+                            com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist(p.browseId)
+                        }
                     }
                 },
                 onDeleteDownload = target.downloadId?.let { id ->
