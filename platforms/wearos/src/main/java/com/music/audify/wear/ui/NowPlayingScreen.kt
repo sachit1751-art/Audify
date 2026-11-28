@@ -221,6 +221,17 @@ fun NowPlayingScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(max = w * 0.64f),
             )
+            if (np.album.isNotBlank() && np.album != np.title) {
+                Text(
+                    text = np.album,
+                    style = WearType.caption,
+                    color = Color.White.copy(alpha = 0.48f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = w * 0.58f),
+                )
+            }
 
             Spacer(Modifier.height(h * 0.035f))
 
@@ -230,6 +241,7 @@ fun NowPlayingScreen(
                     description = stringResource(R.string.previous),
                     size = w * 0.2f,
                     iconSize = w * 0.105f,
+                    enabled = np.hasPrevious,
                     onClick = actions.previous,
                 )
                 Spacer(Modifier.width(w * 0.015f))

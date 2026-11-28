@@ -95,7 +95,15 @@ class YouTubeSyncWorker(
                                     operation.entityId, session.accountId, profileId, status,
                                 )
                             }
-                            "playlist" -> syncPlaylist(operation, session, profileId, auth)
+                            "playlist" -> {
+                                // If opt-in was switched off after this smart
+                                // playlist was queued, discard the pending write.
+                                if (!operation.entityId.startsWith("smart_") ||
+                                    com.music.audify.data.settings.AppSettings.syncSmartPlaylistsToYouTubeMusic.value
+                                ) {
+                                    syncPlaylist(operation, session, profileId, auth)
+                                }
+                            }
                             else -> error("Unsupported sync operation: ${operation.type}")
                         }
                         ensureSessionCurrent(auth, session, profileId)

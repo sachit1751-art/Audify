@@ -143,10 +143,12 @@ public abstract class LocalDatabase extends RoomDatabase {
         @Insert(onConflict = OnConflictStrategy.REPLACE) void putPlaylist(PlaylistRow row);
         @Query("SELECT * FROM playlists WHERE playlistId = :id LIMIT 1") PlaylistRow playlist(String id);
         @Query("SELECT * FROM playlists") List<PlaylistRow> playlists();
+        @Query("DELETE FROM playlists WHERE playlistId = :id") void deletePlaylist(String id);
         @Insert(onConflict = OnConflictStrategy.REPLACE) void putPlaylistSongs(List<PlaylistSongRow> rows);
         @Query("DELETE FROM playlist_songs WHERE playlistId = :id") void clearPlaylistSongs(String id);
         @Query("SELECT * FROM playlist_songs WHERE playlistId = :id ORDER BY position") List<PlaylistSongRow> playlistSongs(String id);
         @Insert(onConflict = OnConflictStrategy.REPLACE) void putPlaylistSync(PlaylistAccountSyncRow row);
+        @Query("DELETE FROM playlist_account_sync WHERE playlistId = :id") void deletePlaylistSyncRows(String id);
         @Query("SELECT * FROM playlist_account_sync WHERE playlistId = :playlistId AND accountId = :accountId AND profileId = :profileId LIMIT 1")
         PlaylistAccountSyncRow playlistSync(String playlistId, String accountId, String profileId);
         @Query("SELECT * FROM playlist_account_sync WHERE accountId = :accountId AND profileId = :profileId ORDER BY updatedAt DESC")
@@ -157,6 +159,7 @@ public abstract class LocalDatabase extends RoomDatabase {
         @Query("SELECT * FROM favorite_account_sync WHERE accountId = :accountId AND profileId = :profileId ORDER BY updatedAt DESC")
         List<FavoriteAccountSyncRow> favoriteSyncRows(String accountId, String profileId);
         @Insert(onConflict = OnConflictStrategy.REPLACE) void enqueue(SyncOperationRow row);
+        @Query("DELETE FROM sync_operations WHERE type = 'playlist' AND entityId = :id") void deletePlaylistOperations(String id);
         @Query("SELECT * FROM sync_operations WHERE accountId = :accountId AND profileId = :profileId AND state = 'pending' AND nextAttemptAt <= :now ORDER BY createdAt LIMIT 100")
         List<SyncOperationRow> dueOperations(String accountId, String profileId, long now);
         @Query("UPDATE sync_operations SET state = :state, attempts = :attempts, nextAttemptAt = :nextAt, lastError = :error, updatedAt = :now WHERE id = :id AND payloadJson = :payloadJson AND updatedAt = :expectedUpdatedAt")

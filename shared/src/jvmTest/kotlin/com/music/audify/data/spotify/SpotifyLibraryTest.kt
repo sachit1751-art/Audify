@@ -55,6 +55,16 @@ class SpotifyLibraryTest {
     }
 
     @Test
+    fun oversizedFinalPageCannotExceedThePlaylistTotal() {
+        val page = List(80) { index ->
+            SpotifyTrack("track-$index", "Song $index", "Artist", null, 0, null)
+        }
+
+        assertEquals(40, SpotifyLibrary.takeWithinPlaylistTotal(page, offset = 100, total = 140).size)
+        assertEquals(0, SpotifyLibrary.takeWithinPlaylistTotal(page, offset = 140, total = 140).size)
+    }
+
+    @Test
     fun playlistIdsComeFromLinksAndUris() {
         val id = "37i9dQZF1DXcBWIGoYBM5M"
         assertEquals(id, SpotifyImporter.extractPlaylistId("https://open.spotify.com/playlist/$id"))

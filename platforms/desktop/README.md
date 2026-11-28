@@ -2,6 +2,8 @@
 
 Audify Desktop is a native Rust music client built with GPUI. It incorporates an existing open-source application foundation and is maintained here under the Audify product identity.
 
+> **Preserved source snapshot:** The active Windows desktop project and its CI build live in the repository-root `desktop/` directory. This `platforms/desktop/` tree is retained as a separate platform-source snapshot and is not kept in lockstep with the active build. Apply current desktop fixes in `../../desktop/`; do not copy changes between the two trees without reviewing their differences.
+
 ## Download
 
 Windows releases provide separate native installers for **32-bit x86**, **64-bit x64**, and **ARM64** PCs. Download the matching `Audify-Setup-x86.exe`, `Audify-Setup.exe`, or `Audify-Setup-arm64.exe` from the [latest GitHub release](https://github.com/sachit1751-art/Audify/releases/latest). The installer is unsigned; Windows may show an unrecognized-publisher warning.

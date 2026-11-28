@@ -3,11 +3,11 @@
 package com.music.audify.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,12 +15,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.music.audify.ui.components.AudifyAlertDialog as AlertDialog
@@ -29,11 +32,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +54,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
@@ -66,6 +76,8 @@ import com.music.audify.data.playlist.SmartPlaylistSort
 import com.music.audify.data.playlist.SmartPlaylistStore
 import com.music.audify.data.stats.LocalLibraryStore
 import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.ui.icons.SfIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -95,14 +107,27 @@ fun rememberSmartPlaylistShelfItems(): List<ShelfItem> {
         }
     }
     LaunchedEffect(definitions, candidates) {
-        results = withContext(Dispatchers.IO) { SmartPlaylistRepository.evaluateAll(candidates) }
+        results = withContext(Dispatchers.IO) {
+            val evaluated = SmartPlaylistRepository.evaluateAll(candidates)
+            com.music.audify.data.spotify.LocalPlaylistStore.syncSmartPlaylists(
+                definitions.map { definition ->
+                    com.music.audify.data.spotify.LocalPlaylist(
+                        id = "smart_${definition.id}",
+                        title = definition.title,
+                        songs = evaluated[definition.id].orEmpty(),
+                    )
+                },
+            )
+            if (AppSettings.syncSmartPlaylistsToYouTubeMusic.value) AppSettings.enqueueSmartPlaylistSync()
+            evaluated
+        }
     }
     return remember(definitions, results) {
         definitions.map { definition ->
             val songs = results[definition.id].orEmpty()
             ShelfItem(
                 title = definition.title,
-                subtitle = "${songs.size} tracks ? Smart Playlist${if (definition.paused) " ? Paused" else ""}",
+                subtitle = "${songs.size} tracks \u00B7 Smart Playlist${if (definition.paused) " \u00B7 Paused" else ""}",
                 thumbnailUrl = songs.firstOrNull()?.thumbnailUrl,
                 videoId = null,
                 browseId = SMART_PLAYLIST_BROWSE_PREFIX + definition.id,
@@ -115,8 +140,9 @@ fun rememberSmartPlaylistShelfItems(): List<ShelfItem> {
 @Composable
 fun SmartPlaylistsScreen(
     contentPadding: PaddingValues,
-    onPlaySongs: (title: String, songs: List<Song>, startIndex: Int) -> Unit,
+    onOpenPlaylist: (String) -> Unit = {},
     initialPlaylistId: String? = null,
+    initialShowEditor: Boolean = false,
 ) {
     val context = LocalContext.current
     val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
@@ -125,10 +151,8 @@ fun SmartPlaylistsScreen(
     var loadingLibrary by remember { mutableStateOf(true) }
     var candidates by remember { mutableStateOf<List<Song>>(emptyList()) }
     var results by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
-    var recommendations by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
-    var expandedId by rememberSaveable(initialPlaylistId) { mutableStateOf(initialPlaylistId) }
     var refreshVersion by rememberSaveable { mutableIntStateOf(0) }
-    var showEditor by rememberSaveable { mutableStateOf(false) }
+    var showEditor by rememberSaveable { mutableStateOf(initialShowEditor) }
     var editing by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
     var deleting by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
 
@@ -157,52 +181,51 @@ fun SmartPlaylistsScreen(
                     )
                 },
             )
+            if (AppSettings.syncSmartPlaylistsToYouTubeMusic.value) AppSettings.enqueueSmartPlaylistSync()
             currentResults
         }
         results = evaluated
     }
-    LaunchedEffect(definitions, candidates, results) {
-        recommendations = SmartPlaylistRepository.recommendAll(
-            definitions = definitions,
-            currentSongsByPlaylist = results,
-            library = candidates,
-        )
+    LaunchedEffect(initialPlaylistId) {
+        initialPlaylistId?.let(onOpenPlaylist)
     }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(contentPadding).padding(horizontal = 20.dp),
     ) {
+        Text(
+            "Smart Playlists",
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+        )
+        Text(
+            "Your music, organised automatically.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text("Smart Playlists", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    "Rules update the tracks whenever you open a playlist.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Text(
+                "${definitions.size} PLAYLISTS  ·  ${candidates.size} TRACKS IN LIBRARY",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            TextButton(onClick = { refreshVersion++ }, enabled = !loadingLibrary) {
+                Text(if (loadingLibrary) "Loading…" else "Refresh")
             }
-            TextButton(onClick = { refreshVersion++ }) { Text(if (loadingLibrary) "Loading..." else "Refresh") }
-            Button(onClick = { editing = null; showEditor = true }) { Text("Create") }
         }
-        if (loadingLibrary) {
-            Text(
-                "Refreshing your music sources...",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        } else if (candidates.isNotEmpty()) {
-            Text(
-                "${candidates.size} tracks available to match",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-        } else {
+        Button(
+            onClick = { editing = null; showEditor = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Create smart playlist") }
+        if (!loadingLibrary && candidates.isEmpty()) {
             Text(
                 "No tracks found yet. Play music, like tracks or download music, then refresh.",
                 style = MaterialTheme.typography.bodySmall,
@@ -211,180 +234,96 @@ fun SmartPlaylistsScreen(
             )
         }
         if (definitions.isEmpty()) {
-            Card(Modifier.fillMaxWidth().padding(top = 18.dp)) {
+            Card(Modifier.fillMaxWidth().padding(top = 18.dp), shape = RoundedCornerShape(22.dp)) {
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("Your playlists, on autopilot", style = MaterialTheme.typography.titleLarge)
+                    Text("A playlist that keeps itself fresh", style = MaterialTheme.typography.titleLarge)
                     Text(
                         if (loadingLibrary) "Loading your library and listening history..."
                         else "Create a playlist that stays fresh using liked tracks, recent listening, new additions or music you want to rediscover.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(
+                    TextButton(
                         onClick = { editing = null; showEditor = true },
                         enabled = !loadingLibrary || candidates.isNotEmpty(),
-                    ) { Text("Create your first Smart Playlist") }
+                    ) { Text("Set up your first playlist") }
                 }
             }
         } else {
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                val columns = if (maxWidth >= 340.dp) 2 else 1
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
+            LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = 28.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(definitions, key = { it.id }) { definition ->
                         val songs = results[definition.id].orEmpty()
-                        val expanded = expandedId == definition.id
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier.fillMaxWidth().clickable { onOpenPlaylist(definition.id) },
+                            shape = RoundedCornerShape(20.dp),
                         ) {
-                            Column(Modifier.padding(12.dp)) {
+                            Column(Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
                                 Box(
-                                    Modifier.fillMaxWidth().height(if (columns == 1) 190.dp else 154.dp)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .clickable { expandedId = if (expanded) null else definition.id },
+                                    Modifier.size(112.dp)
+                                        .clip(RoundedCornerShape(14.dp)),
                                 ) {
                                     PlaylistArtwork(songs.take(4), Modifier.fillMaxSize())
                                     Text(
-                                        "SMART",
+                                        "AI MIX",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
-                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), RoundedCornerShape(50))
-                                            .padding(horizontal = 9.dp, vertical = 5.dp),
-                                    )
-                                    if (definition.paused) {
-                                        Text(
-                                            "PAUSED",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
-                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(50))
-                                                .padding(horizontal = 9.dp, vertical = 5.dp),
-                                        )
-                                    }
-                                    Text(
-                                        "${songs.size} TRACKS",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
-                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), RoundedCornerShape(50))
-                                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
+                                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), RoundedCornerShape(50))
+                                            .padding(horizontal = 7.dp, vertical = 4.dp),
                                     )
                                 }
-                                Spacer(Modifier.height(10.dp))
-                                Text(
-                                    definition.title,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    if (definition.paused) "Paused · ${songs.size} tracks"
-                                    else "${definition.summaryLabel()} · Updates automatically",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    TextButton(
-                                        enabled = songs.isNotEmpty() && !definition.paused,
-                                        onClick = { onPlaySongs(definition.title, songs, 0) },
-                                        modifier = Modifier.weight(1f),
-                                    ) { Text("Play") }
-                                    TextButton(
-                                        enabled = songs.isNotEmpty() && !definition.paused,
-                                        onClick = { onPlaySongs(definition.title, songs.shuffled(), 0) },
-                                        modifier = Modifier.weight(1f),
-                                    ) { Text("Shuffle") }
-                                    Box {
-                                        var menuExpanded by remember(definition.id) { mutableStateOf(false) }
-                                        TextButton(onClick = { menuExpanded = true }) { Text("More") }
-                                        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                                            DropdownMenuItem(
-                                                text = { Text("Edit") },
-                                                onClick = { menuExpanded = false; editing = definition; showEditor = true },
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text(if (definition.paused) "Resume" else "Pause") },
-                                                onClick = {
-                                                    menuExpanded = false
-                                                    SmartPlaylistStore.setPaused(definition.id, !definition.paused)
-                                                },
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("Delete") },
-                                                onClick = { menuExpanded = false; deleting = definition },
-                                            )
-                                        }
-                                    }
-                                }
-                                TextButton(
-                                    onClick = { expandedId = if (expanded) null else definition.id },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text(if (expanded) "Hide tracks" else "View tracks") }
-                                if (expanded) {
-                                    androidx.compose.material3.HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    if (songs.isEmpty()) {
-                                        Text("No tracks match these rules yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    } else {
-                                        songs.forEachIndexed { index, song ->
-                                            TrackArtworkRow(song) { onPlaySongs(definition.title, songs, index) }
-                                        }
-                                    }
-                                    val suggested = recommendations[definition.id].orEmpty()
-                                    if (suggested.isNotEmpty()) {
-                                        Spacer(Modifier.height(12.dp))
-                                        Text("Recommended", style = MaterialTheme.typography.titleSmall)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            "Add a suggestion to keep it in this playlist.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            definition.title,
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f),
                                         )
-                                        suggested.forEach { suggestion ->
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                SongArtwork(suggestion, Modifier.size(42.dp))
-                                                Spacer(Modifier.size(9.dp))
-                                                Column(Modifier.weight(1f)) {
-                                                    Text(suggestion.title, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                    Text(suggestion.artist, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                                }
-                                                TextButton(onClick = {
-                                                    SmartPlaylistStore.save(
-                                                        definition.copy(
-                                                            includedSongIds = (definition.includedSongIds + suggestion.videoId)
-                                                                .distinct().take(SmartPlaylistEngine.MAX_TRACKS),
-                                                        ),
-                                                    )
-                                                }) { Text("Add") }
+                                        Box {
+                                            var menuExpanded by remember(definition.id) { mutableStateOf(false) }
+                                            TextButton(onClick = { menuExpanded = true }) { Text("More") }
+                                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                                DropdownMenuItem(text = { Text("Edit") }, onClick = { menuExpanded = false; editing = definition; showEditor = true })
+                                                DropdownMenuItem(
+                                                    text = { Text(if (definition.paused) "Resume" else "Pause") },
+                                                    onClick = { menuExpanded = false; SmartPlaylistStore.setPaused(definition.id, !definition.paused) },
+                                                )
+                                                DropdownMenuItem(text = { Text("Delete") }, onClick = { menuExpanded = false; deleting = definition })
                                             }
                                         }
                                     }
+                                    Text(
+                                        if (definition.paused) "Paused" else "${songs.size} tracks \u00B7 Auto-updating",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        definition.summaryLabel(),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                                 }
                             }
                         }
                     }
                 }
-            }
         }
     }
 
@@ -395,7 +334,6 @@ fun SmartPlaylistsScreen(
             onDismiss = { showEditor = false },
             onSave = { definition ->
                 SmartPlaylistStore.save(definition)
-                expandedId = definition.id
                 showEditor = false
             },
         )
@@ -414,7 +352,6 @@ fun SmartPlaylistsScreen(
                 TextButton(
                     onClick = {
                         SmartPlaylistStore.delete(target.id)
-                        if (expandedId == target.id) expandedId = null
                         deleting = null
                     },
                 ) { Text("Delete") }
@@ -434,7 +371,7 @@ private fun SmartPlaylistDefinition.summaryLabel(): String = buildList {
     notPlayedWithinDays?.let { add("Not played in ${it}d") }
     minimumPlays?.let { add("At least $it plays") }
     if (excludeRecentHistory) add("Hides recent tracks")
-}.take(2).joinToString(" · ").ifBlank { "Based on your library" }
+}.take(2).joinToString(" \u00B7 ").ifBlank { "Based on your library" }
 
 @Composable
 private fun PlaylistArtwork(songs: List<Song>, modifier: Modifier = Modifier) {
@@ -472,7 +409,7 @@ private fun ArtworkPlaceholder(modifier: Modifier = Modifier) {
         modifier.background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
-        Text("♫", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("\u266B", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -488,27 +425,13 @@ private fun SongArtwork(song: Song, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            Text("♫", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("\u266B", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun TrackArtworkRow(song: Song, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SongArtwork(song, Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
-        Spacer(Modifier.size(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(song.artist, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-@Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SmartPlaylistEditorDialog(
     initial: SmartPlaylistDefinition?,
     candidates: List<Song>,
@@ -565,15 +488,48 @@ private fun SmartPlaylistEditorDialog(
         return definition.takeIf { error == null }
     }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "Create Smart Playlist" else "Edit Smart Playlist") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        shape = RectangleShape,
+        containerColor = MaterialTheme.colorScheme.background,
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+    ) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 18.dp, top = 4.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedTextField(title, { title = it; previewCount = null }, label = { Text("Name") }, singleLine = true)
+                IconButton(onClick = onDismiss) {
+                    Icon(SfIcons.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onBackground)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (initial == null) "Create Smart Playlist" else "Edit Smart Playlist",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        "Saved on this device · updates as your library changes",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it; previewCount = null },
+                    label = { Text("Playlist name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text("Start with", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "Choose a starting point. You can fine-tune it below.",
@@ -648,27 +604,33 @@ private fun SmartPlaylistEditorDialog(
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 previewCount?.let { Text("Preview: $it matching tracks", color = MaterialTheme.colorScheme.primary) }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { buildDefinition()?.let(onSave) }) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 TextButton(
                     enabled = !previewing,
                     onClick = {
                         val draft = buildDefinition() ?: return@TextButton
                         scope.launch {
                             previewing = true
-                            previewCount = SmartPlaylistRepository.evaluate(draft, candidates).size
+                            previewCount = withContext(Dispatchers.Default) {
+                                SmartPlaylistRepository.evaluate(draft, candidates).size
+                            }
                             previewing = false
                         }
                     },
                 ) { Text(if (previewing) "Checking…" else "Preview") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Button(
+                    onClick = { buildDefinition()?.let(onSave) },
+                    enabled = title.isNotBlank() && !previewing,
+                    modifier = Modifier.weight(1f).height(50.dp),
+                ) { Text(if (initial == null) "Create Smart Playlist" else "Save changes") }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable

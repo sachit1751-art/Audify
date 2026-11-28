@@ -16,8 +16,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 
 class BackupIoTest {
+    @Test
+    fun legacyBackupWithoutSmartPlaylistRulesStillDecodes() {
+        val legacy = """{"app":"audify","version":2,"versionName":"1.9.4"}"""
+
+        val decoded = Json.Default.decodeFromString(Backup.BackupFile.serializer(), legacy)
+
+        assertEquals("", decoded.smartPlaylists)
+    }
+
     @Test
     fun boundedReaderAcceptsTheExactLimit() {
         val bytes = ByteArray(128) { it.toByte() }

@@ -21,7 +21,7 @@ Project: AUDIFY
 </p>
 
 <p align="center">
-  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>↓ Download the latest Audify release</strong> <img src="https://img.shields.io/github/v/release/sachit1751-art/Audify?label=%20" alt="Latest Audify version"></a>
+  <a href="https://github.com/sachit1751-art/Audify/releases/latest"><strong>↓ Download the latest Audify release</strong> 
 </p>
 
 <p align="center">
@@ -30,6 +30,16 @@ Project: AUDIFY
   <a href="https://rookieenough.github.io/Orion-Data/app/?id=audify"><img src="https://raw.githubusercontent.com/RookieEnough/Orion-Store/refs/heads/main/assets/orion-badge.png" alt="Get it on Orion Store" height="44"></a>
   &nbsp;
   <a href="https://github.com/sachit1751-art/Audify/releases/latest"><img src="https://img.shields.io/badge/Get%20it%20on-GitHub-181717?logo=github&logoColor=white&style=for-the-badge" alt="Get the latest release on GitHub" height="44"></a>
+</p>
+
+## See it
+
+<p align="center">
+  <img src="docs/audify-launch-loop.gif" alt="Full 45-second Audify launch video, looping" width="300">
+  <br>
+  <sub>Full 45-second launch video, playing on loop directly in this README.</sub>
+  <br>
+  <sub><a href="docs/audify-launch.mp4">Watch the original MP4 with sound</a></sub>
 </p>
 
 <p align="center">

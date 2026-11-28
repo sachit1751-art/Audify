@@ -65,10 +65,9 @@ import coil3.compose.AsyncImage
 import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.ROW_ART_PX
 import com.music.audify.data.model.Song
+import com.music.audify.data.model.durationMillis
 import com.music.audify.data.model.artworkAt
 import com.music.audify.data.settings.AppSettings
-import com.music.audify.data.settings.SkipSegment
-import com.music.audify.data.settings.SkipSegmentStore
 import com.music.audify.data.webdav.WebDavUploads
 import com.music.audify.download.DownloadState
 import com.music.audify.download.Downloads
@@ -211,12 +210,17 @@ fun SongActionsMenu(
     var showingSongInfo by remember(song.videoId) { mutableStateOf(false) }
     var pickingSleepTimer by remember { mutableStateOf(false) }
     var pickingSpeed by remember { mutableStateOf(false) }
-    var editingPlaybackRange by remember(song.videoId) { mutableStateOf(false) }
     var editingSkipSegments by remember(song.videoId) { mutableStateOf(false) }
     // A menu has no pages to swap, so Song Info opens as a dialog.
     if (showingSongInfo) SongInfoDialog(song) { showingSongInfo = false }
-    if (editingPlaybackRange) PlaybackRangeDialog(song.videoId, song.title) { editingPlaybackRange = false }
-    if (editingSkipSegments) SkipSegmentsDialog(song.videoId, song.title) { editingSkipSegments = false }
+    if (editingSkipSegments) SkipSegmentsDialog(
+        trackId = song.videoId,
+        trackTitle = song.title,
+        artistName = song.artist,
+        artworkUrl = song.thumbnailUrl,
+        durationMs = song.durationMillis(),
+        onDismiss = { editingSkipSegments = false },
+    )
     // Neutral rather than the sleeve's colours: the panel floats over the page
     // or the player, and an accent pitched against the artwork's tint is not
     // guaranteed to read against the panel.
@@ -463,14 +467,6 @@ fun SongActionsMenu(
                 ) { pickingSleepTimer = true }
             }
             if (showSleepTimer && song.videoId.isNotBlank()) {
-                val savedRange = AppSettings.playbackRangeFor(song.videoId)
-                ActionRow(
-                    icon = SfIcons.Sliders,
-                    label = "Playable section",
-                    value = savedRange?.let { "${formatTrackTime(it.startMs)}–${formatTrackTime(it.endMs)}" } ?: "Full track",
-                    accent = palette.accent,
-                    onClick = { editingPlaybackRange = true },
-                )
                 val savedSkips = AppSettings.skipSegmentsFor(song.videoId)
                 ActionRow(
                     icon = SfIcons.Sliders,
@@ -499,14 +495,6 @@ fun SongActionsMenu(
                 ActionRow(
                     icon = SfIcons.Sliders,
                     label = stringResource(R.string.lyrics_offset),
-                    accent = palette.accent,
-                    onClick = it,
-                )
-            }
-            onSkipSegments?.let {
-                ActionRow(
-                    icon = SfIcons.Sliders,
-                    label = stringResource(R.string.skip_segments),
                     accent = palette.accent,
                     onClick = it,
                 )
@@ -1238,180 +1226,4 @@ internal fun SheetHeading(text: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 16.dp, bottom = 4.dp),
     )
-}
-
-@Composable
-private fun PlaybackRangeDialog(trackId: String, title: String, onDismiss: () -> Unit) {
-    val saved = remember(trackId) { AppSettings.playbackRangeFor(trackId) }
-    var startText by remember(trackId) { mutableStateOf(saved?.let { formatTrackTime(it.startMs) } ?: "00:00") }
-    var endText by remember(trackId) { mutableStateOf(saved?.let { formatTrackTime(it.endMs) } ?: "") }
-    var error by remember(trackId) { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Playable section") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                OutlinedTextField(
-                    value = startText,
-                    onValueChange = { startText = it; error = null },
-                    label = { Text("Start time") },
-                    placeholder = { Text("00:07") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = endText,
-                    onValueChange = { endText = it; error = null },
-                    label = { Text("End time") },
-                    placeholder = { Text("01:57") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text("Intro before Start and audio after End are excluded from playback and Automix.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val start = parseTrackTime(startText)
-                val end = parseTrackTime(endText)
-                if (start == null || end == null || end <= start) {
-                    error = "Enter valid times; End must be after Start."
-                } else {
-                    AppSettings.setPlaybackRange(trackId, start, end)
-                    onDismiss()
-                }
-            }) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
-                if (saved != null) {
-                    TextButton(onClick = {
-                        AppSettings.setPlaybackRange(trackId, null, null)
-                        onDismiss()
-                    }) { Text("Clear") }
-                }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
-    )
-}
-
-@Composable
-private fun SkipSegmentsDialog(trackId: String, title: String, onDismiss: () -> Unit) {
-    val saved = remember(trackId) { AppSettings.skipSegmentsFor(trackId) }
-    var entries by remember(trackId) {
-        mutableStateOf(saved.map { formatTrackTime(it.startMs) to formatTrackTime(it.endMs) })
-    }
-    var error by remember(trackId) { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Skip sections") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    "Add the parts to skip. Everything between these sections will still play.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                entries.forEachIndexed { index, entry ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = entry.first,
-                            onValueChange = { value ->
-                                entries = entries.toMutableList().also { it[index] = value to entry.second }
-                                error = null
-                            },
-                            label = { Text("Start") },
-                            placeholder = { Text("0:20") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        OutlinedTextField(
-                            value = entry.second,
-                            onValueChange = { value ->
-                                entries = entries.toMutableList().also { it[index] = entry.first to value }
-                                error = null
-                            },
-                            label = { Text("End") },
-                            placeholder = { Text("0:35") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = {
-                            entries = entries.toMutableList().also { it.removeAt(index) }
-                            error = null
-                        }) { Text("×") }
-                    }
-                }
-                if (entries.size < SkipSegmentStore.MAX_SEGMENTS_PER_TRACK) {
-                    TextButton(onClick = {
-                        entries = entries + ("" to "")
-                        error = null
-                    }) { Text("+ Add section") }
-                }
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val parsed = entries.mapNotNull { (startText, endText) ->
-                    val start = SkipSegmentStore.parseTimestamp(startText)
-                    val end = SkipSegmentStore.parseTimestamp(endText)
-                    if (start == null || end == null || end <= start) null else SkipSegment(start, end)
-                }
-                if (parsed.size != entries.size) {
-                    error = "Enter valid start and end times for every section."
-                } else {
-                    AppSettings.setSkipSegments(trackId, parsed)
-                    onDismiss()
-                }
-            }) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
-                if (saved.isNotEmpty()) {
-                    TextButton(onClick = {
-                        AppSettings.setSkipSegments(trackId, emptyList())
-                        onDismiss()
-                    }) { Text("Clear all") }
-                }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
-    )
-}
-
-private fun parseTrackTime(value: String): Long? {
-    val parts = value.trim().split(':')
-    if (parts.size !in 2..3) return null
-    val numbers = parts.map { it.toLongOrNull() ?: return null }
-    if (numbers.any { it < 0L }) return null
-    val seconds = when (numbers.size) {
-        2 -> {
-            if (numbers[1] >= 60L) return null
-            numbers[0] * 60L + numbers[1]
-        }
-        else -> {
-            if (numbers[1] >= 60L || numbers[2] >= 60L) return null
-            numbers[0] * 3600L + numbers[1] * 60L + numbers[2]
-        }
-    }
-    return seconds.takeIf { it <= Long.MAX_VALUE / 1000L }?.times(1000L)
-}
-
-private fun formatTrackTime(milliseconds: Long): String {
-    val totalSeconds = milliseconds.coerceAtLeast(0L) / 1000L
-    val seconds = totalSeconds % 60L
-    val minutes = (totalSeconds / 60L) % 60L
-    val hours = totalSeconds / 3600L
-    return if (hours > 0L) "%d:%02d:%02d".format(hours, minutes, seconds)
-    else "%02d:%02d".format(totalSeconds / 60L, seconds)
 }

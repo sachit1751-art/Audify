@@ -17,6 +17,7 @@ import (
 
 	"github.com/sachit1751-art/Audify/backend/clock"
 	"github.com/sachit1751-art/Audify/backend/config"
+	"github.com/sachit1751-art/Audify/backend/party"
 	"github.com/sachit1751-art/Audify/backend/presence"
 	"github.com/sachit1751-art/Audify/backend/protocol"
 )
@@ -237,6 +238,29 @@ func TestCreateRateLimiter(t *testing.T) {
 	}
 	if !limiter.Allow("203.0.113.11") {
 		t.Fatal("expected a separate IP to have its own allowance")
+	}
+}
+
+func TestActivityFrameDoesNotAttributeAutoplayQueueAddsToMembers(t *testing.T) {
+	member := &party.Member{DisplayName: "Zee"}
+	autoplayOnly := map[string]interface{}{
+		"tracks": []interface{}{
+			map[string]interface{}{"videoId": "auto-1", "title": "Automatic", "fromAutoplay": true},
+		},
+	}
+	if event := activityFrame(member, protocol.ActionQueueAdd, autoplayOnly); event != nil {
+		t.Fatalf("AutoPlay queue additions must not be attributed to %q: %#v", member.DisplayName, event)
+	}
+
+	manualAndAutoplay := map[string]interface{}{
+		"tracks": []interface{}{
+			map[string]interface{}{"videoId": "auto-1", "title": "Automatic", "fromAutoplay": true},
+			map[string]interface{}{"videoId": "manual-1", "title": "Manually added", "fromAutoplay": false},
+		},
+	}
+	event := activityFrame(member, protocol.ActionQueueAdd, manualAndAutoplay)
+	if event == nil || event["by"] != member.DisplayName || event["detail"] != `Added "Manually added" to the queue` {
+		t.Fatalf("expected activity to describe only the manual addition, got %#v", event)
 	}
 }
 

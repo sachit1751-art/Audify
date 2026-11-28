@@ -1089,7 +1089,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         if (playlists.isEmpty()) return
         // Playlists kept on this device need no account; only the rest do.
-        val (local, remote) = playlists.partition { it.playlistId.startsWith("sp_local_") }
+        val (local, remote) = playlists.partition {
+            it.playlistId.startsWith("sp_local_") || it.playlistId.startsWith("smart_")
+        }
         if (remote.isNotEmpty() && !requireSignIn()) return
         viewModelScope.launch {
             val outcomes = local.map { addToLocalPlaylist(it, song) } + remote.map { addOne(it, song) }
@@ -1103,12 +1105,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private enum class AddOutcome { ADDED, ALREADY_THERE, FAILED }
 
-    private fun addToLocalPlaylist(playlist: UserPlaylist, song: Song): AddOutcome =
-        if (com.music.audify.data.spotify.LocalPlaylistStore.addSong(playlist.playlistId, song)) {
+    private suspend fun addToLocalPlaylist(playlist: UserPlaylist, song: Song): AddOutcome {
+        if (playlist.playlistId.startsWith("smart_")) {
+            val id = playlist.playlistId.removePrefix("smart_")
+            val definition = com.music.audify.data.playlist.SmartPlaylistStore.definitions.value
+                .firstOrNull { it.id == id } ?: return AddOutcome.FAILED
+            if (song.videoId in definition.includedSongIds) return AddOutcome.ALREADY_THERE
+            com.music.audify.data.playlist.SmartPlaylistStore.save(
+                definition.copy(
+                    includedSongIds = (definition.includedSongIds + song.videoId)
+                        .distinct().take(com.music.audify.data.playlist.SmartPlaylistEngine.MAX_TRACKS),
+                ),
+            )
+            return AddOutcome.ADDED
+        }
+        return if (com.music.audify.data.spotify.LocalPlaylistStore.addSong(playlist.playlistId, song)) {
             AddOutcome.ADDED
         } else {
             AddOutcome.ALREADY_THERE
         }
+    }
 
     private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }
@@ -1593,6 +1609,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun resolvePlaylistOwnership(browseId: String?) {
         if (!_signedIn.value || browseId == null) return
+        // Audify Smart Playlists are rule-backed local collections, never
+        // YouTube playlists. Do not issue ownership lookups for local ids.
+        if (browseId.startsWith("local:") || browseId.startsWith("audify-smart:")) return
         if (browseId in _playlistOwned.value || browseId in ownershipInFlight) return
         if (_playlists.value.none { it.browseId == browseId }) return
         ownershipInFlight += browseId
@@ -2730,6 +2749,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // The Library source answers from the device on every keystroke (see
         // [libraryResults]); YouTube's completions have nothing to add to it.
         if (_searchSource.value != SearchSource.YOUTUBE) return
+        // Keep an exact-query action available if either remote typeahead endpoint fails.
+        _suggestions.value = listOf(newValue)
         // While typing, surface text completions — the pipeline already feeds
         // them through [suggestRequests] and publishes results via typeahead.
         suggestRequests.tryEmit(SuggestRequest(newValue, requestId))
@@ -3765,6 +3786,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val context = getApplication<Application>()
         fun nonEmpty(songs: List<Song>, empty: () -> String): UiState<List<Song>> =
             if (songs.isEmpty()) UiState.Error(empty(), retryable = false) else UiState.Success(songs)
+
+        // This shelf identity is not a YouTube browseId. Resolve it only
+        // against the locally generated snapshot; never fall through to
+        // browseSongs/allSongs and turn a local collection into HTTP 400.
+        if (browseId.startsWith("audify-smart:")) {
+            val localId = "local:playlist:smart_${browseId.removePrefix("audify-smart:")}"
+            val playlist = com.music.audify.data.spotify.LocalPlaylistStore.getPlaylist(localId)
+                ?: return UiState.Error(text(R.string.no_tracks_here), retryable = false)
+            return nonEmpty(playlist.songs) { text(R.string.no_tracks_here) }
+        }
 
         if (OfflinePlaylists.isOfflinePlaylist(browseId)) {
             // A playlist deleted while its page was still reachable — from
