@@ -1,0 +1,88 @@
+# Copyright (c) 2026 Sachit. All rights reserved.
+# Project: AUDIFY
+name: Worker
+
+# The Cloudflare Worker behind Listen Together (core/backend/cloudflare): its lifecycle tests, and the
+# REST and WebSocket integration suite run against a local Worker started with the pinned Wrangler.
+# The integration suite also reads the Android, web, TV and desktop client sources to check that they
+# keep speaking the same party protocol, so changes to those files run it too.
+on:
+  push:
+    branches: [main, "release/**"]
+    paths:
+      - 'core/backend/cloudflare/**'
+      - 'shared/testvectors/**'
+      - 'core/app/src/main/java/com/music/audify/data/listentogether/**'
+      - 'platforms/web/app/src/party/**'
+      - 'platforms/tv/build.gradle.kts'
+      - 'desktop/crates/state/src/listening/**'
+      - '.github/workflows/worker.yml'
+  pull_request:
+    paths:
+      - 'core/backend/cloudflare/**'
+      - 'shared/testvectors/**'
+      - 'core/app/src/main/java/com/music/audify/data/listentogether/**'
+      - 'platforms/web/app/src/party/**'
+      - 'platforms/tv/build.gradle.kts'
+      - 'desktop/crates/state/src/listening/**'
+      - '.github/workflows/worker.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker:
+    name: Worker · tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: core/backend/cloudflare
+    env:
+      # Wrangler must never wait for input or send usage data from CI.
+      CI: 'true'
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: core/backend/cloudflare/package-lock.json
+
+      # package-lock.json pins Wrangler, so CI runs the same version everywhere.
+      - name: Install
+        run: npm ci
+
+      - name: Lifecycle tests
+        run: npm test
+
+      # Started and stopped inside one step so the Worker is never left running.
+      - name: Integration tests against a local Worker
+        run: |
+          # Wrangler starts workerd as a child process. Run it in its own process group (setsid) and stop
+          # the whole group on exit, so nothing is left running. The Worker's local database goes to a
+          # fresh directory so that rooms and rate-limit entries from an earlier run cannot affect this one.
+          setsid ./node_modules/.bin/wrangler dev --port 8787 --ip 127.0.0.1 --persist-to "$RUNNER_TEMP/wrangler-state" > "$RUNNER_TEMP/wrangler-dev.log" 2>&1 &
+          worker_pid=$!
+          trap 'kill -- -"$worker_pid" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/healthz > /dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "${ready:-0}" != 1 ]; then
+            echo "The local Worker did not become ready within 60 seconds."
+            cat "$RUNNER_TEMP/wrangler-dev.log"
+            exit 1
+          fi
+
+          npm run test:integration || { status=$?; echo "--- Worker log ---"; cat "$RUNNER_TEMP/wrangler-dev.log"; exit "$status"; }
