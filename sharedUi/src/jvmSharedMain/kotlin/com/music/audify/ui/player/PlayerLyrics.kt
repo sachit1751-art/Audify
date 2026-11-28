@@ -99,6 +99,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.scale
@@ -199,10 +200,15 @@ private fun voiceStyle(
     text: String,
     alignEnd: Boolean,
     laneLocked: Boolean,
-): TextStyle = base.copy(
-    textAlign = if (alignsRight(text)) TextAlign.Right else TextAlign.Left,
-    textDirection = if (isRtl(text)) androidx.compose.ui.text.style.TextDirection.Rtl else androidx.compose.ui.text.style.TextDirection.Ltr,
-)
+): TextStyle {
+    // Keep provider-supplied alignment metadata from moving ordinary lines.
+    // Only Arabic-script lyrics use a right-anchored RTL layout.
+    val rtl = usesArabicScript(text)
+    return base.copy(
+        textAlign = if (rtl) TextAlign.Right else TextAlign.Left,
+        textDirection = if (rtl) TextDirection.Rtl else TextDirection.Ltr,
+    )
+}
 
 /**
  * How far back the part of the playing line that hasn't been sung yet is held.
@@ -869,6 +875,15 @@ private fun SweptLyricLine(
     /** What the words are set in — see [PanelVoice] for which lines differ. */
     color: Color = Color.White,
 ) {
+    // Reassert alignment at the drawing leaf so inherited styles cannot centre
+    // short lines while longer lines happen to appear left-aligned.
+    val drawStyle = remember(style, line.text) {
+        val rtl = usesArabicScript(line.text)
+        style.copy(
+            textAlign = if (rtl) TextAlign.Right else TextAlign.Left,
+            textDirection = if (rtl) TextDirection.Rtl else TextDirection.Ltr,
+        )
+    }
     var layout by remember(line) { mutableStateOf<TextLayoutResult?>(null) }
 
     // Filled in and read back a letter at a time inside the draw lambdas, and
@@ -971,26 +986,27 @@ private fun SweptLyricLine(
 
     val right = alignsRight(line.text)
     Box(
-        modifier.lyricParticles(layout, translationProgress, glowRoom),
+        modifier.fillMaxWidth().lyricParticles(layout, translationProgress, glowRoom),
         contentAlignment = if (right) AbsoluteAlignment.TopRight else AbsoluteAlignment.TopLeft,
     ) {
         Text(
             text = line.text,
-            style = style,
+            style = drawStyle,
             color = color.copy(alpha = dimAlpha),
             maxLines = maxLines,
             overflow = overflow,
             onTextLayout = { layout = it },
-            modifier = riseAgainst(room),
+            modifier = Modifier.fillMaxWidth().then(riseAgainst(room)),
         )
         if (glowAlpha > 0.01f) {
             Text(
                 text = line.text,
-                style = style,
+            style = drawStyle,
                 color = color,
                 maxLines = maxLines,
                 overflow = overflow,
                 modifier = Modifier
+                    .fillMaxWidth()
                     .graphicsLayer { alpha = glowAlpha }
                     .blur(glowRadius, BlurredEdgeTreatment.Unbounded)
                     // Each letter is masked to its own brightness with DstIn,
@@ -1024,7 +1040,7 @@ private fun SweptLyricLine(
         }
         Text(
             text = line.text,
-            style = style,
+                style = drawStyle,
             color = color,
             maxLines = maxLines,
             overflow = overflow,
@@ -1034,6 +1050,7 @@ private fun SweptLyricLine(
             // that at most two of them have.
             modifier = riseAgainst(
                 Modifier
+                    .fillMaxWidth()
                     .graphicsLayer {
                         compositingStrategy = if (feather) {
                             CompositingStrategy.Offscreen
@@ -2667,7 +2684,41 @@ internal fun LyricsPanel(
         label = "lyricReturn",
     )
     val returnDescription = stringResource(Res.string.now_playing)
-    Box(modifier) {
+    Box(modifier.clipToBounds()) {
+        // Apple Music-style artwork wash: the cover crossfades on track changes,
+        // then stays heavily blurred and subdued so lyric contrast remains the
+        // priority. This is a background layer, never part of the scroll list.
+        if (!artworkUrl.isNullOrBlank()) {
+            AnimatedContent(
+                targetState = artworkUrl,
+                transitionSpec = {
+                    fadeIn(tween(700)) togetherWith fadeOut(tween(700))
+                },
+                label = "lyricsArtworkBackground",
+                modifier = Modifier.fillMaxSize(),
+            ) { cover ->
+                AsyncImage(
+                    model = cover,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .blur(48.dp, BlurredEdgeTreatment.Unbounded)
+                        .graphicsLayer { alpha = 0.30f },
+                )
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.30f),
+                            0.55f to Color.Black.copy(alpha = 0.48f),
+                            1f to Color.Black.copy(alpha = 0.62f),
+                        ),
+                    ),
+            )
+        }
         LyricsPanelList(
             lines = lines,
             subLines = subLines,
@@ -2795,7 +2846,7 @@ private fun PanelVoice(
             label = "motionTail",
         )
         Box(
-            modifier = modifier.padding(room),
+            modifier = modifier.fillMaxWidth().padding(room),
             contentAlignment = if (alignsRight(line.text)) {
                 AbsoluteAlignment.TopRight
             } else {
@@ -2808,7 +2859,7 @@ private fun PanelVoice(
                 lyricStyle,
                 color.copy(alpha = motionTail),
                 color,
-                Modifier,
+                Modifier.fillMaxWidth(),
             )
         }
     } else if (line.isWordSynced && !browsing) {
@@ -2828,7 +2879,7 @@ private fun PanelVoice(
         SweptLyricLine(
             line = line,
             clock = clock,
-            style = lyricStyle,
+            style = voiceStyle(lyricStyle, line.text, alignEnd = false, laneLocked = false),
             dimAlpha = tail,
             modifier = modifier,
             glowAlpha = glowAlpha,
@@ -2852,7 +2903,7 @@ private fun PanelVoice(
         SweptLyricLine(
             line = line,
             clock = clock,
-            style = lyricStyle,
+            style = voiceStyle(lyricStyle, line.text, alignEnd = false, laneLocked = false),
             dimAlpha = tail,
             modifier = modifier,
             glowAlpha = 0f,
@@ -2880,10 +2931,10 @@ private fun PanelVoice(
         var layout by remember(line.text) { mutableStateOf<TextLayoutResult?>(null) }
         Text(
             text = line.text,
-            style = lyricStyle,
+            style = voiceStyle(lyricStyle, line.text, alignEnd = false, laneLocked = false),
             color = color.copy(alpha = lit),
             onTextLayout = { layout = it },
-            modifier = modifier.lyricParticles(layout, translationProgress, room).padding(room),
+            modifier = modifier.fillMaxWidth().lyricParticles(layout, translationProgress, room).padding(room),
         )
     }
 }
