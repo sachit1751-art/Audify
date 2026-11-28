@@ -106,10 +106,10 @@ private val LiftSpring = spring<Float>(dampingRatio = 0.72f, stiffness = 420f)
 private val LiftDpSpring = spring<Dp>(dampingRatio = 1f, stiffness = 420f)
 
 /**
- * tvOS focus: the focused element lifts towards the viewer — it grows and casts
- * a soft shadow — and is never outlined. Scale and shadow live on one render
- * layer and are read in the draw phase, so focus moves cost no recomposition of
- * anything beneath this modifier.
+ * TV focus: the focused element lifts towards the viewer and gets a persistent,
+ * high-contrast outline. The outline uses the active TV theme's focus colour, so
+ * focus remains visible across dark, OLED, Midnight and custom themes. Scale and
+ * shadow live on one render layer and are read in the draw phase.
  */
 @Composable
 fun Modifier.tvLift(
@@ -122,6 +122,7 @@ fun Modifier.tvLift(
     val pressed by interactionSource.collectIsPressedAsState()
     val reduceMotion = LocalTvReduceMotion.current
     val chrome = LocalTvChrome.current
+    val focusColor = LocalTvColors.current.borderFocused
     val requester = remember { FocusRequester() }
     LaunchedEffect(focused) { if (focused) chrome.lastFocused = requester }
     val scale = animateFloatAsState(
@@ -157,8 +158,8 @@ fun Modifier.tvLift(
             spotShadowColor = Color.Black
         }
         .border(
-            width = 2.dp,
-            color = Color.White.copy(alpha = focusRing),
+            width = 3.dp,
+            color = focusColor.copy(alpha = focusRing),
             shape = shape,
         )
 }

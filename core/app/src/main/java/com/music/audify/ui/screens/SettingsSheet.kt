@@ -249,6 +249,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     onWearOs: () -> Unit = {},
     youtubeSyncStatus: String? = null,
+    youtubeSyncRefreshing: Boolean = false,
     onRefreshYouTubeSync: () -> Unit = {},
     onLyricsSources: () -> Unit,
     onTranslationLanguage: () -> Unit,
@@ -445,6 +446,8 @@ fun SettingsScreen(
     var isExportingBackup by remember { mutableStateOf(false) }
     var isImportingBackup by remember { mutableStateOf(false) }
     var confirmImport by remember { mutableStateOf(false) }
+    var showExportBackupDialog by remember { mutableStateOf(false) }
+    var showYouTubeSyncDialog by remember { mutableStateOf(false) }
     var importPreview by remember { mutableStateOf<Backup.Preview?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var confirmClearSongCache by remember { mutableStateOf(false) }
@@ -574,6 +577,9 @@ fun SettingsScreen(
                 exportStatus = Backup.exportTo(context, target).fold(
                     onSuccess = { months ->
                         exportSucceededTemplate.replace("%1\$s", context.countOfMonths(months.months)) +
+                            "\nFavorites: ${months.favorites} · History: ${months.history}" +
+                            "\nPlaylists: ${months.playlists} · Smart Playlists: ${months.smartPlaylists}" +
+                            "\nSettings: ${months.settings}" +
                             if (months.timestampSaved) "" else "\n$backupExportedTimestampWarning"
                     },
                     onFailure = {
@@ -1497,21 +1503,12 @@ fun SettingsScreen(
                         val selected = selectedThemePackId == pack.id
                         Column(
                             modifier = Modifier.width(112.dp).clip(RoundedCornerShape(18.dp))
-                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f) else MaterialTheme.colorScheme.surfaceContainerLow)
-                                .border(
-                                    BorderStroke(
-                                        if (selected) 2.dp else 1.dp,
-                                        if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                    ),
-                                    RoundedCornerShape(18.dp),
-                                )
                                 .clickable { AppSettings.setThemePack(pack.id) }
-                                .padding(8.dp),
+                                .padding(vertical = 8.dp, horizontal = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Box(
                                 Modifier.fillMaxWidth().height(42.dp).clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                                     .background(Color((if (previewDarkTheme) ThemePacks.darkBackgroundHex(pack)
                                         else ThemePacks.lightBackgroundHex(pack)).toColorInt()))
                             ) {
@@ -2162,16 +2159,18 @@ fun SettingsScreen(
                     },
                 )
             }
-            if (signedIn) {
-                row("YouTube Music sync status", "youtube", "sync", "pending", "conflict") {
-                    SettingsRow(
-                        icon = SfIcons.Cloud,
-                        title = "YouTube Music sync status",
-                        subtitle = youtubeSyncStatus ?: "Loading sync status?",
-                        value = "Refresh",
-                        onClick = onRefreshYouTubeSync,
-                    )
-                }
+            row("YouTube Music sync", "youtube", "smart playlist", "sync", "pending", "conflict", "cloud") {
+                SettingsRow(
+                    icon = SfIcons.Cloud,
+                    title = "YouTube Music sync",
+                    subtitle = if (syncSmartPlaylistsToYouTubeMusic) {
+                        "Smart Playlist sync is enabled · Tap to manage sync and view errors"
+                    } else {
+                        "Smart Playlists stay on this device · Tap to configure YouTube Music sync"
+                    },
+                    value = if (syncSmartPlaylistsToYouTubeMusic) "On" else "Off",
+                    onClick = { showYouTubeSyncDialog = true },
+                )
             }
             val workOutGenresTitle = stringResource(R.string.work_out_genres)
             row(workOutGenresTitle, "genre", "replay") {
@@ -2224,7 +2223,7 @@ fun SettingsScreen(
                         }
                     },
                     enabled = !isExportingBackup && !isImportingBackup,
-                    onClick = { exportStatus = null; exportPicker.launch(Backup.suggestedName()) },
+                    onClick = { exportStatus = null; showExportBackupDialog = true },
                 )
             }
             val importDataTitle = stringResource(R.string.import_data)
@@ -2262,26 +2261,6 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
-                )
-            }
-            row("Sync Smart Playlists to YouTube Music", "smart playlist", "cloud", "upload", "sync") {
-                SettingsRow(
-                    icon = SfIcons.PlaylistPlay,
-                    title = "Sync Smart Playlists to YouTube Music",
-                    subtitle = if (syncSmartPlaylistsToYouTubeMusic) {
-                        "Enabled · smart playlists can be created and updated in your YouTube Music library"
-                    } else {
-                        "Off · smart playlists stay on this device and are never uploaded"
-                    },
-                    trailing = {
-                        IosSwitch(
-                            checked = syncSmartPlaylistsToYouTubeMusic,
-                            onCheckedChange = AppSettings::setSyncSmartPlaylistsToYouTubeMusic,
-                        )
-                    },
-                    onClick = {
-                        AppSettings.setSyncSmartPlaylistsToYouTubeMusic(!syncSmartPlaylistsToYouTubeMusic)
-                    },
                 )
             }
             row("AMOLED display colours", "amoled", "pure black", "oled", "display", "battery") {
@@ -3067,7 +3046,7 @@ fun SettingsScreen(
                 preview.settings,
                 preview.from.ifBlank { backupUnknownVersionMessage },
                 preview.at.ifBlank { backupUnknownDateMessage },
-            ) + "\n\n" + backupRestoreScopeMessage,
+            ) + "\nSmart Playlists: ${preview.smartPlaylists}\n\n" + backupRestoreScopeMessage,
             confirmText = "Restore",
             dismissText = stringResource(R.string.cancel),
             onDismiss = { importPreview = null; pendingImportUri = null },
@@ -3128,6 +3107,83 @@ fun SettingsScreen(
                     it.resolveActivity(context.packageManager) != null
                 } ?: Intent(Settings.ACTION_SETTINGS)
                 batterySettingsLauncher.launch(settingsIntent)
+            },
+        )
+    }
+
+    if (showExportBackupDialog) {
+        MacOSAlertDialog(
+            onDismissRequest = { showExportBackupDialog = false },
+            title = { Text("Export your Audify data") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Your backup will include:", fontWeight = FontWeight.SemiBold)
+                    Text("• Favorites and listening history\n• Regular playlists and Smart Playlist rules\n• Listening statistics\n• App preferences and appearance settings")
+                    Text("Passwords, API tokens, downloaded audio, caches and device-specific folder or wallpaper access are excluded.")
+                    Text("The backup is a portable JSON file. Keep it somewhere safe; anyone with the file can read the included listening data.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExportBackupDialog = false
+                    exportPicker.launch(Backup.suggestedName())
+                }) { Text("Choose location") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportBackupDialog = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+
+    if (showYouTubeSyncDialog) {
+        MacOSAlertDialog(
+            onDismissRequest = { showYouTubeSyncDialog = false },
+            title = { Text("YouTube Music sync") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Choose whether Audify may create and update Smart Playlists in the currently selected YouTube Music account. Your local playlists remain available when this is off.")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Sync Smart Playlists", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                if (syncSmartPlaylistsToYouTubeMusic) "Uploads are allowed for Smart Playlists only."
+                                else "Nothing is uploaded while sync is off.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        IosSwitch(
+                            checked = syncSmartPlaylistsToYouTubeMusic,
+                            onCheckedChange = AppSettings::setSyncSmartPlaylistsToYouTubeMusic,
+                        )
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Text("Current account status", fontWeight = FontWeight.SemiBold)
+                    if (youtubeSyncRefreshing) {
+                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                    }
+                    Text(
+                        youtubeSyncStatus ?: "Checking sync status…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 9,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (!signedIn) {
+                        Text("Sign in to YouTube Music to start syncing. Enabling this setting now will not upload anything until an account is available.", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showYouTubeSyncDialog = false }) { Text("Done") }
+            },
+            dismissButton = {
+                TextButton(onClick = onRefreshYouTubeSync, enabled = !youtubeSyncRefreshing) {
+                    Text(if (youtubeSyncRefreshing) "Refreshing…" else "Refresh status")
+                }
             },
         )
     }

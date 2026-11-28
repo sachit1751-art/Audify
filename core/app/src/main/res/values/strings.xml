@@ -1563,10 +1563,10 @@ Project: AUDIFY
   <string name="haptic_feedback_subtitle" translatable="false">Vibrate for taps, selections and playback controls</string>
   <string name="auto_download_liked_songs" translatable="false">Automatically download liked songs</string>
   <string name="auto_download_liked_songs_subtitle" translatable="false">Save each song to Downloads when you like it. Wi-Fi-only rules still apply.</string>
-    <string name="crossfade_on_skip">Crossfade on next/previous</string>
-    <string name="crossfade_on_skip_subtitle">Fades into the song you skip to, and the cover dissolves along with it</string>
-    <string name="local_playlist_subtitle">Local playlist - %1$d tracks</string>
-    <string name="spotify_import_button">Import</string>
-    <string name="spotify_import_none">None of those songs were found on YouTube Music.</string>
-    <string name="spotify_import_unmatched">%1$d songs were not found on YouTube Music</string>
+    <string name="crossfade_on_skip" translatable="false">Crossfade on next/previous</string>
+    <string name="crossfade_on_skip_subtitle" translatable="false">Fades into the song you skip to, and the cover dissolves along with it</string>
+    <string name="local_playlist_subtitle" translatable="false">Local playlist - %1$d tracks</string>
+    <string name="spotify_import_button" translatable="false">Import</string>
+    <string name="spotify_import_none" translatable="false">None of those songs were found on YouTube Music.</string>
+    <string name="spotify_import_unmatched" translatable="false">%1$d songs were not found on YouTube Music</string>
 </resources>

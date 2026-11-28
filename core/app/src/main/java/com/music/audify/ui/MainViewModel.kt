@@ -1089,7 +1089,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         if (playlists.isEmpty()) return
         // Playlists kept on this device need no account; only the rest do.
-        val (local, remote) = playlists.partition { it.playlistId.startsWith("sp_local_") }
+        val (local, remote) = playlists.partition {
+            it.playlistId.startsWith("sp_local_") || it.playlistId.startsWith("smart_")
+        }
         if (remote.isNotEmpty() && !requireSignIn()) return
         viewModelScope.launch {
             val outcomes = local.map { addToLocalPlaylist(it, song) } + remote.map { addOne(it, song) }
@@ -1103,12 +1105,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private enum class AddOutcome { ADDED, ALREADY_THERE, FAILED }
 
-    private suspend fun addToLocalPlaylist(playlist: UserPlaylist, song: Song): AddOutcome =
-        if (com.music.audify.data.spotify.LocalPlaylistStore.addSong(playlist.playlistId, song)) {
+    private suspend fun addToLocalPlaylist(playlist: UserPlaylist, song: Song): AddOutcome {
+        if (playlist.playlistId.startsWith("smart_")) {
+            val id = playlist.playlistId.removePrefix("smart_")
+            val definition = com.music.audify.data.playlist.SmartPlaylistStore.definitions.value
+                .firstOrNull { it.id == id } ?: return AddOutcome.FAILED
+            if (song.videoId in definition.includedSongIds) return AddOutcome.ALREADY_THERE
+            com.music.audify.data.playlist.SmartPlaylistStore.save(
+                definition.copy(
+                    includedSongIds = (definition.includedSongIds + song.videoId)
+                        .distinct().take(com.music.audify.data.playlist.SmartPlaylistEngine.MAX_TRACKS),
+                ),
+            )
+            return AddOutcome.ADDED
+        }
+        return if (com.music.audify.data.spotify.LocalPlaylistStore.addSong(playlist.playlistId, song)) {
             AddOutcome.ADDED
         } else {
             AddOutcome.ALREADY_THERE
         }
+    }
 
     private suspend fun addOne(playlist: UserPlaylist, song: Song): AddOutcome {
         val openSongs = (_detailStack.value.firstOrNull { it.browseId == playlist.browseId }

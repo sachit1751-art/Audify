@@ -1018,17 +1018,23 @@ private fun AudifyApp(
     )
 
     var youtubeSyncStatus by remember { mutableStateOf<String?>(null) }
+    var youtubeSyncRefreshing by remember { mutableStateOf(false) }
     val activeSyncAccountId by viewModel.activeAccountId.collectAsStateWithLifecycle()
     val activeSyncProfileId by viewModel.activeProfileId.collectAsStateWithLifecycle()
     LaunchedEffect(activeSyncAccountId, activeSyncProfileId) {
-        youtubeSyncStatus = if (activeSyncAccountId == null || activeSyncProfileId == null) {
-            "Sign in to view sync status."
-        } else {
-            runCatching {
-                LocalFirstRepository.initialize(context)
-                LocalFirstRepository.syncStatusText(activeSyncAccountId!!, activeSyncProfileId!!)
+        youtubeSyncRefreshing = true
+        try {
+            youtubeSyncStatus = if (activeSyncAccountId == null || activeSyncProfileId == null) {
+                "Sign in to view sync status."
+            } else {
+                runCatching {
+                    LocalFirstRepository.initialize(context)
+                    LocalFirstRepository.syncStatusText(activeSyncAccountId!!, activeSyncProfileId!!)
+                }
+                    .getOrElse { "Sync status unavailable: ${it.message ?: "unknown error"}" }
             }
-                .getOrElse { "Sync status unavailable: ${it.message ?: "unknown error"}" }
+        } finally {
+            youtubeSyncRefreshing = false
         }
     }
     val homeState by viewModel.home.collectAsStateWithLifecycle()
@@ -1252,6 +1258,7 @@ private fun AudifyApp(
         }
     }
     val localPlaylists by com.music.audify.data.spotify.LocalPlaylistStore.playlists.collectAsStateWithLifecycle()
+    val smartPlaylistDefinitions by com.music.audify.data.playlist.SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
     val localPlaylistSubtitleFormat = stringResource(R.string.local_playlist_subtitle)
     val localPlaylistItems = remember(localPlaylists, localPlaylistSubtitleFormat) {
         localPlaylists.map { playlist ->
@@ -2558,7 +2565,15 @@ private fun AudifyApp(
     val onLibraryItemClick: (ShelfItem) -> Unit = { item ->
         item.browseId?.let { id ->
             if (id.startsWith(SMART_PLAYLIST_BROWSE_PREFIX)) {
-                navigator.push(AppRoute.SmartPlaylistDetail(id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+                val definitionId = id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
+                val playlist = localPlaylists.firstOrNull { it.id == "smart_$definitionId" }
+                viewModel.openDetail(
+                    browseId = playlist?.browseId ?: "local:playlist:smart_$definitionId",
+                    title = playlist?.title ?: item.title,
+                    subtitle = playlist?.let { "${it.songs.size} songs" } ?: item.subtitle,
+                    thumbnailUrl = playlist?.coverUrl ?: item.thumbnailUrl,
+                    type = BrowseType.PLAYLIST,
+                )
                 return@let
             }
             if (id == SPOTIFY_BROWSE_ID) {
@@ -3428,8 +3443,17 @@ private fun AudifyApp(
                                 contentPadding = listPadding,
                                 initialPlaylistId = (pageRoute as? AppRoute.SmartPlaylistDetail)?.playlistId,
                                 initialShowEditor = pageRoute == AppRoute.SmartPlaylistCreate,
-                                onPlaySongs = { title, songs, index ->
-                                    playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
+                                onOpenPlaylist = { definitionId ->
+                                    val playlist = localPlaylists.firstOrNull { it.id == "smart_$definitionId" }
+                                    viewModel.openDetail(
+                                        browseId = playlist?.browseId ?: "local:playlist:smart_$definitionId",
+                                        title = playlist?.title
+                                            ?: smartPlaylistDefinitions.firstOrNull { it.id == definitionId }?.title.orEmpty(),
+                                        subtitle = playlist?.let { "${it.songs.size} songs" } ?: "Smart Playlist",
+                                        thumbnailUrl = playlist?.coverUrl
+                                            ?: playlist?.songs?.firstOrNull()?.thumbnailUrl,
+                                        type = BrowseType.PLAYLIST,
+                                    )
                                 },
                             )
                         } else if (pageRoute is AppRoute.Podcasts) {
@@ -3579,18 +3603,24 @@ private fun AudifyApp(
                                 },
                                 onWearOs = { navigator.push(AppRoute.WearOs) },
                                 youtubeSyncStatus = youtubeSyncStatus,
+                                youtubeSyncRefreshing = youtubeSyncRefreshing,
                                 onRefreshYouTubeSync = {
                                     scope.launch {
+                                        youtubeSyncRefreshing = true
                                         val accountId = viewModel.activeAccountId.value
                                         val profileId = viewModel.activeProfileId.value
-                                        youtubeSyncStatus = if (accountId == null || profileId == null) {
-                                            "Sign in to view sync status."
-                                        } else {
-                                            runCatching {
-                                                LocalFirstRepository.initialize(context)
-                                                LocalFirstRepository.syncStatusText(accountId, profileId)
+                                        try {
+                                            youtubeSyncStatus = if (accountId == null || profileId == null) {
+                                                "Sign in to view sync status."
+                                            } else {
+                                                runCatching {
+                                                    LocalFirstRepository.initialize(context)
+                                                    LocalFirstRepository.syncStatusText(accountId, profileId)
+                                                }
+                                                    .getOrElse { "Sync status unavailable: ${it.message ?: "unknown error"}" }
                                             }
-                                                .getOrElse { "Sync status unavailable: ${it.message ?: "unknown error"}" }
+                                        } finally {
+                                            youtubeSyncRefreshing = false
                                         }
                                     }
                                 },
@@ -3734,7 +3764,11 @@ private fun AudifyApp(
                             }
                             // This page's songs being rearranged, drawn in place of its list.
                             val reordering = reorderTarget?.takeIf { it.browseId == page.browseId }
-                            LaunchedEffect(page.browseId) { viewModel.resolvePlaylistOwnership(page.browseId) }
+                            LaunchedEffect(page.browseId) {
+                                if (!page.browseId.startsWith("local:playlist:smart_")) {
+                                    viewModel.resolvePlaylistOwnership(page.browseId)
+                                }
+                            }
                             DetailScreen(
                                 page = page,
                                 currentSong = player.song,
@@ -3904,8 +3938,17 @@ private fun AudifyApp(
                                     // property declared in another module.
                                     val browseId = item.browseId
                                     when {
-                                        browseId?.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) == true ->
-                                            navigator.push(AppRoute.SmartPlaylistDetail(browseId.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+                                        browseId?.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) == true -> {
+                                            val definitionId = browseId.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
+                                            val smartPlaylist = localPlaylists.firstOrNull { it.id == "smart_$definitionId" }
+                                            viewModel.openDetail(
+                                                browseId = smartPlaylist?.browseId ?: "local:playlist:smart_$definitionId",
+                                                title = smartPlaylist?.title ?: item.title,
+                                                subtitle = smartPlaylist?.let { "${it.songs.size} songs" } ?: item.subtitle,
+                                                thumbnailUrl = smartPlaylist?.coverUrl ?: item.thumbnailUrl,
+                                                type = BrowseType.PLAYLIST,
+                                            )
+                                        }
                                         song != null -> playRadio(
                                             song,
                                             QueueSource(shelfTitle, PlaybackSourceType.HOME),
@@ -5781,9 +5824,14 @@ private fun AudifyApp(
         // One body for every frame alike — see songMenuBody.
         val browseMenuBody: @Composable (BrowseTarget) -> Unit = { target ->
             val smartDefinition = target.browseId
-                ?.takeIf { it.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) }
-                ?.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
-                ?.let { id -> com.music.audify.data.playlist.SmartPlaylistStore.definitions.value.firstOrNull { it.id == id } }
+                ?.let { id ->
+                    when {
+                        id.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) -> id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
+                        id.startsWith("local:playlist:smart_") -> id.removePrefix("local:playlist:smart_")
+                        else -> null
+                    }
+                }
+                ?.let { id -> smartPlaylistDefinitions.firstOrNull { it.id == id } }
             // Every row here closes the menu first: the tracks may still have to
             // be fetched, and leaving the sheet up over a request nothing on it
             // reports on reads as a tap that didn't land.
@@ -5840,7 +5888,10 @@ private fun AudifyApp(
             // A Spotify import kept on this device: the user's own to rename,
             // re-cover and delete. Read off the collected list so the sheet
             // follows each edit.
-            val localEditable = target.browseId?.let { id -> localPlaylists.firstOrNull { it.browseId == id } }
+            val localEditable = target.browseId?.let { id ->
+                localPlaylists.firstOrNull { it.browseId == id }
+                    ?.takeUnless { it.id.startsWith("smart_") }
+            }
             BrowseActionsMenu(
                 // The live answer, not the one the target was built with.
                 target = target.copy(
@@ -5883,7 +5934,15 @@ private fun AudifyApp(
                         {
                             browseActions = null
                             if (id.startsWith(SMART_PLAYLIST_BROWSE_PREFIX)) {
-                                navigator.push(AppRoute.SmartPlaylistDetail(id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+                                val definitionId = id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
+                                val local = localPlaylists.firstOrNull { it.id == "smart_$definitionId" }
+                                viewModel.openDetail(
+                                    browseId = local?.browseId ?: "local:playlist:smart_$definitionId",
+                                    title = local?.title ?: target.title,
+                                    subtitle = local?.let { "${it.songs.size} songs" } ?: target.subtitle,
+                                    thumbnailUrl = local?.coverUrl ?: target.thumbnailUrl,
+                                    type = BrowseType.PLAYLIST,
+                                )
                             } else {
                                 viewModel.openDetail(
                                     browseId = id,
@@ -5988,6 +6047,7 @@ private fun AudifyApp(
                         com.music.audify.data.playlist.SmartPlaylistStore.save(definition.copy(title = name.trim()))
                         scope.launch {
                             com.music.audify.data.spotify.LocalPlaylistStore.renamePlaylist("smart_${definition.id}", name.trim())
+                            viewModel.retitleDetail("local:playlist:smart_${definition.id}", name.trim())
                         }
                     }
                 },
@@ -5995,6 +6055,10 @@ private fun AudifyApp(
                     { uri: android.net.Uri? -> viewModel.setPlaylistCover(p, uri) }
                 } ?: localEditable?.let { p ->
                     { uri: android.net.Uri? -> viewModel.setLocalPlaylistCover(p.browseId, uri) }
+                } ?: smartDefinition?.let { definition ->
+                    { uri: android.net.Uri? ->
+                        viewModel.setLocalPlaylistCover("local:playlist:smart_${definition.id}", uri)
+                    }
                 },
                 onReorder = playlist?.let { p ->
                     {
@@ -6048,10 +6112,12 @@ private fun AudifyApp(
                 } ?: smartDefinition?.let { definition ->
                     {
                         browseActions = null
+                        val localId = "local:playlist:smart_${definition.id}"
+                        if (detail?.browseId == localId) viewModel.closeDetail()
                         target.browseId?.takeIf { it in pinnedPlaylists }?.let(AppSettings::togglePinnedPlaylist)
                         com.music.audify.data.playlist.SmartPlaylistStore.delete(definition.id)
                         scope.launch {
-                            com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist("smart_${definition.id}")
+                            com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist(localId)
                         }
                     }
                 },

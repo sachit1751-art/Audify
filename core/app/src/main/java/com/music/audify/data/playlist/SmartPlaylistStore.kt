@@ -52,6 +52,45 @@ object SmartPlaylistStore {
         return true
     }
 
+    /** Portable rules snapshot used by the user-owned Audify backup. */
+    @Synchronized
+    fun exportSnapshot(): String {
+        checkInitialized()
+        return prefs.getString(KEY_DEFINITIONS, "[]") ?: "[]"
+    }
+
+    /** Validate and replace rules only after the backup has been fully decoded. */
+    @Synchronized
+    fun importSnapshot(raw: String) {
+        checkInitialized()
+        val array = JSONArray(raw)
+        require(array.length() <= SmartPlaylistEngine.MAX_PLAYLISTS) {
+            "Backup contains too many smart playlists"
+        }
+        val decoded = decode(raw)
+        require(decoded.size == array.length()) {
+            "Backup contains invalid smart playlist rules"
+        }
+        require(decoded.map { it.id }.distinct().size == decoded.size) {
+            "Backup contains duplicate smart playlist IDs"
+        }
+        persist(decoded)
+        _definitions.value = decoded
+    }
+
+    fun snapshotCount(raw: String): Int {
+        val array = JSONArray(raw)
+        require(array.length() <= SmartPlaylistEngine.MAX_PLAYLISTS) {
+            "Backup contains too many smart playlists"
+        }
+        val decoded = decode(raw)
+        require(decoded.size == array.length()) { "Backup contains invalid smart playlist rules" }
+        require(decoded.map { it.id }.distinct().size == decoded.size) {
+            "Backup contains duplicate smart playlist IDs"
+        }
+        return decoded.size
+    }
+
     private fun update(id: String, transform: (SmartPlaylistDefinition) -> SmartPlaylistDefinition): Boolean {
         checkInitialized()
         val current = _definitions.value.firstOrNull { it.id == id } ?: return false
