@@ -1461,7 +1461,13 @@ object AppSettings {
             onboardingKey = KEY_ONBOARDING_COMPLETE,
             migrationKey = KEY_AUDIFY_PREFS_MIGRATED,
         )
-        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false)) {
+        val recoverMarkerOnlyStore = shouldRecoverLegacyPreferencesFromMarkerOnlyStore(
+            currentPreferenceKeys = target.all.keys,
+            legacyPreferenceKeys = legacyValues.keys,
+            migrationKey = KEY_AUDIFY_PREFS_MIGRATED,
+        )
+        if (target.getBoolean(KEY_AUDIFY_PREFS_MIGRATED, false) && !recoverMarkerOnlyStore) {
+            recoverPreferencesLostToFirstInstallSeeding(target, legacyValues)
             if (completeExistingOnboarding) target.edit { putBoolean(KEY_ONBOARDING_COMPLETE, true) }
             return
         }
@@ -1514,6 +1520,117 @@ object AppSettings {
     }
 
     /**
+     * 1.9.5 could seed first-install values over an existing, marker-only store.
+     * The old preferences file is intentionally retained, so recover only keys
+     * whose current value still exactly matches a known seeded default. Values
+     * the listener changed after the update are left untouched. This runs once.
+     */
+    private fun recoverPreferencesLostToFirstInstallSeeding(
+        target: SharedPreferences,
+        legacyValues: Map<String, *>,
+    ) {
+        if (target.getBoolean(KEY_DEFAULTS_RECOVERY_ATTEMPTED, false)) return
+
+        val seededDefaults = mapOf<String, Any>(
+            KEY_CROSSFADE to 3,
+            KEY_SMART_FADE to true,
+            KEY_SKIP_SILENCE to false,
+            KEY_OUTPUT_PCM_MODE to "PCM_16",
+            KEY_DIRECT_SOURCE_STREAM to true,
+            KEY_SPATIAL_AUDIO to true,
+            KEY_QUALITY_WIFI to "LOSSLESS",
+            KEY_QUALITY_CELLULAR to "LOSSLESS",
+            KEY_WIFI_ONLY_DOWNLOADS to true,
+            KEY_EXPORT_DOWNLOADS to true,
+            KEY_SYNC_DOWNLOADED_PLAYLISTS to true,
+            KEY_STOP_ON_TASK_REMOVED to false,
+            KEY_HIDE_VOLUME_BAR to false,
+            KEY_HIDE_SONG_STATUS to true,
+            KEY_SHOW_QUEUE_HISTORY to false,
+            KEY_HAPTIC_FEEDBACK_ENABLED to true,
+            KEY_SWIPE_TO_PLAY_NEXT to false,
+            KEY_DONT_REPEAT_SUGGESTIONS to true,
+            KEY_AUTO_MUSIC_ONLY to true,
+            KEY_HIDE_HOME_RECENTS to false,
+            KEY_HIDE_HOME_BRANDING to false,
+            KEY_HIDE_HOME_VIDEOS to false,
+            KEY_HIDE_HOME_TOP_PICKS to false,
+            KEY_HIDE_HOME_MOODS to false,
+            KEY_REPLAY_GENRES to true,
+            KEY_SHOW_WEEKLY_RECAP_CARD to true,
+            KEY_SHOW_TIME_AWARE_SHELF to true,
+            KEY_FILTER_NON_MUSIC_AUDIO to true,
+            KEY_HIDE_EXPLICIT_CONTENT to false,
+            KEY_NERD_STATS to false,
+            KEY_LISTEN_TOGETHER_BUTTON to false,
+            KEY_LISTEN_TOGETHER_TAB to false,
+            KEY_SIGNATURE_API_ENABLED to false,
+            KEY_SHOW_CACHE_FOLDER to false,
+            KEY_PRIORITIZE_SYLLABLE_SYNC to false,
+            KEY_DISCORD_RPC_ENABLED to true,
+            KEY_LIQUID_GLASS to false,
+            KEY_FULL_BLEED_ARTWORK to true,
+            KEY_COVER_SLIDE_ANIMATION to true,
+            KEY_COVER_FLUID_ANIMATION to false,
+            KEY_COVER_MIX_ONLY_EFFECTS to false,
+            KEY_LOCAL_MUSIC_SORT to "DATE_ADDED",
+            KEY_THEME to "SYSTEM",
+            KEY_THEME_PALETTE to "ocean",
+            KEY_BACKGROUND_STYLE to "OCEAN",
+            KEY_ACCENT_COLOR to "GREEN",
+            KEY_APP_FONT to "DEFAULT",
+            KEY_HIGH_PERFORMANCE_MODE to true,
+            KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED to true,
+            KEY_REDUCE_ANIMATION to false,
+            KEY_REDUCE_BLUR to false,
+            KEY_PROGRESSIVE_BLUR to false,
+            KEY_LEGACY_MESH_GRADIENT to false,
+            KEY_LYRICS_BLUR to true,
+            KEY_LIQUID_FLOW to true,
+            KEY_LYRICS_SPARKLE to true,
+            KEY_SYNCED_LYRICS to true,
+            KEY_LYRIC_STRIP to true,
+            KEY_ANIMATED_CANVAS to true,
+        )
+        val currentValues = target.all
+        val recoveryLegacyValues = legacyValues.toMutableMap()
+        mapOf(
+            KEY_APP_FONT to "font_choice",
+            KEY_AUTO_MUSIC_ONLY to "prefer_music_only",
+        ).forEach { (currentKey, legacyKey) ->
+            if (!recoveryLegacyValues.containsKey(currentKey) && legacyValues.containsKey(legacyKey)) {
+                recoveryLegacyValues[currentKey] = legacyValues[legacyKey]
+            }
+        }
+        val restoreKeys = legacyPreferenceKeysOverwrittenByFirstInstallDefaults(
+            currentValues = currentValues,
+            legacyValues = recoveryLegacyValues,
+            firstInstallDefaults = seededDefaults,
+        )
+        val defaultMatches = seededDefaults.count { (key, value) -> currentValues[key] == value }
+        val shouldRestore = target.getBoolean(KEY_HIGH_PERFORMANCE_DEFAULT_APPLIED, false) &&
+            defaultMatches >= 12 && restoreKeys.size >= 3
+
+        if (shouldRestore) {
+            target.edit {
+                restoreKeys.forEach { key ->
+                    val value = recoveryLegacyValues[key] ?: return@forEach
+                    when (value) {
+                        is String -> putString(key, value)
+                        is Boolean -> putBoolean(key, value)
+                        is Int -> putInt(key, value)
+                        is Long -> putLong(key, value)
+                        is Float -> putFloat(key, value)
+                        is Set<*> -> putStringSet(key, value.filterIsInstance<String>().toSet())
+                    }
+                }
+            }
+            android.util.Log.i("Audify", "Recovered ${restoreKeys.size} settings retained from the previous preferences store")
+        }
+        target.edit { putBoolean(KEY_DEFAULTS_RECOVERY_ATTEMPTED, true) }
+    }
+
+    /**
      * Re-reads every setting off disk.
      *
      * The one caller is an import ([Backup][com.music.audify.data.stats.Backup]),
@@ -1535,7 +1652,7 @@ object AppSettings {
      * retains legacy fallbacks for keys absent from an older install's store.
      */
     private fun seedFirstInstallDefaults(context: Context) {
-        if (prefs.all.isNotEmpty() && !shouldSeedFirstInstallDefaults(prefs.all.keys, KEY_AUDIFY_PREFS_MIGRATED)) return
+        if (!shouldSeedFirstInstallDefaults(prefs.all.keys)) return
         val lowRam = runCatching {
             (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.isLowRamDevice == true
         }.getOrDefault(false)
@@ -3820,6 +3937,7 @@ object AppSettings {
     private const val KEY_DISCORD_BUTTON_2_VISIBLE = "discord_button_2_visible"
     private const val KEY_LAST_VERSION_CODE = "last_version_code"
     private const val KEY_AUDIFY_PREFS_MIGRATED = "_audify_preferences_migrated_v1"
+    private const val KEY_DEFAULTS_RECOVERY_ATTEMPTED = "_audify_defaults_recovery_attempted_v1"
 }
 
 

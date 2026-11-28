@@ -29,7 +29,6 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
@@ -260,8 +259,8 @@ private val GLOW_ROOM = 10.dp
  * Small enough to be read as a second voice at a glance and no smaller —
  * these are the words of the song, not a caption.
  */
-private val BACKING_FONT_SIZE = 23.sp
-private val BACKING_LINE_HEIGHT = 29.sp
+private val BACKING_FONT_SIZE = 34.sp
+private val BACKING_LINE_HEIGHT = 41.sp
 private const val BACKING_ALPHA = 0.72f
 
 /**
@@ -295,10 +294,10 @@ private const val BACKING_FADE_LEAD = 1.6f
  * way Apple Music prints pronunciation under the lyric, and tucked up into the
  * lead's glow inset so the two read as one line rather than two rows.
  */
-private val SUB_LYRIC_FONT_SIZE = 20.sp
-private val SUB_LYRIC_LINE_HEIGHT = 25.sp
-private val SUB_BACKING_FONT_SIZE = 16.sp
-private val SUB_BACKING_LINE_HEIGHT = 21.sp
+private val SUB_LYRIC_FONT_SIZE = 34.sp
+private val SUB_LYRIC_LINE_HEIGHT = 41.sp
+private val SUB_BACKING_FONT_SIZE = 34.sp
+private val SUB_BACKING_LINE_HEIGHT = 41.sp
 private const val SUB_LYRIC_ALPHA = 0.85f
 private val SUB_LYRIC_TUCK = 6.dp
 private const val SUB_LYRIC_OPEN_MS = 460
@@ -408,10 +407,8 @@ private const val SKELETON_PERIOD_MS = 1_400
 private const val BROWSING_ALPHA = 0.8f
 
 /** The playing line sits at 1; the rest sit fractionally back from it. */
-private const val INACTIVE_SCALE = 0.98f
 
 /** A line under a finger dips, the way a button does. */
-private const val PRESSED_SCALE = 0.96f
 
 /**
  * The break between verses, counted out rather than marked.
@@ -2324,7 +2321,7 @@ private fun LyricsPanelList(
                 )
                 }
             } else {
-                val alignEnd = duet && line.alignment == LyricAlignment.End
+                val alignEnd = usesArabicScript(line.text)
                 val style = if (isSynced) {
                     MaterialTheme.typography.headlineLarge.copy(
                         fontSize = 34.sp,
@@ -2334,8 +2331,8 @@ private fun LyricsPanelList(
                     )
                 } else {
                     MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 30.sp,
-                        lineHeight = 38.sp,
+                        fontSize = 34.sp,
+                        lineHeight = 41.sp,
                         fontWeight = FontWeight.ExtraBold,
                         textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
                     )
@@ -2353,19 +2350,7 @@ private fun LyricsPanelList(
                 // lands — the dim, the blur and the movement together.
                 val sung = offset < 0
                 val interaction = remember { MutableInteractionSource() }
-                val pressed by interaction.collectIsPressedAsState()
-                val scale by animateFloatAsState(
-                    targetValue = when {
-                        pressed -> PRESSED_SCALE
-                        isActive -> 1f
-                        else -> INACTIVE_SCALE
-                    },
-                    animationSpec = tween(
-                        durationMillis = if (pressed) 120 else LYRIC_SETTLE_MS,
-                        easing = LYRIC_EASING,
-                    ),
-                    label = "lyricScale",
-                )
+                val scale = 1f
                 // Apple's bloom on the line being sung. Fades in and out with
                 // the line rather than switching, so a handover is one line's
                 // light going down as the next one's comes up.

@@ -177,8 +177,15 @@ test('queue updates and duplicate event IDs are applied once', async () => {
   assert.equal(state.queue.items.length, 1); assert.equal(state.queue.seq, 1);
 
   const autoplayTrack = { videoId: 'auto-1', title: 'Auto', fromAutoplay: true };
+  const observedFrames = [];
+  const observe = event => observedFrames.push(JSON.parse(event.data));
+  guestSocket.addEventListener('message', observe);
   send(hostSocket, { type: 'control', action: 'queueAdd', eventId: crypto.randomUUID(), track: autoplayTrack });
   await waitFor(guestSocket, f => f.type === 'queue' && f.queue.seq === 2);
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(observedFrames.some(f => f.type === 'activity' && f.action === 'queueAdd' && f.by === 'Host' && f.detail?.includes('"Auto"')), false,
+    'AutoPlay queue additions must not be attributed to the connected member');
+  guestSocket.removeEventListener('message', observe);
   send(hostSocket, { type: 'control', action: 'queueAdd', eventId: crypto.randomUUID(), track: autoplayTrack });
   await waitFor(hostSocket, f => f.type === 'state');
   const deduped = await json(await request(`/api/parties/${host.code}`, { headers: { authorization: `Bearer ${host.token}` } }));
@@ -381,9 +388,9 @@ test('presence validation and all supported platform counters match the Go contr
 
 test('Android, web and Windows desktop share the authenticated Cloudflare party protocol', async () => {
   const android = await readFile(new URL('../../app/src/main/java/com/music/audify/data/listentogether/ListenTogether.kt', import.meta.url), 'utf8');
-  const web = await readFile(new URL('../../platforms/web/app/src/party/listenTogether.ts', import.meta.url), 'utf8');
-  const tv = await readFile(new URL('../../platforms/tv/build.gradle.kts', import.meta.url), 'utf8');
-  const desktop = await readFile(new URL('../../desktop/crates/state/src/listening/link.rs', import.meta.url), 'utf8');
+  const web = await readFile(new URL('../../../platforms/web/app/src/party/listenTogether.ts', import.meta.url), 'utf8');
+  const tv = await readFile(new URL('../../../platforms/tv/build.gradle.kts', import.meta.url), 'utf8');
+  const desktop = await readFile(new URL('../../../desktop/crates/state/src/listening/link.rs', import.meta.url), 'utf8');
   assert.match(android, /put\("eventId",\s*UUID\.randomUUID\(\)\.toString\(\)\)/);
   assert.match(web, /eventId:\s*crypto\.randomUUID\(\)/);
   assert.match(tv, /kotlin\.directories \+= "\.\.\/\.\.\/core\/app\/src\/main\/java"/);

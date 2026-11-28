@@ -99,19 +99,30 @@ object SpotifyLibrary {
         val headers = authHeaders()
         val collected = mutableListOf<SpotifyTrack>()
         var offset = 0
+        var expectedTotal: Int? = null
         while (true) {
             val (items, total, raw) = if (playlistId == LIKED_ID) {
                 likedPage(headers, offset)
             } else {
                 trackPage(headers, playlistId, offset)
             }
-            collected += items
+            // Spotify's paged response can occasionally contain more rows than
+            // remain in its reported playlist total. Do not let that transient
+            // over-sized page inflate the visible playlist count.
+            if (expectedTotal == null) expectedTotal = total.coerceAtLeast(0)
+            collected += takeWithinPlaylistTotal(items, offset, expectedTotal)
             offset += raw
             onPage(collected.toList())
-            if (raw == 0 || offset >= total) break
+            if (raw == 0 || offset >= expectedTotal) break
         }
         collected
     }
+
+    internal fun takeWithinPlaylistTotal(
+        items: List<SpotifyTrack>,
+        offset: Int,
+        total: Int,
+    ): List<SpotifyTrack> = items.take((total - offset).coerceAtLeast(0))
 
     private fun playlistPage(headers: Map<String, String>, offset: Int): Triple<List<SpotifyPlaylist>, Int, Int> {
         val variables = buildJsonObject {

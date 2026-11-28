@@ -997,7 +997,9 @@ func handleSocketFrame(p *party.Party, member *party.Member, sc *hub.SafeConn, f
 				action == protocol.ActionSetHostOnlyControl {
 				hubInst.Broadcast(p.Code, membersFrame(p), "")
 			}
-			hubInst.Broadcast(p.Code, activityFrame(member, action, frame), "")
+			if event := activityFrame(member, action, frame); event != nil {
+				hubInst.Broadcast(p.Code, event, "")
+			}
 		} else if errCode != "" {
 			_ = sc.WriteJSON(map[string]interface{}{
 				"type":    protocol.FrameError,
@@ -1232,12 +1234,23 @@ func activityFrame(member *party.Member, action string, frame map[string]interfa
 		}
 	case protocol.ActionQueueAdd:
 		if tracks, ok := frame["tracks"].([]interface{}); ok && len(tracks) > 0 {
-			title := trackTitle(tracks[0])
+			manualTracks := make([]interface{}, 0, len(tracks))
+			for _, raw := range tracks {
+				track, _ := raw.(map[string]interface{})
+				fromAutoplay, _ := track["fromAutoplay"].(bool)
+				if !fromAutoplay {
+					manualTracks = append(manualTracks, raw)
+				}
+			}
+			if len(manualTracks) == 0 {
+				return nil // AutoPlay is not a member action; do not attribute it to the sender.
+			}
+			title := trackTitle(manualTracks[0])
 			if title != "" {
-				if len(tracks) == 1 {
+				if len(manualTracks) == 1 {
 					detail = "Added \"" + title + "\" to the queue"
 				} else {
-					detail = fmt.Sprintf("Added \"%s\" and %d more to the queue", title, len(tracks)-1)
+					detail = fmt.Sprintf("Added \"%s\" and %d more to the queue", title, len(manualTracks)-1)
 				}
 			}
 		}
