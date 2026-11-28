@@ -32,7 +32,9 @@ plugins {
  * No "v" in the name — the in-app updater reads it as a number; the "v" is the
  * release tag's alone.
  */
-extra["audifyVersionCode"] = 44
+// Re-cut the deleted public 1.9.5 release with a monotonic code so an already-
+// installed build can update normally.
+extra["audifyVersionCode"] = 47
 extra["audifyVersionName"] = "1.9.5"
 
 /*

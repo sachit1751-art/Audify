@@ -29,7 +29,6 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.CompositionLocalProvider
@@ -188,8 +187,11 @@ private fun usesArabicScript(text: String): Boolean = text.any { ch ->
 }
 
 /** Whether this text should align to the right end of its box. */
-private fun alignsRight(text: String, alignEnd: Boolean, laneLocked: Boolean): Boolean =
-    if (laneLocked) alignEnd else isRtl(text)
+private fun alignsRight(text: String): Boolean =
+    // Keep every lyric anchored to the left unless the actual line uses
+    // Arabic script. Provider duet metadata is inconsistent and must not move
+    // ordinary Latin/Hebrew lyrics to the opposite edge.
+    usesArabicScript(text)
 
 /** Compute per-voice text style with absolute physical alignment based on the voice's own text direction. */
 private fun voiceStyle(
@@ -198,7 +200,7 @@ private fun voiceStyle(
     alignEnd: Boolean,
     laneLocked: Boolean,
 ): TextStyle = base.copy(
-    textAlign = if (alignsRight(text, alignEnd, laneLocked)) TextAlign.Right else TextAlign.Left,
+    textAlign = if (alignsRight(text)) TextAlign.Right else TextAlign.Left,
     textDirection = if (isRtl(text)) androidx.compose.ui.text.style.TextDirection.Rtl else androidx.compose.ui.text.style.TextDirection.Ltr,
 )
 
@@ -257,8 +259,8 @@ private val GLOW_ROOM = 10.dp
  * Small enough to be read as a second voice at a glance and no smaller —
  * these are the words of the song, not a caption.
  */
-private val BACKING_FONT_SIZE = 23.sp
-private val BACKING_LINE_HEIGHT = 29.sp
+private val BACKING_FONT_SIZE = 34.sp
+private val BACKING_LINE_HEIGHT = 41.sp
 private const val BACKING_ALPHA = 0.72f
 
 /**
@@ -292,10 +294,10 @@ private const val BACKING_FADE_LEAD = 1.6f
  * way Apple Music prints pronunciation under the lyric, and tucked up into the
  * lead's glow inset so the two read as one line rather than two rows.
  */
-private val SUB_LYRIC_FONT_SIZE = 20.sp
-private val SUB_LYRIC_LINE_HEIGHT = 25.sp
-private val SUB_BACKING_FONT_SIZE = 16.sp
-private val SUB_BACKING_LINE_HEIGHT = 21.sp
+private val SUB_LYRIC_FONT_SIZE = 34.sp
+private val SUB_LYRIC_LINE_HEIGHT = 41.sp
+private val SUB_BACKING_FONT_SIZE = 34.sp
+private val SUB_BACKING_LINE_HEIGHT = 41.sp
 private const val SUB_LYRIC_ALPHA = 0.85f
 private val SUB_LYRIC_TUCK = 6.dp
 private const val SUB_LYRIC_OPEN_MS = 460
@@ -405,10 +407,8 @@ private const val SKELETON_PERIOD_MS = 1_400
 private const val BROWSING_ALPHA = 0.8f
 
 /** The playing line sits at 1; the rest sit fractionally back from it. */
-private const val INACTIVE_SCALE = 0.98f
 
 /** A line under a finger dips, the way a button does. */
-private const val PRESSED_SCALE = 0.96f
 
 /**
  * The break between verses, counted out rather than marked.
@@ -648,7 +648,7 @@ internal fun CurrentLyricStrip(
             instrumental -> stringResource(Res.string.instrumental)
             else -> current.text
         }
-        stripRtl = isRtl(activeText)
+        stripRtl = usesArabicScript(activeText)
     }
 
     val align: Alignment = if (stripRtl) Alignment.CenterStart else Alignment.CenterStart
@@ -969,7 +969,7 @@ private fun SweptLyricLine(
         }
     }
 
-    val right = alignsRight(line.text, alignEnd, laneLocked)
+    val right = alignsRight(line.text)
     Box(
         modifier.lyricParticles(layout, translationProgress, glowRoom),
         contentAlignment = if (right) AbsoluteAlignment.TopRight else AbsoluteAlignment.TopLeft,
@@ -2321,7 +2321,7 @@ private fun LyricsPanelList(
                 )
                 }
             } else {
-                val alignEnd = duet && line.alignment == LyricAlignment.End
+                val alignEnd = usesArabicScript(line.text)
                 val style = if (isSynced) {
                     MaterialTheme.typography.headlineLarge.copy(
                         fontSize = 34.sp,
@@ -2331,8 +2331,8 @@ private fun LyricsPanelList(
                     )
                 } else {
                     MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 30.sp,
-                        lineHeight = 38.sp,
+                        fontSize = 34.sp,
+                        lineHeight = 41.sp,
                         fontWeight = FontWeight.ExtraBold,
                         textAlign = if (alignEnd) TextAlign.End else TextAlign.Start,
                     )
@@ -2350,19 +2350,7 @@ private fun LyricsPanelList(
                 // lands — the dim, the blur and the movement together.
                 val sung = offset < 0
                 val interaction = remember { MutableInteractionSource() }
-                val pressed by interaction.collectIsPressedAsState()
-                val scale by animateFloatAsState(
-                    targetValue = when {
-                        pressed -> PRESSED_SCALE
-                        isActive -> 1f
-                        else -> INACTIVE_SCALE
-                    },
-                    animationSpec = tween(
-                        durationMillis = if (pressed) 120 else LYRIC_SETTLE_MS,
-                        easing = LYRIC_EASING,
-                    ),
-                    label = "lyricScale",
-                )
+                val scale = 1f
                 // Apple's bloom on the line being sung. Fades in and out with
                 // the line rather than switching, so a handover is one line's
                 // light going down as the next one's comes up.
@@ -2680,7 +2668,6 @@ internal fun LyricsPanel(
     )
     val returnDescription = stringResource(Res.string.now_playing)
     Box(modifier) {
-        LyricsArtworkBackdrop(artworkUrl = artworkUrl, modifier = Modifier.fillMaxSize())
         LyricsPanelList(
             lines = lines,
             subLines = subLines,
@@ -2749,51 +2736,6 @@ internal fun LyricsPanel(
     }
 }
 
-/** Album artwork, kept deliberately soft and low-contrast behind the lyric text. */
-@Composable
-private fun LyricsArtworkBackdrop(artworkUrl: String?, modifier: Modifier = Modifier) {
-    if (artworkUrl.isNullOrBlank()) return
-    val reduceMotion by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
-    val motion = rememberInfiniteTransition(label = "lyricsArtworkDrift")
-    val driftX by motion.animateFloat(
-        initialValue = -18f,
-        targetValue = 18f,
-        animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing)),
-        label = "lyricsArtworkDriftX",
-    )
-    val driftY by motion.animateFloat(
-        initialValue = 14f,
-        targetValue = -14f,
-        animationSpec = infiniteRepeatable(tween(31_000, easing = LinearEasing)),
-        label = "lyricsArtworkDriftY",
-    )
-    Box(modifier.clipToBounds()) {
-        AsyncImage(
-            model = artworkUrl,
-            contentDescription = null,
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = 1.16f
-                    scaleY = 1.16f
-                    translationX = if (reduceMotion) 0f else driftX.dp.toPx()
-                    translationY = if (reduceMotion) 0f else driftY.dp.toPx()
-                }
-                .blur(46.dp, BlurredEdgeTreatment.Unbounded),
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Black.copy(alpha = 0.48f), Color.Black.copy(alpha = 0.66f)),
-                    ),
-                ),
-        )
-    }
-}
-
 /**
  * One voice of a row in [LyricsPanelList] — the lead, or the answering line drawn
  * under it.
@@ -2854,7 +2796,7 @@ private fun PanelVoice(
         )
         Box(
             modifier = modifier.padding(room),
-            contentAlignment = if (alignsRight(line.text, alignEnd, laneLocked)) {
+            contentAlignment = if (alignsRight(line.text)) {
                 AbsoluteAlignment.TopRight
             } else {
                 AbsoluteAlignment.TopLeft
@@ -3163,11 +3105,8 @@ private fun CurrentLyricLine(
 
     val reduceAnimation by PlayerSettings.reduceAnimation.collectAsStateWithLifecycle()
 
-    // Content-based RTL: drive the row's layout direction from the active lyric's
-    // own text direction so alignment and sweep geometry match what Compose would
-    // produce for that paragraph.  LTR rows keep the chevron on the right; RTL
-    // rows put it on the left (mirrored) and right-align the text.
-    val stripRtl = isRtl(text)
+    // Keep the strip anchored on the left for all scripts except Arabic.
+    val stripRtl = usesArabicScript(text)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

@@ -10,6 +10,7 @@ import com.music.audify.data.settings.AppSettings
 import com.music.audify.data.settings.SearchHistory
 import com.music.audify.data.model.Song
 import com.music.audify.data.spotify.LocalPlaylistStore
+import com.music.audify.data.playlist.SmartPlaylistStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -106,6 +107,7 @@ object Backup {
                 songs = file.favorites.distinctBy { it.videoId }.size,
                 history = file.history.distinctBy { it.videoId }.size,
                 playlists = if (file.localPlaylists.isBlank()) 0 else validatedPlaylistCount(file.localPlaylists),
+                smartPlaylists = if (file.smartPlaylists.isBlank()) 0 else SmartPlaylistStore.snapshotCount(file.smartPlaylists),
                 months = file.listening.size,
                 settings = file.settings.size,
                 from = file.versionName,
@@ -115,7 +117,7 @@ object Backup {
     }
 
     data class Preview(
-        val songs: Int, val history: Int, val playlists: Int, val months: Int,
+        val songs: Int, val history: Int, val playlists: Int, val smartPlaylists: Int = 0, val months: Int,
         val settings: Int, val from: String, val at: String,
     )
 
@@ -138,11 +140,27 @@ object Backup {
             @Suppress("UseKtx")
             val committed = context.getSharedPreferences(BACKUP_PREFS, Context.MODE_PRIVATE)
                 .edit().putLong(LAST_EXTERNAL_BACKUP_AT, System.currentTimeMillis()).commit()
-            ExportSummary(months = file.listening.size, timestampSaved = committed)
+            ExportSummary(
+                months = file.listening.size,
+                favorites = file.favorites.size,
+                history = file.history.size,
+                playlists = validatedPlaylistCount(file.localPlaylists),
+                smartPlaylists = SmartPlaylistStore.snapshotCount(file.smartPlaylists),
+                settings = file.settings.size,
+                timestampSaved = committed,
+            )
         }
     }
 
-    data class ExportSummary(val months: Int, val timestampSaved: Boolean)
+    data class ExportSummary(
+        val months: Int,
+        val favorites: Int,
+        val history: Int,
+        val playlists: Int,
+        val smartPlaylists: Int,
+        val settings: Int,
+        val timestampSaved: Boolean,
+    )
 
     /**
      * Reads [source] and replaces this device's settings and listening with it.
@@ -165,6 +183,7 @@ object Backup {
             val oldFavorites = LocalLibraryStore.exportFavorites()
             val oldHistory = LocalLibraryStore.exportHistory()
             val oldPlaylists = LocalPlaylistStore.exportSnapshot()
+            val oldSmartPlaylists = SmartPlaylistStore.exportSnapshot()
             val oldListening = ListeningStats.exportAll()
             val oldSettings = AppSettings.exportPrefs()
             try {
@@ -173,6 +192,7 @@ object Backup {
                     file.history.map(BackupSong::toSong),
                 )
                 if (file.localPlaylists.isNotBlank()) LocalPlaylistStore.importSnapshot(file.localPlaylists)
+                if (file.smartPlaylists.isNotBlank()) SmartPlaylistStore.importSnapshot(file.smartPlaylists)
                 LocalPlaylistStore.syncFavorites(LocalLibraryStore.favorites.value)
                 ListeningStats.importAll(file.listening)
                 AppSettings.importPrefs(file.settings.mapValues { it.value.decoded() })
@@ -186,6 +206,7 @@ object Backup {
                 val rollbackFailures = runBackupRollback(
                     { LocalLibraryStore.importLibrary(oldFavorites, oldHistory) },
                     { LocalPlaylistStore.importSnapshot(oldPlaylists) },
+                    { SmartPlaylistStore.importSnapshot(oldSmartPlaylists) },
                     { LocalPlaylistStore.syncFavorites(oldFavorites) },
                     { ListeningStats.importAll(oldListening) },
                     { AppSettings.importPrefs(oldSettings) },
@@ -297,7 +318,7 @@ object Backup {
      * from a *newer* schema is refused rather than partially read; one from an
      * older schema is read as-is, since every field has a default.
      */
-    private const val SCHEMA_VERSION = 2
+    private const val SCHEMA_VERSION = 3
 
     private suspend fun buildBackupFile() = BackupFile(
         versionName = BuildConfig.VERSION_NAME,
@@ -309,6 +330,7 @@ object Backup {
         favorites = LocalLibraryStore.exportFavorites().distinctBy { it.videoId }.map(BackupSong::from),
         history = LocalLibraryStore.exportHistory().distinctBy { it.videoId }.map(BackupSong::from),
         localPlaylists = LocalPlaylistStore.exportSnapshot(),
+        smartPlaylists = SmartPlaylistStore.exportSnapshot(),
     )
 
     private fun decodeAndValidate(text: String): BackupFile {
@@ -319,6 +341,7 @@ object Backup {
         require(file.version in 1..SCHEMA_VERSION) { "That backup version isn't supported" }
         require(file.favorites.size <= 100_000 && file.history.size <= 100_000) { "Backup contains too many songs" }
         if (file.localPlaylists.isNotBlank()) validatedPlaylistCount(file.localPlaylists)
+        if (file.smartPlaylists.isNotBlank()) SmartPlaylistStore.snapshotCount(file.smartPlaylists)
         return file
     }
 
@@ -349,6 +372,7 @@ object Backup {
         val favorites: List<BackupSong> = emptyList(),
         val history: List<BackupSong> = emptyList(),
         val localPlaylists: String = "",
+        val smartPlaylists: String = "",
     )
 
     @Serializable

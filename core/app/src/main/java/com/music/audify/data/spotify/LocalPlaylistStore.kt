@@ -4,10 +4,12 @@ import androidx.core.content.edit
 import android.content.Context
 import android.content.SharedPreferences
 import com.music.audify.data.model.Song
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -47,6 +49,7 @@ object LocalPlaylistStore {
 
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists = _playlists.asStateFlow()
+    private val mutationMutex = Mutex()
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -89,25 +92,23 @@ object LocalPlaylistStore {
         }
     }
 
-    fun savePlaylist(title: String, songs: List<Song>): LocalPlaylist {
-        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
-        val id = "sp_local_" + System.currentTimeMillis()
-        val playlist = LocalPlaylist(id = id, title = title, songs = songs)
-        val updated = listOf(playlist) + _playlists.value.filterNot { it.id == id }
-        persist(updated, commit = true)
-        _playlists.value = updated
-        return playlist
+    suspend fun savePlaylist(title: String, songs: List<Song>): LocalPlaylist {
+        checkInitialized()
+        return mutate { current ->
+            val id = "sp_local_" + System.currentTimeMillis()
+            val playlist = LocalPlaylist(id = id, title = title, songs = songs)
+            (listOf(playlist) + current.filterNot { it.id == id }) to playlist
+        }
     }
 
     /** Creates or refreshes a stable local playlist identity (used by Smart Playlists). */
-    fun saveOrReplacePlaylist(id: String, title: String, songs: List<Song>): LocalPlaylist {
-        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
+    suspend fun saveOrReplacePlaylist(id: String, title: String, songs: List<Song>): LocalPlaylist {
+        checkInitialized()
         require(id.isNotBlank() && !id.contains(':')) { "Invalid local playlist id" }
         val playlist = LocalPlaylist(id = id, title = title, songs = songs.distinctBy { it.videoId })
-        val updated = listOf(playlist) + _playlists.value.filterNot { it.id == id }
-        persist(updated, commit = true)
-        _playlists.value = updated
-        return playlist
+        return mutate { current ->
+            (listOf(playlist) + current.filterNot { it.id == id }) to playlist
+        }
     }
 
     /**
@@ -116,67 +117,70 @@ object LocalPlaylistStore {
      * normal-playlist UI projection. Removing missing IDs also clears orphaned
      * snapshots after a Smart Playlist is deleted.
      */
-    fun syncSmartPlaylists(playlists: List<LocalPlaylist>) {
-        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
-        val currentSmart = _playlists.value.filter { it.id.startsWith("smart_") }
-            .associateBy { it.id }
-        val synchronizedSmart = playlists
-            .filter { it.id.startsWith("smart_") }
-            .distinctBy { it.id }
-            .map { playlist ->
-                require(!playlist.id.contains(':')) { "Invalid Smart Playlist id" }
-                playlist.copy(coverUrl = currentSmart[playlist.id]?.coverUrl)
-            }
-        val updated = synchronizedSmart + _playlists.value.filterNot { it.id.startsWith("smart_") }
-        persist(updated, commit = true)
-        _playlists.value = updated
-    }
-
-    fun deletePlaylist(id: String) {
-        val updated = _playlists.value.filterNot { it.id == id || it.browseId == id || it.id == id.removePrefix("local:playlist:") }
-        _playlists.value = updated
-        persist(updated)
-    }
-
-    fun renamePlaylist(id: String, newTitle: String) {
-        val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
-        val updated = _playlists.value.map {
-            if (it.id == cleanId || it.id == id || it.browseId == id) {
-                it.copy(title = newTitle)
-            } else it
+    suspend fun syncSmartPlaylists(playlists: List<LocalPlaylist>) {
+        checkInitialized()
+        mutate { current ->
+            val currentSmart = current.filter { it.id.startsWith("smart_") }.associateBy { it.id }
+            val synchronizedSmart = playlists
+                .filter { it.id.startsWith("smart_") }
+                .distinctBy { it.id }
+                .map { playlist ->
+                    require(!playlist.id.contains(':')) { "Invalid Smart Playlist id" }
+                    playlist.copy(coverUrl = currentSmart[playlist.id]?.coverUrl)
+                }
+            (synchronizedSmart + current.filterNot { it.id.startsWith("smart_") }) to Unit
         }
-        _playlists.value = updated
-        persist(updated)
+    }
+
+    suspend fun deletePlaylist(id: String) {
+        mutate { current ->
+            current.filterNot { it.id == id || it.browseId == id || it.id == id.removePrefix("local:playlist:") } to Unit
+        }
+    }
+
+    suspend fun renamePlaylist(id: String, newTitle: String) {
+        val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
+        mutate { current ->
+            current.map {
+                if (it.id == cleanId || it.id == id || it.browseId == id) it.copy(title = newTitle) else it
+            } to Unit
+        }
     }
 
     /** Adds [song] unless the playlist already holds it; true when it went in. */
-    fun addSong(id: String, song: Song): Boolean = addSongs(id, listOf(song)) > 0
+    suspend fun addSong(id: String, song: Song): Boolean = addSongs(id, listOf(song)) > 0
 
     /** Appends the tracks the playlist does not hold yet and returns how many went in. */
-    fun addSongs(id: String, songs: List<Song>): Int {
-        val current = getPlaylist(id) ?: return 0
-        val merged = mergeImportedSongs(current, songs)
-        val added = merged.songs.size - current.songs.size
-        if (added <= 0) return 0
-        replace(current.id) { merged }
-        return added
+    suspend fun addSongs(id: String, songs: List<Song>): Int = mutate { current ->
+        val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
+        val existing = current.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
+            ?: return@mutate current to 0
+        val merged = mergeImportedSongs(existing, songs)
+        val added = merged.songs.size - existing.songs.size
+        if (added <= 0) current to 0
+        else current.map { if (it.id == existing.id) merged else it } to added
     }
 
-    fun removeSong(id: String, videoId: String) {
-        val current = getPlaylist(id) ?: return
-        replace(current.id) { it.copy(songs = it.songs.filterNot { song -> song.videoId == videoId }) }
+    suspend fun removeSong(id: String, videoId: String) {
+        mutate { current ->
+            val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
+            val existing = current.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
+                ?: return@mutate current to Unit
+            val updated = current.map {
+                if (it.id == existing.id) it.copy(songs = it.songs.filterNot { song -> song.videoId == videoId }) else it
+            }
+            updated to Unit
+        }
     }
 
     /** Sets the custom cover; null goes back to the first track's artwork. */
-    fun setCover(id: String, coverUrl: String?) {
-        val current = getPlaylist(id) ?: return
-        replace(current.id) { it.copy(coverUrl = coverUrl) }
-    }
-
-    private fun replace(id: String, edit: (LocalPlaylist) -> LocalPlaylist) {
-        val updated = _playlists.value.map { if (it.id == id) edit(it) else it }
-        _playlists.value = updated
-        persist(updated)
+    suspend fun setCover(id: String, coverUrl: String?) {
+        mutate { current ->
+            val cleanId = id.removePrefix("local:playlist:").removePrefix("VL")
+            val existing = current.firstOrNull { it.id == cleanId || it.id == id || it.browseId == id }
+                ?: return@mutate current to Unit
+            current.map { if (it.id == existing.id) it.copy(coverUrl = coverUrl) else it } to Unit
+        }
     }
 
     fun getPlaylist(id: String): LocalPlaylist? {
@@ -191,8 +195,8 @@ object LocalPlaylistStore {
     }
 
     /** Validates the complete playlist document before publishing it. */
-    fun importSnapshot(raw: String) {
-        check(this::prefs.isInitialized) { "Local playlists have not been initialized" }
+    suspend fun importSnapshot(raw: String) {
+        checkInitialized()
         val array = JSONArray(raw)
         require(array.length() <= 10_000) { "Backup contains too many local playlists" }
         val imported = buildList {
@@ -230,23 +234,43 @@ object LocalPlaylistStore {
                 ))
             }
         }.distinctBy { it.id }
-        persist(imported)
-        _playlists.value = imported
+        mutate { imported to Unit }
     }
 
     /** Keeps the device's Favorites collection reachable through the normal playlist UI. */
-    fun syncFavorites(songs: List<Song>) {
+    suspend fun syncFavorites(songs: List<Song>) {
+        checkInitialized()
         val favorite = LocalPlaylist(
             id = FAVORITES_PLAYLIST_ID,
             title = "Favorites",
             songs = songs.distinctBy { it.videoId },
         )
-        val updated = listOf(favorite) + _playlists.value.filterNot { it.id == FAVORITES_PLAYLIST_ID }
-        persist(updated)
-        _playlists.value = updated
+        mutate { current ->
+            (listOf(favorite) + current.filterNot { it.id == FAVORITES_PLAYLIST_ID }) to Unit
+        }
     }
 
-    private fun persist(list: List<LocalPlaylist>, commit: Boolean = false) {
+    private suspend fun <R> mutate(
+        transform: (List<LocalPlaylist>) -> Pair<List<LocalPlaylist>, R>,
+    ): R {
+        checkInitialized()
+        return persistBeforePublish(
+            mutex = mutationMutex,
+            persist = {
+                val current = _playlists.value
+                val (updated, result) = transform(current)
+                if (updated != current) withContext(Dispatchers.IO) { persist(updated, commit = true) }
+                updated to result
+            },
+            publish = { _playlists.value = it },
+        )
+    }
+
+    private fun checkInitialized() = check(this::prefs.isInitialized) {
+        "Local playlists have not been initialized"
+    }
+
+    private fun persist(list: List<LocalPlaylist>, commit: Boolean = true) {
         if (!this::prefs.isInitialized) return
         val jsonArray = JSONArray()
         for (playlist in list) {

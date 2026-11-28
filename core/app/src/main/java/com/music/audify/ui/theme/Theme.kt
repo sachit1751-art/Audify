@@ -1,4 +1,4 @@
-package com.music.audify.ui.theme
+﻿package com.music.audify.ui.theme
 
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.drawable.toDrawable
@@ -264,10 +264,19 @@ fun AudifyTheme(
         val baseColors = if (!darkTheme) {
             LightColors.copy(
                 background = ThemePacks.lightBackgroundHex(activeThemePack).toThemeColor(),
-                surface = Color(0xFFF1EEF5).withAccent(primary, 0.10f),
-                surfaceVariant = Color(0xFFE9E8F0).withAccent(primary, 0.12f),
-                outline = Color(0xFFD2CFDA).withAccent(secondary, 0.14f),
-                onSurfaceVariant = Color(0xFF55515C),
+                // Keep the light canvas genuinely light. The previous stacked
+                // accent washes made cards and sheets look tinted/dirty and
+                // weakened the separation between adjacent surfaces.
+                surface = Color(0xFFFFFFFF),
+                surfaceVariant = Color(0xFFF3F3F6),
+                surfaceContainerLowest = Color(0xFFFFFFFF),
+                surfaceContainerLow = Color(0xFFFAFAFC),
+                surfaceContainer = Color(0xFFF4F4F7),
+                surfaceContainerHigh = Color(0xFFECECF0),
+                surfaceContainerHighest = Color(0xFFE2E2E7),
+                outline = Color(0xFFD8D8DE),
+                outlineVariant = Color(0xFFE7E7EB),
+                onSurfaceVariant = Color(0xFF55545C),
             )
         } else {
             if (amoledDisplayColors) {
@@ -334,7 +343,9 @@ fun AudifyTheme(
         val themedSurfaces = if (amoledDisplayColors || activeThemePack.id == ThemePacks.CLASSIC_ID) {
             baseColors
         } else {
-            val lift = if (darkTheme) 0.045f else 0.075f
+            // A restrained tint gives a selected palette identity without
+            // washing the whole light UI in its accent colour.
+            val lift = 0.045f
             baseColors.copy(
                 surface = baseColors.surface.withAccent(primary, lift),
                 surfaceVariant = baseColors.surfaceVariant.withAccent(primary, lift * 1.7f),

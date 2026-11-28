@@ -1013,12 +1013,11 @@ fun SearchPlayingBars(modifier: Modifier = Modifier) {
             delay(MOTION_FRAME_GAP_MS)
         }
     }
-    // The plate is a fixed square so only the bars move, never the box around them.
+    // Keep the playback mark directly on the artwork: no opaque black tile
+    // behind it. This component is shared by song rows across the app.
+    val playingTint = MaterialTheme.colorScheme.primary
     Box(
-        modifier = modifier
-            .size(24.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color.Black.copy(alpha = 0.52f)),
+        modifier = modifier.size(24.dp),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(width = 13.dp, height = 14.dp)) {
@@ -1029,7 +1028,7 @@ fun SearchPlayingBars(modifier: Modifier = Modifier) {
             PLAYING_BAR_MINIMUMS.forEachIndexed { index, minimum ->
                 val height = size.height * playingBarHeight(index, minimum, ms)
                 drawRoundRect(
-                    color = Color.White,
+                    color = playingTint,
                     topLeft = Offset(index * step, size.height - height),
                     size = Size(barWidth, height),
                     cornerRadius = corner,

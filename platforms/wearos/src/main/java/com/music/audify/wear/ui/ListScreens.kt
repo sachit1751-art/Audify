@@ -99,6 +99,17 @@ fun QueueScreen(
             modifier = Modifier.background(Color.Black),
         ) {
             item(key = "header") { Header(stringResource(R.string.up_next)) }
+            item(key = "refresh-queue") {
+                Cell(onClick = onRequest, onClickLabel = "Refresh queue") {
+                    Text(
+                        text = "Refresh queue",
+                        style = WearType.rowSub,
+                        color = Secondary,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
             when {
                 live == null -> item(key = "loading") { Hint(stringResource(R.string.loading)) }
                 live.rows.isEmpty() -> item(key = "empty") { Hint(stringResource(R.string.queue_empty)) }
@@ -135,6 +146,22 @@ fun PodcastCatalogueScreen(
             item(key = "podcast-header") { Header("Podcasts") }
             item(key = "podcast-subtitle") {
                 Hint(if (phoneDisconnected) "Offline catalogue · reconnect your phone to refresh or play" else "Saved YouTube Music shows and RSS subscriptions")
+            }
+            item(key = "podcast-refresh") {
+                Cell(
+                    onClick = onRequest,
+                    enabled = !phoneDisconnected,
+                    dimmed = phoneDisconnected,
+                    onClickLabel = "Refresh podcast subscriptions",
+                ) {
+                    Text(
+                        text = "Refresh subscriptions",
+                        style = WearType.rowSub,
+                        color = Secondary,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
             when {
                 catalogueState == PodcastCatalogueState.OFFLINE_EMPTY -> item(key = "podcast-offline-empty") {

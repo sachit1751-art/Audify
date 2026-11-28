@@ -10,11 +10,20 @@ class OnboardingMigrationPolicyTest {
     private val migrationKey = "audify_prefs_migrated"
 
     @Test
-    fun `fresh install migration marker alone keeps onboarding and seeds defaults`() {
-        val keys = setOf(migrationKey)
+    fun `fresh install with empty preferences seeds defaults`() {
+        val keys = emptySet<String>()
 
         assertFalse(shouldCompleteOnboardingForExistingInstall(keys, emptySet(), onboardingKey, migrationKey))
-        assertTrue(shouldSeedFirstInstallDefaults(keys, migrationKey))
+        assertTrue(shouldSeedFirstInstallDefaults(keys))
+    }
+
+    @Test
+    fun `migration marker alone never triggers first install defaults`() {
+        val keys = setOf(migrationKey)
+
+        assertFalse(shouldSeedFirstInstallDefaults(keys))
+        assertTrue(shouldRecoverLegacyPreferencesFromMarkerOnlyStore(keys, setOf("theme_palette"), migrationKey))
+        assertFalse(shouldRecoverLegacyPreferencesFromMarkerOnlyStore(keys, emptySet(), migrationKey))
     }
 
     @Test
@@ -22,7 +31,7 @@ class OnboardingMigrationPolicyTest {
         val keys = setOf(migrationKey, "theme_palette", "audio_quality_wifi")
 
         assertTrue(shouldCompleteOnboardingForExistingInstall(keys, emptySet(), onboardingKey, migrationKey))
-        assertFalse(shouldSeedFirstInstallDefaults(keys, migrationKey))
+        assertFalse(shouldSeedFirstInstallDefaults(keys))
     }
 
     @Test
@@ -64,6 +73,18 @@ class OnboardingMigrationPolicyTest {
         assertTrue(
             legacyPreferenceKeysToImport(emptySet(), setOf("theme_palette", "app_font")) ==
                 setOf("theme_palette", "app_font"),
+        )
+    }
+
+    @Test
+    fun `only values still equal to seeded defaults are restored from legacy preferences`() {
+        val current = mapOf("theme_mode" to "SYSTEM", "theme_palette" to "custom", "accent" to "GREEN")
+        val legacy = mapOf("theme_mode" to "DARK", "theme_palette" to "ocean", "accent" to "BLUE")
+        val defaults = mapOf("theme_mode" to "SYSTEM", "theme_palette" to "ocean", "accent" to "GREEN")
+
+        assertTrue(
+            legacyPreferenceKeysOverwrittenByFirstInstallDefaults(current, legacy, defaults) ==
+                setOf("theme_mode", "accent"),
         )
     }
 }

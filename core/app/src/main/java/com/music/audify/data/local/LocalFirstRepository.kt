@@ -20,6 +20,8 @@ import com.music.audify.data.model.LikeStatus
 import com.music.audify.data.model.Song
 import com.music.audify.data.spotify.LocalPlaylistStore
 import com.music.audify.data.stats.LocalLibraryStore
+import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.stats.ListeningTrackSnapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -64,6 +66,9 @@ object LocalFirstRepository {
                 .build()
             try {
                 if (db.dao().migrationValue(LEGACY_IMPORTED) != "complete") {
+                    val historySnapshots = runCatching {
+                        ListeningStats.trackSnapshot().associateBy { it.videoId }
+                    }.getOrDefault(emptyMap())
                     db.runInTransaction {
                         val dao = db.dao()
                         val favorites = LocalLibraryStore.exportFavorites()
@@ -75,9 +80,9 @@ object LocalFirstRepository {
                         if (favorites.isNotEmpty()) dao.putFavorites(favorites.distinctBy { it.videoId }
                             .map { FavoriteRow(it.videoId, System.currentTimeMillis()) })
                         dao.clearHistory()
-                        if (history.isNotEmpty()) dao.putHistory(history.distinctBy { it.videoId }.mapIndexed { index, song ->
-                            HistoryRow(song.videoId, System.currentTimeMillis() - index, 1)
-                        })
+                        if (history.isNotEmpty()) {
+                            dao.putHistory(historyRows(history, historySnapshots, System.currentTimeMillis()))
+                        }
                         playlists.forEach { playlist ->
                             val now = System.currentTimeMillis()
                             dao.putPlaylist(PlaylistRow(playlist.id, playlist.title, now, now, 1L))
@@ -126,12 +131,13 @@ object LocalFirstRepository {
                 val dao = database?.dao() ?: return@collect
                 runCatching {
                     val now = System.currentTimeMillis()
+                    val historySnapshots = runCatching {
+                        ListeningStats.trackSnapshot().associateBy { it.videoId }
+                    }.getOrDefault(emptyMap())
                     database?.runInTransaction {
                         if (songs.isNotEmpty()) dao.putSongs(songs.distinctBy { it.videoId }.map(Song::toRow))
                         dao.clearHistory()
-                        if (songs.isNotEmpty()) dao.putHistory(songs.distinctBy { it.videoId }.mapIndexed { index, song ->
-                            HistoryRow(song.videoId, now - index, 1)
-                        })
+                        if (songs.isNotEmpty()) dao.putHistory(historyRows(songs, historySnapshots, now))
                     }
                 }
             }
@@ -142,6 +148,20 @@ object LocalFirstRepository {
                 runCatching {
                     val now = System.currentTimeMillis()
                     database?.runInTransaction {
+                        // The JSON store is the compatibility source of truth. Remove
+                        // Room rows for playlists that disappeared from its committed
+                        // snapshot, including their queued work and account sync state.
+                        val activeIds = playlists.asSequence()
+                            .filter { it.id != LocalPlaylistStore.FAVORITES_PLAYLIST_ID }
+                            .map { it.id }
+                            .toHashSet()
+                        stalePlaylistIds(dao.playlists().map { it.playlistId }, activeIds)
+                            .forEach { staleId ->
+                                dao.clearPlaylistSongs(staleId)
+                                dao.deletePlaylistSyncRows(staleId)
+                                dao.deletePlaylistOperations(staleId)
+                                dao.deletePlaylist(staleId)
+                            }
                         playlists.filter { it.id != LocalPlaylistStore.FAVORITES_PLAYLIST_ID }.forEach { playlist ->
                             val old = dao.playlist(playlist.id)
                             val ids = playlist.songs.map { it.videoId }.filter(String::isNotBlank).distinct()
@@ -182,25 +202,39 @@ object LocalFirstRepository {
         contextForWork?.let(SyncWorkScheduler::enqueue)
     }
 
-    suspend fun enqueueLibrarySnapshot(session: GoogleAccountSession, profileId: String) = withContext(Dispatchers.IO) {
+    suspend fun enqueueLibrarySnapshot(
+        session: GoogleAccountSession,
+        profileId: String,
+        smartPlaylistsOnly: Boolean = false,
+    ) = withContext(Dispatchers.IO) {
         val dao = requireDatabase().dao()
         val favorites = LocalLibraryStore.favorites.value
         val playlists = LocalPlaylistStore.playlists.value
         val allSongs = (favorites + playlists.flatMap { it.songs }).distinctBy { it.videoId }
         if (allSongs.isNotEmpty()) dao.putSongs(allSongs.map(Song::toRow))
         val now = System.currentTimeMillis()
-        favorites.forEach { song ->
-            dao.putFavorites(listOf(FavoriteRow(song.videoId, now)))
-            val synced = dao.favoriteSync(song.videoId, session.accountId, profileId)
-            if (synced?.status != LikeStatus.LIKE.name && synced?.status != "conflict") {
-                dao.enqueue(SyncOperationRow(
-                    0, "favorite:${session.accountId}:$profileId:${song.videoId}", session.accountId, profileId,
-                    TYPE_FAVORITE, song.videoId, JSONObject().put("status", LikeStatus.LIKE.name).toString(),
-                    "pending", 0, 0L, null, now, now,
-                ))
+        if (!smartPlaylistsOnly) {
+            favorites.forEach { song ->
+                dao.putFavorites(listOf(FavoriteRow(song.videoId, now)))
+                val synced = dao.favoriteSync(song.videoId, session.accountId, profileId)
+                if (synced?.status != LikeStatus.LIKE.name && synced?.status != "conflict") {
+                    dao.enqueue(SyncOperationRow(
+                        0, "favorite:${session.accountId}:$profileId:${song.videoId}", session.accountId, profileId,
+                        TYPE_FAVORITE, song.videoId, JSONObject().put("status", LikeStatus.LIKE.name).toString(),
+                        "pending", 0, 0L, null, now, now,
+                    ))
+                }
             }
         }
-        playlists.filter { it.id != LocalPlaylistStore.FAVORITES_PLAYLIST_ID }.forEach { playlist ->
+        playlists.filter { playlist ->
+            playlist.id != LocalPlaylistStore.FAVORITES_PLAYLIST_ID &&
+                if (smartPlaylistsOnly) {
+                    playlist.id.startsWith("smart_")
+                } else {
+                    !playlist.id.startsWith("smart_") ||
+                        com.music.audify.data.settings.AppSettings.syncSmartPlaylistsToYouTubeMusic.value
+                }
+        }.forEach { playlist ->
             val existing = dao.playlist(playlist.id)
             val currentIds = playlist.songs.map { it.videoId }.filter(String::isNotBlank).distinct()
             val previousIds = dao.playlistSongs(playlist.id).sortedBy { it.position }.map { it.videoId }
@@ -362,6 +396,24 @@ internal fun needsPlaylistSnapshotSync(
     title: String,
     videoIds: List<String>,
 ): Boolean = status != "synced" || syncedTitle != title || syncedVideoIds != videoIds
+
+/** Room playlist IDs absent from the latest committed local-store snapshot. */
+internal fun stalePlaylistIds(existingIds: List<String>, activeIds: Set<String>): List<String> =
+    existingIds.filterNot(activeIds::contains)
+
+/** Preserve qualified play counts and real last-play times in the Room mirror. */
+internal fun historyRows(
+    songs: List<Song>,
+    snapshots: Map<String, ListeningTrackSnapshot>,
+    now: Long,
+): List<HistoryRow> = songs.distinctBy { it.videoId }.mapIndexed { index, song ->
+    val snapshot = snapshots[song.videoId]
+    HistoryRow(
+        song.videoId,
+        snapshot?.lastPlayedAtEpochMs ?: now - index,
+        snapshot?.plays ?: 0,
+    )
+}
 
 private fun Song.toRow() = SongRow(
     videoId, title, artist, thumbnailUrl, durationText, artistId,

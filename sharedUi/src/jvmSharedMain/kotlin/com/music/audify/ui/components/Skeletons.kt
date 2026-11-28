@@ -359,9 +359,50 @@ fun ReplayCardRowSkeleton(modifier: Modifier = Modifier) {
     }
 }
 
+/** Mirrors the Library's two leading playlist actions before the real playlist covers. */
+@Composable
+private fun LibraryPlaylistShelfSkeleton() {
+    Column(Modifier.padding(bottom = 26.dp)) {
+        SectionHeaderSkeleton(index = 0)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
+            horizontalArrangement = Arrangement.spacedBy(LIBRARY_GRID_SPACING),
+            userScrollEnabled = false,
+        ) {
+            // New Playlist and Import Spotify are square action tiles in the
+            // actual shelf, not generic artwork cards. Keep those first two
+            // slots visually distinct while the account library is loading.
+            items(2) { index ->
+                Column(Modifier.width(SHELF_CARD_WIDTH)) {
+                    ShimmerBox(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SkeletonLine(fraction = if (index == 0) 0.78f else 0.86f, height = 14.dp)
+                    Spacer(Modifier.height(6.dp))
+                    SkeletonLine(fraction = if (index == 0) 0.58f else 0.72f, height = 11.dp)
+                }
+            }
+            items(2) { index ->
+                Column(Modifier.width(SHELF_CARD_WIDTH)) {
+                    ShimmerBox(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                        shape = RoundedCornerShape(12.dp),
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SkeletonLine(fraction = TitleWidths[(index + 1) % TitleWidths.size], height = 13.dp)
+                    Spacer(Modifier.height(6.dp))
+                    SkeletonLine(fraction = SubtitleWidths[index % SubtitleWidths.size], height = 11.dp)
+                }
+            }
+        }
+    }
+}
+
 /** The signed-in Library's saved-collection shelves; Replay has its own card skeleton above. */
 fun LazyListScope.librarySkeleton() {
-    item(key = "skeleton:library:playlists") { ShelfSkeleton(index = 0) }
+    item(key = "skeleton:library:playlists") { LibraryPlaylistShelfSkeleton() }
     item(key = "skeleton:library:albums") { ShelfSkeleton(index = 1) }
     item(key = "skeleton:library:artists") { ShelfSkeleton(index = 2) }
 }

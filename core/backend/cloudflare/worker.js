@@ -207,7 +207,16 @@ function activity(member, action, frame) {
   let detail = action;
   const title = frame.track?.title;
   if (action === 'setTrack' && title) detail = `Changed the song to "${title}"`;
-  else if (action === 'queueAdd') { const tracks = frame.tracks ?? (frame.track ? [frame.track] : []); if (tracks.length && tracks[0]?.title) detail = tracks.length === 1 ? `Added "${tracks[0].title}" to the queue` : `Added "${tracks[0].title}" and ${tracks.length - 1} more to the queue`; }
+  else if (action === 'queueAdd') {
+    const tracks = frame.tracks ?? (frame.track ? [frame.track] : []);
+    // AutoPlay is queued by the playback service, not deliberately added by
+    // the member whose connection happens to send the control frame.
+    const manualTracks = tracks.filter(track => track?.fromAutoplay !== true);
+    if (tracks.length && !manualTracks.length) return null;
+    if (manualTracks.length && manualTracks[0]?.title) detail = manualTracks.length === 1
+      ? `Added "${manualTracks[0].title}" to the queue`
+      : `Added "${manualTracks[0].title}" and ${manualTracks.length - 1} more to the queue`;
+  }
   else if (action === 'setQueue') detail = `Replaced the queue with ${(frame.queue ?? []).length} tracks`;
   else if (action === 'queueRemove') detail = 'Removed a track from the queue';
   else if (action === 'queueClear') detail = 'Cleared upcoming tracks';
@@ -458,7 +467,8 @@ export class PartyRoom extends DurableObject {
         this.broadcast(stateFrame(room));
         if (['kick', 'setMaxMembers', 'setHostOnlyControl'].includes(frame.action)) this.broadcast(membersFrame(room));
         if (frame.action === 'kick') await this.updateDirectory(room);
-        this.broadcast(activity(member, frame.action, frame));
+        const activityFrame = activity(member, frame.action, frame);
+        if (activityFrame) this.broadcast(activityFrame);
         return;
       }
     }

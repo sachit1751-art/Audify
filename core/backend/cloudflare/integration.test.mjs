@@ -177,8 +177,15 @@ test('queue updates and duplicate event IDs are applied once', async () => {
   assert.equal(state.queue.items.length, 1); assert.equal(state.queue.seq, 1);
 
   const autoplayTrack = { videoId: 'auto-1', title: 'Auto', fromAutoplay: true };
+  const observedFrames = [];
+  const observe = event => observedFrames.push(JSON.parse(event.data));
+  guestSocket.addEventListener('message', observe);
   send(hostSocket, { type: 'control', action: 'queueAdd', eventId: crypto.randomUUID(), track: autoplayTrack });
   await waitFor(guestSocket, f => f.type === 'queue' && f.queue.seq === 2);
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(observedFrames.some(f => f.type === 'activity' && f.action === 'queueAdd' && f.by === 'Host' && f.detail?.includes('"Auto"')), false,
+    'AutoPlay queue additions must not be attributed to the connected member');
+  guestSocket.removeEventListener('message', observe);
   send(hostSocket, { type: 'control', action: 'queueAdd', eventId: crypto.randomUUID(), track: autoplayTrack });
   await waitFor(hostSocket, f => f.type === 'state');
   const deduped = await json(await request(`/api/parties/${host.code}`, { headers: { authorization: `Bearer ${host.token}` } }));
