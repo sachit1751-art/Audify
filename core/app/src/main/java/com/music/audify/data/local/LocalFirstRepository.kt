@@ -202,25 +202,39 @@ object LocalFirstRepository {
         contextForWork?.let(SyncWorkScheduler::enqueue)
     }
 
-    suspend fun enqueueLibrarySnapshot(session: GoogleAccountSession, profileId: String) = withContext(Dispatchers.IO) {
+    suspend fun enqueueLibrarySnapshot(
+        session: GoogleAccountSession,
+        profileId: String,
+        smartPlaylistsOnly: Boolean = false,
+    ) = withContext(Dispatchers.IO) {
         val dao = requireDatabase().dao()
         val favorites = LocalLibraryStore.favorites.value
         val playlists = LocalPlaylistStore.playlists.value
         val allSongs = (favorites + playlists.flatMap { it.songs }).distinctBy { it.videoId }
         if (allSongs.isNotEmpty()) dao.putSongs(allSongs.map(Song::toRow))
         val now = System.currentTimeMillis()
-        favorites.forEach { song ->
-            dao.putFavorites(listOf(FavoriteRow(song.videoId, now)))
-            val synced = dao.favoriteSync(song.videoId, session.accountId, profileId)
-            if (synced?.status != LikeStatus.LIKE.name && synced?.status != "conflict") {
-                dao.enqueue(SyncOperationRow(
-                    0, "favorite:${session.accountId}:$profileId:${song.videoId}", session.accountId, profileId,
-                    TYPE_FAVORITE, song.videoId, JSONObject().put("status", LikeStatus.LIKE.name).toString(),
-                    "pending", 0, 0L, null, now, now,
-                ))
+        if (!smartPlaylistsOnly) {
+            favorites.forEach { song ->
+                dao.putFavorites(listOf(FavoriteRow(song.videoId, now)))
+                val synced = dao.favoriteSync(song.videoId, session.accountId, profileId)
+                if (synced?.status != LikeStatus.LIKE.name && synced?.status != "conflict") {
+                    dao.enqueue(SyncOperationRow(
+                        0, "favorite:${session.accountId}:$profileId:${song.videoId}", session.accountId, profileId,
+                        TYPE_FAVORITE, song.videoId, JSONObject().put("status", LikeStatus.LIKE.name).toString(),
+                        "pending", 0, 0L, null, now, now,
+                    ))
+                }
             }
         }
-        playlists.filter { it.id != LocalPlaylistStore.FAVORITES_PLAYLIST_ID }.forEach { playlist ->
+        playlists.filter { playlist ->
+            playlist.id != LocalPlaylistStore.FAVORITES_PLAYLIST_ID &&
+                if (smartPlaylistsOnly) {
+                    playlist.id.startsWith("smart_")
+                } else {
+                    !playlist.id.startsWith("smart_") ||
+                        com.music.audify.data.settings.AppSettings.syncSmartPlaylistsToYouTubeMusic.value
+                }
+        }.forEach { playlist ->
             val existing = dao.playlist(playlist.id)
             val currentIds = playlist.songs.map { it.videoId }.filter(String::isNotBlank).distinct()
             val previousIds = dao.playlistSongs(playlist.id).sortedBy { it.position }.map { it.videoId }

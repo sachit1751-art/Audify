@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -28,11 +32,17 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +54,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
@@ -65,6 +76,8 @@ import com.music.audify.data.playlist.SmartPlaylistSort
 import com.music.audify.data.playlist.SmartPlaylistStore
 import com.music.audify.data.stats.LocalLibraryStore
 import com.music.audify.data.stats.ListeningStats
+import com.music.audify.data.settings.AppSettings
+import com.music.audify.ui.icons.SfIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,7 +107,20 @@ fun rememberSmartPlaylistShelfItems(): List<ShelfItem> {
         }
     }
     LaunchedEffect(definitions, candidates) {
-        results = withContext(Dispatchers.IO) { SmartPlaylistRepository.evaluateAll(candidates) }
+        results = withContext(Dispatchers.IO) {
+            val evaluated = SmartPlaylistRepository.evaluateAll(candidates)
+            com.music.audify.data.spotify.LocalPlaylistStore.syncSmartPlaylists(
+                definitions.map { definition ->
+                    com.music.audify.data.spotify.LocalPlaylist(
+                        id = "smart_${definition.id}",
+                        title = definition.title,
+                        songs = evaluated[definition.id].orEmpty(),
+                    )
+                },
+            )
+            if (AppSettings.syncSmartPlaylistsToYouTubeMusic.value) AppSettings.enqueueSmartPlaylistSync()
+            evaluated
+        }
     }
     return remember(definitions, results) {
         definitions.map { definition ->
@@ -116,6 +142,7 @@ fun SmartPlaylistsScreen(
     contentPadding: PaddingValues,
     onPlaySongs: (title: String, songs: List<Song>, startIndex: Int) -> Unit,
     initialPlaylistId: String? = null,
+    initialShowEditor: Boolean = false,
 ) {
     val context = LocalContext.current
     val definitions by SmartPlaylistStore.definitions.collectAsStateWithLifecycle()
@@ -127,7 +154,7 @@ fun SmartPlaylistsScreen(
     var recommendations by remember { mutableStateOf<Map<String, List<Song>>>(emptyMap()) }
     var expandedId by rememberSaveable(initialPlaylistId) { mutableStateOf(initialPlaylistId) }
     var refreshVersion by rememberSaveable { mutableIntStateOf(0) }
-    var showEditor by rememberSaveable { mutableStateOf(false) }
+    var showEditor by rememberSaveable { mutableStateOf(initialShowEditor) }
     var editing by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
     var deleting by remember { mutableStateOf<SmartPlaylistDefinition?>(null) }
 
@@ -156,6 +183,7 @@ fun SmartPlaylistsScreen(
                     )
                 },
             )
+            if (AppSettings.syncSmartPlaylistsToYouTubeMusic.value) AppSettings.enqueueSmartPlaylistSync()
             currentResults
         }
         results = evaluated
@@ -486,6 +514,7 @@ private fun TrackArtworkRow(song: Song, onClick: () -> Unit) {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SmartPlaylistEditorDialog(
     initial: SmartPlaylistDefinition?,
     candidates: List<Song>,
@@ -542,15 +571,48 @@ private fun SmartPlaylistEditorDialog(
         return definition.takeIf { error == null }
     }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "Create Smart Playlist" else "Edit Smart Playlist") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        shape = RectangleShape,
+        containerColor = MaterialTheme.colorScheme.background,
+        dragHandle = null,
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+    ) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 18.dp, top = 4.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedTextField(title, { title = it; previewCount = null }, label = { Text("Name") }, singleLine = true)
+                IconButton(onClick = onDismiss) {
+                    Icon(SfIcons.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onBackground)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (initial == null) "Create Smart Playlist" else "Edit Smart Playlist",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        "Saved on this device · updates as your library changes",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it; previewCount = null },
+                    label = { Text("Playlist name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text("Start with", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "Choose a starting point. You can fine-tune it below.",
@@ -625,27 +687,33 @@ private fun SmartPlaylistEditorDialog(
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 previewCount?.let { Text("Preview: $it matching tracks", color = MaterialTheme.colorScheme.primary) }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { buildDefinition()?.let(onSave) }) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 TextButton(
                     enabled = !previewing,
                     onClick = {
                         val draft = buildDefinition() ?: return@TextButton
                         scope.launch {
                             previewing = true
-                            previewCount = SmartPlaylistRepository.evaluate(draft, candidates).size
+                            previewCount = withContext(Dispatchers.Default) {
+                                SmartPlaylistRepository.evaluate(draft, candidates).size
+                            }
                             previewing = false
                         }
                     },
                 ) { Text(if (previewing) "Checking…" else "Preview") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Button(
+                    onClick = { buildDefinition()?.let(onSave) },
+                    enabled = title.isNotBlank() && !previewing,
+                    modifier = Modifier.weight(1f).height(50.dp),
+                ) { Text(if (initial == null) "Create Smart Playlist" else "Save changes") }
             }
-        },
-    )
+        }
+    }
 }
 
 @Composable

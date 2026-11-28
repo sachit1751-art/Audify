@@ -2381,7 +2381,18 @@ private fun AudifyApp(
         val id = item.browseId
         val type = id?.let { viewModel.browseTypeOf(it) }
         if (id?.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) == true) {
-            navigator.push(AppRoute.SmartPlaylistDetail(id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+            val definitionId = id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
+            openBrowseMenu(
+                BrowseTarget(
+                    browseId = id,
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    thumbnailUrl = item.thumbnailUrl,
+                    type = BrowseType.PLAYLIST,
+                    songs = com.music.audify.data.spotify.LocalPlaylistStore
+                        .getPlaylist("smart_$definitionId")?.songs.orEmpty(),
+                ),
+            )
         } else if (id != null && id.startsWith(SPOTIFY_PAGE_PREFIX)) {
             // Only a pinned card reaches here. The menu's queue and download
             // rows fetch through YouTube Music and cannot read a Spotify page,
@@ -3412,10 +3423,11 @@ private fun AudifyApp(
                                 listState = replayListState,
                                 landingPage = replayLandingPage,
                             )
-                        } else if (pageRoute == AppRoute.SmartPlaylists || pageRoute is AppRoute.SmartPlaylistDetail) {
+                        } else if (pageRoute == AppRoute.SmartPlaylists || pageRoute == AppRoute.SmartPlaylistCreate || pageRoute is AppRoute.SmartPlaylistDetail) {
                             com.music.audify.ui.screens.SmartPlaylistsScreen(
                                 contentPadding = listPadding,
                                 initialPlaylistId = (pageRoute as? AppRoute.SmartPlaylistDetail)?.playlistId,
+                                initialShowEditor = pageRoute == AppRoute.SmartPlaylistCreate,
                                 onPlaySongs = { title, songs, index ->
                                     playFrom(songs, index, QueueSource(title, PlaybackSourceType.BROWSE))
                                 },
@@ -4245,6 +4257,7 @@ private fun AudifyApp(
                                 onArtistsRowChange = AppSettings::setLibraryArtistsRow,
                                 layout = libraryLayout,
                                 onSmartPlaylists = { navigator.push(AppRoute.SmartPlaylists) },
+                                onCreateSmartPlaylist = { navigator.push(AppRoute.SmartPlaylistCreate) },
                                 smartPlaylistItems = rememberSmartPlaylistShelfItems(),
                             )
                         }
@@ -4388,7 +4401,7 @@ private fun AudifyApp(
                         is AppRoute.SettingsChoice -> stringResource(route.choice.title)
                         AppRoute.EqualizerPresets -> stringResource(R.string.equalizer_preset)
                         AppRoute.Replay -> stringResource(R.string.replay)
-                        AppRoute.SmartPlaylists, is AppRoute.SmartPlaylistDetail -> stringResource(R.string.smart_playlists)
+                        AppRoute.SmartPlaylists, AppRoute.SmartPlaylistCreate, is AppRoute.SmartPlaylistDetail -> stringResource(R.string.smart_playlists)
                         is AppRoute.Podcasts -> "Podcasts"
                         null -> when {
                             detail != null && detailActiveShelf != null -> detailActiveShelf?.title.orEmpty()
@@ -5767,6 +5780,10 @@ private fun AudifyApp(
         // the whole release — the queue rows above all.
         // One body for every frame alike — see songMenuBody.
         val browseMenuBody: @Composable (BrowseTarget) -> Unit = { target ->
+            val smartDefinition = target.browseId
+                ?.takeIf { it.startsWith(SMART_PLAYLIST_BROWSE_PREFIX) }
+                ?.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)
+                ?.let { id -> com.music.audify.data.playlist.SmartPlaylistStore.definitions.value.firstOrNull { it.id == id } }
             // Every row here closes the menu first: the tracks may still have to
             // be fetched, and leaving the sheet up over a request nothing on it
             // reports on reads as a tap that didn't land.
@@ -5787,7 +5804,7 @@ private fun AudifyApp(
             // the sheet's worst moment is a beat without them on the user's own
             // playlist, rather than offering to delete a stranger's.
             LaunchedEffect(target.browseId) {
-                viewModel.resolvePlaylistOwnership(target.browseId)
+                if (smartDefinition == null) viewModel.resolvePlaylistOwnership(target.browseId)
             }
             // Spelt out here rather than left to MainViewModel.editablePlaylist,
             // which is the same rule over the same two lists: that reads them as
@@ -5798,14 +5815,17 @@ private fun AudifyApp(
             val playlist = target.browseId
                 ?.takeIf { signedIn && ownedPlaylists[it] == true }
                 ?.let { id -> playlists.firstOrNull { it.browseId == id } }
-            val remote = target.browseId?.startsWith("local:") == false
+            val remote = target.browseId?.let {
+                !it.startsWith("local:") && !it.startsWith(SMART_PLAYLIST_BROWSE_PREFIX)
+            } == true
             // Spotify playlists saved on this device ("local:playlist:sp_local_…")
             // carry real YouTube video ids, so they download like a remote
             // playlist — but they have no YouTube Music page, so Share stays
             // on [remote] alone. The device-folder ids ("local:downloads",
             // "local:all", …) are neither.
             val downloadable = remote || target.browseId?.let {
-                it.startsWith("local:playlist:sp_local_") || it.startsWith("local:playlist:smart_")
+                it.startsWith("local:playlist:sp_local_") || it.startsWith("local:playlist:smart_") ||
+                    it.startsWith(SMART_PLAYLIST_BROWSE_PREFIX)
             } == true
             val pinnedPlaylists by AppSettings.pinnedPlaylists.collectAsStateWithLifecycle()
             // Device playlists and directories have nowhere on the Library
@@ -5833,6 +5853,13 @@ private fun AudifyApp(
                             subtitle = "",
                             thumbnailUrl = it.coverUrl ?: it.songs.firstNotNullOfOrNull { s -> s.thumbnailUrl },
                         )
+                    } ?: smartDefinition?.let {
+                        UserPlaylist(
+                            playlistId = target.browseId.orEmpty(),
+                            title = it.title,
+                            subtitle = "Smart Playlist · ${target.songs.size} tracks",
+                            thumbnailUrl = target.thumbnailUrl,
+                        )
                     },
                 ),
                 onRenameInSheet = {
@@ -5855,13 +5882,17 @@ private fun AudifyApp(
                     ?.let { id ->
                         {
                             browseActions = null
-                            viewModel.openDetail(
-                                browseId = id,
-                                title = target.title,
-                                subtitle = target.subtitle,
-                                thumbnailUrl = target.thumbnailUrl,
-                                type = target.type,
-                            )
+                            if (id.startsWith(SMART_PLAYLIST_BROWSE_PREFIX)) {
+                                navigator.push(AppRoute.SmartPlaylistDetail(id.removePrefix(SMART_PLAYLIST_BROWSE_PREFIX)))
+                            } else {
+                                viewModel.openDetail(
+                                    browseId = id,
+                                    title = target.title,
+                                    subtitle = target.subtitle,
+                                    thumbnailUrl = target.thumbnailUrl,
+                                    type = target.type,
+                                )
+                            }
                         }
                     },
                 // The one place a whole release is asked for, from a card and
@@ -5951,6 +5982,14 @@ private fun AudifyApp(
                             viewModel.retitleDetail(p.browseId, name.trim())
                         }
                     }
+                } ?: smartDefinition?.let { definition ->
+                    { name: String ->
+                        browseActions = null
+                        com.music.audify.data.playlist.SmartPlaylistStore.save(definition.copy(title = name.trim()))
+                        scope.launch {
+                            com.music.audify.data.spotify.LocalPlaylistStore.renamePlaylist("smart_${definition.id}", name.trim())
+                        }
+                    }
                 },
                 onChangeCover = playlist?.let { p ->
                     { uri: android.net.Uri? -> viewModel.setPlaylistCover(p, uri) }
@@ -6004,6 +6043,15 @@ private fun AudifyApp(
                         if (p.browseId in pinnedPlaylists) AppSettings.togglePinnedPlaylist(p.browseId)
                         scope.launch {
                             com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist(p.browseId)
+                        }
+                    }
+                } ?: smartDefinition?.let { definition ->
+                    {
+                        browseActions = null
+                        target.browseId?.takeIf { it in pinnedPlaylists }?.let(AppSettings::togglePinnedPlaylist)
+                        com.music.audify.data.playlist.SmartPlaylistStore.delete(definition.id)
+                        scope.launch {
+                            com.music.audify.data.spotify.LocalPlaylistStore.deletePlaylist("smart_${definition.id}")
                         }
                     }
                 },

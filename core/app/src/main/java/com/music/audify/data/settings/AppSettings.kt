@@ -515,6 +515,7 @@ object AppSettings {
     private val startupIoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var appContext: Context
     private lateinit var wallpaperPrefs: SharedPreferences
 
     /** Only for the Discord, WebDAV and SMB secrets — everything else on here is plain prefs. */
@@ -596,6 +597,8 @@ object AppSettings {
      * avoid background data and storage use. See [com.music.audify.download.PlaylistSync].
      */
     val syncDownloadedPlaylists = MutableStateFlow(false)
+    /** Smart Playlists remain on-device unless the listener explicitly opts in. */
+    val syncSmartPlaylistsToYouTubeMusic = MutableStateFlow(false)
 
     /** Whether the active network charges for data. `null` while offline. */
     val meteredConnection = MutableStateFlow<Boolean?>(null)
@@ -1404,6 +1407,7 @@ object AppSettings {
      * one here was a measurable slice of cold start.
      */
     fun init(context: Context, authStore: AuthStore) {
+        appContext = context.applicationContext
         val currentPrefs = context.getSharedPreferences("audify_settings", Context.MODE_PRIVATE)
         migrateAudifyPreferences(context, currentPrefs)
         prefs = currentPrefs
@@ -1649,6 +1653,7 @@ object AppSettings {
         exportDownloads.value = prefs.getBoolean(KEY_EXPORT_DOWNLOADS, false)
         autoDownloadLikedSongs.value = prefs.getBoolean(KEY_AUTO_DOWNLOAD_LIKED_SONGS, false)
         syncDownloadedPlaylists.value = prefs.getBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, false)
+        syncSmartPlaylistsToYouTubeMusic.value = prefs.getBoolean(KEY_SYNC_SMART_PLAYLISTS_TO_YOUTUBE_MUSIC, false)
         downloadLikedSongs.value = prefs.getBoolean(KEY_DOWNLOAD_LIKED_SONGS, false)
         crossfadeSeconds.value = prefs.getInt(KEY_CROSSFADE, 0)
         crossfadeOnSkip.value = prefs.getBoolean(KEY_CROSSFADE_ON_SKIP, false)
@@ -3086,6 +3091,32 @@ object AppSettings {
         prefs.edit {putBoolean(KEY_SYNC_DOWNLOADED_PLAYLISTS, value)}
     }
 
+    fun setSyncSmartPlaylistsToYouTubeMusic(value: Boolean) {
+        syncSmartPlaylistsToYouTubeMusic.value = value
+        prefs.edit { putBoolean(KEY_SYNC_SMART_PLAYLISTS_TO_YOUTUBE_MUSIC, value) }
+        if (value) enqueueSmartPlaylistSync()
+    }
+
+    /** Queue the current smart-playlist snapshot only after explicit opt-in. */
+    fun enqueueSmartPlaylistSync() {
+        if (!syncSmartPlaylistsToYouTubeMusic.value || !this::authStore.isInitialized || !this::appContext.isInitialized) return
+        startupIoScope.launch {
+            val session = authStore.activeSession ?: return@launch
+            val profileId = authStore.activeProfileId ?: session.activeProfileId ?: return@launch
+            if (session.profiles.none { it.profileId == profileId }) return@launch
+            runCatching {
+                com.music.audify.data.local.LocalFirstRepository.initialize(appContext)
+                com.music.audify.data.local.LocalFirstRepository.enqueueLibrarySnapshot(
+                    session,
+                    profileId,
+                    smartPlaylistsOnly = true,
+                )
+            }.onFailure {
+                android.util.Log.e("Audify", "Smart Playlist sync could not be queued", it)
+            }
+        }
+    }
+
     fun setLastfmPrimaryArtistOnly(value: Boolean) {
         lastfmPrimaryArtistOnly.value = value
         prefs.edit {putBoolean(KEY_LASTFM_PRIMARY_ARTIST_ONLY, value)}
@@ -3591,6 +3622,7 @@ object AppSettings {
     private const val KEY_EXPORT_DOWNLOADS = "export_downloads"
     private const val KEY_AUTO_DOWNLOAD_LIKED_SONGS = "auto_download_liked_songs"
     private const val KEY_SYNC_DOWNLOADED_PLAYLISTS = "sync_downloaded_playlists"
+    private const val KEY_SYNC_SMART_PLAYLISTS_TO_YOUTUBE_MUSIC = "sync_smart_playlists_to_youtube_music"
     private const val KEY_DOWNLOAD_LIKED_SONGS = "download_liked_songs"
     private const val KEY_CROSSFADE = "crossfade_seconds"
     private const val KEY_CROSSFADE_ON_SKIP = "crossfade_on_skip"

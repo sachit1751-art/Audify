@@ -326,6 +326,7 @@ fun SettingsScreen(
     val dolbyAtmosSupported = DeviceCodecs.playsDolbyAtmos
     val spatialAudio by AppSettings.spatialAudio.collectAsStateWithLifecycle()
     val nerdStats by AppSettings.showNerdStats.collectAsStateWithLifecycle()
+    val syncSmartPlaylistsToYouTubeMusic by AppSettings.syncSmartPlaylistsToYouTubeMusic.collectAsStateWithLifecycle()
     val listenTogetherButton by AppSettings.showListenTogetherButton.collectAsStateWithLifecycle()
     val listenTogetherTab by AppSettings.showListenTogetherTab.collectAsStateWithLifecycle()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
@@ -2261,6 +2262,26 @@ fun SettingsScreen(
                         )
                     },
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
+                )
+            }
+            row("Sync Smart Playlists to YouTube Music", "smart playlist", "cloud", "upload", "sync") {
+                SettingsRow(
+                    icon = SfIcons.PlaylistPlay,
+                    title = "Sync Smart Playlists to YouTube Music",
+                    subtitle = if (syncSmartPlaylistsToYouTubeMusic) {
+                        "Enabled · smart playlists can be created and updated in your YouTube Music library"
+                    } else {
+                        "Off · smart playlists stay on this device and are never uploaded"
+                    },
+                    trailing = {
+                        IosSwitch(
+                            checked = syncSmartPlaylistsToYouTubeMusic,
+                            onCheckedChange = AppSettings::setSyncSmartPlaylistsToYouTubeMusic,
+                        )
+                    },
+                    onClick = {
+                        AppSettings.setSyncSmartPlaylistsToYouTubeMusic(!syncSmartPlaylistsToYouTubeMusic)
+                    },
                 )
             }
             row("AMOLED display colours", "amoled", "pure black", "oled", "display", "battery") {

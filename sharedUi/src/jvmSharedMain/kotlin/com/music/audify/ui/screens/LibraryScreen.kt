@@ -144,6 +144,8 @@ fun LibraryScreen(
     pinnedExtraItems: List<ShelfItem> = emptyList(),
     /** Opens the Smart Playlist manager from the leading shelf tile. */
     onSmartPlaylists: (() -> Unit)? = null,
+    /** Opens the Smart Playlist editor directly from its Library template card. */
+    onCreateSmartPlaylist: (() -> Unit)? = null,
     /** Generated rule-based playlists, appended after ordinary playlists. */
     smartPlaylistItems: List<ShelfItem> = emptyList(),
 ) {
@@ -166,6 +168,7 @@ fun LibraryScreen(
     val pinnedItems = pinnedPlaylists.mapNotNull { id ->
         playlistItems.firstOrNull { it.browseId == id }
             ?: deviceItems.firstOrNull { it.browseId == id }
+            ?: smartPlaylistItems.firstOrNull { it.browseId == id }
             ?: pinnedExtraItems.firstOrNull { it.browseId == id }
     }.filterNot { it.browseId == YtMusicRepository.LIKED_MUSIC }
     PullToRefresh(
@@ -234,7 +237,7 @@ fun LibraryScreen(
                             onImportSpotifyPlaylist = onImportSpotifyPlaylist,
                             onShowAll = { onShowAll(emptyPlaylists) },
                         )
-                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onSmartPlaylists) {
+                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onCreateSmartPlaylist, onSmartPlaylists) {
                             onShowAll(HomeShelf("Smart Playlists", smartPlaylistItems))
                         }
                     }
@@ -278,7 +281,7 @@ fun LibraryScreen(
                                         onImportSpotifyPlaylist = onImportSpotifyPlaylist,
                                         onShowAll = { onShowAll(emptyPlaylists) },
                                     )
-                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onSmartPlaylists) {
+                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onCreateSmartPlaylist, onSmartPlaylists) {
                             onShowAll(HomeShelf("Smart Playlists", smartPlaylistItems))
                         }
                                 }
@@ -315,7 +318,7 @@ fun LibraryScreen(
                                             onShowAll = { onShowAll(pinnedFirst) },
                                             pinnedPlaylists = pinnedPlaylists,
                                         )
-                                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onSmartPlaylists) {
+                                        SmartPlaylistShelf(smartPlaylistItems, onShelfItemClick, onShelfItemLongPress, onCreateSmartPlaylist, onSmartPlaylists) {
                                             onShowAll(HomeShelf("Smart Playlists", smartPlaylistItems))
                                         }
                                     } else {
@@ -510,6 +513,7 @@ private fun SmartPlaylistShelf(
     items: List<ShelfItem>,
     onItemClick: (ShelfItem) -> Unit,
     onItemLongPress: (ShelfItem) -> Unit,
+    onCreate: (() -> Unit)?,
     onManage: (() -> Unit)?,
     onShowAll: () -> Unit,
 ) {
@@ -518,15 +522,26 @@ private fun SmartPlaylistShelf(
         onItemClick = onItemClick,
         onItemLongPress = onItemLongPress,
         onShowAll = onShowAll,
-        leadingCards = if (onManage == null) emptyList() else listOf({ modifier ->
-            NewShelfCard(
-                icon = AudifyIcons.StarFilled,
-                label = stringResource(Res.string.smart_playlists),
-                subtitle = "Create and manage rules",
-                onClick = onManage,
-                modifier = modifier,
-            )
-        }),
+        leadingCards = buildList<@Composable (Modifier) -> Unit> {
+            if (onCreate != null) add { modifier ->
+                NewShelfCard(
+                    icon = AudifyIcons.StarFilled,
+                    label = "Create Smart Playlist",
+                    subtitle = "Build a local, rule-based mix",
+                    onClick = onCreate,
+                    modifier = modifier,
+                )
+            }
+            if (onManage != null) add { modifier ->
+                NewShelfCard(
+                    icon = AudifyIcons.ListView,
+                    label = "Manage Smart Playlists",
+                    subtitle = "Edit, pause or remove",
+                    onClick = onManage,
+                    modifier = modifier,
+                )
+            }
+        },
     )
 }
 

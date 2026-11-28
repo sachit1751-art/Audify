@@ -29,6 +29,8 @@ sealed interface AppRoute {
     data object Spotify : AppRoute
     data object Downloads : AppRoute
     data object SmartPlaylists : AppRoute
+    /** Opens the Smart Playlist manager with its creation sheet already presented. */
+    data object SmartPlaylistCreate : AppRoute
     data class SmartPlaylistDetail(val playlistId: String) : AppRoute
     data class Podcasts(val initialShow: PodcastProviderShow? = null) : AppRoute
 
